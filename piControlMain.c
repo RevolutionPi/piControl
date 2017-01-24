@@ -10,6 +10,8 @@
 /******************************************************************************/
 //#define DEBUG
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <common_define.h>
 
 #include <linux/module.h>    // included for all kernel modules
@@ -429,6 +431,11 @@ static int __init piControlInit(void)
     piDev_g.init_step = 1;
 
     piControlClass = class_create(THIS_MODULE, "piControl");
+    if (IS_ERR(piControlClass)) {
+        pr_err("cannot create class\n");
+        cleanup();
+        return PTR_ERR(piControlClass);
+    }
 
     /* create device node */
     curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor)+devindex);
@@ -440,6 +447,11 @@ static int __init piControlInit(void)
     piDev_g.cdev.ops = &piControlFops;
 
     piDev_g.dev = device_create(piControlClass, NULL, curdev, NULL, "piControl%d", devindex);
+    if (IS_ERR(piDev_g.dev)) {
+        pr_err("cannot create device\n");
+        cleanup();
+        return PTR_ERR(piDev_g.dev);
+    }
 
     if(cdev_add(&piDev_g.cdev, curdev ,1))
     {
