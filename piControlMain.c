@@ -734,6 +734,7 @@ static void cleanup(void)
         gpio_unexport(GPIO_LED_PWRRED);
         gpio_free(GPIO_LED_PWRRED);
     }
+    unregister_chrdev_region(piControlMajor, 2);
 }
 
 static void __exit piControlCleanup(void)
@@ -758,8 +759,6 @@ static void __exit piControlCleanup(void)
         DF_PRINTK("Remove MINOR-No.  : %d\n", MINOR(curdev));
         class_destroy(piControlClass);
     }
-
-    unregister_chrdev_region(piControlMajor, 2);
 
     DF_PRINTK("driver stopped with MAJOR-No. %d\n\n ", MAJOR(piControlMajor));
     DF_PRINTK("piControlCleanup done\n");
