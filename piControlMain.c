@@ -746,6 +746,10 @@ static void cleanup(void)
         gpio_unexport(GPIO_LED_PWRRED);
         gpio_free(GPIO_LED_PWRRED);
     }
+    if (piDev_g.init_step >= 2)
+    {
+        cdev_del(&piDev_g.cdev);
+    }
 
     if (!IS_ERR_OR_NULL(piDev_g.dev)) {
         int devindex = 0;
@@ -766,11 +770,6 @@ static void __exit piControlCleanup(void)
     DF_PRINTK("piControlCleanup\n");
 
     cleanup();
-
-    if (piDev_g.init_step >= 1)
-    {
-        cdev_del(&piDev_g.cdev);
-    }
 
     DF_PRINTK("driver stopped with MAJOR-No. %d\n\n ", MAJOR(piControlMajor));
     DF_PRINTK("piControlCleanup done\n");
