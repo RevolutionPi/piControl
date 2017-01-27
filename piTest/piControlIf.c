@@ -16,7 +16,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <http://www.gnu.org/licenses/>. 
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
  * \file piControlIf.c
@@ -108,7 +108,7 @@ int piControlReset(void)
     // do some ioctls
     if (ioctl(PiControlHandle_g, KB_RESET, NULL) < 0)
         return errno;
-    
+
     return 0;
 }
 
@@ -301,12 +301,12 @@ int piControlFindVariable(const char *name)
 {
     int ret;
     SPIVariable var;
-        
+
     piControlOpen();
 
     strncpy(var.strVarName, name, sizeof(var.strVarName));
     var.strVarName[sizeof(var.strVarName) - 1] = 0;
-        
+
     ret = ioctl(PiControlHandle_g, KB_FIND_VARIABLE, &var);
     if (ret < 0)
     {
@@ -317,5 +317,5 @@ int piControlFindVariable(const char *name)
         //printf("Variable '%s' is at offset %d and %d bits long\n", var.strVarName, var.i16uAddress, var.i16uLength);
         ret = var.i16uAddress;
     }
-    return ret;     
+    return ret;
 }

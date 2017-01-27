@@ -52,7 +52,7 @@
 char *getReadError(int error)
 {
     static char *ReadError[] =
-    { 
+    {
         "Cannot connect to control process",
         "Offset seek error",
         "Cannot read from control process",
@@ -89,7 +89,7 @@ char *getReadError(int error)
 char *getWriteError(int error)
 {
     static char *WriteError[] =
-    { 
+    {
         "Cannot connect to control process",
         "Offset seek error",
         "Cannot write to control process",
@@ -138,7 +138,7 @@ char *getModuleName(uint16_t moduletype)
     case 98:
         return "RevPi DO";
         break;
-        
+
     case 100:
         return "Gateway DMX";
         break;
@@ -169,7 +169,7 @@ char *getModuleName(uint16_t moduletype)
     case 81:
         return "Gateway SercosIII";
         break;
-        
+
     default :
         return "unknown moduletype";
         break;
@@ -191,15 +191,15 @@ void showDeviceList(void)
 
     // Get device info
     devcount = piControlGetDeviceInfoList(asDevList);
-    
+
     printf("Found %d devices:\n\n", devcount);
 
     for (dev = 0; dev < devcount; dev++)
     {
         // Show device number, address and module type
-        printf("Address: %d module type: %d (0x%x) %s\n", asDevList[dev].i8uAddress, 
+        printf("Address: %d module type: %d (0x%x) %s\n", asDevList[dev].i8uAddress,
             asDevList[dev].i16uModuleType, asDevList[dev].i16uModuleType, getModuleName(asDevList[dev].i16uModuleType & PICONTROL_USER_MODULE_MASK));
-        
+
         if (asDevList[dev].i8uActive)
         {
             printf("Module is present\n");
@@ -215,7 +215,7 @@ void showDeviceList(void)
                 printf("Module is present, but NOT CONFIGURED!!!\n");
             }
         }
-        
+
         // Show offset and length of input section in process image
         printf("     input offset: %d length: %d\n", asDevList[dev].i16uInputOffset, asDevList[dev].i16uInputLength);
 
@@ -248,7 +248,7 @@ void readData(uint16_t offset, uint16_t length)
         printf("Not enough memory\n");
         return;
     }
-    
+
     while (1)
     {
         rc = piControlRead(offset, length, pValues);
@@ -287,7 +287,7 @@ void readVariableValue(char *pszVariableName)
     uint8_t i8uValue;
     uint16_t i16uValue;
     uint32_t i32uValue;
-    
+
     strncpy(sPiVariable.strVarName, pszVariableName, sizeof(sPiVariable.strVarName));
     rc = piControlGetVariableInfo(&sPiVariable);
     if (rc < 0)
@@ -397,7 +397,7 @@ void writeVariableValue(char *pszVariableName, uint32_t i32uValue)
     SPIValue sPIValue;
     uint8_t i8uValue;
     uint16_t i16uValue;
-    
+
     strncpy(sPiVariable.strVarName, pszVariableName, sizeof(sPiVariable.strVarName));
     rc = piControlGetVariableInfo(&sPiVariable);
     if (rc < 0)
@@ -557,7 +557,7 @@ void showVariableInfo(char *pszVariableName)
 
 /***********************************************************************************/
 /*!
- * @brief Shows help for this program 
+ * @brief Shows help for this program
  *
  * @param[in]   Program name
  *
@@ -604,7 +604,7 @@ void printHelp(char *programname)
 
 /***********************************************************************************/
 /*!
- * @brief main program 
+ * @brief main program
  *
  * @param[in]   Program name and arguments
  *
@@ -625,7 +625,7 @@ int main(int argc, char *argv[])
         printHelp(argv[0]);
         return 0;
     }
-    
+
     // Scan argument
     while ((c = getopt(argc, argv, "dv:r:w:s:g:xh")) != -1)
     {
@@ -634,7 +634,7 @@ int main(int argc, char *argv[])
         case 'd':
             showDeviceList();
             break;
-            
+
         case 'v':
             if (strlen(optarg) > 0)
             {
@@ -663,7 +663,7 @@ int main(int argc, char *argv[])
             printf("1.) Try '-r variablename'\n");
             printf("2.) Try '-r offset,length' (without spaces)\n");
             break;
-        
+
         case 'w':
             rc = sscanf(optarg, "%d,%d,%ld", &offset, &length, &value);
             if (rc == 3)
@@ -687,7 +687,7 @@ int main(int argc, char *argv[])
             printf("1.) Try '-w variablename,value' (without spaces)\n");
             printf("2.) Try '-w offset,length,value' (without spaces)\n");
             break;
-        
+
         case 's':
             rc = sscanf(optarg, "%d,%d,%ld", &offset, &bit, &value);
             if (rc != 3)
@@ -698,7 +698,7 @@ int main(int argc, char *argv[])
             }
             setBit(offset, bit, value);
             break;
-        
+
         case 'g':
             rc = sscanf(optarg, "%d,%d", &offset, &bit);
             if (rc != 2)
@@ -709,11 +709,11 @@ int main(int argc, char *argv[])
             }
             getBit(offset, bit);
             break;
-        
+
         case 'x':
             piControlReset();
             break;
-        
+
         case 'h':
         default:
             printHelp(argv[0]);
