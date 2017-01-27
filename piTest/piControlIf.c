@@ -103,7 +103,7 @@ int piControlReset(void)
     piControlOpen();
 
     if (PiControlHandle_g < 0)
-        return -18;
+        return PiControlHandle_g;
 
     // do some ioctls
     if (ioctl(PiControlHandle_g, KB_RESET, NULL) < 0)
@@ -207,7 +207,7 @@ int piControlGetDeviceInfo(SDeviceInfo *pDev)
     piControlOpen();
 
     if (PiControlHandle_g < 0)
-        return -1;
+        return PiControlHandle_g;
 
     return ioctl(PiControlHandle_g, KB_GET_DEVICE_INFO, pDev);
 }
@@ -217,7 +217,7 @@ int piControlGetDeviceInfoList(SDeviceInfo *pDev)
     piControlOpen();
 
     if (PiControlHandle_g < 0)
-        return -1;
+        return PiControlHandle_g;
 
     return ioctl(PiControlHandle_g, KB_GET_DEVICE_INFO_LIST, pDev);
 }
@@ -280,7 +280,7 @@ int piControlGetVariableInfo(SPIVariable *pSpiVariable)
     piControlOpen();
 
     if (PiControlHandle_g < 0)
-        return -1;
+        return PiControlHandle_g;
 
     return ioctl(PiControlHandle_g, KB_FIND_VARIABLE, pSpiVariable);
 }
