@@ -143,7 +143,7 @@ int piControlRead(uint32_t Offset, uint32_t Length, uint8_t *pData)
 
     /* read */
     BytesRead = read(PiControlHandle_g, pData, Length);
-    if (BytesRead < 0)
+    if (BytesRead != Length)
     {
         return -3;
     }
@@ -182,7 +182,7 @@ int piControlWrite(uint32_t Offset, uint32_t Length, uint8_t *pData)
 
     /* Write */
     BytesWritten = write(PiControlHandle_g, pData, Length);
-    if (BytesWritten < 0)
+    if (BytesWritten != Length)
     {
         return -3;
     }
