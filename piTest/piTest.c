@@ -463,7 +463,6 @@ void writeVariableValue(char *pszVariableName, uint32_t i32uValue)
  ************************************************************************************/
 void setBit(int offset, int bit, int value)
 {
-    char c;
     int rc;
     SPIValue sPIValue;
 
@@ -509,7 +508,6 @@ void setBit(int offset, int bit, int value)
 void getBit(int offset, int bit)
 {
     int rc;
-    int value;
     SPIValue sPIValue;
 
     // Check bit
@@ -686,7 +684,7 @@ int main(int argc, char *argv[])
             break;
 
         case 'w':
-            rc = sscanf(optarg, "%d,%d,%ld", &offset, &length, &value);
+            rc = sscanf(optarg, "%d,%d,%lu", &offset, &length, &value);
             if (rc == 3)
             {
                 writeData(offset, length, value);
@@ -710,7 +708,7 @@ int main(int argc, char *argv[])
             break;
 
         case 's':
-            rc = sscanf(optarg, "%d,%d,%ld", &offset, &bit, &value);
+            rc = sscanf(optarg, "%d,%d,%lu", &offset, &bit, &value);
             if (rc != 3)
             {
                 printf("Wrong arguments for set bit function\n");
