@@ -191,6 +191,11 @@ void showDeviceList(void)
 
     // Get device info
     devcount = piControlGetDeviceInfoList(asDevList);
+    if (devcount < 0)
+    {
+        printf("Cannot retrieve device list: %s\n", strerror(devcount));
+        return;
+    }
 
     printf("Found %d devices:\n\n", devcount);
 
