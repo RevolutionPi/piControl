@@ -618,11 +618,27 @@ int main(int argc, char *argv[])
     int bit;
     unsigned long value;
     char szVariableName[256];
-    char *pszTok;
-    
+    char *pszTok, *progname;
+
+    progname = strrchr(argv[0], '/');
+    if (!progname)
+    {
+        progname = argv[0];
+    }
+
+    if (!strcmp(progname, "piControlReset"))
+    {
+        rc = piControlReset();
+        if (rc)
+        {
+            printf("%s\n", strerror(rc));
+        }
+        return rc;
+    }
+
     if (argc == 1)
     {
-        printHelp(argv[0]);
+        printHelp(progname);
         return 0;
     }
 
@@ -716,7 +732,7 @@ int main(int argc, char *argv[])
 
         case 'h':
         default:
-            printHelp(argv[0]);
+            printHelp(progname);
             break;
         }
     }
