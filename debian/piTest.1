@@ -1,0 +1,76 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" (C) Copyright 2016-2017 Kunbus GmbH
+.\"
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH piTest 1 "January 27 2017"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+piTest \- interact with in-kernel piControl process
+.SH SYNOPSIS
+.B piTest
+.RI [ options ]
+.SH DESCRIPTION
+.B piTest
+allows listing the I/O devices and gateway devices attached to a RevPi
+Core, reading and writing values in the process image and resetting the
+in-kernel piControl process.  Revolution Pi is a set of IoT products
+based on the Raspberry Pi and geared towards industrial usage.
+.SH OPTIONS
+.TP
+Multiple of these options may be given to execute a sequence of actions:
+.TP
+.B \-d
+Get device list.
+.TP
+.B \-v <variablename>
+Shows infos for a variable.
+.TP
+.B \-r <variablename>
+Reads value of a variable.  E.g. \fI-w Input_001\fP reads the value of
+variable \fIInput_001\fP.
+.TP
+.B \-r <o, l>
+Reads <l> bytes at offset <o>.  E.g. \fI-r 1188,16\fP reads 16 bytes at
+offset 1188.
+.TP
+.B \-w <variablename, v>
+Writes value <v> to the variable.  E.g. \fI-w Output_001,23\fP writes
+value 23 dec (= 17 hex) to variable \fIOutput_001\fP.
+.TP
+.B \-w <o,l,v>
+Writes <l> bytes with value <v> (as hex) to offset <o>.  Length should
+be one of 1|2|4.  E.g. \fI-w 0,4,31224205\fP writes value 31224205 hex
+(= 824328709 dec) to offset 0.
+.TP
+.B \-g <o,b>
+Gets bit <b> (0-7) from byte at offset <o>.  E.g. \fI-b 0,5\fP
+gets bit 5 from the byte at offset 0.
+.TP
+.B \-s <o,b,0/1>
+Sets bit <b> (0-7) of byte at offset <o> to 0/1.  E.g. \fI-b 0,5,1\fP
+sets bit 5 of the byte at offset 0 to 1.
+.TP
+.B \-x
+Reset control process.
+.TP
+.B \-h
+Show summary of options.
+.SH SEE ALSO
+The source code of this program is available at
+.IR https://github.com/RevolutionPi/piControl
+.br
+For more information on Revolution Pi visit
+.IR https://revolutionpi.kunbus.com
