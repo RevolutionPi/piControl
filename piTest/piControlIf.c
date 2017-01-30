@@ -103,11 +103,11 @@ int piControlReset(void)
     piControlOpen();
 
     if (PiControlHandle_g < 0)
-        return PiControlHandle_g;
+        return -errno;
 
     // do some ioctls
     if (ioctl(PiControlHandle_g, KB_RESET, NULL) < 0)
-        return errno;
+        return -errno;
 
     return 0;
 }
@@ -207,7 +207,7 @@ int piControlGetDeviceInfo(SDeviceInfo *pDev)
     piControlOpen();
 
     if (PiControlHandle_g < 0)
-        return PiControlHandle_g;
+        return -errno;
 
     return ioctl(PiControlHandle_g, KB_GET_DEVICE_INFO, pDev);
 }
@@ -217,7 +217,7 @@ int piControlGetDeviceInfoList(SDeviceInfo *pDev)
     piControlOpen();
 
     if (PiControlHandle_g < 0)
-        return PiControlHandle_g;
+        return -errno;
 
     return ioctl(PiControlHandle_g, KB_GET_DEVICE_INFO_LIST, pDev);
 }
@@ -280,7 +280,7 @@ int piControlGetVariableInfo(SPIVariable *pSpiVariable)
     piControlOpen();
 
     if (PiControlHandle_g < 0)
-        return PiControlHandle_g;
+        return -errno;
 
     return ioctl(PiControlHandle_g, KB_FIND_VARIABLE, pSpiVariable);
 }
@@ -303,6 +303,9 @@ int piControlFindVariable(const char *name)
     SPIVariable var;
 
     piControlOpen();
+
+    if (PiControlHandle_g < 0)
+        return -errno;
 
     strncpy(var.strVarName, name, sizeof(var.strVarName));
     var.strVarName[sizeof(var.strVarName) - 1] = 0;

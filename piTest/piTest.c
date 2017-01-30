@@ -193,7 +193,7 @@ void showDeviceList(void)
     devcount = piControlGetDeviceInfoList(asDevList);
     if (devcount < 0)
     {
-        printf("Cannot retrieve device list: %s\n", strerror(devcount));
+        printf("Cannot retrieve device list: %s\n", strerror(-devcount));
         return;
     }
 
@@ -638,7 +638,7 @@ int main(int argc, char *argv[])
         rc = piControlReset();
         if (rc)
         {
-            printf("%s\n", strerror(rc));
+            printf("Cannot reset: %s\n", strerror(-rc));
         }
         return rc;
     }
@@ -734,7 +734,12 @@ int main(int argc, char *argv[])
             break;
 
         case 'x':
-            piControlReset();
+            rc = piControlReset();
+            if (rc)
+            {
+                printf("Cannot reset: %s\n", strerror(-rc));
+		return rc;
+            }
             break;
 
         case 'h':
