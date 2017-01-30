@@ -628,6 +628,10 @@ int main(int argc, char *argv[])
     {
         progname = argv[0];
     }
+    else
+    {
+        progname++;
+    }
 
     if (!strcmp(progname, "piControlReset"))
     {
