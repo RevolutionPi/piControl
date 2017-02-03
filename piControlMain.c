@@ -370,6 +370,11 @@ void piControlDummyReceive(INT8U i8uChar_p)
 
 #include "compiletime.h"
 
+static char *piControlClass_devnode(struct device *dev, umode_t *mode)
+{
+	*mode = S_IRUGO | S_IWUGO;
+	return NULL;
+}
 
 static int __init piControlInit(void)
 {
@@ -436,6 +441,7 @@ static int __init piControlInit(void)
         cleanup();
         return PTR_ERR(piControlClass);
     }
+    piControlClass->devnode = piControlClass_devnode;
 
     /* create device node */
     curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor)+devindex);
