@@ -712,7 +712,7 @@ void   MODGATECOM_run (void)
             case MODGATE_ST_LINK_CHECK:
                 DF_PRINTK("Module %d: Link check\n", 0);
                 break;
-            case MODGATE_ST_ID_REQ:     // id request und response werden für die Ausgabe nicht unterschieden
+            case MODGATE_ST_ID_REQ:     // id request und response werden fÃ¼r die Ausgabe nicht unterschieden
             case MODGATE_ST_ID_RESP:
                 DF_PRINTK("Module %d: id request\n", 0);
                 break;
@@ -751,7 +751,7 @@ void   MODGATECOM_run (void)
                 DF_PRINTK("Module %d: Link check   ", 0);
                 clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
                 break;
-            case MODGATE_ST_ID_REQ:     // id request und response werden für die Ausgabe nicht unterschieden
+            case MODGATE_ST_ID_REQ:     // id request und response werden fÃ¼r die Ausgabe nicht unterschieden
             case MODGATE_ST_ID_RESP:
                 DF_PRINTK("Module %d: id request   ", 0);
                 clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
@@ -776,7 +776,7 @@ void   MODGATECOM_run (void)
                 DF_PRINTK("Module %d: Link check\n", 1);
                 clr |= PICONTROL_STATUS_LEFT_GATEWAY;
                 break;
-            case MODGATE_ST_ID_REQ:     // id request und response werden für die Ausgabe nicht unterschieden
+            case MODGATE_ST_ID_REQ:     // id request und response werden fÃ¼r die Ausgabe nicht unterschieden
             case MODGATE_ST_ID_RESP:
                 DF_PRINTK("Module %d: id request\n", 1);
                 clr |= PICONTROL_STATUS_LEFT_GATEWAY;
@@ -1048,7 +1048,7 @@ TBOOL MODGATECOM_recv_Id_Resp(ALHandle alHdl, MODGATECOM_Packet *pPacket_p)
         return bFALSE;
     }
 
-    // Output Datenlänge an Input Datenlänge des anderen mGates anpassen
+    // Output DatenlÃ¤nge an Input DatenlÃ¤nge des anderen mGates anpassen
     if (alHdl->OtherID.i16uFBS_InputLength < alHdl->i16uOutDataLen)
     {
         alHdl->i16uOutDataLenActive = alHdl->OtherID.i16uFBS_InputLength;
@@ -1058,7 +1058,7 @@ TBOOL MODGATECOM_recv_Id_Resp(ALHandle alHdl, MODGATECOM_Packet *pPacket_p)
         alHdl->i16uOutDataLenActive = alHdl->i16uOutDataLen;
     }
 
-    // Input Datenlänge an Output Datenlänge des anderen mGates anpassen
+    // Input DatenlÃ¤nge an Output DatenlÃ¤nge des anderen mGates anpassen
     if (alHdl->OtherID.i16uFBS_OutputLength < alHdl->i16uInDataLen)
     {
         alHdl->i16uInDataLenActive = alHdl->OtherID.i16uFBS_OutputLength;
@@ -1100,7 +1100,7 @@ INT32U MODGATECOM_send_cyclicPD (ALHandle alHdl)
 
     // Eigener Feldbusstatus
     strCyclicPd->i8uFieldbusStatus = i8uOwnFieldbusState_s;
-    // Maximale Datenlänge des anderen mGate verwenden
+    // Maximale DatenlÃ¤nge des anderen mGate verwenden
     strCyclicPd->i16uDataLen = alHdl->i16uOutDataLenActive;
     // TODO: Offset immer 0
     strCyclicPd->i16uOffset = 0;

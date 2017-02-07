@@ -2,12 +2,11 @@
 //|
 //!		\file spi.h
 //!
-//!		SPI Access for Cortex M3.
+//!		SPI Access
 //|
 //+---------------------------------------------------------------------------------------------
 //|
 //|		File-ID:		$Id: spi.h 11009 2016-10-20 07:57:15Z mduckeck $
-//|		Location:		$URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/bsp/sw/bsp/spi/spi.h $ $
 //|		Company:		$Cpn: KUNBUS GmbH $
 //|
 //+---------------------------------------------------------------------------------------------
@@ -56,7 +55,6 @@ typedef enum HW_SPI_MODE_E
 {
     HW_SPI_MODE_MASTER = 0x00,			///< Use SPI in the master mode
     HW_SPI_MODE_SLAVE					///< Use SPI in the slave mode
-    //HW_SPI_MODE_DUMMY_MODE = 0xFFFFFFFF
 } HW_SPI_MODE;     ///< SPI mode struct
 
 //! Clock polarity
@@ -64,7 +62,6 @@ typedef enum HW_SPI_CLOCK_POL_E
 {
     HW_SPI_CLOCK_POL_LOW = 0x00,		///< low level in idle mode
     HW_SPI_CLOCK_POL_HIGH				///< high level in idle mode
-    //HW_SPI_MODE_DUMMY_CLOCK = 0xFFFFFFFF
 } HW_SPI_CLOCK_POL;     ///< SPI configuration struct
 
 //! Data direction (MSB / LSB first)
@@ -72,7 +69,6 @@ typedef enum HW_SPI_DATA_DIR_E
 {
     HW_SPI_DATA_DIR_LSB = 0x00,			///< LSB first
     HW_SPI_DATA_DIR_MSB					///< MSB first
-    //HW_SPI_MODE_DUMMY_DIR = 0xFFFFFFFF
 } HW_SPI_DATA_DIR;     ///< SPI configuration struct
 
 //! Clock phase (sampling edge)
@@ -80,7 +76,6 @@ typedef enum HW_SPI_CLOCK_PHASE_E
 {
     HW_SPI_CLOCK_PHASE_LEAD = 0x00,		///< leading edg
     HW_SPI_CLOCK_PHASE_TRAIL			///< trailing edge
-    //HW_SPI_MODE_DUMMY_PHASE = 0xFFFFFFFF
 } HW_SPI_CLOCK_PHASE;     ///< SPI configuration struct
 
 typedef enum _HW_SPI_NSS
@@ -106,11 +101,6 @@ typedef struct HW_SPI_CONFIGURATION_S
     HW_SPI_CB           error_cb;       ///< Error callback
     HW_SPI_CB           finish_cb;      ///< Transfer callback
 
-    //HW_SPI_CB           receive_DMA_cb;     ///< Receive callback
-    //HW_SPI_CB           transmit_DMA_cb;    ///< Transmit callback
-    //HW_SPI_CB           error_DMA_cb;       ///< Error callback
-    //HW_SPI_CB           finish_DMA_cb;      ///< Transfer callback
-
     HW_SPI_MODE         mode;           ///< Master / Slave mode
     HW_SPI_CLOCK_POL    polarity;       ///< clock polarity
     HW_SPI_CLOCK_PHASE  phase;          ///< clock phase
@@ -119,15 +109,6 @@ typedef struct HW_SPI_CONFIGURATION_S
     HW_SPI_NSS			nss;			///< inverted slave select by SW / HW
     HW_SPI_PRIO         isrprio;        ///< Priority of ISR
 } HW_SPI_CONFIGURATION;     ///< SPI configuration struct
-
-//! Return values for the SPI modul
-/*typedef enum HW_SPI_RET_E
-{
-    HW_SPI_RET_OK = 0x00,			///< everythings is fine
-    HW_SPI_RET_BUSY,				///< another transfer is pending
-    HW_SPI_RET_E,					///< now everything is a error
-    HW_SPI_RET_E_ZERO				///< NULL pointer
-} HW_SPI_RET;   ///< SPI RX/TX return values*/
 
 
 //! Data struct for reading and writing external peripheries

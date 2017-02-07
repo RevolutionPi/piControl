@@ -45,7 +45,7 @@ INT32U kbGetTickCount ( void )
 #ifdef __KUNBUSPI_KERNEL__
   getnstimeofday(&tNow);
 #else
-  clock_gettime(CLOCK_REALTIME, &tNow);
+  clock_gettime(CLOCK_MONOTONIC, &tNow);
 #endif
     i32uCounter_s = tNow.tv_sec * 1000 + tNow.tv_nsec/1000000;
   return (i32uCounter_s);

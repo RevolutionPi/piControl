@@ -52,13 +52,11 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("1.0.0");
+MODULE_VERSION("1.1.0");
 
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
 /******************************************************************************/
-
-uint8_t xx;
 
 static int piControlOpen(struct inode *inode, struct file *file);
 static int piControlRelease(struct inode *inode, struct file *file);
@@ -88,13 +86,6 @@ tpiControlDev piDev_g;
 
 static dev_t piControlMajor;
 static struct class * piControlClass;
-
-//static struct miscdevice piControl_dev = {
-//    minor:                  155,
-//    name:                   "piControl",
-//    fops:                   &piControlFops,
-//    mode:                   S_IRUGO|S_IWUGO
-//};
 
 /******************************************************************************/
 /*******************************  Functions  **********************************/
