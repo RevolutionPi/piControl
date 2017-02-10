@@ -21,7 +21,7 @@
 #ifndef WIN32
 
 #define PICONTROL_DEVICE    "/dev/piControl0"
-#define PICONFIG_FILE       "/opt/KUNBUS/config.rsc"
+#define PICONFIG_FILE       "/etc/revpi/config.rsc"
 //#define PICONFIG_FILE       "/home/pi/config.rsc"
 
 #define PICONTROL_USER_MODULE_TYPE      0x8000
