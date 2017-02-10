@@ -1167,6 +1167,11 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
         int i;
         SPIVariable *var = (SPIVariable *)usr_addr;
 
+	if (!piDev_g.ent) {
+		status = -ENOENT;
+		break;
+	}
+
         for (i=0; i<piDev_g.ent->i16uNumEntries; i++)
         {
             //DF_PRINTK("strcmp(%s, %s)\n", piDev_g.ent->ent[i].strVarName, var->strVarName);
