@@ -507,20 +507,21 @@ int PiBridgeMaster_Run(void)
             if (RevPiDevice_run())
             {
                 // an error occured, check error limits
-                if (RevPiScan.pCoreData->i16uRS485ErrorLimit2 > 0
-                 && RevPiScan.pCoreData->i16uRS485ErrorLimit2 < RevPiScan.i16uErrorCnt)
+                if (RevPiScan.pCoreData != NULL)
                 {
-                    DF_PRINTK("too many communication errors -> set BridgeState to stopped\n");
-                    piDev_g.eBridgeState = piBridgeStop;
+                    if (RevPiScan.pCoreData->i16uRS485ErrorLimit2 > 0
+                     && RevPiScan.pCoreData->i16uRS485ErrorLimit2 < RevPiScan.i16uErrorCnt)
+                    {
+                        DF_PRINTK("too many communication errors -> set BridgeState to stopped\n");
+                        piDev_g.eBridgeState = piBridgeStop;
+                    }
+                    else if (RevPiScan.pCoreData->i16uRS485ErrorLimit1 > 0
+                          && RevPiScan.pCoreData->i16uRS485ErrorLimit1 < RevPiScan.i16uErrorCnt)
+                    {
+                        // bad communication with inputs -> set inputs to default values
+                        DF_PRINTK("too many communication errors -> set inputs to default\n");
+                    }
                 }
-                else if (RevPiScan.pCoreData->i16uRS485ErrorLimit1 > 0
-                      && RevPiScan.pCoreData->i16uRS485ErrorLimit1 < RevPiScan.i16uErrorCnt)
-                {
-                    // bad communication with inputs -> set inputs to default values
-                    DF_PRINTK("too many communication errors -> set inputs to default\n");
-                }
-                // TODO better error handling
-                // e.g. piDev_g.eBridgeState = piBridgeStop;
 
 //                msleep(120);    // wait a while
 //                DF_PRINTK("start data exchange\n");
@@ -538,7 +539,10 @@ int PiBridgeMaster_Run(void)
             {
                 ret = 1;
             }
-            RevPiScan.pCoreData->i16uRS485ErrorCnt = RevPiScan.i16uErrorCnt;
+            if (RevPiScan.pCoreData != NULL)
+            {
+                RevPiScan.pCoreData->i16uRS485ErrorCnt = RevPiScan.i16uErrorCnt;
+            }
             break;
             // *****************************************************************************************
 
