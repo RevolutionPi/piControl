@@ -16,6 +16,7 @@
 
 #include <piIOComm.h>
 #include <IoProtocol.h>
+#include <PiBridgeMaster.h>
 #include <RevPiDevice.h>
 #include <piControlMain.h>
 
@@ -291,12 +292,12 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
         }
         else
         {
+            i32uRv_l = 2;
 #ifdef DEBUG_DEVICE_DIO
             DF_PRINTK("dev %2d: recv ioprotocol timeout error exp %d\n",
                       i8uAddress, IOPROTOCOL_HEADER_LENGTH + len_l + 1
                       );
 #endif
-            i32uRv_l = 2;
         }
     }
     else

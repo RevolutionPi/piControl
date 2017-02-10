@@ -20,8 +20,8 @@
 #include <linux/gpio.h>
 
 #include <kbUtilities.h>
-#include <RevPiDevice.h>
 #include <PiBridgeMaster.h>
+#include <RevPiDevice.h>
 #include <piControlMain.h>
 #include <piControl.h>
 #include <piIOComm.h>
@@ -45,7 +45,8 @@ void PiBridgeMaster_Reset(void)
     rt_mutex_lock(&piDev_g.lockBridgeState);
     piDev_g.eBridgeState = piBridgeInit;
     eRunStatus_s = enPiBridgeMasterStatus_Init;
-    piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] = 0;
+    RevPiScan.i8uStatus = 0;
+    //piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] = 0;
     bEntering_s = bTRUE;
     RevPiDevice_init();
     rt_mutex_unlock(&piDev_g.lockBridgeState);
@@ -80,7 +81,8 @@ int PiBridgeMaster_Adjust(void)
                 {
                     DF_PRINTK("## address %d: incorrect module type %d != %d\n", RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uModulType, piDev_g.devs->dev[i].i16uModuleType);
                     result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
-                    piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
+                    RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
+                    //piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
                     done = 1;
                     break;
                 }
@@ -88,7 +90,8 @@ int PiBridgeMaster_Adjust(void)
                 {
                     DF_PRINTK("## address %d: incorrect input length %d != %d\n", RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uFBS_InputLength, piDev_g.devs->dev[i].i16uInputLength);
                     result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
-                    piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
+                    RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
+                    //piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
                     done = 1;
                     break;
                 }
@@ -96,7 +99,8 @@ int PiBridgeMaster_Adjust(void)
                 {
                     DF_PRINTK("## address %d: incorrect output length %d != %d\n", RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uFBS_OutputLength, piDev_g.devs->dev[i].i16uOutputLength);
                     result = PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH;
-                    piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
+                    RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
+                    //piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
                     done = 1;
                     break;
                 }
@@ -114,6 +118,10 @@ int PiBridgeMaster_Adjust(void)
                 RevPiScan.dev[j].i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
                 RevPiScan.dev[j].i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
                 RevPiScan.dev[j].i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
+                if (j == 0)
+                {
+                    RevPiScan.pCoreData = (SRevPiCoreImage *)&piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset];
+                }
 
                 state[i] = 1;   // dieser Konfigeintrag wurde übernommen
                 found = 1;      // innere For-Schrleife verlassen
@@ -123,7 +131,8 @@ int PiBridgeMaster_Adjust(void)
         {
             // Falls ein autom. erkanntes Modul in der Konfiguration nicht vorkommt, wird es deakiviert
             RevPiScan.dev[j].i8uActive = 0;
-            piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_EXTRA_MODULE;
+            RevPiScan.i8uStatus |= PICONTROL_STATUS_EXTRA_MODULE;
+            //piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_EXTRA_MODULE;
         }
     }
 
@@ -132,7 +141,8 @@ int PiBridgeMaster_Adjust(void)
     {
         if (state[i] == 0)
         {
-            piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_MISSING_MODULE;
+            RevPiScan.i8uStatus |= PICONTROL_STATUS_MISSING_MODULE;
+            //piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_MISSING_MODULE;
 
             j = RevPiScan.i8uDeviceCount;
             RevPiScan.dev[j].i8uAddress                = piDev_g.devs->dev[i].i8uAddress;
@@ -198,6 +208,7 @@ int PiBridgeMaster_Run(void)
                 bEntering_s = bFALSE;
                 piIoComm_writeSniff2A(enGpioValue_High, enGpioMode_Output);
                 piIoComm_writeSniff2B(enGpioValue_High, enGpioMode_Output);
+#if 0
                 kbUT_TimerStart(&tTimeoutTimer_s, 8);
             }
             if (kbUT_TimerExpired(&tTimeoutTimer_s))
@@ -215,6 +226,9 @@ int PiBridgeMaster_Run(void)
                 DF_PRINTK("Enter PresentSignalling2 State\n");
     #endif
                 bEntering_s = bFALSE;
+#else
+                usleep_range(10000, 10000);
+#endif
                 piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
                 piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
                 kbUT_TimerStart(&tTimeoutTimer_s, 30);
@@ -492,6 +506,19 @@ int PiBridgeMaster_Run(void)
 
             if (RevPiDevice_run())
             {
+                // an error occured, check error limits
+                if (RevPiScan.pCoreData->i16uRS485ErrorLimit2 > 0
+                 && RevPiScan.pCoreData->i16uRS485ErrorLimit2 < RevPiScan.i16uErrorCnt)
+                {
+                    DF_PRINTK("too many communication errors -> set BridgeState to stopped\n");
+                    piDev_g.eBridgeState = piBridgeStop;
+                }
+                else if (RevPiScan.pCoreData->i16uRS485ErrorLimit1 > 0
+                      && RevPiScan.pCoreData->i16uRS485ErrorLimit1 < RevPiScan.i16uErrorCnt)
+                {
+                    // bad communication with inputs -> set inputs to default values
+                    DF_PRINTK("too many communication errors -> set inputs to default\n");
+                }
                 // TODO better error handling
                 // e.g. piDev_g.eBridgeState = piBridgeStop;
 
@@ -511,6 +538,7 @@ int PiBridgeMaster_Run(void)
             {
                 ret = 1;
             }
+            RevPiScan.pCoreData->i16uRS485ErrorCnt = RevPiScan.i16uErrorCnt;
             break;
             // *****************************************************************************************
 
@@ -575,34 +603,41 @@ int PiBridgeMaster_Run(void)
     }
 
     rt_mutex_unlock(&piDev_g.lockBridgeState);
+    if (RevPiScan.pCoreData != NULL)
+    {
+        RevPiScan.pCoreData->i8uStatus = RevPiScan.i8uStatus;
+    }
 
     if (eBridgeStateLast_s != piDev_g.eBridgeState)
     {
         if (piDev_g.eBridgeState == piBridgeRun)
         {
-            piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_RUNNING;
+            RevPiScan.i8uStatus |= PICONTROL_STATUS_RUNNING;
             gpio_set_value_cansleep(GPIO_LED_PWRRED, 0);
         }
         else
         {
-            piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] &= ~PICONTROL_STATUS_RUNNING;
+            RevPiScan.i8uStatus &= ~PICONTROL_STATUS_RUNNING;
             gpio_set_value_cansleep(GPIO_LED_PWRRED, 1);
         }
         eBridgeStateLast_s = piDev_g.eBridgeState;
     }
 
     // set LED
-    led = piDev_g.ai8uPI[RevPiScan.dev[0].i16uOutputOffset];
-    if (led != last_led)
+    if (RevPiScan.pCoreData != NULL)
     {
-        //DF_PRINTK("%d: LED %02x\n", RevPiScan.dev[0].i16uOutputOffset, led);
+        led = RevPiScan.pCoreData->i8uLED;
+        if (led != last_led)
+        {
+            //DF_PRINTK("%d: LED %02x\n", RevPiScan.dev[0].i16uOutputOffset, led);
 
-        gpio_set_value_cansleep(GPIO_LED_AGRN, (led & PICONTROL_LED_A1_GREEN) ? 1 : 0);
-        gpio_set_value_cansleep(GPIO_LED_ARED, (led & PICONTROL_LED_A1_RED)   ? 1 : 0);
-        gpio_set_value_cansleep(GPIO_LED_BGRN, (led & PICONTROL_LED_A2_GREEN) ? 1 : 0);
-        gpio_set_value_cansleep(GPIO_LED_BRED, (led & PICONTROL_LED_A2_RED)   ? 1 : 0);
+            gpio_set_value_cansleep(GPIO_LED_AGRN, (led & PICONTROL_LED_A1_GREEN) ? 1 : 0);
+            gpio_set_value_cansleep(GPIO_LED_ARED, (led & PICONTROL_LED_A1_RED)   ? 1 : 0);
+            gpio_set_value_cansleep(GPIO_LED_BGRN, (led & PICONTROL_LED_A2_GREEN) ? 1 : 0);
+            gpio_set_value_cansleep(GPIO_LED_BRED, (led & PICONTROL_LED_A2_RED)   ? 1 : 0);
 
-        last_led = led;
+            last_led = led;
+        }
     }
 
     return ret;

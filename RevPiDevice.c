@@ -5,7 +5,7 @@
 //|
 //+---------------------------------------------------------------------------------------------
 //|
-//|		File-ID:		$Id: RevPiDevice.c 446 2016-12-07 09:11:34Z mduckeck $
+//|		File-ID:		$Id: RevPiDevice.c 506 2017-01-31 07:03:32Z mduckeck $
 //|		Location:		$URL: http://srv-kunbus03.de.pilz.local/raspi/trunk/products/PiCore/piKernelMod/RevPiDevice.c $
 //|		Company:		$Cpn:$
 //|
@@ -22,12 +22,12 @@
 #include <ModGateRS485.h>
 #include <ModGateComMain.h>
 
+#include <PiBridgeMaster.h>
 #include <RevPiDevice.h>
 #include <piControlMain.h>
 #include <piDIOComm.h>
 
 SDeviceConfig RevPiScan;
-static INT32U RevPiDevice_i32uErrCnt;
 
 static const MODGATECOM_IDResp RevPi_ID_s =
 {
@@ -35,10 +35,10 @@ static const MODGATECOM_IDResp RevPi_ID_s =
     .i16uModulType              = KUNBUS_FW_DESCR_TYP_PI_CORE,
     .i16uHW_Revision            = 1,
     .i16uSW_Major               = 1,
-    .i16uSW_Minor               = 0,
+    .i16uSW_Minor               = 1,  //TODO
     .i32uSVN_Revision           = 0,
-    .i16uFBS_InputLength        = 1,
-    .i16uFBS_OutputLength       = 1,
+    .i16uFBS_InputLength        = 3,
+    .i16uFBS_OutputLength       = 5,
     .i16uFeatureDescriptor      = MODGATE_feature_IODataExchange
 };
 
@@ -51,13 +51,13 @@ void RevPiDevice_init(void)
     RevPiScan.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;    // first address of a right side module
     RevPiScan.i8uAddressLeft  = REV_PI_DEV_FIRST_RIGHT-1;  // first address of a left side module
     RevPiScan.i8uDeviceCount = 0;   // counter for detected devices
-    RevPiDevice_i32uErrCnt = 0;
+    RevPiScan.i16uErrorCnt = 0;
 
     // RevPi as first entry to device list
     RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uAddress = 0;
     RevPiScan.dev[RevPiScan.i8uDeviceCount].sId = RevPi_ID_s;
     RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset = 0;
-    RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset = 1;
+    RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset = (INT16U)((int)&((SRevPiCoreImage *)0)->i8uLED);
     RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uActive = 1;
     RevPiScan.i8uDeviceCount++;
 }
@@ -83,6 +83,9 @@ int RevPiDevice_run(void)
 {
     INT8U i8uDevice = 0;
     INT32U r;
+    int retval = 0;
+
+    RevPiScan.i16uErrorCnt = 0;
 
     for (i8uDevice = 0; i8uDevice < RevPiScan.i8uDeviceCount; i8uDevice++)
     {
@@ -96,11 +99,15 @@ int RevPiDevice_run(void)
                 r = piDIOComm_sendCyclicTelegram(i8uDevice);
                 if (r)
                 {
-                    RevPiDevice_i32uErrCnt++;
+                    if (RevPiScan.dev[i8uDevice].i16uErrorCnt < 255)
+                    {
+                        RevPiScan.dev[i8uDevice].i16uErrorCnt++;
+                        retval = -1;    // tell calling function that an error occured
+                    }
                 }
                 else
                 {
-                    RevPiDevice_i32uErrCnt = 0;
+                    RevPiScan.dev[i8uDevice].i16uErrorCnt = 0;
                 }
                 break;
 
@@ -138,15 +145,10 @@ int RevPiDevice_run(void)
                 // user devices are ignored here
             break;
             }
+            RevPiScan.i16uErrorCnt += RevPiScan.dev[i8uDevice].i16uErrorCnt;
         }
 	}
-    if (RevPiDevice_i32uErrCnt > 5)
-    {
-        DF_PRINTK("Too many errors in RevPiDeviceRun()\n");
-        RevPiDevice_i32uErrCnt = 0;
-        return -1;
-    }
-    return 0;
+    return retval;
 }
 
 TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *pModgateId_p)

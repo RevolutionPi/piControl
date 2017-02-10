@@ -28,6 +28,7 @@ typedef struct _SDevice
     INT16U i16uOutputOffset;
     INT16U i16uConfigLength;
     INT16U i16uConfigOffset;
+    INT16U i16uErrorCnt;
     MODGATECOM_IDResp sId;
 } SDevice;
 
@@ -37,6 +38,10 @@ typedef struct _SDeviceConfig
     INT8U i8uAddressRight;
     INT8U i8uAddressLeft;
     INT8U i8uDeviceCount;
+    INT16U i16uErrorCnt;
+
+    INT8U  i8uStatus;               // status bitfield of RevPi
+    SRevPiCoreImage *pCoreData;     // Pointer to process image, may point to NULL
     SDevice dev[REV_PI_DEV_CNT_MAX];
 } SDeviceConfig;
 

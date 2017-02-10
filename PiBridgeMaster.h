@@ -37,6 +37,20 @@ typedef enum _EPiBridgeMasterStatus
 } EPiBridgeMasterStatus;
 
 
+typedef struct _SRevPiCoreImage
+{
+    // input data: set by driver
+    INT8U  i8uStatus;
+    INT16U i16uRS485ErrorCnt;
+
+    // output data: set by application
+    INT8U  i8uLED;
+    INT16U i16uRS485ErrorLimit1;
+    INT16U i16uRS485ErrorLimit2;
+
+} __attribute__((__packed__)) SRevPiCoreImage;
+
+
 void PiBridgeMaster_Reset(void);
 int  PiBridgeMaster_Adjust(void);
 int  PiBridgeMaster_Run(void);

@@ -217,7 +217,6 @@ INT32U fwuSendTel (
     }
     suSendTelegram_l.ai8uData[i8uDataLen_p] = fwuCrc((INT8U*)&suSendTelegram_l, RS485_HDRLEN + i8uDataLen_p);
 
-    //i32uRv_l = piIoComm_send(suSendTelegram_l.ai8uData, suSendTelegram_l.i8uDataLen);
     i32uRv_l = piIoComm_send((INT8U*)&suSendTelegram_l, RS485_HDRLEN + suSendTelegram_l.i8uDataLen + 1);
 
     return i32uRv_l;

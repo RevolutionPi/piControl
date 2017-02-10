@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <ModGateComMain.h>
 #include <piControlMain.h>
+#include <PiBridgeMaster.h>
 #include <RevPiDevice.h>
 #elif defined(__KUNBUSPI__)
 #include <wiringPi.h>
@@ -790,8 +791,8 @@ void   MODGATECOM_run (void)
                 set |= PICONTROL_STATUS_LEFT_GATEWAY;
                 break;
             }
-            piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] &= ~clr;
-            piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= set;
+            RevPiScan.i8uStatus &= ~clr;
+            RevPiScan.i8uStatus |= set;
         }
 #endif
 #endif

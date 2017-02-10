@@ -17,6 +17,7 @@
 
 #include <piIOComm.h>
 #include <IoProtocol.h>
+#include <PiBridgeMaster.h>
 #include <RevPiDevice.h>
 #include <piControlMain.h>
 
@@ -234,7 +235,7 @@ int piIoComm_send(INT8U *buf_p, INT16U i16uLen_p)
     {
         DF_PRINTK("send %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
     }
-    printk("vfs_write(%d, %d, %d)\n", (int)piIoComm_fd_m, i16uLen_p, (int)piIoComm_fd_m->f_pos);
+    //printk("vfs_write(%d, %d, %d)\n", (int)piIoComm_fd_m, i16uLen_p, (int)piIoComm_fd_m->f_pos);
 #endif
 
     while (i16uSent_l < i16uLen_p)
@@ -282,11 +283,51 @@ int piIoComm_recv(INT8U *buf_p, INT16U i16uLen_p)
         for (i=0; i<i16uLen_p; i++)
             recv(&buf_p[i]);
 
+#ifdef DEBUG_SERIALCOMM
+        if (i16uLen_p == 1)
+        {
+            DF_PRINTK("recv %d: %02x\n", i16uLen_p, buf_p[0]);
+        }
+        else if (i16uLen_p == 2)
+        {
+            DF_PRINTK("recv %d: %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1]);
+        }
+        else if (i16uLen_p == 3)
+        {
+            DF_PRINTK("recv %d: %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2]);
+        }
+        else if (i16uLen_p == 4)
+        {
+            DF_PRINTK("recv %d: %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3]);
+        }
+        else if (i16uLen_p == 5)
+        {
+            DF_PRINTK("recv %d: %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4]);
+        }
+        else if (i16uLen_p == 6)
+        {
+            DF_PRINTK("recv %d: %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5]);
+        }
+        else if (i16uLen_p == 7)
+        {
+            DF_PRINTK("recv %d: %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6]);
+        }
+        else if (i16uLen_p == 8)
+        {
+            DF_PRINTK("recv %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7]);
+        }
+        else
+        {
+            DF_PRINTK("recv %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
+        }
+#endif
         return i16uLen_p;
     }
 
     // timeout
-    //DF_PRINTK("recv timeout: %d \n", i16uLen_p);
+#ifdef DEBUG_SERIALCOMM
+    DF_PRINTK("recv timeout: %d \n", i16uLen_p);
+#endif
     clear();
     return 0;
 }
