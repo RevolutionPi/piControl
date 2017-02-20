@@ -3,8 +3,7 @@
 #include <common_define.h>
 #include <IoProtocol.h>
 
-#define REV_PI_IO_TIMEOUT           100
-#define REV_PI_IO_WAIT              1000000
+#define REV_PI_IO_TIMEOUT           100         // msec
 #define REV_PI_RECV_BUFFER_SIZE     100
 
 typedef enum _EGpioValue

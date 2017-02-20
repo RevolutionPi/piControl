@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/gpio.h>
+#include <linux/jiffies.h>
 
 #include <project.h>
 #include <common_define.h>
@@ -276,7 +277,7 @@ int piIoComm_recv(INT8U *buf_p, INT16U i16uLen_p)
     }
 
     i16uRecvLen_s = i16uLen_p;
-    if (down_timeout(&queueSem, REV_PI_IO_TIMEOUT) == 0)
+    if (down_timeout(&queueSem, msecs_to_jiffies(REV_PI_IO_TIMEOUT)) == 0)
     {
         int i;
 
@@ -331,54 +332,6 @@ int piIoComm_recv(INT8U *buf_p, INT16U i16uLen_p)
     clear();
     return 0;
 }
-
-#if 0
-    mm_segment_t oldfs;
-
-    oldfs = get_fs();
-    set_fs (KERNEL_DS);
-
-    timeout = REV_PI_IO_TIMEOUT;
-    while (i16uRead_l < i16uLen_p && timeout > 0)
-    {
-        read_l = vfs_read(piIoComm_fd_m, buf_p + i16uRead_l, i16uLen_p - i16uRead_l, &piIoComm_fd_m->f_pos);
-
-        if (read_l < 0)
-        {
-#ifdef DEBUG_SERIALCOMM
-            DF_PRINTK("read error");
-#endif
-            ret = -1;
-            timeout = 0;    // leave loop
-        }
-        else if (read_l == 0)
-        {
-            // small delay and try again
-            //todo wait();
-            timeout--;
-        }
-        else
-        {
-            i16uRead_l += read_l;
-#ifdef DEBUG_SERIALCOMM
-            DF_PRINTK("recv: %d/%d received\n", i16uRead_l, i16uLen_p);
-#endif
-        }
-    }
-
-    set_fs(oldfs);
-
-    if (timeout == 0 && ret == 0)
-    {
-#ifdef DEBUG_SERIALCOMM
-        DF_PRINTK("recv timeout: %d/%d received\n", i16uRead_l, i16uLen_p);
-#endif
-        ret = -2;
-    }
-
-    return ret;
-}
-#endif
 
 
 INT8U piIoComm_Crc8(
@@ -500,45 +453,6 @@ EGpioValue piIoComm_readSniff(int pin)
     return ret;
 }
 
-
-
-#if 0
-int piIoComm_wait(void)
-{
-    fd_set rfds;
-    struct timespec tv;
-    int retval;
-
-    //printf("wait %d\n", m_recvPos);
-    
-    /* Watch stdin (fd 0) to see when it has input. */
-    FD_ZERO(&rfds);
-    FD_SET(fd_m, &rfds);
-
-    /* Wait up to 10 milli seconds. */
-    tv.tv_sec  = 0;
-    tv.tv_nsec = REV_PI_IO_WAIT;
-
-    retval = pselect(1, &rfds, NULL, NULL, &tv, NULL);
-    /* Don't rely on the value of tv now! */
-
-    if (retval == -1)
-    {
-        perror("select()");
-    }
-    else if(retval)
-    {
-#ifdef DEBUG_SERIALCOMM
-        printf("Data is available now.\n");
-#endif
-        /* FD_ISSET(0, &rfds) will be true. */
-    }
-    else
-    {
-       //printf("No data within five seconds.\n");
-    }
-}
-#endif
 
 INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
     INT8U *pi8uSendData_p, INT8U i8uSendDataLen_p,
