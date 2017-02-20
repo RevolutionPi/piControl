@@ -393,9 +393,7 @@ INT32U MODGATECOM_init ( INT8U *pi8uInData_p,  INT16U i16uInDataLen_p,
     for (inst = 0; inst < MODGATECOM_MAX_MODULES; inst++)
     {
 #if MODGATECOM_MAX_MODULES > 1
-#ifdef __KUNBUSPI_KERNEL__
-        spi_select_chip(inst);
-#elif defined(__KUNBUSPI__)
+#if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
         spi_select_chip(inst);
 #else
 #error SPI chip select must be implemented
@@ -470,9 +468,7 @@ void   MODGATECOM_run (void)
     oldState = 0;
     for (inst = 0; inst < MODGATECOM_MAX_MODULES; inst++)
     {
-#ifdef __KUNBUSPI_KERNEL__
-        spi_select_chip(inst);
-#elif defined(__KUNBUSPI__)
+#if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
         spi_select_chip(inst);
 #else
 #endif

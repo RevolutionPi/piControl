@@ -147,6 +147,13 @@ int piGateThread(void *data)
         }
 
         MODGATECOM_run();
+
+        if (MODGATECOM_has_fatal_error())
+        {
+            // stop the thread if an fatal error occurred
+            printk("mGate exit thread because of fatal error\n");
+            return -1;
+        }
         
         if (    piDev_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
             &&  AL_Data_s[0].i8uState >= MODGATE_ST_RUN_NO_DATA

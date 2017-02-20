@@ -37,7 +37,7 @@
 
 static BSP_TJumpBuf *MODGATECOM_ptJumpBuf_s = (BSP_TJumpBuf *)0;
 static void (*MODGATECOM_cbErrHandler_s)(INT32U i32uErrorCode_p, TBOOL bFatal_p, INT8U i8uParaCnt_p, va_list argptr_p);
-
+static INT32U i32uFatalError_s;
 
 //*************************************************************************************************
 //| Function: MODGATECOM_errorSetUp
@@ -84,19 +84,24 @@ void MODGATECOM_error (
 
 {
 #ifdef __KUNBUSPI_KERNEL__
-    DF_PRINTK("MODGATECOM_error 0x%08x\n", i32uErrCode_p);
-
     if(bFatal_p)
     {
-       printk("MODGATECOM_error fatal 0x%08x\n", i32uErrCode_p);
+        i32uFatalError_s = i32uErrCode_p;
+        DF_PRINTK("MODGATECOM_error fatal 0x%08x\n", i32uErrCode_p);
+    }
+    else
+    {
+        DF_PRINTK("MODGATECOM_error 0x%08x\n", i32uErrCode_p);
     }
 #elif defined(__KUNBUSPI__)
-    DF_PRINTK("MODGATECOM_error 0x%08x\n", i32uErrCode_p);
-
     if(bFatal_p)
     {
        DF_PRINTK("MODGATECOM_error fatal 0x%08x\n", i32uErrCode_p);
        exit(i32uErrCode_p);
+    }
+    else
+    {
+        DF_PRINTK("MODGATECOM_error 0x%08x\n", i32uErrCode_p);
     }
 #else
     va_list argptr_l;
@@ -123,6 +128,23 @@ void MODGATECOM_error (
     }
 #endif // __KUNBUSPI__
 }
+
+//*************************************************************************************************
+//| Function: MODGATECOM_has_fatal_error
+//|
+//! \brief
+//!
+//! \detailed
+//!
+//!
+//!
+//! \ingroup
+//-------------------------------------------------------------------------------------------------
+INT32U MODGATECOM_has_fatal_error (void)
+{
+    return i32uFatalError_s;
+}
+
 
 #if defined(MGATE_ERROR_STACK) && defined(STM_WITH_EEPROM)
 //+=============================================================================================
