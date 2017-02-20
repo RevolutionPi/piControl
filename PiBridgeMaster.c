@@ -227,7 +227,7 @@ int PiBridgeMaster_Run(void)
     #endif
                 bEntering_s = bFALSE;
 #else
-                usleep_range(10000, 10000);
+                usleep_range(9000, 9000);
 #endif
                 piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
                 piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
