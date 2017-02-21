@@ -41,6 +41,7 @@
 //#define DEBUG_DEVICE_DIO
 //#define DEBUG_DEVICE_IO
 
+#define SPI_MODULE	"spi_bcm2835"
 #define SPI_BUS         0
 #define RT_PRIO_UART    59
 #define RT_PRIO_BRIDGE  58

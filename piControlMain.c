@@ -86,6 +86,7 @@ tpiControlDev piDev_g;
 
 static dev_t piControlMajor;
 static struct class * piControlClass;
+static struct module *piSpiModule;
 
 /******************************************************************************/
 /*******************************  Functions  **********************************/
@@ -405,6 +406,23 @@ static int __init piControlInit(void)
     UART_close(0);
     return -EFAULT;
 #endif
+
+    BUILD_BUG_ON(!IS_ENABLED(CONFIG_SPI_BCM2835));
+
+    if (IS_MODULE(CONFIG_SPI_BCM2835)) {
+	request_module(SPI_MODULE);
+
+	mutex_lock(&module_mutex);
+	piSpiModule = find_module(SPI_MODULE);
+	if (piSpiModule && !try_module_get(piSpiModule))
+	    piSpiModule = NULL;
+	mutex_unlock(&module_mutex);
+
+	if (!piSpiModule) {
+	    pr_err("cannot load %s module", SPI_MODULE);
+	    return -ENODEV;
+	}
+    }
 
     memset(&piDev_g, 0, sizeof(piDev_g));
 
@@ -767,6 +785,11 @@ static void cleanup(void)
     if (!IS_ERR_OR_NULL(piControlClass))
         class_destroy(piControlClass);
     unregister_chrdev_region(piControlMajor, 2);
+
+    if (piSpiModule) {
+	module_put(piSpiModule);
+	piSpiModule = NULL;
+    }
 }
 
 static void __exit piControlCleanup(void)
