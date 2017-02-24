@@ -41,6 +41,7 @@ typedef struct _SRevPiCoreImage
 {
     // input data: set by driver
     INT8U  i8uStatus;
+    INT8U  i8uIOCycle;
     INT16U i16uRS485ErrorCnt;
 
     // output data: set by application

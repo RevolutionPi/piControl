@@ -43,7 +43,22 @@ typedef struct _piCopylist
     piCopyEntry        ent[0];
 } piCopylist;
 
-int piConfigParse(const char *filename, piDevices **devs, piEntries **ent, piCopylist **cl);
+typedef struct _piConnection
+{
+    uint16_t            i16uSrcAddr;
+    uint16_t            i16uDestAddr;
+    uint8_t             i8uLength;      // in bit: 1-7, 8, 16, 32
+    uint8_t             i8uSrcBit;      // used only, if i8uLength < 8
+    uint8_t             i8uDestBit;     // used only, if i8uLength < 8
+} piConnection;
+
+typedef struct _piConnectionlist
+{
+    uint16_t            i16uNumEntries;
+    piConnection        conn[0];
+} piConnectionList;
+
+int piConfigParse(const char *filename, piDevices **devs, piEntries **ent, piCopylist **cl, piConnectionList **conn);
 
 
 #endif

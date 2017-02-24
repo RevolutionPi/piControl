@@ -23,7 +23,6 @@ extern int piIoComm_timeoutCnt_m;
 int piIoComm_open_serial(void);
 int piIoComm_send(INT8U *buf_p, INT16U i16uLen_p);
 int piIoComm_recv(INT8U *buf_p, INT16U i16uLen_p);
-//int piIoComm_wait(void);
 int UartThreadProc ( void *pArg);
 
 INT8U piIoComm_Crc8(INT8U *pi8uFrame_p, INT16U i16uLen_p);

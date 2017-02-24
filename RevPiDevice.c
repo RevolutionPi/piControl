@@ -37,7 +37,7 @@ static const MODGATECOM_IDResp RevPi_ID_s =
     .i16uSW_Major               = 1,
     .i16uSW_Minor               = 1,  //TODO
     .i32uSVN_Revision           = 0,
-    .i16uFBS_InputLength        = 3,
+    .i16uFBS_InputLength        = 4,
     .i16uFBS_OutputLength       = 5,
     .i16uFeatureDescriptor      = MODGATE_feature_IODataExchange
 };

@@ -87,9 +87,9 @@ struct spi_master *pSpiMaster_g = NULL;
 //|   Annotations:
 //+=============================================================================================
 INT32U spi_init (
-                 INT8U                       i8uPort_p,    ///< [in] Number of SPI Controller (0 or 1)
-                 const HW_SPI_CONFIGURATION  *tHwConf_l    ///< [in] SPI Configuration structure
-                 )   /// \return   success of Operation
+		 INT8U                       i8uPort_p,    ///< [in] Number of SPI Controller (0 or 1)
+		 const HW_SPI_CONFIGURATION  *tHwConf_l    ///< [in] SPI Configuration structure
+		 )   /// \return   success of Operation
 {
     INT32S i32sRv_l;
     INT32U i32uMode_l = 0;
@@ -98,121 +98,121 @@ INT32U spi_init (
     /* get spi master */
     if (pSpiMaster_g == NULL)
     {
-        pSpiMaster_g = spi_busnum_to_master(SPI_BUS);
-        if (!pSpiMaster_g)
-        {
-            printk("spi_busnum_to_master(%d) returned NULL\n", SPI_BUS);
-            return SPI_RET_OPEN_ERROR;
-        }
+	pSpiMaster_g = spi_busnum_to_master(SPI_BUS);
+	if (!pSpiMaster_g)
+	{
+	    pr_err("spi_busnum_to_master(%d) returned NULL\n", SPI_BUS);
+	    return SPI_RET_OPEN_ERROR;
+	}
     }
 
     /* add spi device */
     if (pSpiDev_g == NULL)
     {
 
-        sSpiDevInfo.chip_select = 0;
-        sSpiDevInfo.max_speed_hz = tHwConf_l->bitrate;
-        sSpiDevInfo.bus_num = SPI_BUS;
-        sprintf(sSpiDevInfo.modalias, "piControl%d", 0);
+	sSpiDevInfo.chip_select = 0;
+	sSpiDevInfo.max_speed_hz = tHwConf_l->bitrate;
+	sSpiDevInfo.bus_num = SPI_BUS;
+	sprintf(sSpiDevInfo.modalias, "piControl%d", 0);
 
-        pi8uSpiMemRx = kmalloc(4096, GFP_KERNEL | GFP_DMA);
-        if (pi8uSpiMemRx == NULL)
-        {
-            printk("kmalloc() failed\n");
-            return SPI_RET_OPEN_ERROR;
-        }
-        pi8uSpiMemTx = kmalloc(4096, GFP_KERNEL | GFP_DMA);
-        if (pi8uSpiMemRx == NULL)
-        {
-            kfree(pi8uSpiMemRx);
-            printk("kmalloc() failed\n");
-            return SPI_RET_OPEN_ERROR;
-        }
+	pi8uSpiMemRx = kmalloc(4096, GFP_KERNEL | GFP_DMA);
+	if (pi8uSpiMemRx == NULL)
+	{
+	    pr_err("kmalloc() failed\n");
+	    return SPI_RET_OPEN_ERROR;
+	}
+	pi8uSpiMemTx = kmalloc(4096, GFP_KERNEL | GFP_DMA);
+	if (pi8uSpiMemRx == NULL)
+	{
+	    kfree(pi8uSpiMemRx);
+	    pr_err("kmalloc() failed\n");
+	    return SPI_RET_OPEN_ERROR;
+	}
 
-        // set spi mode
-        if(tHwConf_l->polarity == HW_SPI_CLOCK_POL_HIGH)
-            i32uMode_l |= SPI_CPOL;
-        if(tHwConf_l->phase == HW_SPI_CLOCK_PHASE_TRAIL)
-            i32uMode_l |= SPI_CPHA;
-        if(tHwConf_l->direction == HW_SPI_DATA_DIR_LSB)
-            i32uMode_l |= SPI_LSB_FIRST;
+	// set spi mode
+	if(tHwConf_l->polarity == HW_SPI_CLOCK_POL_HIGH)
+	    i32uMode_l |= SPI_CPOL;
+	if(tHwConf_l->phase == HW_SPI_CLOCK_PHASE_TRAIL)
+	    i32uMode_l |= SPI_CPHA;
+	if(tHwConf_l->direction == HW_SPI_DATA_DIR_LSB)
+	    i32uMode_l |= SPI_LSB_FIRST;
 
-        sSpiDevInfo.mode = i32uMode_l;
+	sSpiDevInfo.mode = i32uMode_l;
 
-        pSpiDev_g = spi_new_device(pSpiMaster_g, &sSpiDevInfo);
-        if (!pSpiDev_g)
-        {
-            kfree(pi8uSpiMemRx);
-            kfree(pi8uSpiMemTx);
-            put_device(&pSpiMaster_g->dev);
-            printk("spi_alloc_device() failed\n");
-            return SPI_RET_OPEN_ERROR;
-        }
+	pSpiDev_g = spi_new_device(pSpiMaster_g, &sSpiDevInfo);
+	if (!pSpiDev_g)
+	{
+	    kfree(pi8uSpiMemRx);
+	    kfree(pi8uSpiMemTx);
+	    put_device(&pSpiMaster_g->dev);
+	    pr_err("spi_alloc_device() failed\n");
+	    return SPI_RET_OPEN_ERROR;
+	}
 
-        pSpiDev_g->bits_per_word = 8;
+	pSpiDev_g->bits_per_word = 8;
 
-        i32sRv_l = spi_setup(pSpiDev_g);
-        if (i32sRv_l)
-        {
-            printk("spi_setup() failed\n");
-            return SPI_RET_OPEN_ERROR;
-        }
+	i32sRv_l = spi_setup(pSpiDev_g);
+	if (i32sRv_l)
+	{
+	    pr_err("spi_setup() failed\n");
+	    return SPI_RET_OPEN_ERROR;
+	}
     }
 
     if (i32sFdCS_g[0] == 0)
     {
-        i32sRv_l = gpio_request(GPIO_CS_KSZ0, "KSZ0");
-        if (i32sRv_l < 0)
-        {
-            BSP_SPI_RWPERI_deinit(0);
-            printk("cannot open CS gpio KSZ0\n");
-            return SPI_RET_OPEN_ERROR;
-        }
-        else
-        {
-            i32sFdCS_g[0] = GPIO_CS_KSZ0;
-            gpio_direction_output(GPIO_CS_KSZ0, 1);
-            gpio_export(GPIO_CS_KSZ0, 0);
-        }
+	i32sRv_l = gpio_request(GPIO_CS_KSZ0, "KSZ0");
+	if (i32sRv_l < 0)
+	{
+	    BSP_SPI_RWPERI_deinit(0);
+	    pr_err("cannot open CS gpio KSZ0\n");
+	    return SPI_RET_OPEN_ERROR;
+	}
+	else
+	{
+	    i32sFdCS_g[0] = GPIO_CS_KSZ0;
+	    gpio_direction_output(GPIO_CS_KSZ0, 1);
+	    gpio_export(GPIO_CS_KSZ0, 0);
+	}
     }
 
     if (i32sFdCS_g[1] == 0)
     {
-        i32sRv_l = gpio_request(GPIO_CS_KSZ1, "KSZ1");
-        if (i32sRv_l < 0)
-        {
-            printk("cannot open CS gpio KSZ1\n");
-            return SPI_RET_OPEN_ERROR;
-        }
-        else
-        {
-            i32sFdCS_g[1] = GPIO_CS_KSZ1;
-            gpio_direction_output(GPIO_CS_KSZ1, 1);
-            gpio_export(GPIO_CS_KSZ1, 0);
-        }
+	i32sRv_l = gpio_request(GPIO_CS_KSZ1, "KSZ1");
+	if (i32sRv_l < 0)
+	{
+	    pr_err("cannot open CS gpio KSZ1\n");
+	    return SPI_RET_OPEN_ERROR;
+	}
+	else
+	{
+	    i32sFdCS_g[1] = GPIO_CS_KSZ1;
+	    gpio_direction_output(GPIO_CS_KSZ1, 1);
+	    gpio_export(GPIO_CS_KSZ1, 0);
+	}
     }
 
     return SPI_RET_OK;
 }
 
 void BSP_SPI_RWPERI_deinit (
-                 INT8U                       i8uPort_p   ///< [in] Number of SPI Controller (0 or 1)
-                 )
+		 INT8U                       i8uPort_p   ///< [in] Number of SPI Controller (0 or 1)
+		 )
 {
 
     if (pSpiDev_g)
     {
-        spi_unregister_device(pSpiDev_g);
-        kfree(pi8uSpiMemTx);
-        kfree(pi8uSpiMemRx);
-        pSpiDev_g = NULL;
+	spi_unregister_device(pSpiDev_g);
+	kfree(pi8uSpiMemTx);
+	kfree(pi8uSpiMemRx);
+	pSpiDev_g = NULL;
     }
 
     if (i32sFdCS_g[i8uPort_p])
     {
-        gpio_unexport(i32sFdCS_g[i8uPort_p]);
-        gpio_free(i32sFdCS_g[i8uPort_p]);
-        i32sFdCS_g[i8uPort_p] = 0;
+	gpio_unexport(i32sFdCS_g[i8uPort_p]);
+	gpio_free(i32sFdCS_g[i8uPort_p]);
+	i32sFdCS_g[i8uPort_p] = 0;
     }
 }
 
@@ -220,7 +220,7 @@ void BSP_SPI_RWPERI_deinit (
 void    spi_select_chip(INT8U i8uChip_p)
 {
     if (i8uChip_p > SPI_CHANNEL_NUMBER)
-        return;
+	return;
 
 
     i8uCurrentCS_g = i8uChip_p;
@@ -248,8 +248,8 @@ void reset_spi( INT8U spi )
 }
 
 TBOOL   spi_transceive_done (
-        INT8U i8uPort_p      ///< [in] SPI Port [0..1] used for transmission
-        )
+	INT8U i8uPort_p      ///< [in] SPI Port [0..1] used for transmission
+	)
 {
     return bTRUE;
 }
@@ -268,26 +268,26 @@ TBOOL   spi_transceive_done (
 //|   Annotations: Buffers have to remain valid until transmission is finished !
 //+=============================================================================================
 INT32U spi_transceive (
-                       INT8U   i8uPort_p,  ///< [in] SPI Port [0..2] used for transmission
-                       INT8U       *tx_p,    ///< [in] bytes to transmit
-                       INT8U       *rx_p,    ///< [out]  bytes to receive
-                       INT32U      len_p,    ///< [in] lenght to transmit/receive
-                       TBOOL   bBlock_p  ///< [in] wait for transmission end (blocking)
-                       )           /// \return success of operation
+		       INT8U   i8uPort_p,  ///< [in] SPI Port [0..2] used for transmission
+		       INT8U       *tx_p,    ///< [in] bytes to transmit
+		       INT8U       *rx_p,    ///< [out]  bytes to receive
+		       INT32U      len_p,    ///< [in] lenght to transmit/receive
+		       TBOOL   bBlock_p  ///< [in] wait for transmission end (blocking)
+		       )           /// \return success of operation
 {
     INT16S i32sRv_l;
     struct spi_transfer tTransfer_l;
 
     if(i8uPort_p == 0 || i8uPort_p == 1)
-        ; //i32sFd_l = i32sFdSpi_g[i8uPort_p];
+	; //i32sFd_l = i32sFdSpi_g[i8uPort_p];
     else
-        return SPI_RET_NO_DEVICE;
+	return SPI_RET_NO_DEVICE;
 
     if (pSpiDev_g == NULL)
-        return SPI_RET_NO_DEVICE;
+	return SPI_RET_NO_DEVICE;
 
     if (tx_p)
-        memcpy(pi8uSpiMemTx, tx_p, len_p);
+	memcpy(pi8uSpiMemTx, tx_p, len_p);
 
     memset(&tTransfer_l, 0, sizeof(tTransfer_l));
     tTransfer_l.tx_buf = pi8uSpiMemTx;
@@ -298,38 +298,13 @@ INT32U spi_transceive (
 
     if (i32sRv_l < 0)
     {
-        printk("spi_sync_transfer len %d failed %d\n", len_p, i32sRv_l);
-        return SPI_RET_MSG_ERROR;
+	pr_err("spi_sync_transfer len %d failed %d\n", len_p, i32sRv_l);
+	return SPI_RET_MSG_ERROR;
     }
 
 
     if (rx_p)
-        memcpy(rx_p, pi8uSpiMemRx, len_p);
-
-#if 0 // for debugging
-    {
-        INT8U *px;
-        int i;
-
-        if (tx_p)
-        {
-            px = tx_p;
-            printk("tx %d ", i8uCurrentCS_g);
-            for (i=0; i<40 && i<len_p; px++, i++)
-                printk("%.2x ", *px);
-            printk("\n");
-        }
-        if (rx_p)
-        {
-            px = rx_p;
-            printk("rx %d ", i8uCurrentCS_g);
-            for (i=0; i<40 && i<len_p; px++, i++)
-                printk("%.2x ", *px);
-            printk("\n");
-        }
-    }
-    //printk("send: %d\n", len_p);
-#endif
+	memcpy(rx_p, pi8uSpiMemRx, len_p);
 
     return  SPI_RET_OK;
 }
@@ -346,11 +321,11 @@ INT32U spi_transceive (
 //|   Annotations: Buffers have to remain valid until transmission is finished !
 //+=============================================================================================
 void spi_slave_transceive_init (
-                     INT8U   i8uPort_p,  ///< [in] SPI Port [0..2] used for transmission
-                     INT8U       *tx_p,    ///< [in] bytes to transmit
-                     INT8U       *rx_p,    ///< [out]  bytes to receive
-                     INT32U      len_p ///< [in] wait for transmission end (blocking)
-                     )
+		     INT8U   i8uPort_p,  ///< [in] SPI Port [0..2] used for transmission
+		     INT8U       *tx_p,    ///< [in] bytes to transmit
+		     INT8U       *rx_p,    ///< [out]  bytes to receive
+		     INT32U      len_p ///< [in] wait for transmission end (blocking)
+		     )
 {
 }
 
@@ -366,9 +341,9 @@ void spi_slave_transceive_init (
 //|   Annotations: Buffers have to remain valid until transmission is finished !
 //+=============================================================================================
 TBOOL   spi_slave_transceive_done (
-                                   INT8U i8uPort_p,      ///< [in] SPI Port [0..2] used for transmission
-                                   TBOOL bStopWaiting_p  ///< [in] stop waiting for transmission end
-                                   )
+				   INT8U i8uPort_p,      ///< [in] SPI Port [0..2] used for transmission
+				   TBOOL bStopWaiting_p  ///< [in] stop waiting for transmission end
+				   )
 {
     return bTRUE;
 }
@@ -454,9 +429,9 @@ void BSP_SPI_RWPERI_chipSelectDisable (
 {
     gpio_set_value(i32sFdCS_g[i8uCurrentCS_g], 1);
     disable = hrtimer_cb_get_time(&ioTimer);
-    if ((disable.tv64 - enable.tv64) > 2000000)
+    if (ktime_ms_delta(disable, enable) > 2)
     {
-        printk("overtime %d us\n", (int)((disable.tv64 - enable.tv64) >> 10));
+	pr_info("overtime %d us\n", (int)ktime_us_delta(disable, enable));
     }
 }
 

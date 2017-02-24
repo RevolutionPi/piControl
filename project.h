@@ -32,7 +32,12 @@
 #define BSPCONFIG_H_INC
 
 #define PRINT_MODGATE_COM_STATE
-#define DO_NOT_USE_WIRING_PI
+#if 0
+#define pr_info_modgate(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#else
+#define pr_info_modgate(fmt, ...)
+#endif
+
 #define DEBUG_MASTER_STATE
 //#define DEBUG_SERIALCOMM
 //#define DEBUG_CONFIG
@@ -71,10 +76,12 @@
 #define GPIO_SNIFF2B    29
 #define KSZ8851_SPI_PORT 0      // we use SPI port 0 for both sides
 
-#define DRIVER_NAME         "piControl"
 
 //#define VERBOSE
-#define DF_PRINTK(...)      printk(DRIVER_NAME ": " __VA_ARGS__)
+#define DF_PRINTK(...)      printk(KBUILD_MODNAME ": " __VA_ARGS__)
+
+#undef pr_fmt
+#define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
 
 
 #endif // BSPCONFIG_H_INC

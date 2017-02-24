@@ -60,6 +60,7 @@ typedef struct spiControlDev
     piDevices *devs;
     piEntries *ent;
     piCopylist *cl;
+    piConnectionList *connl;
     ktime_t tLastOutput1, tLastOutput2;
 
     u8 PnAppCon;                                // counter of open connections
