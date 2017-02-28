@@ -26,6 +26,7 @@
 #include <piControl.h>
 #include <piIOComm.h>
 #include <piDIOComm.h>
+#include <piAIOComm.h>
 
 static TBOOL bEntering_s = bTRUE;
 static EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
@@ -45,7 +46,7 @@ void PiBridgeMaster_Reset(void)
 	piDev_g.eBridgeState = piBridgeInit;
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
 	RevPiScan.i8uStatus = 0;
-	//piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] = 0;
+
 	bEntering_s = bTRUE;
 	RevPiDevice_init();
 	rt_mutex_unlock(&piDev_g.lockBridgeState);
@@ -59,7 +60,7 @@ int PiBridgeMaster_Adjust(void)
 
 	if (piDev_g.devs == NULL || piDev_g.ent == NULL) {
 		// config file could not be read, do nothing
-		return 0;
+		return -1;
 	}
 
 	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
@@ -77,7 +78,6 @@ int PiBridgeMaster_Adjust(void)
 						  piDev_g.devs->dev[i].i16uModuleType);
 					result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
 					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
-					//piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
 					done = 1;
 					break;
 				}
@@ -87,7 +87,6 @@ int PiBridgeMaster_Adjust(void)
 						  piDev_g.devs->dev[i].i16uInputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
 					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
-					//piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
 					done = 1;
 					break;
 				}
@@ -98,7 +97,6 @@ int PiBridgeMaster_Adjust(void)
 						  piDev_g.devs->dev[i].i16uOutputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH;
 					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
-					//piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_SIZE_MISMATCH;
 					done = 1;
 					break;
 				}
@@ -126,7 +124,6 @@ int PiBridgeMaster_Adjust(void)
 			// Falls ein autom. erkanntes Modul in der Konfiguration nicht vorkommt, wird es deakiviert
 			RevPiScan.dev[j].i8uActive = 0;
 			RevPiScan.i8uStatus |= PICONTROL_STATUS_EXTRA_MODULE;
-			//piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_EXTRA_MODULE;
 		}
 	}
 
@@ -134,7 +131,6 @@ int PiBridgeMaster_Adjust(void)
 	for (i = 0; i < piDev_g.devs->i16uNumDevices; i++) {
 		if (state[i] == 0) {
 			RevPiScan.i8uStatus |= PICONTROL_STATUS_MISSING_MODULE;
-			//piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset] |= PICONTROL_STATUS_MISSING_MODULE;
 
 			j = RevPiScan.i8uDeviceCount;
 			RevPiScan.dev[j].i8uAddress = piDev_g.devs->dev[i].i8uAddress;
@@ -158,6 +154,67 @@ int PiBridgeMaster_Adjust(void)
 	kfree(state);
 	return result;
 }
+
+void PiBridgeMaster_setDefaults(void)
+{
+	int i;
+
+	if (piDev_g.ent == NULL)
+		return;
+
+	memset(piDev_g.ai8uPIDefault, 0, KB_PI_LEN);
+
+	for (i=0; i<piDev_g.ent->i16uNumEntries; i++)
+	{
+		if (piDev_g.ent->ent[i].i32uDefault != 0)
+		{
+			pr_info("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
+				piDev_g.ent->ent[i].i8uAddress,
+				piDev_g.ent->ent[i].i8uType,
+				piDev_g.ent->ent[i].i16uBitLength,
+				piDev_g.ent->ent[i].i16uOffset,
+				piDev_g.ent->ent[i].i8uBitPos,
+				piDev_g.ent->ent[i].i32uDefault);
+
+			if (piDev_g.ent->ent[i].i16uBitLength == 1)
+			{
+				INT8U i8uValue, i8uMask, addr, bit;
+
+				addr = piDev_g.ent->ent[i].i16uOffset;
+				bit = piDev_g.ent->ent[i].i8uBitPos;
+
+				addr += bit / 8;
+				bit %= 8;
+
+				i8uValue = piDev_g.ai8uPIDefault[addr];
+
+				i8uMask = (1 << bit);
+				if (piDev_g.ent->ent[i].i32uDefault != 0)
+					i8uValue |= i8uMask;
+				else
+					i8uValue &= ~i8uMask;
+				piDev_g.ai8uPIDefault[addr] = i8uValue;
+			}
+			else if (piDev_g.ent->ent[i].i16uBitLength == 8)
+			{
+				piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset] = (INT8U)piDev_g.ent->ent[i].i32uDefault;
+			}
+			else if (piDev_g.ent->ent[i].i16uBitLength == 16 && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN-1)
+			{
+				INT16U *pi16uPtr = (INT16U *)&piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
+
+				*pi16uPtr = (INT16U)piDev_g.ent->ent[i].i32uDefault;
+			}
+			else if (piDev_g.ent->ent[i].i16uBitLength == 32 && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN-3)
+			{
+				INT32U *pi32uPtr = (INT32U *)&piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
+
+				*pi32uPtr = (INT32U)piDev_g.ent->ent[i].i32uDefault;
+			}
+		}
+	}
+}
+
 
 int PiBridgeMaster_Run(void)
 {
@@ -392,6 +449,11 @@ int PiBridgeMaster_Run(void)
 				}
 				pr_info_master("\n");
 #endif
+				PiBridgeMaster_setDefaults();
+
+				rt_mutex_lock(&piDev_g.lockPI);
+				memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
+				rt_mutex_unlock(&piDev_g.lockPI);
 
 				msleep(100);	// wait a while
 				pr_info("start data exchange\n");
@@ -407,6 +469,10 @@ int PiBridgeMaster_Run(void)
 						case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 							ret = piDIOComm_Init(i);
 							pr_info_dio("piDIOComm_Init done %d\n", ret);
+							break;
+						case KUNBUS_FW_DESCR_TYP_PI_AIO:
+							ret = piAIOComm_Init(i);
+							pr_info_aio("piAIOComm_Init done %d\n", ret);
 							break;
 						}
 					}

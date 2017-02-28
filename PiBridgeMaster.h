@@ -50,6 +50,7 @@ typedef struct _SRevPiCoreImage {
 
 void PiBridgeMaster_Reset(void);
 int PiBridgeMaster_Adjust(void);
+void PiBridgeMaster_setDefaults(void);
 int PiBridgeMaster_Run(void);
 void PiBridgeMaster_Stop(void);
 int PiBridgeMaster_gotoMGateComMode(void);

@@ -56,6 +56,7 @@ typedef struct spiControlDev
 
     // process image stuff
     INT8U ai8uPI[KB_PI_LEN];
+    INT8U ai8uPIDefault[KB_PI_LEN];
     struct rt_mutex lockPI;
     piDevices *devs;
     piEntries *ent;

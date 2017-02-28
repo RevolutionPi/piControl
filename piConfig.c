@@ -25,6 +25,7 @@
 #include <piControl.h>
 #include <piConfig.h>
 #include <piDIOComm.h>
+#include <piAIOComm.h>
 
 #define TOKEN_DEVICES       "Devices"
 #define TOKEN_CONNECTIONS   "Connections"
@@ -81,7 +82,7 @@ struct file *open_filename(const char *filename, int flags)
 	pr_info_config("filp_open %s %x  %d %x\n", filename, (int)filename, (int)input, (int)input);
 
 	if (IS_ERR(input)) {
-		DF_PRINTK("error: cannot open file %s\n", filename);
+		pr_err("error: cannot open file %s\n", filename);
 		return NULL;
 	}
 	return input;
@@ -104,7 +105,7 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 
 	buffer = kmalloc(BUFFLEN, GFP_KERNEL);
 	if (buffer == NULL) {
-		DF_PRINTK("process file: out of memory\n");
+		pr_err("process file: out of memory\n");
 		return -1;
 	}
 
@@ -119,11 +120,11 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 	while (1) {
 		read = vfs_read(input, buffer + (BUFFLEN - len), len, &input->f_pos);
 		if (read <= 0) {
-			DF_PRINTK("vfs_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
+			pr_err("vfs_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
 			break;
 		}
 		ret = json_parser_string(parser, buffer, read, &processed);
-		DF_PRINTK("json_parser_string returned %d: %d %u\n", ret, read, processed);
+		pr_err("json_parser_string returned %d: %d %u\n", ret, read, processed);
 		for (i = 0; i < processed; i++) {
 			if (buffer[i] == '\n') {
 				col = 0;
@@ -263,28 +264,28 @@ static int do_tree(json_config * config, const char *filename, json_val_t ** roo
 
 	ret = json_parser_dom_init(&dom, tree_create_structure, tree_create_data, tree_append);
 	if (ret) {
-		DF_PRINTK("error: initializing helper failed: [code=%d] %s\n", ret, string_of_errors[ret]);
+		pr_err("error: initializing helper failed: [code=%d] %s\n", ret, string_of_errors[ret]);
 		close_filename(input);
 		return ret;
 	}
 
 	ret = json_parser_init(&parser, config, json_parser_dom_callback, &dom);
 	if (ret) {
-		DF_PRINTK("error: initializing parser failed: [code=%d] %s\n", ret, string_of_errors[ret]);
+		pr_err("error: initializing parser failed: [code=%d] %s\n", ret, string_of_errors[ret]);
 		close_filename(input);
 		return ret;
 	}
 
 	ret = process_file(&parser, input, &lines, &col);
 	if (ret) {
-		DF_PRINTK("line %d, col %d: [code=%d] %s\n", lines, col, ret, string_of_errors[ret]);
+		pr_err("line %d, col %d: [code=%d] %s\n", lines, col, ret, string_of_errors[ret]);
 		close_filename(input);
 		return 1;
 	}
 
 	ret = json_parser_is_done(&parser);
 	if (!ret) {
-		DF_PRINTK("syntax error: offset %d  state %d\n", parser.stack_offset, parser.state);
+		pr_err("syntax error: offset %d  state %d\n", parser.stack_offset, parser.state);
 		close_filename(input);
 		return 1;
 	}
@@ -304,7 +305,7 @@ static int free_tree(json_val_t * element)
 {
 	int i;
 	if (!element) {
-		DF_PRINTK("error: no element in print tree\n");
+		pr_err("error: no element in print tree\n");
 		return -1;
 	}
 
@@ -357,7 +358,7 @@ static piDevice *extract_devices(json_val_t * element, int lvl)
 	ret = NULL;
 
 	if (!element) {
-		DF_PRINTK("error: no element in print tree\n");
+		pr_info("error: no element in print tree\n");
 		return ret;
 	}
 
@@ -366,7 +367,7 @@ static piDevice *extract_devices(json_val_t * element, int lvl)
 		for (i = 0; i < element->length; i++) {
 			if (lvl == 1 && strcmp(element->u.object[i]->key, TOKEN_DEVICES) == 0) {	// we found the devices list -> increase lvl
 				if (ret != NULL) {
-					DF_PRINTK("error: there should by only one '%s' element\n",
+					pr_info("error: there should by only one '%s' element\n",
 						  element->u.object[i]->key);
 					return NULL;
 				}
@@ -387,7 +388,7 @@ static piDevice *extract_devices(json_val_t * element, int lvl)
 					json_val_t *ent = element->u.object[i]->val;
 
 					if (ent->type != JSON_OBJECT_BEGIN || ent->u.object == NULL) {
-						DF_PRINTK("error: element '%s' must contain an Object\n",
+						pr_info("error: element '%s' must contain an Object\n",
 							  element->u.object[i]->key);
 						return NULL;
 					}
@@ -455,7 +456,7 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 	piDevices *ret = NULL;
 
 	if (!element) {
-		DF_PRINTK("error: no element in print tree\n");
+		pr_err("error: no element in print tree\n");
 		return NULL;
 	}
 
@@ -469,7 +470,7 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 			for (i = 0; i < element->length; i++) {
 				if (lvl == 1 && strcmp(element->u.object[i]->key, TOKEN_DEVICES) == 0) {	// we found the devices list -> increase lvl
 					if (ret != NULL) {
-						DF_PRINTK("error: there should by only one '%s' element\n",
+						pr_err("error: there should by only one '%s' element\n",
 							  element->u.object[i]->key);
 						return NULL;
 					}
@@ -531,7 +532,7 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 	case JSON_FLOAT:
 		break;
 	default:
-		DF_PRINTK("error: unhandled type %d\n", element->type);
+		pr_err("error: unhandled type %d\n", element->type);
 		break;
 	}
 	return ret;
@@ -542,7 +543,7 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 	int i;
 
 	if (!element) {
-		DF_PRINTK("error: no element in print tree\n");
+		pr_err("error: no element in print tree\n");
 		return;
 	}
 
@@ -571,7 +572,7 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 					struct json_val **array = element->u.object[i]->val->u.array;
 
 					if (*pIdxEntry >= pEnt->i16uNumEntries) {
-						DF_PRINTK("error: wrong entry index\n");
+						pr_err("error: wrong entry index\n");
 						return;
 					}
 					pEnt->ent[*pIdxEntry].i8uAddress = devAddr;
@@ -586,7 +587,7 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 					}
 					pEnt->ent[*pIdxEntry].i16uOffset = simple_strtoul(array[3]->u.data, NULL, 0);
 					pEnt->ent[*pIdxEntry].i32uDefault = simple_strtoul(array[1]->u.data, NULL, 0);
-					//DF_PRINTK("export: >%s< t %d l %d\n", array[4]->u.data, array[4]->type, array[4]->length);
+					//pr_info_config("export: >%s< t %d l %d\n", array[4]->u.data, array[4]->type, array[4]->length);
 					if (array[4]->type == JSON_TRUE ||
 					    (array[4]->type == JSON_STRING && strcmp(array[4]->u.data, "true") == 0)
 					    ) {
@@ -644,7 +645,7 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 	piConnectionList *ret = NULL;
 
 	if (!element) {
-		DF_PRINTK("error: no element in print tree\n");
+		pr_err("error: no element in print tree\n");
 		return NULL;
 	}
 
@@ -657,35 +658,35 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 		} else {
 			// The variable name are unique in th whole configuration, therefore it is not necessary to compare the GUIDs
 			// also. This is guaranteed by PiCtory.
-//            char strSrcGUID[50];
-//            char strDstGUID[50];
+//			char strSrcGUID[50];
+//			char strDstGUID[50];
 			char strSrcName[32];
 			char strDstName[32];
-//            strSrcGUID[0] = 0;
-//            strDstGUID[0] = 0;
+//			strSrcGUID[0] = 0;
+//			strDstGUID[0] = 0;
 			strSrcName[0] = 0;
 			strDstName[0] = 0;
 
 			for (i = 0; i < element->length; i++) {
 				if (lvl == 1 && strcmp(element->u.object[i]->key, TOKEN_CONNECTIONS) == 0) {	// we found the connections list -> increase lvl
 					if (ret != NULL) {
-						DF_PRINTK("error: there should by only one '%s' element\n",
+						pr_err("error: there should by only one '%s' element\n",
 							  element->u.object[i]->key);
 						return NULL;
 					}
 					ret = find_connections(element->u.object[i]->val, devs, ent, conn, 100);
 				} else if (lvl == 101) {	// we found a connection, parse elements
-//                    if (strcmp(element->u.object[i]->key, TOKEN_SRC_GUID) == 0)
-//                    {
-//                        strncpy(strSrcGUID, element->u.object[i]->val->u.data, sizeof(strSrcGUID)-1);
-//                        strSrcGUID[sizeof(strSrcGUID)-1] = 0;
-//                    }
-//                    else if (strcmp(element->u.object[i]->key, TOKEN_DEST_GUID) == 0)
-//                    {
-//                        strncpy(strDstGUID, element->u.object[i]->val->u.data, sizeof(strDstGUID)-1);
-//                        strDstGUID[sizeof(strDstGUID)-1] = 0;
-//                    }
-//                    else
+//					if (strcmp(element->u.object[i]->key, TOKEN_SRC_GUID) == 0)
+//					{
+//						strncpy(strSrcGUID, element->u.object[i]->val->u.data, sizeof(strSrcGUID)-1);
+//						strSrcGUID[sizeof(strSrcGUID)-1] = 0;
+//					}
+//					else if (strcmp(element->u.object[i]->key, TOKEN_DEST_GUID) == 0)
+//					{
+//						strncpy(strDstGUID, element->u.object[i]->val->u.data, sizeof(strDstGUID)-1);
+//						strDstGUID[sizeof(strDstGUID)-1] = 0;
+//					}
+//					else
 					if (strcmp(element->u.object[i]->key, TOKEN_SRC_NAME) == 0) {
 						strncpy(strSrcName, element->u.object[i]->val->u.data,
 							sizeof(strSrcName) - 1);
@@ -709,12 +710,12 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 					SEntryInfo *pSrcEntry, *pDstEntry;
 					pSrcEntry = search_entry(ent, strSrcName);
 					if (pSrcEntry == NULL) {
-						DF_PRINTK("error: connection variable %s unknown\n", strSrcName);
+						pr_err("error: connection variable %s unknown\n", strSrcName);
 						return NULL;
 					}
 					pDstEntry = search_entry(ent, strDstName);
 					if (pDstEntry == NULL) {
-						DF_PRINTK("error: connection variable %s unknown\n", strDstName);
+						pr_err("error: connection variable %s unknown\n", strDstName);
 						return NULL;
 					}
 					conn->i16uSrcAddr = pSrcEntry->i16uOffset;
@@ -729,7 +730,7 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 					}
 					return NULL;	// return value is not used in this recursive call
 				} else {
-					DF_PRINTK("error: attributes of connection %d are missing\n", i + 1);
+					pr_err("error: attributes of connection %d are missing\n", i + 1);
 					return NULL;
 				}
 			}
@@ -743,10 +744,10 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 				find_connections(element->u.array[i], devs, ent, &ret->conn[i], lvl + 1);
 			}
 		} else {
-//            for (i = 0; i < element->length; i++)
-//            {
-//                ret = find_connections(element->u.array[i], devs, ent, conn, lvl + 1);
-//            }
+//			for (i = 0; i < element->length; i++)
+//			{
+//				ret = find_connections(element->u.array[i], devs, ent, conn, lvl + 1);
+//			}
 		}
 		break;
 		break;
@@ -761,7 +762,7 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 	case JSON_FLOAT:
 		break;
 	default:
-		DF_PRINTK("error: unhandled type %d\n", element->type);
+		pr_err("error: unhandled type %d\n", element->type);
 		break;
 	}
 	return ret;
@@ -774,7 +775,7 @@ static int print_tree_iter(json_val_t * element, int lvl)
 	char sLvl[] = "############";
 
 	if (!element) {
-		DF_PRINTK("error: no element in print tree\n");
+		pr_info_config("error: no element in print tree\n");
 		return -1;
 	}
 
@@ -782,33 +783,33 @@ static int print_tree_iter(json_val_t * element, int lvl)
 
 	switch (element->type) {
 	case JSON_OBJECT_BEGIN:
-		DF_PRINTK("%s object begin (%d element)\n", sLvl, element->length);
+		pr_info_config("%s object begin (%d element)\n", sLvl, element->length);
 		for (i = 0; i < element->length; i++) {
-			DF_PRINTK("%s key: %s\n", sLvl, element->u.object[i]->key);
+			pr_info_config("%s key: %s\n", sLvl, element->u.object[i]->key);
 			print_tree_iter(element->u.object[i]->val, lvl + 1);
 		}
-		DF_PRINTK("%s object end\n", sLvl);
+		pr_info_config("%s object end\n", sLvl);
 		break;
 	case JSON_ARRAY_BEGIN:
-		DF_PRINTK("%s array begin\n", sLvl);
+		pr_info_config("%s array begin\n", sLvl);
 		for (i = 0; i < element->length; i++) {
 			print_tree_iter(element->u.array[i], lvl + 1);
 		}
-		DF_PRINTK("%s array end\n", sLvl);
+		pr_info_config("%s array end\n", sLvl);
 		break;
 	case JSON_FALSE:
 	case JSON_TRUE:
 	case JSON_NULL:
-		DF_PRINTK("%s constant\n", sLvl);
+		pr_info_config("%s constant\n", sLvl);
 		break;
 	case JSON_INT:
-		DF_PRINTK("%s integer: %s\n", sLvl, element->u.data);
+		pr_info_config("%s integer: %s\n", sLvl, element->u.data);
 		break;
 	case JSON_STRING:
-		DF_PRINTK("%s string: %s\n", sLvl, element->u.data);
+		pr_info_config("%s string: %s\n", sLvl, element->u.data);
 		break;
 	case JSON_FLOAT:
-		DF_PRINTK("%s float: %s\n", sLvl, element->u.data);
+		pr_info_config("%s float: %s\n", sLvl, element->u.data);
 		break;
 	default:
 		break;
@@ -845,7 +846,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 
 	*devs = find_devices(root_structure, NULL, 1);
 	if (*devs == NULL) {
-		DF_PRINTK("find_devices returned NULL\n");
+		pr_err("find_devices returned NULL\n");
 		return 3;
 	}
 
@@ -886,6 +887,10 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 			piDIOComm_Config((*devs)->dev[i].i8uAddress, (*devs)->dev[i].i16uEntries,
+					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_AIO:
+			piAIOComm_Config((*devs)->dev[i].i8uAddress, (*devs)->dev[i].i16uEntries,
 					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;
 		}
@@ -1053,7 +1058,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		i++;
 	}
 
-	DF_PRINTK("copylist has %d entries\n", i);
+	pr_info_config("copylist has %d entries\n", i);
 	(*cl)->i16uNumEntries = i;
 
 	free_tree(root_structure);

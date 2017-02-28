@@ -287,7 +287,7 @@ int piIoThread(void *data)
 			tDiff = tDiff << 1;	// mutliply by 2
 			if ((now.tv64 - piDev_g.tLastOutput1.tv64) > tDiff) {
 				int i;
-				// the output where not written by logiCAD for more than twice the normal period
+				// the outputs were not written by logiCAD for more than twice the normal period
 				// the logiRTS must have been stopped or crashed
 				// -> set all outputs to 0
 				DF_PRINTK("logiRTS timeout, set all output to 0\n");
@@ -1189,24 +1189,24 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 /* tut so nicht
     case KB_GET_DEVICE_INFO_U:
     {
-        SDeviceInfo *pDev = kmalloc(RevPiDevice_i8uDeviceCount_m * sizeof(SDeviceInfo), GFP_USER);
-        int i;
-        for (i=0; i<RevPiDevice_i8uDeviceCount_m; i++)
-        {
-            pDev[i].i8uAddress = RevPiDevice.dev[i].i8uAddress;
-            pDev[i].i32uSerialnumber = RevPiDevice.dev[i].sId.i32uSerialnumber;
-            pDev[i].i16uModuleType = RevPiDevice.dev[i].sId.i16uModulType;
-            pDev[i].i16uHW_Revision = RevPiDevice.dev[i].sId.i16uHW_Revision;
-            pDev[i].i16uSW_Major = RevPiDevice.dev[i].sId.i16uSW_Major;
-            pDev[i].i16uSW_Minor = RevPiDevice.dev[i].sId.i16uSW_Minor;
-            pDev[i].i32uSVN_Revision = RevPiDevice.dev[i].sId.i32uSVN_Revision;
-            pDev[i].i16uFBS_InputLength = RevPiDevice.dev[i].sId.i16uFBS_InputLength;
-            pDev[i].i16uFBS_OutputLength = RevPiDevice.dev[i].sId.i16uFBS_OutputLength;
-            pDev[i].i16uInputOffset = RevPiDevice.dev[i].i16uInputOffset;
-            pDev[i].i16uOutputOffset = RevPiDevice.dev[i].i16uOutputOffset;
-        }
-        status = RevPiDevice_i8uDeviceCount_m;
-        *((SDeviceInfo **)usr_addr) = pDev;
+	SDeviceInfo *pDev = kmalloc(RevPiDevice_i8uDeviceCount_m * sizeof(SDeviceInfo), GFP_USER);
+	int i;
+	for (i=0; i<RevPiDevice_i8uDeviceCount_m; i++)
+	{
+	    pDev[i].i8uAddress = RevPiDevice.dev[i].i8uAddress;
+	    pDev[i].i32uSerialnumber = RevPiDevice.dev[i].sId.i32uSerialnumber;
+	    pDev[i].i16uModuleType = RevPiDevice.dev[i].sId.i16uModulType;
+	    pDev[i].i16uHW_Revision = RevPiDevice.dev[i].sId.i16uHW_Revision;
+	    pDev[i].i16uSW_Major = RevPiDevice.dev[i].sId.i16uSW_Major;
+	    pDev[i].i16uSW_Minor = RevPiDevice.dev[i].sId.i16uSW_Minor;
+	    pDev[i].i32uSVN_Revision = RevPiDevice.dev[i].sId.i32uSVN_Revision;
+	    pDev[i].i16uFBS_InputLength = RevPiDevice.dev[i].sId.i16uFBS_InputLength;
+	    pDev[i].i16uFBS_OutputLength = RevPiDevice.dev[i].sId.i16uFBS_OutputLength;
+	    pDev[i].i16uInputOffset = RevPiDevice.dev[i].i16uInputOffset;
+	    pDev[i].i16uOutputOffset = RevPiDevice.dev[i].i16uOutputOffset;
+	}
+	status = RevPiDevice_i8uDeviceCount_m;
+	*((SDeviceInfo **)usr_addr) = pDev;
     }   break;
 */
 	default:

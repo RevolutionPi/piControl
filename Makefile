@@ -7,6 +7,7 @@ obj-m   := piControl.o
 piControl-objs  = piControlMain.o
 piControl-objs += piIOComm.o
 piControl-objs += piDIOComm.o
+piControl-objs += piAIOComm.o
 piControl-objs += RevPiDevice.o
 piControl-objs += json.o
 piControl-objs += piConfig.o
@@ -23,7 +24,7 @@ piControl-objs += systick.o
 ccflags-y := -Os
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
-KDIR    := /home/md/pi/linux4.1
+KDIR    := /home/md/pi/linux
 KBUILD_CFLAGS += -g
 
 PWD   	:= $(shell pwd)
@@ -36,8 +37,8 @@ EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__
 .PHONY: compiletime.h
 
 all: compiletime.h
-	$(MAKE) ARCH=arm -C $(KDIR) M=$(PWD) modules
-	
+	$(MAKE) ARCH=arm -C $(KDIR) M=$(PWD) O=../kernelpkg/kbuild modules
+
 compiletime.h:
 	echo "#define COMPILETIME \""`date`"\"" > compiletime.h
 
@@ -47,4 +48,4 @@ clean:
 
 
 
- 
+
