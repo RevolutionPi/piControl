@@ -871,9 +871,10 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	cnt = 0;
 	find_entries(root_structure, *ent, &cnt, 0, 0, 1);
 
-	piDIOComm_InitStart();
-
 	// copy the config value into the module driver
+	piDIOComm_InitStart();
+	piAIOComm_InitStart();
+
 	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
 		pr_info_config("device %d typ %d has %d entries. Offsets: Base=%3d"
 			       " In=%3d Out=%3d Conf=%3d"

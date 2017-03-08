@@ -103,8 +103,8 @@ int RevPiDevice_run(void)
 		    if (RevPiScan.dev[i8uDevice].i16uErrorCnt < 255)
 		    {
 			RevPiScan.dev[i8uDevice].i16uErrorCnt++;
-			retval = -1;    // tell calling function that an error occured
 		    }
+		    retval -= 1;    // tell calling function that an error occured
 		}
 		else
 		{
@@ -119,8 +119,8 @@ int RevPiDevice_run(void)
 		    if (RevPiScan.dev[i8uDevice].i16uErrorCnt < 255)
 		    {
 			RevPiScan.dev[i8uDevice].i16uErrorCnt++;
-			retval = -1;    // tell calling function that an error occured
 		    }
+		    retval -= 1;    // tell calling function that an error occured
 		}
 		else
 		{
@@ -165,7 +165,7 @@ int RevPiDevice_run(void)
 	    }
 	    RevPiScan.i16uErrorCnt += RevPiScan.dev[i8uDevice].i16uErrorCnt;
 	}
-	}
+    }
     return retval;
 }
 

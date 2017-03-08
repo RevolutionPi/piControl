@@ -48,6 +48,7 @@ void PiBridgeMaster_Reset(void)
 	RevPiScan.i8uStatus = 0;
 
 	bEntering_s = bTRUE;
+
 	RevPiDevice_init();
 	rt_mutex_unlock(&piDev_g.lockBridgeState);
 }
@@ -469,10 +470,22 @@ int PiBridgeMaster_Run(void)
 						case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 							ret = piDIOComm_Init(i);
 							pr_info_dio("piDIOComm_Init done %d\n", ret);
+							if (ret != 0)
+							{
+								// init failed -> deactive module
+								pr_err("piDIOComm_Init module %d failed %d\n", RevPiScan.dev[i].i8uAddress, ret);
+								RevPiScan.dev[i].i8uActive = 0;
+							}
 							break;
 						case KUNBUS_FW_DESCR_TYP_PI_AIO:
 							ret = piAIOComm_Init(i);
 							pr_info_aio("piAIOComm_Init done %d\n", ret);
+							if (ret != 0)
+							{
+								// init failed -> deactive module
+								pr_err("piAIOComm_Init module %d failed %d\n", RevPiScan.dev[i].i8uAddress, ret);
+								RevPiScan.dev[i].i8uActive = 0;
+							}
 							break;
 						}
 					}
