@@ -20,31 +20,53 @@
 /******************************************************************************/
 #ifndef WIN32
 
-#define PICONTROL_DEVICE    "/dev/piControl0"
-#define PICONFIG_FILE       "/etc/revpi/config.rsc"
-//#define PICONFIG_FILE       "/home/pi/config.rsc"
+#define PICONTROL_DEVICE	"/dev/piControl0"
 
-#define PICONTROL_USER_MODULE_TYPE      0x8000
-#define PICONTROL_USER_MODULE_MASK      0x7fff
+// The config file moved to /etc/revpi.
+// If it cannot be found there, the old location should be used.
+#define PICONFIG_FILE		"/etc/revpi/config.rsc"
+#define PICONFIG_FILE_WHEEZY    "/opt/KUNBUS/config.rsc"
+
+// Module Id 
+// 0x0001 - 0x3000      KUNBUS Modules (e.g. DIO, Gateways, ...)
+// 0x3001 - 0x7000      not used
+// 0x6001 - 0x7000      KUNBUS Software Adapters
+// 0x7001 - 0x8000      User defined Software Adapters
+// 0x8001 - 0xb000      KUNBUS Modules configured but not connected
+// 0xb001 - 0xffff      not used
+
+#define PICONTROL_SW_OFFSET                 0x6001      // 24577
+#define PICONTROL_SW_MODBUS_TCP_SLAVE       0x6001      // 24577
+#define PICONTROL_SW_MODBUS_RTU_SLAVE       0x6002      // 24578
+#define PICONTROL_SW_MODBUS_TCP_MASTER      0x6003      // 24579
+#define PICONTROL_SW_MODBUS_RTU_MASTER      0x6004      // 24580
+
+#define PICONTROL_NOT_CONNECTED             0x8000
+#define PICONTROL_NOT_CONNECTED_MASK        0x7fff
+
+#define PICONTROL_USER_MODULE_TYPE          0x8000  // old definition, will be removed soon
+#define PICONTROL_USER_MODULE_MASK          0x7fff  // old definition, will be removed soon
 
 #define KB_IOC_MAGIC  'K'
-#define  KB_CMD1                    _IO(KB_IOC_MAGIC, 10 )  // for test only
-#define  KB_CMD2                    _IO(KB_IOC_MAGIC, 11 )  // for test only
-#define  KB_RESET                   _IO(KB_IOC_MAGIC, 12 )  // reset the piControl driver including the config file
-#define  KB_GET_DEVICE_INFO_LIST    _IO(KB_IOC_MAGIC, 13 )  // get the device info of all detected devices
-#define  KB_GET_DEVICE_INFO         _IO(KB_IOC_MAGIC, 14 )  // get the device info of one device
-#define  KB_GET_VALUE               _IO(KB_IOC_MAGIC, 15 )  // get the value of one bit in the process image
-#define  KB_SET_VALUE               _IO(KB_IOC_MAGIC, 16 )  // set the value of one bit in the process image
-#define  KB_FIND_VARIABLE           _IO(KB_IOC_MAGIC, 17 )  // find a varible defined in piCtory
-#define  KB_SET_EXPORTED_OUTPUTS    _IO(KB_IOC_MAGIC, 18 )  // copy the exported outputs from a application process image to the real process image
+#define  KB_CMD1			_IO(KB_IOC_MAGIC, 10 )  // for test only
+#define  KB_CMD2			_IO(KB_IOC_MAGIC, 11 )  // for test only
+#define  KB_RESET			_IO(KB_IOC_MAGIC, 12 )  // reset the piControl driver including the config file
+#define  KB_GET_DEVICE_INFO_LIST	_IO(KB_IOC_MAGIC, 13 )  // get the device info of all detected devices
+#define  KB_GET_DEVICE_INFO		_IO(KB_IOC_MAGIC, 14 )  // get the device info of one device
+#define  KB_GET_VALUE			_IO(KB_IOC_MAGIC, 15 )  // get the value of one bit in the process image
+#define  KB_SET_VALUE			_IO(KB_IOC_MAGIC, 16 )  // set the value of one bit in the process image
+#define  KB_FIND_VARIABLE		_IO(KB_IOC_MAGIC, 17 )  // find a varible defined in piCtory
+#define  KB_SET_EXPORTED_OUTPUTS	_IO(KB_IOC_MAGIC, 18 )  // copy the exported outputs from a application process image to the real process image
+
+#define  KB_WAIT_FOR_EVENT		_IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
+#define  KB_EVENT_RESET			1		// piControl was reset, reload configuration
 
 // the following call are for KUNBUS internal use only
 #define  KB_INTERN_SET_SERIAL_NUM   _IO(KB_IOC_MAGIC, 100 )  // set serial num in piDIO, piDI or piDO (can be made only once)
 
-//tut so nicht #define  KB_GET_DEVICE_INFO_U   _IO(KB_IOC_MAGIC, 55 )
 #endif //WIN32
 
-typedef struct 
+typedef struct
 {
     uint8_t     i8uAddress;             // Address of module in current configuration
     uint32_t    i32uSerialnumber;       // serial number of module

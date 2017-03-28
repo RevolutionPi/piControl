@@ -29,6 +29,8 @@
 #include <linux/rtmutex.h>
 #include <linux/sem.h>
 #include <linux/gpio.h>
+#include <linux/wait.h>
+#include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <asm/div64.h>
 
@@ -161,11 +163,11 @@ int piGateThread(void *data)
 			DF_PRINTK("search for right mGate %d\n", AL_Data_s[0].OtherID.i16uModulType);
 			for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
 				if (RevPiScan.dev[i].sId.i16uModulType ==
-				    (AL_Data_s[0].OtherID.i16uModulType | PICONTROL_USER_MODULE_TYPE)
+				    (AL_Data_s[0].OtherID.i16uModulType | PICONTROL_NOT_CONNECTED)
 				    && RevPiScan.dev[i].i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
 					DF_PRINTK("found mGate %d\n", i);
 					RevPiScan.dev[i].i8uActive = 1;
-					RevPiScan.dev[i].sId.i16uModulType &= PICONTROL_USER_MODULE_MASK;
+					RevPiScan.dev[i].sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
 					piDev_g.i8uRightMGateIdx = i;
 					break;
 				}
@@ -177,18 +179,13 @@ int piGateThread(void *data)
 			// suche den Konfigeintrag dazu
 			DF_PRINTK("search for left mGate %d\n", AL_Data_s[1].OtherID.i16uModulType);
 			for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
-//                printk("%d: %d %d %d %d\n", i,
-//                       RevPiScan.dev[i].sId.i16uModulType,
-//                       AL_Data_s[1].OtherID.i16uModulType,
-//                       RevPiScan.dev[i].i8uActive,
-//                       RevPiScan.dev[i].i8uAddress);
 
 				if (RevPiScan.dev[i].sId.i16uModulType ==
-				    (AL_Data_s[1].OtherID.i16uModulType | PICONTROL_USER_MODULE_TYPE)
+				    (AL_Data_s[1].OtherID.i16uModulType | PICONTROL_NOT_CONNECTED)
 				    && RevPiScan.dev[i].i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
 					DF_PRINTK("found mGate %d\n", i);
 					RevPiScan.dev[i].i8uActive = 1;
-					RevPiScan.dev[i].sId.i16uModulType &= PICONTROL_USER_MODULE_MASK;
+					RevPiScan.dev[i].sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
 					piDev_g.i8uLeftMGateIdx = i;
 					break;
 				}
@@ -439,6 +436,8 @@ static int __init piControlInit(void)
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor) + devindex);
 
 	piDev_g.PnAppCon = 0;
+	INIT_LIST_HEAD(&piDev_g.listCon);
+	mutex_init(&piDev_g.lockListCon);
 
 	cdev_init(&piDev_g.cdev, &piControlFops);
 	piDev_g.cdev.owner = THIS_MODULE;
@@ -567,10 +566,10 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 12;
 
 	/* start application */
-	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl)) {
-		// ignore missing file
-		//cleanup();
-		//return -EFAULT;
+	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
+		// file not found, try old location
+		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
+		// ignore errors
 	}
 	piDev_g.init_step = 13;
 
@@ -711,12 +710,12 @@ static void cleanup(void)
 
 static void __exit piControlCleanup(void)
 {
-	DF_PRINTK("piControlCleanup\n");
+	pr_info_drv("piControlCleanup\n");
 
 	cleanup();
 
-	DF_PRINTK("driver stopped with MAJOR-No. %d\n\n ", MAJOR(piControlMajor));
-	DF_PRINTK("piControlCleanup done\n");
+	pr_info_drv("driver stopped with MAJOR-No. %d\n\n ", MAJOR(piControlMajor));
+	pr_info_drv("piControlCleanup done\n");
 }
 
 // true: system is running
@@ -734,7 +733,7 @@ bool isRunning(void)
 bool waitRunning(int timeout)	// ms
 {
 	if (piDev_g.init_step < 17) {
-		DF_PRINTK("waitRunning: init_step=%d\n", piDev_g.init_step);
+		pr_info_drv("waitRunning: init_step=%d\n", piDev_g.init_step);
 		return false;
 	}
 
@@ -758,11 +757,11 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	tpiControlInst *priv;
 
 	if (!waitRunning(3000)) {
-		DF_PRINTK("problem at driver initialization\n");
+		pr_err("problem at driver initialization\n");
 		return 0;
 	}
 
-	priv = (tpiControlInst *) kmalloc(sizeof(tpiControlInst), GFP_KERNEL);
+	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
 	file->private_data = priv;
 
 	if (priv == NULL) {
@@ -771,14 +770,22 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	}
 
 	/* initalize instance variables */
-	memset(priv, 0, sizeof(tpiControlInst));
 	priv->dev = piDev_g.dev;
+	INIT_LIST_HEAD(&priv->piEventList);
+	mutex_init(&priv->lockEventList);
+
+	init_waitqueue_head(&priv->wq);
 
 	dev_info(priv->dev, "piControlOpen");
 
 	piDev_g.PnAppCon++;
+	priv->instNum = piDev_g.PnAppCon;
 
-	DF_PRINTK("opened instance %d\n", piDev_g.PnAppCon);
+	mutex_lock(&piDev_g.lockListCon);
+	list_add(&priv->list, &piDev_g.listCon);
+	mutex_unlock(&piDev_g.lockListCon);
+
+	pr_info_drv("opened instance %d\n", piDev_g.PnAppCon);
 
 	return 0;
 }
@@ -789,15 +796,30 @@ static int piControlOpen(struct inode *inode, struct file *file)
 static int piControlRelease(struct inode *inode, struct file *file)
 {
 	tpiControlInst *priv;
+	struct list_head *pos;
 
 	priv = (tpiControlInst *) file->private_data;
 
 	dev_info(priv->dev, "piControlRelease");
 
-	kfree(priv);
-
-	DF_PRINTK("close instance %d\n", piDev_g.PnAppCon);
+	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
 	piDev_g.PnAppCon--;
+
+	mutex_lock(&piDev_g.lockListCon);
+	list_for_each(pos, &piDev_g.listCon)
+	{
+		tpiControlInst *pos_inst;
+		pos_inst = list_entry(pos, tpiControlInst, list);
+		if (pos_inst == priv)
+		{
+			list_del(pos);
+			printk("remove entry from list\n");
+			break;
+		}
+	}
+	mutex_unlock(&piDev_g.lockListCon);
+
+	kfree(priv);
 
 	return 0;
 }
@@ -934,10 +956,10 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		piDev_g.devs = NULL;
 
 		/* start application */
-		if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl)) {
-			// ignore missing file
-			//cleanup();
-			//return -EFAULT;
+		if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
+			// file not found, try old location
+			piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
+			// ignore errors
 		}
 
 		PiBridgeMaster_Reset();
@@ -945,6 +967,46 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		if (!waitRunning(timeout)) {
 			status = -ETIMEDOUT;
 		} else {
+			struct list_head *pCon;
+
+			mutex_lock(&piDev_g.lockListCon);
+			list_for_each(pCon, &piDev_g.listCon)
+			{
+				tpiControlInst *pos_inst;
+				pos_inst = list_entry(pCon, tpiControlInst, list);
+				if (pos_inst != priv)
+				{
+					struct list_head *pEv;
+					tpiEventEntry *pEntry;
+					bool found = false;
+
+					// add the event to the list only, if it not already there
+					mutex_lock(&pos_inst->lockEventList);
+					list_for_each(pEv, &pos_inst->piEventList) {
+						pEntry = list_entry(pEv, tpiEventEntry, list);
+						if (pEntry->event == piEvReset) {
+							found = true;
+							break;
+						}
+					}
+
+					if (!found) {
+						pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
+						pEntry->event = piEvReset;
+						pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum, (unsigned int)pEntry);
+						list_add_tail(&pEntry->list, &pos_inst->piEventList);
+						mutex_unlock(&pos_inst->lockEventList);
+						pr_info_drv("reset(%d): inform instance %d\n", priv->instNum, pos_inst->instNum);
+						wake_up(&pos_inst->wq);
+					}
+					else
+					{
+						mutex_unlock(&pos_inst->lockEventList);
+					}
+				}
+			}
+			mutex_unlock(&piDev_g.lockListCon);
+
 			status = 0;
 		}
 		break;
@@ -1186,31 +1248,30 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		}
 		break;
 
-/* tut so nicht
-    case KB_GET_DEVICE_INFO_U:
-    {
-	SDeviceInfo *pDev = kmalloc(RevPiDevice_i8uDeviceCount_m * sizeof(SDeviceInfo), GFP_USER);
-	int i;
-	for (i=0; i<RevPiDevice_i8uDeviceCount_m; i++)
-	{
-	    pDev[i].i8uAddress = RevPiDevice.dev[i].i8uAddress;
-	    pDev[i].i32uSerialnumber = RevPiDevice.dev[i].sId.i32uSerialnumber;
-	    pDev[i].i16uModuleType = RevPiDevice.dev[i].sId.i16uModulType;
-	    pDev[i].i16uHW_Revision = RevPiDevice.dev[i].sId.i16uHW_Revision;
-	    pDev[i].i16uSW_Major = RevPiDevice.dev[i].sId.i16uSW_Major;
-	    pDev[i].i16uSW_Minor = RevPiDevice.dev[i].sId.i16uSW_Minor;
-	    pDev[i].i32uSVN_Revision = RevPiDevice.dev[i].sId.i32uSVN_Revision;
-	    pDev[i].i16uFBS_InputLength = RevPiDevice.dev[i].sId.i16uFBS_InputLength;
-	    pDev[i].i16uFBS_OutputLength = RevPiDevice.dev[i].sId.i16uFBS_OutputLength;
-	    pDev[i].i16uInputOffset = RevPiDevice.dev[i].i16uInputOffset;
-	    pDev[i].i16uOutputOffset = RevPiDevice.dev[i].i16uOutputOffset;
-	}
-	status = RevPiDevice_i8uDeviceCount_m;
-	*((SDeviceInfo **)usr_addr) = pDev;
-    }   break;
-*/
+	case KB_WAIT_FOR_EVENT:
+		{
+			tpiEventEntry *pEntry;
+			int *pData = (int *) usr_addr;
+
+			pr_info_drv("wait(%d)\n", priv->instNum);
+			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
+				mutex_lock(&priv->lockEventList);
+				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
+
+				pr_info_drv("wait(%d): got event %d\n", priv->instNum, pEntry->event);
+				*pData = pEntry->event;
+
+				list_del(&pEntry->list);
+				mutex_unlock(&priv->lockEventList);
+				kfree(pEntry);
+
+				status = 0;
+			}
+		}
+		break;
+
 	default:
-		dev_err(priv->dev, "Invalid IOCtl");
+		dev_err(priv->dev, "Invalid Ioctl");
 		return (-EINVAL);
 		break;
 

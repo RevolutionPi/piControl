@@ -20,14 +20,11 @@
 #include <linux/kthread.h>
 #include <linux/hrtimer.h>
 #include <linux/semaphore.h>
+#include <linux/wait.h>
 #include <piConfig.h>
 
 /******************************************************************************/
 /*********************************  Types  ************************************/
-/******************************************************************************/
-
-/******************************************************************************/
-/*******************************  Prototypes  *********************************/
 /******************************************************************************/
 
 typedef enum
@@ -36,6 +33,12 @@ typedef enum
     piBridgeInit = 1,       // MGate Protocol
     piBridgeRun = 2,        // IO Protocol
 }   enPiBridgeState;
+
+typedef enum piEvent
+{
+	piEvReset = 1,
+} enPiEvent;
+
 
 typedef struct spiControlDev
 {
@@ -64,7 +67,10 @@ typedef struct spiControlDev
     piConnectionList *connl;
     ktime_t tLastOutput1, tLastOutput2;
 
+    // handling of open connections
     u8 PnAppCon;                                // counter of open connections
+    struct list_head listCon;
+    struct mutex lockListCon;
 
     // piGate thread
     struct task_struct *pGateThread;
@@ -80,15 +86,30 @@ typedef struct spiControlDev
     struct task_struct *pIoThread;
     struct hrtimer ioTimer;
     struct semaphore ioSem;
+} tpiControlDev;
 
-}tpiControlDev;
+typedef struct spiEventEntry
+{
+	enum piEvent event;
+	struct list_head list;
+} tpiEventEntry;
 
 typedef struct spiControlInst
 {
-    struct device *dev;
-}tpiControlInst;
+	u8 instNum;                                // number of instance
+	struct device *dev;
+	wait_queue_head_t wq;
+	struct list_head piEventList;	// head of the event list for this instance
+	struct mutex lockEventList;
+	struct list_head list;		// list of all instances
+} tpiControlInst;
+
 
 extern tpiControlDev piDev_g;
+
+/******************************************************************************/
+/*******************************  Prototypes  *********************************/
+/******************************************************************************/
 
 bool isRunning(void);
 

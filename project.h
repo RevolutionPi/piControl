@@ -66,6 +66,13 @@
 #define pr_info_aio(fmt, ...)
 #endif
 
+#if 1
+#define DEBUG_LINUX_DRV
+#define pr_info_drv(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#else
+#define pr_info_drv(fmt, ...)
+#endif
+
 //#define DEBUG_SERIALCOMM
 #define DEBUG_GPIO
 #define DEBUG_DEVICE

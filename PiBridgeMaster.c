@@ -134,13 +134,24 @@ int PiBridgeMaster_Adjust(void)
 			RevPiScan.i8uStatus |= PICONTROL_STATUS_MISSING_MODULE;
 
 			j = RevPiScan.i8uDeviceCount;
+			if (piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET)
+			{
+				// if a module is already defined as software module in the RAP file,
+				// it is handled by user space software and therefore always active
+				RevPiScan.dev[j].i8uActive = 1;
+				RevPiScan.dev[j].sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
+			}
+			else
+			{
+				RevPiScan.dev[j].i8uActive = 0;
+				RevPiScan.dev[j].sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;
+			}
 			RevPiScan.dev[j].i8uAddress = piDev_g.devs->dev[i].i8uAddress;
 			RevPiScan.dev[j].i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 			RevPiScan.dev[j].i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
 			RevPiScan.dev[j].i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
 			RevPiScan.dev[j].i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
 			RevPiScan.dev[j].sId.i32uSerialnumber = piDev_g.devs->dev[i].i32uSerialnumber;
-			RevPiScan.dev[j].sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType | PICONTROL_USER_MODULE_TYPE;	// higher module type because it is a user module
 			RevPiScan.dev[j].sId.i16uHW_Revision = piDev_g.devs->dev[i].i16uHW_Revision;
 			RevPiScan.dev[j].sId.i16uSW_Major = piDev_g.devs->dev[i].i16uSW_Major;
 			RevPiScan.dev[j].sId.i16uSW_Minor = piDev_g.devs->dev[i].i16uSW_Minor;
