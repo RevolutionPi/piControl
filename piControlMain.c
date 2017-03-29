@@ -281,8 +281,9 @@ int piIoThread(void *data)
 
 		if (piDev_g.tLastOutput1.tv64 != piDev_g.tLastOutput2.tv64) {
 			tDiff = piDev_g.tLastOutput1.tv64 - piDev_g.tLastOutput2.tv64;
-			tDiff = tDiff << 1;	// mutliply by 2
-			if ((now.tv64 - piDev_g.tLastOutput1.tv64) > tDiff) {
+			tDiff = tDiff << 1;	// multiply by 2
+			if ((now.tv64 - piDev_g.tLastOutput1.tv64) > tDiff
+			    && isRunning()) {
 				int i;
 				// the outputs were not written by logiCAD for more than twice the normal period
 				// the logiRTS must have been stopped or crashed
@@ -923,6 +924,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	int status = -EFAULT;
 	tpiControlInst *priv;
 	int timeout = 10000;	// ms
+	void *vptr;
 
 	if (!isRunning())
 		return -EAGAIN;
@@ -952,12 +954,23 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		PiBridgeMaster_Stop();
 
 		if (piDev_g.ent != NULL)
-			kfree(piDev_g.ent);
-		piDev_g.ent = NULL;
-
+		{
+			vptr = piDev_g.ent;
+			piDev_g.ent = NULL;
+			kfree(vptr);
+		}
 		if (piDev_g.devs != NULL)
-			kfree(piDev_g.devs);
-		piDev_g.devs = NULL;
+		{
+			vptr = piDev_g.devs;
+			piDev_g.devs = NULL;
+			kfree(vptr);
+		}
+		if (piDev_g.cl != NULL)
+		{
+			vptr = piDev_g.cl;
+			piDev_g.cl = NULL;
+			kfree(vptr);
+		}
 
 		/* start application */
 		if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
@@ -1083,6 +1096,10 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_GET_VALUE:
 		{
 			SPIValue *pValue = (SPIValue *) usr_addr;
+
+			if (!isRunning())
+				return -EFAULT;
+
 			if (pValue->i16uAddress >= KB_PI_LEN) {
 				status = -EFAULT;
 			} else {
@@ -1106,6 +1123,10 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_SET_VALUE:
 		{
 			SPIValue *pValue = (SPIValue *) usr_addr;
+
+			if (!isRunning())
+				return -EFAULT;
+
 			if (pValue->i16uAddress >= KB_PI_LEN) {
 				status = -EFAULT;
 			} else {
@@ -1141,6 +1162,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			int i;
 			SPIVariable *var = (SPIVariable *) usr_addr;
 
+			if (!isRunning())
+				return -EFAULT;
+
 			if (!piDev_g.ent) {
 				status = -ENOENT;
 				break;
@@ -1169,7 +1193,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			int i;
 			ktime_t now;
 
-			//DF_PRINTK("piControlIoctl copy exported outputs\n");
+			if (!isRunning())
+				return -EFAULT;
+
 			if (file == 0 || usr_addr == 0) {
 				DF_PRINTK("piControlIoctl: illegal parameter\n");
 				return -EINVAL;
@@ -1191,8 +1217,14 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 				if (len >= 8) {
 					len /= 8;
-
-					//DF_PRINTK("piControlIoctl copy %d bytes at offset %d\n", len, addr);
+#if 0
+					if (memcmp(piDev_g.ai8uPI + addr, (void *)(usr_addr + addr), len))
+						printk("piControlIoctl copy %d bytes at offset %d: %x %x %x %x\n", len, addr,
+						       ((unsigned char *)(usr_addr + addr))[0],
+							((unsigned char *)(usr_addr + addr))[1],
+							((unsigned char *)(usr_addr + addr))[2],
+							((unsigned char *)(usr_addr + addr))[3]);
+#endif
 					if (copy_from_user(piDev_g.ai8uPI + addr, (void *)(usr_addr + addr), len) != 0) {
 						status = -EFAULT;
 						break;
@@ -1255,6 +1287,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_INTERN_IO_MSG:
 		{
 			SIOGeneric *tel = (SIOGeneric *)usr_addr;
+
+			if (!isRunning())
+				return -EFAULT;
 
 			mutex_lock(&piDev_g.lockUserTel);
 			if (copy_from_user(&piDev_g.requestUserTel, tel, sizeof(SIOGeneric)))

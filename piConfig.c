@@ -1044,7 +1044,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
 		} else {
 			// gehe zum nächsten Eintrag
-			pr_info_config("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
+			pr_info("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
 				       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
 
 			i++;
@@ -1054,7 +1054,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		}
 	}
 	if (exported_outputs > 0) {
-		pr_info_config("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
+		pr_info("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
 			       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
 		i++;
 	}
