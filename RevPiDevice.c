@@ -166,6 +166,15 @@ int RevPiDevice_run(void)
 	    RevPiScan.i16uErrorCnt += RevPiScan.dev[i8uDevice].i16uErrorCnt;
 	}
     }
+
+    // if the user-ioctl want to send a telegram, do it now
+    if (piDev_g.pendingUserTel == true)
+    {
+	piDev_g.statusUserTel = piIoComm_sendTelegram(&piDev_g.requestUserTel, &piDev_g.responseUserTel);
+	piDev_g.pendingUserTel = false;
+	up(&piDev_g.semUserTel);
+    }
+
     return retval;
 }
 

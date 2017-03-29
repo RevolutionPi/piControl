@@ -32,7 +32,7 @@
 #define AIO_OFFSET_Input3Divisor		41	// ##ATTR_COMMENT##
 #define AIO_OFFSET_Input3Offset			43	// ##ATTR_COMMENT##
 #define AIO_OFFSET_Input4Range			45	// ##ATTR_COMMENT##
-#define AIO_OFFSET_Input4Factor			47	// ##ATTR_COMMENT##
+#define AIO_OFFSET_Input4Factor			46	// ##ATTR_COMMENT##
 #define AIO_OFFSET_Input4Divisor		48	// ##ATTR_COMMENT##
 #define AIO_OFFSET_Input4Offset			50	// ##ATTR_COMMENT##
 #define AIO_OFFSET_InputSampleRate		52	// ##ATTR_COMMENT##

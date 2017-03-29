@@ -34,9 +34,9 @@
 
 typedef enum
 {
-    eIoProtocolIdle     = 1, // Wait for first received character of frame
-    eIoProtocolReceive  = 2, // Wait for the rest of the frame
-    eIoProtocolTimeout  = 3, // IOPROTOCOL_TIMEOUT occured
+    eIoProtocolIdle = 1, // Wait for first received character of frame
+    eIoProtocolReceive = 2, // Wait for the rest of the frame
+    eIoProtocolTimeout = 3, // IOPROTOCOL_TIMEOUT occured
 } EIoProtocolState;
 
 // Header
@@ -47,19 +47,19 @@ union
     INT8U ai8uHeader[IOPROTOCOL_HEADER_LENGTH];
     struct                              // Unicast
     {
-	INT8U bitAddress : 6;
-	INT8U bitIoHeaderType : 1;      // 0 for header type 1
-	INT8U bitReqResp : 1;
-	INT8U bitLength : 5;
-	INT8U bitCommand : 3;
+        INT8U bitAddress : 6;
+        INT8U bitIoHeaderType : 1;      // 0 for header type 1
+        INT8U bitReqResp : 1;
+        INT8U bitLength : 5;
+        INT8U bitCommand : 3;
     }sHeaderTyp1;
     struct                              // Broadcast
     {
-	INT8U bitCommand : 6;
-	INT8U bitIoHeaderType : 1;      // 1 for header type 2
-	INT8U bitReqResp : 1;
-	INT8U bitLength : 5;
-	INT8U bitDataPart1 : 3;
+        INT8U bitCommand : 6;
+        INT8U bitIoHeaderType : 1;      // 1 for header type 2
+        INT8U bitReqResp : 1;
+        INT8U bitLength : 5;
+        INT8U bitDataPart1 : 3;
     }sHeaderTyp2;
 }
 #include <COMP_packEnd.h>
@@ -72,7 +72,7 @@ typedef
 struct
 {
     UIoProtocolHeader uHeader;
-    INT8U ai8uData[IOPROTOCOL_MAXDATA_LENGTH+1];    // one more byte for CRC
+    INT8U ai8uData[IOPROTOCOL_MAXDATA_LENGTH + 1];    // one more byte for CRC
 }
 #include <COMP_packEnd.h>
 SIOGeneric;
@@ -201,15 +201,15 @@ SDioCounterResponse;
 // Output ranges
 typedef enum
 {
-    AIO_OUTPUT_RANGE_UNUSED  = 0,   // Output not in use
-    AIO_OUTPUT_RANGE_0TO5V   = 1,   // Range 0 V to 5 V
-    AIO_OUTPUT_RANGE_0TO10V  = 2,   // Range 0  V to 10 V
-    AIO_OUTPUT_RANGE_PM5V    = 3,   // Range -5 V to +5 V
-    AIO_OUTPUT_RANGE_PM10V   = 4,   // Range -10 V to +10 V
+    AIO_OUTPUT_RANGE_UNUSED = 0,   // Output not in use
+    AIO_OUTPUT_RANGE_0TO5V = 1,   // Range 0 V to 5 V
+    AIO_OUTPUT_RANGE_0TO10V = 2,   // Range 0  V to 10 V
+    AIO_OUTPUT_RANGE_PM5V = 3,   // Range -5 V to +5 V
+    AIO_OUTPUT_RANGE_PM10V = 4,   // Range -10 V to +10 V
     AIO_OUTPUT_RANGE_0TO5_5V = 5,   // Range 0 V to 5.5 V
-    AIO_OUTPUT_RANGE_0TO11V  = 6,   // Range 0  V to 11 V
-    AIO_OUTPUT_RANGE_PM5_5V  = 7,   // Range -5.5 V to +5.5 V
-    AIO_OUTPUT_RANGE_PM11V   = 8,   // Range -11 V to +11 V
+    AIO_OUTPUT_RANGE_0TO11V = 6,   // Range 0  V to 11 V
+    AIO_OUTPUT_RANGE_PM5_5V = 7,   // Range -5.5 V to +5.5 V
+    AIO_OUTPUT_RANGE_PM11V = 8,   // Range -11 V to +11 V
     AIO_OUTPUT_RANGE_4TO20MA = 9,   // Range 4 mA to 20 mA
     AIO_OUTPUT_RANGE_0TO20MA = 10,  // Range 0 mA to 20 mA
     AIO_OUTPUT_RANGE_0TO24MA = 11,  // Range 0 mA to 24 mA
@@ -236,17 +236,17 @@ typedef enum
     AIO_OUTPUT_SLEWRATE_FREQUENCY_153_845 = 2,
     AIO_OUTPUT_SLEWRATE_FREQUENCY_131_145 = 3,
     AIO_OUTPUT_SLEWRATE_FREQUENCY_115_940 = 4,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_69_565  = 5,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_37_560  = 6,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_25_805  = 7,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_20_150  = 8,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_16_030  = 9,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_10_295  = 10,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_8_280   = 11,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_6_900   = 12,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_5_530   = 13,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_4_240   = 14,
-    AIO_OUTPUT_SLEWRATE_FREQUENCY_3_300   = 15,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_69_565 = 5,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_37_560 = 6,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_25_805 = 7,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_20_150 = 8,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_16_030 = 9,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_10_295 = 10,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_8_280 = 11,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_6_900 = 12,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_5_530 = 13,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_4_240 = 14,
+    AIO_OUTPUT_SLEWRATE_FREQUENCY_3_300 = 15,
 } EAioSlewRateFrequency;
 
 // Input ranges
@@ -266,13 +266,13 @@ typedef enum
 // Input samples per second
 typedef enum
 {
-    AIO_INPUT_SAMPLE_RATE_1   = 0,
-    AIO_INPUT_SAMPLE_RATE_2   = 1,
-    AIO_INPUT_SAMPLE_RATE_4   = 2,
-    AIO_INPUT_SAMPLE_RATE_8   = 3,
-    AIO_INPUT_SAMPLE_RATE_10  = 4,
-    AIO_INPUT_SAMPLE_RATE_25  = 5,
-    AIO_INPUT_SAMPLE_RATE_50  = 6,
+    AIO_INPUT_SAMPLE_RATE_1 = 0,
+    AIO_INPUT_SAMPLE_RATE_2 = 1,
+    AIO_INPUT_SAMPLE_RATE_4 = 2,
+    AIO_INPUT_SAMPLE_RATE_8 = 3,
+    AIO_INPUT_SAMPLE_RATE_10 = 4,
+    AIO_INPUT_SAMPLE_RATE_25 = 5,
+    AIO_INPUT_SAMPLE_RATE_50 = 6,
     AIO_INPUT_SAMPLE_RATE_125 = 7,
 } EAioInputSampleRate;
 
@@ -314,7 +314,7 @@ typedef
 #include <COMP_packBegin.h>
 struct
 {
-    INT8U i8uSensorType    : 1; // 0:PT100 1:PT1000
+    INT8U i8uSensorType : 1; // 0:PT100 1:PT1000
     INT8U i8uMeasureMethod : 1; // 0:3-wire 1:4-wire
     INT8U i8uReserve : 6;
     // Scaling temperatures val = A1/A2*x + B
@@ -378,6 +378,72 @@ struct      // IOP_TYP1_CMD_DATA
 }
 #include <COMP_packEnd.h>
 SAioResponse;
+
+//-----------------------------------------------------------------------------
+// Data request for raw values of Analog IO modules, 0 Bytes
+typedef
+#include <COMP_packBegin.h>
+struct      // IOP_TYP1_CMD_DATA4
+{
+    UIoProtocolHeader uHeader;
+    INT8U  i8uCrc;
+}
+#include <COMP_packEnd.h>
+SAioRawRequest;
+
+//-----------------------------------------------------------------------------
+// Data response for raw values of Analog IO modules, 10 Bytes
+typedef
+#include <COMP_packBegin.h>
+struct      // IOP_TYP1_CMD_DATA4
+{
+    UIoProtocolHeader uHeader;
+    INT16U i16uInternalCurrentSensor;
+    INT16U i16uInternalVoltageSensor;
+    INT16U i16uInternalTemperatureSensor;
+    INT16U i16uRtdValue[AIO_MAX_RTD];
+    INT8U  i8uCrc;
+}
+#include <COMP_packEnd.h>
+SAioRawResponse;
+
+//-----------------------------------------------------------------------------
+// Data request for rtd scaling values of Analog IO modules, 0 Bytes
+typedef
+#include <COMP_packBegin.h>
+struct
+{
+    INT16U i16uRtd3wireFactor[AIO_MAX_RTD];
+    INT16S i16sRtd3wireOffset[AIO_MAX_RTD];
+    INT16U i16uRtd4wireFactor[AIO_MAX_RTD];
+    INT16S i16sRtd4wireOffset[AIO_MAX_RTD];
+}
+#include <COMP_packEnd.h>
+SAioRtdScaling;
+
+typedef
+#include <COMP_packBegin.h>
+struct      // IOP_TYP1_CMD_DATA5
+{
+    UIoProtocolHeader uHeader;
+    SAioRtdScaling sRtdScaling;
+    INT8U  i8uCrc;
+}
+#include <COMP_packEnd.h>
+SAioScalingRequest;
+
+//-----------------------------------------------------------------------------
+// Data response for rtd scaling values of Analog IO modules, 1 Byte
+typedef
+#include <COMP_packBegin.h>
+struct      // IOP_TYP1_CMD_DATA5
+{
+    UIoProtocolHeader uHeader;
+    INT8U  i8uSuccess; // 1: Success
+    INT8U  i8uCrc;
+}
+#include <COMP_packEnd.h>
+SAioScalingResponse;
 
 //-----------------------------------------------------------------------------
 #endif // IOPROTOCOL_H_INC

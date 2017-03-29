@@ -22,6 +22,7 @@
 #include <linux/semaphore.h>
 #include <linux/wait.h>
 #include <piConfig.h>
+#include <IoProtocol.h>
 
 /******************************************************************************/
 /*********************************  Types  ************************************/
@@ -67,10 +68,18 @@ typedef struct spiControlDev
     piConnectionList *connl;
     ktime_t tLastOutput1, tLastOutput2;
 
-    // handling of open connections
+    // handle open connections and notification
     u8 PnAppCon;                                // counter of open connections
     struct list_head listCon;
     struct mutex lockListCon;
+
+    // handle user telegrams
+    struct mutex lockUserTel;
+    struct semaphore semUserTel;
+    bool pendingUserTel;
+    SIOGeneric requestUserTel;
+    SIOGeneric responseUserTel;
+    int statusUserTel;
 
     // piGate thread
     struct task_struct *pGateThread;

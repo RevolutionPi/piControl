@@ -27,7 +27,7 @@
 #define PICONFIG_FILE		"/etc/revpi/config.rsc"
 #define PICONFIG_FILE_WHEEZY    "/opt/KUNBUS/config.rsc"
 
-// Module Id 
+// Module Id
 // 0x0001 - 0x3000      KUNBUS Modules (e.g. DIO, Gateways, ...)
 // 0x3001 - 0x7000      not used
 // 0x6001 - 0x7000      KUNBUS Software Adapters
@@ -62,7 +62,8 @@
 #define  KB_EVENT_RESET			1		// piControl was reset, reload configuration
 
 // the following call are for KUNBUS internal use only
-#define  KB_INTERN_SET_SERIAL_NUM   _IO(KB_IOC_MAGIC, 100 )  // set serial num in piDIO, piDI or piDO (can be made only once)
+#define  KB_INTERN_SET_SERIAL_NUM	_IO(KB_IOC_MAGIC, 100 )  // set serial num in piDIO, piDI or piDO (can be made only once)
+#define  KB_INTERN_IO_MSG		_IO(KB_IOC_MAGIC, 101 )  // send an I/O-Protocol message and return response
 
 #endif //WIN32
 

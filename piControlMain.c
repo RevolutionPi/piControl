@@ -439,6 +439,10 @@ static int __init piControlInit(void)
 	INIT_LIST_HEAD(&piDev_g.listCon);
 	mutex_init(&piDev_g.lockListCon);
 
+	mutex_init(&piDev_g.lockUserTel);
+	sema_init(&piDev_g.semUserTel, 0);
+	piDev_g.pendingUserTel = false;
+
 	cdev_init(&piDev_g.cdev, &piControlFops);
 	piDev_g.cdev.owner = THIS_MODULE;
 	piDev_g.cdev.ops = &piControlFops;
@@ -1245,6 +1249,28 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			} else {
 				status = 0;
 			}
+		}
+		break;
+
+	case KB_INTERN_IO_MSG:
+		{
+			SIOGeneric *tel = (SIOGeneric *)usr_addr;
+
+			mutex_lock(&piDev_g.lockUserTel);
+			if (copy_from_user(&piDev_g.requestUserTel, tel, sizeof(SIOGeneric)))
+			{
+				status = -EFAULT;
+				break;
+			}
+			piDev_g.pendingUserTel = true;
+			down(&piDev_g.semUserTel);
+			status = piDev_g.statusUserTel;
+			if (copy_to_user(tel, &piDev_g.responseUserTel, sizeof(SIOGeneric)))
+			{
+				status = -EFAULT;
+				break;
+			}
+			mutex_unlock(&piDev_g.lockUserTel);
 		}
 		break;
 
