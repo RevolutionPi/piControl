@@ -32,7 +32,7 @@
 #define BSPCONFIG_H_INC
 
 #define PRINT_MODGATE_COM_STATE
-#if 1
+#if 0
 #define pr_info_modgate(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #else
 #define pr_info_modgate(fmt, ...)
