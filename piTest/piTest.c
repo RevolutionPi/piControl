@@ -752,7 +752,7 @@ int main(int argc, char *argv[])
     int offset;
     int length;
     int address;
-    int val;
+    unsigned int val;
     char format;
     int bit;
     bool cyclic = true;     // default is cyclic output
@@ -760,7 +760,6 @@ int main(int argc, char *argv[])
     unsigned long value;
     char szVariableName[256];
     char *pszTok, *progname;
-    unsigned char enable;
 
     progname = strrchr(argv[0], '/');
     if (!progname) {
@@ -871,7 +870,7 @@ int main(int argc, char *argv[])
         case 'R':   // reset counter
             rc = sscanf(optarg, "%d,0x%x", &address, &val);
             if (rc != 2) {
-                rc = sscanf(optarg, "%d,%d", &address, &val);
+                rc = sscanf(optarg, "%d,%u", &address, &val);
                 if (rc != 2) {
                     printf("Wrong arguments for counter reset function\n");
                     printf("Try '-R address,value' (without spaces)\n");
@@ -921,6 +920,7 @@ int main(int argc, char *argv[])
             piControlIntMsg(IOP_TYP1_CMD_DATA4, NULL, 0);
             break;
         case 'b':
+	    unsigned char enable;
             // Enable/disable outputs
             if (*optarg == '0')
                 enable = 0;
