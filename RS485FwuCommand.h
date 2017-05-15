@@ -5,11 +5,14 @@
 
 INT32S fwuEnterFwuMode (INT8U address);
 INT32S fwuWriteSerialNum (INT8U address, INT32U i32uSerNum_p);
+INT32S fwuEraseFlash (INT8U address);
+INT32S fwuWrite(INT8U address, INT32U flashAddr, char *data, INT32U length);
 INT32S fwuResetModule (INT8U address);
 
 INT8U  fwuCrc(INT8U *piData, INT16U len);
 INT32U fwuSendTel (INT8U address, INT8U i8uCmd_p, INT8U *pi8uData_p, INT8U i8uDataLen_p);
 INT32S fwuReceiveTel (SRs485Telegram *psuRecvTelegram_p);
+INT32S fwuReceiveTelTimeout (SRs485Telegram *psuRecvTelegram_p, INT16U timeout_p);
 
 #if 0
     // IRegFwuInterface implementation
@@ -42,5 +45,5 @@ protected:
 protected:
     IComSerial ^pcoCom_m;
     INT8U i8uDstAdr_m; // left or right mGate module
-    CModGateTestCommand ^m_ptDrvModGate;    
+    CModGateTestCommand ^m_ptDrvModGate;
 #endif

@@ -121,5 +121,6 @@ extern tpiControlDev piDev_g;
 /******************************************************************************/
 
 bool isRunning(void);
+void printUserMsg(const char *s, ...);
 
 #endif /* PRODUCTS_PIBASE_PIKERNELMOD_PICONTROLINTERN_H_ */

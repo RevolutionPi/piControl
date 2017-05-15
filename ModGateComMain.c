@@ -318,12 +318,12 @@ INT32U MODGATECOM_init(INT8U * pi8uInData_p, INT16U i16uInDataLen_p, INT8U * pi8
 
 	// ID response
 #ifdef __KUNBUSPI_KERNEL__
-	MODGATE_OwnID_g.i32uSerialnumber = 0xffffffff;
-	MODGATE_OwnID_g.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CORE;
-	MODGATE_OwnID_g.i16uHW_Revision = 0;
-	MODGATE_OwnID_g.i16uSW_Major = 0;
-	MODGATE_OwnID_g.i16uSW_Minor = 0;
-	MODGATE_OwnID_g.i32uSVN_Revision = 0;
+	MODGATE_OwnID_g.i32uSerialnumber = RevPi_ID_g.i32uSerialnumber;
+	MODGATE_OwnID_g.i16uModulType = RevPi_ID_g.i16uModulType;
+	MODGATE_OwnID_g.i16uHW_Revision = RevPi_ID_g.i16uHW_Revision;
+	MODGATE_OwnID_g.i16uSW_Major = RevPi_ID_g.i16uSW_Major;
+	MODGATE_OwnID_g.i16uSW_Minor = RevPi_ID_g.i16uSW_Minor;
+	MODGATE_OwnID_g.i32uSVN_Revision = RevPi_ID_g.i32uSVN_Revision;
 #elif defined(__KUNBUSPI__)
 	MODGATE_OwnID_g.i32uSerialnumber = 0xffffffff;
 	MODGATE_OwnID_g.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CORE;

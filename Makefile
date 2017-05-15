@@ -12,6 +12,7 @@ piControl-objs += RevPiDevice.o
 piControl-objs += json.o
 piControl-objs += piConfig.o
 piControl-objs += RS485FwuCommand.o
+piControl-objs += piFirmwareUpdate.o
 piControl-objs += spi.o
 piControl-objs += ksz8851.o
 piControl-objs += ModGateComMain.o
@@ -24,7 +25,7 @@ piControl-objs += systick.o
 ccflags-y := -Os
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
-KDIR    := /home/md/pi/linux
+KDIR    := /home/md/pi/kernelpkg/kbuild7
 KBUILD_CFLAGS += -g
 
 PWD   	:= $(shell pwd)

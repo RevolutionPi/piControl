@@ -4,7 +4,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH piTest 1 "January 27 2017"
+.TH piTest 1 "May 11 2017"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -35,33 +35,61 @@ Multiple of these options may be given to execute a sequence of actions:
 .B \-d
 Get device list.
 .TP
-.B \-v <variablename>
+.B \-v \fIvariablename\fP
 Shows infos for a variable.
 .TP
-.B \-r <variablename>
-Reads value of a variable.  E.g. \fI-w Input_001\fP reads the value of
-variable \fIInput_001\fP.
+.B \-1
+Executes the following read command only once.
 .TP
-.B \-r <o, l>
-Reads <l> bytes at offset <o>.  E.g. \fI-r 1188,16\fP reads 16 bytes at
-offset 1188.
+.B \-q
+Executes the following read command quietly, print the value only.
 .TP
-.B \-w <variablename, v>
-Writes value <v> to the variable.  E.g. \fI-w Output_001,23\fP writes
-value 23 dec (= 17 hex) to variable \fIOutput_001\fP.
+.B \-r \fIvariablename[,f]\fP
+Reads the value of a variable. It respects the length of variable as defined in PiCtory.
+.br
+The optional parameter <f> defines the format: h for hex, d for decimal (default) and b for binary.
+.br
+The value is displayed cyclically every second until Ctrl-C is pressed.
+.br
+E.g. \fI-r Input_001,h\fP reads the value of variable \fIInput_001\fP and displays it in hex format.
 .TP
-.B \-w <o,l,v>
-Writes <l> bytes with value <v> (as hex) to offset <o>.  Length should
-be one of 1|2|4.  E.g. \fI-w 0,4,31224205\fP writes value 31224205 hex
-(= 824328709 dec) to offset 0.
+.B \-r \fIo,l[,f]\fP
+Reads \fIl\fP bytes at offset \fIo\fP. The optional parameter \fIf\fP defines the format: 
+h for hex, d for decimal (default) and b for binary.
+.br
+The value is displayed cyclically every second until Ctrl-C is pressed.
+.br
+E.g. \fI-r 1188,16\fP reads 16 bytes at offset 1188.
 .TP
-.B \-g <o,b>
-Gets bit <b> (0-7) from byte at offset <o>.  E.g. \fI-b 0,5\fP
+.B \-w \fIvariablename,v\fP
+Writes value \fIv\fP to the variable. It respects the length of variable as defined in PiCtory.
+.br
+E.g. \fI-w Output_001,23\fP writes value 23 dec (= 17 hex) to variable \fIOutput_001\fP.
+.TP
+.B \-w \fIo,l,v\f
+Writes \fIl\fP bytes with value \fIv\fP (as dec) to offset \fIo\fP.  Length should
+be one of 1|2|4.  E.g. \fI-w 0,4,31224205\fP writes value 31224205 to the byte with offset 0 to 3.
+.TP
+.B \-g \fIo,b\fP
+Gets bit \fIb\fP (0-7) from byte at offset \fIo\fP.  E.g. \fI-b 0,5\fP
 gets bit 5 from the byte at offset 0.
+.br
+The value is displayed cyclically every second until Ctrl-C is pressed.
 .TP
-.B \-s <o,b,0/1>
-Sets bit <b> (0-7) of byte at offset <o> to 0/1.  E.g. \fI-b 0,5,1\fP
+.B \-s \fIo,b,0/1\fP
+Sets bit \fIb\fP (0-7) of byte at offset \fIo\fP to 0/1.  E.g. \fI-b 0,5,1\fP
 sets bit 5 of the byte at offset 0 to 1.
+.TP
+.B \-R \fIa,b\fP
+Sets counter and encoder values to 0. \fIa\fP is the address of a DIO or DI 
+module as displayed in  the device list (option -d). \fIb\fP is a bitfield 
+defining the counters/endcoders to reset.
+.br
+E.g. \fI-R 32,0x14\fP resets the counters on the inputs I2 and I5 because the bits 2 and 5 are set to 1.
+The DIO must be the first module on the right of the RevPi.
+.TP
+.B \-f
+Starts the firmware update process.
 .TP
 .B \-x
 Reset control process.

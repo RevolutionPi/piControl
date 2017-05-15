@@ -15,6 +15,8 @@
 #include <linux/ioctl.h>
 #endif //WIN32
 
+//#include <stdint.h>
+
 /******************************************************************************/
 /*********************************  Types  ************************************/
 /******************************************************************************/
@@ -26,6 +28,9 @@
 // If it cannot be found there, the old location should be used.
 #define PICONFIG_FILE		"/etc/revpi/config.rsc"
 #define PICONFIG_FILE_WHEEZY    "/opt/KUNBUS/config.rsc"
+
+#define REV_PI_DEV_FIRST_RIGHT      32		// address of first module on the right side of the RevPi Core
+#define REV_PI_DEV_CNT_MAX          64		// max. number of
 
 // Module Id
 // 0x0001 - 0x3000      KUNBUS Modules (e.g. DIO, Gateways, ...)
@@ -40,6 +45,8 @@
 #define PICONTROL_SW_MODBUS_RTU_SLAVE       0x6002      // 24578
 #define PICONTROL_SW_MODBUS_TCP_MASTER      0x6003      // 24579
 #define PICONTROL_SW_MODBUS_RTU_MASTER      0x6004      // 24580
+#define PICONTROL_SW_PROFINET_CONTROLLER    0x6005      // 24581
+#define PICONTROL_SW_PROFINET_DEVICE        0x6006      // 24582
 
 #define PICONTROL_NOT_CONNECTED             0x8000
 #define PICONTROL_NOT_CONNECTED_MASK        0x7fff
@@ -57,17 +64,21 @@
 #define  KB_SET_VALUE			_IO(KB_IOC_MAGIC, 16 )  // set the value of one bit in the process image
 #define  KB_FIND_VARIABLE		_IO(KB_IOC_MAGIC, 17 )  // find a varible defined in piCtory
 #define  KB_SET_EXPORTED_OUTPUTS	_IO(KB_IOC_MAGIC, 18 )  // copy the exported outputs from a application process image to the real process image
+#define  KB_UPDATE_DEVICE_FIRMWARE	_IO(KB_IOC_MAGIC, 19 )  // try to update the firmware of connected devices
+#define  KB_DIO_RESET_COUNTER		_IO(KB_IOC_MAGIC, 20 )  // set a counter or endocder to 0
+#define  KB_GET_LAST_MESSAGE		_IO(KB_IOC_MAGIC, 21 )  // copy the last error message
 
 #define  KB_WAIT_FOR_EVENT		_IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET			1		// piControl was reset, reload configuration
 
-// the following call are for KUNBUS internal use only
+// the following call are for KUNBUS internal use only. uncomment the following define to activate them.
+// #define KUNBUS_TEST
 #define  KB_INTERN_SET_SERIAL_NUM	_IO(KB_IOC_MAGIC, 100 )  // set serial num in piDIO, piDI or piDO (can be made only once)
 #define  KB_INTERN_IO_MSG		_IO(KB_IOC_MAGIC, 101 )  // send an I/O-Protocol message and return response
 
 #endif //WIN32
 
-typedef struct
+typedef struct SDeviceInfoStr
 {
     uint8_t     i8uAddress;             // Address of module in current configuration
     uint32_t    i32uSerialnumber;       // serial number of module
@@ -90,7 +101,7 @@ typedef struct
     uint8_t     i8uReserve[30];         // space for future extensions without changing the size of the struct
 } SDeviceInfo;
 
-typedef struct
+typedef struct SEntryInfoStr
 {
     uint8_t     i8uAddress;             // Address of module in current configuration
     uint8_t     i8uType;                // 1=input, 2=output, 3=memory, 4=config, 0=undefined, + 0x80 if exported
@@ -102,14 +113,14 @@ typedef struct
     char        strVarName[32];         // Variable name
 } SEntryInfo;
 
-typedef struct
+typedef struct SPIValueStr
 {
     uint16_t    i16uAddress;            // Address of the byte in the process image
     uint8_t     i8uBit;                 // 0-7 bit position, >= 8 whole byte
     uint8_t     i8uValue;               // Value: 0/1 for bit access, whole byte otherwise
 } SPIValue;
 
-typedef struct
+typedef struct SPIVariableStr
 {
     char        strVarName[32];         // Variable name
     uint16_t    i16uAddress;            // Address of the byte in the process image
@@ -117,6 +128,11 @@ typedef struct
     uint16_t    i16uLength;              // length of the variable in bits. Possible values are 1, 8, 16 and 32
 } SPIVariable;
 
+typedef struct SDIOResetCounterStr
+{
+	uint8_t     i8uAddress;             // Address of module in current configuration
+	uint16_t    i16uBitfield;           // bitfield, if bit n is 1, reset counter/encoder on input n
+} SDIOResetCounter;
 
 #define PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE         -10
 #define PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH        -11

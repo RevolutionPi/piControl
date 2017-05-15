@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 
 #include <kbUtilities.h>
+#include <ModGateRS485.h>
 #include <PiBridgeMaster.h>
 #include <RevPiDevice.h>
 #include <piControlMain.h>
@@ -28,15 +29,29 @@
 #include <piDIOComm.h>
 #include <piAIOComm.h>
 
-static TBOOL bEntering_s = bTRUE;
+static volatile TBOOL bEntering_s = bTRUE;
 static EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
 static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
-static INT32U i32uSerAddress, i32uSerialNum;
+
+static INT32U i32uFWUAddress, i32uFWUSerialNum, i32uFWUFlashAddr, i32uFWUlength, i8uFWUScanned;
+static INT32S i32sRetVal;
+static char *pcFWUdata;
+
 
 void PiBridgeMaster_Stop(void)
 {
 	rt_mutex_lock(&piDev_g.lockBridgeState);
 	piDev_g.eBridgeState = piBridgeStop;
+	rt_mutex_unlock(&piDev_g.lockBridgeState);
+}
+
+void PiBridgeMaster_Continue(void)
+{
+	// this function can only be called, if the driver was running before
+	rt_mutex_lock(&piDev_g.lockBridgeState);
+	piDev_g.eBridgeState = piBridgeRun;
+	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
+	bEntering_s = bFALSE;
 	rt_mutex_unlock(&piDev_g.lockBridgeState);
 }
 
@@ -147,6 +162,7 @@ int PiBridgeMaster_Adjust(void)
 				RevPiScan.dev[j].sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;
 			}
 			RevPiScan.dev[j].i8uAddress = piDev_g.devs->dev[i].i8uAddress;
+			RevPiScan.dev[j].i8uScan = 0;
 			RevPiScan.dev[j].i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 			RevPiScan.dev[j].i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
 			RevPiScan.dev[j].i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
@@ -235,6 +251,7 @@ int PiBridgeMaster_Run(void)
 	INT8U led;
 	static INT8U last_led;
 	int ret = 0;
+	int i;
 
 	rt_mutex_lock(&piDev_g.lockBridgeState);
 	if (piDev_g.eBridgeState != piBridgeStop) {
@@ -412,10 +429,49 @@ int PiBridgeMaster_Run(void)
 			break;
 			// *****************************************************************************************
 
+		case enPiBridgeMasterStatus_Continue:
+			msleep(100);	// wait a while
+			pr_info("start data exchange\n");
+			RevPiDevice_startDataexchange();
+			msleep(110);	// wait a while
+
+			// send config messages
+			for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
+				if (RevPiScan.dev[i].i8uActive) {
+					switch (RevPiScan.dev[i].sId.i16uModulType) {
+					case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+					case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+					case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+						ret = piDIOComm_Init(i);
+						pr_info_dio("piDIOComm_Init done %d\n", ret);
+						if (ret != 0)
+						{
+							// init failed -> deactive module
+							pr_err("piDIOComm_Init module %d failed %d\n", RevPiScan.dev[i].i8uAddress, ret);
+							RevPiScan.dev[i].i8uActive = 0;
+						}
+						break;
+					case KUNBUS_FW_DESCR_TYP_PI_AIO:
+						ret = piAIOComm_Init(i);
+						pr_info_aio("piAIOComm_Init done %d\n", ret);
+						if (ret != 0)
+						{
+							// init failed -> deactive module
+							pr_err("piAIOComm_Init module %d failed %d\n", RevPiScan.dev[i].i8uAddress, ret);
+							RevPiScan.dev[i].i8uActive = 0;
+						}
+						break;
+					}
+				}
+			}
+
+			eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
+			bEntering_s = bFALSE;
+			break;
+
 		case enPiBridgeMasterStatus_EndOfConfig:
 			if (bEntering_s) {
 #ifdef DEBUG_MASTER_STATE
-				int i;
 				pr_info_master("Enter EndOfConfig State\n\n");
 				for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
 					pr_info_master("Device %2d: Addr %d Type %x  Act %d  In %d Out %d\n",
@@ -546,31 +602,66 @@ int PiBridgeMaster_Run(void)
 			eRunStatus_s = enPiBridgeMasterStatus_Init;
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUMode) {
 			if (bEntering_s) {
-				ret = piIoComm_gotoFWUMode(i32uSerAddress);
-				pr_info("piIoComm_gotoFWUMode returned %d\n", ret);
+				if (i8uFWUScanned == 0)
+				{
+					// old mGates always use 2
+					i32uFWUAddress = 2;
+				}
 
-				if (i32uSerAddress >= 32)
-					i32uSerAddress = 2;	// address must be 2 in the following calls
+				i32sRetVal = piIoComm_gotoFWUMode(i32uFWUAddress);
+				pr_info("piIoComm_gotoFWUMode returned %d\n", i32sRetVal);
+
+				if (i32uFWUAddress == RevPiScan.i8uAddressRight-1)
+					i32uFWUAddress = 2;	// address must be 2 in the following calls
 				else
-					i32uSerAddress = 1;	// address must be 1 in the following calls
+					i32uFWUAddress = 1;	// address must be 1 in the following calls
+				pr_info("using address %d\n", i32uFWUAddress);
 
-				ret = 0;	// ignore errors here
+				ret = 0;	// do not return errors here
 				bEntering_s = bFALSE;
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_ProgramSerialNum) {
 			if (bEntering_s) {
-				ret = piIoComm_setSerNum(i32uSerAddress, i32uSerialNum);
-				pr_info("piIoComm_setSerNum returned %d\n", ret);
+				i32sRetVal = piIoComm_fwuSetSerNum(i32uFWUAddress, i32uFWUSerialNum);
+				pr_info("piIoComm_fwuSetSerNum returned %d\n", i32sRetVal);
 
-				ret = 0;	// ignore errors here
+				ret = 0;	// do not return errors here
+				bEntering_s = bFALSE;
+			}
+		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUFlashErase) {
+			if (bEntering_s) {
+				i32sRetVal = piIoComm_fwuFlashErase(i32uFWUAddress);
+				pr_info("piIoComm_fwuFlashErase returned %d\n", i32sRetVal);
+
+				ret = 0;	// do not return errors here
+				bEntering_s = bFALSE;
+			}
+		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUFlashWrite) {
+			if (bEntering_s) {
+				INT32U i32uOffset = 0, len;
+				i32sRetVal = 0;
+
+				while (i32sRetVal == 0 && i32uFWUlength > 0)
+				{
+					if (i32uFWUlength > MAX_FWU_DATA_SIZE)
+						len = MAX_FWU_DATA_SIZE;
+					else
+						len = i32uFWUlength;
+					i32sRetVal = piIoComm_fwuFlashWrite(i32uFWUAddress, i32uFWUFlashAddr+i32uOffset, pcFWUdata+i32uOffset, len);
+					pr_info("piIoComm_fwuFlashWrite(0x%08x, %x) returned %d\n", i32uFWUFlashAddr+i32uOffset, len, i32sRetVal);
+					i32uOffset += len;
+					i32uFWUlength -= len;
+				}
+
+				ret = 0;	// do not return errors here
 				bEntering_s = bFALSE;
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUReset) {
 			if (bEntering_s) {
-				ret = piIoComm_fwuReset(i32uSerAddress);
-				pr_info("piIoComm_fwuReset returned %d\n", ret);
+				i32sRetVal = piIoComm_fwuReset(i32uFWUAddress);
+				pr_info("piIoComm_fwuReset returned %d\n", i32sRetVal);
 
-				ret = 0;	// ignore errors here
+				ret = 0;	// do not return errors here
 				bEntering_s = bFALSE;
 			}
 		}
@@ -607,31 +698,78 @@ int PiBridgeMaster_Run(void)
 	return ret;
 }
 
-int PiBridgeMaster_gotoFWUMode(INT32U address)
+//-------------------------------------------------------------------------------------------------------------------------
+// the following functions are called from the ioctl funtion which is executed in the application task
+// they block using msleep until their task is completed, which is signalled by reseting the flags bEntering_s to bFALSE.
+
+INT32S PiBridgeMaster_FWUModeEnter(INT32U address, INT8U i8uScanned)
 {
 	if (piDev_g.eBridgeState == piBridgeStop) {
-		i32uSerAddress = address;
+		i32uFWUAddress = address;
+		i8uFWUScanned = i8uScanned;
 		eRunStatus_s = enPiBridgeMasterStatus_FWUMode;
 		bEntering_s = bTRUE;
+		do {
+			msleep(10);
+		} while (bEntering_s);
+		return i32sRetVal;
 	}
-	return 0;
+	return -1;
 }
 
-int PiBridgeMaster_setSerNum(INT32U serNum)
+INT32S PiBridgeMaster_FWUsetSerNum(INT32U serNum)
 {
 	if (piDev_g.eBridgeState == piBridgeStop) {
-		i32uSerialNum = serNum;
+		i32uFWUSerialNum = serNum;
 		eRunStatus_s = enPiBridgeMasterStatus_ProgramSerialNum;
 		bEntering_s = bTRUE;
+		do {
+			msleep(10);
+		} while (bEntering_s);
+		return i32sRetVal;
 	}
-	return 0;
+	return -1;
 }
 
-int PiBridgeMaster_fwuReset(void)
+
+INT32S PiBridgeMaster_FWUflashErase(void)
+{
+	if (piDev_g.eBridgeState == piBridgeStop) {
+		eRunStatus_s = enPiBridgeMasterStatus_FWUFlashErase;
+		bEntering_s = bTRUE;
+		do {
+			msleep(10);
+		} while (bEntering_s);
+		return i32sRetVal;
+	}
+	return -1;
+}
+
+INT32S PiBridgeMaster_FWUflashWrite(INT32U flashAddr, char *data, INT32U length)
+{
+	if (piDev_g.eBridgeState == piBridgeStop) {
+		i32uFWUFlashAddr = flashAddr;
+		pcFWUdata = data;
+		i32uFWUlength = length;
+		eRunStatus_s = enPiBridgeMasterStatus_FWUFlashWrite;
+		bEntering_s = bTRUE;
+		do {
+			msleep(10);
+		} while (bEntering_s);
+		return i32sRetVal;
+	}
+	return -1;
+}
+
+INT32S PiBridgeMaster_FWUReset(void)
 {
 	if (piDev_g.eBridgeState == piBridgeStop) {
 		eRunStatus_s = enPiBridgeMasterStatus_FWUReset;
 		bEntering_s = bTRUE;
+		do {
+			msleep(10);
+		} while (bEntering_s);
+		return i32sRetVal;
 	}
-	return 0;
+	return -1;
 }

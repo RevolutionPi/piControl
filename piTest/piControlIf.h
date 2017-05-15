@@ -45,7 +45,13 @@ int piControlGetBitValue(SPIValue *pSpiValue);
 int piControlSetBitValue(SPIValue *pSpiValue);
 int piControlGetVariableInfo(SPIVariable *pSpiVariable);
 int piControlFindVariable(const char *name);
-
+int piControlResetCounter(int address, int bitfield);
+int piControlWaitForEvent(void);
+int piControlUpdateFirmware(void);
+#ifdef KUNBUS_TEST
+int piControlIntMsg(int msg, unsigned char *data, int size);
+#endif
+    
 void piControlClose(void);
     
 #ifdef __cplusplus

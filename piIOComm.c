@@ -29,6 +29,7 @@ int piIoComm_timeoutCnt_m;
 static INT8U recvBuffer[REV_PI_RECV_BUFFER_SIZE];
 static INT16U i16uHead_s, i16uTail_s;
 static INT16U i16uRecvLen_s;
+static struct semaphore recvLenSem;
 static struct semaphore queueSem;
 
 // read one byte from the receive queue
@@ -67,6 +68,9 @@ static int enqueue(INT8U data)
 
 static void clear(void)
 {
+#ifdef DEBUG_SERIALCOMM
+	pr_info("clear recv buffer\n");
+#endif
 	i16uHead_s = i16uTail_s;
 	i16uRecvLen_s = 0;
 }
@@ -92,6 +96,7 @@ int UartThreadProc(void *pArg)
 			set_fs(oldfs);
 			return -1;
 		} else {
+			down(&recvLenSem);
 			if (i16uRecvLen_s > 0) {
 				enqueue(acBuf_l[0]);
 				i16uRecvLen_s--;
@@ -113,6 +118,11 @@ int UartThreadProc(void *pArg)
 					up(&queueSem);
 				}
 			}
+			else
+			{
+				enqueue(acBuf_l[0]);
+			}
+			up(&recvLenSem);
 		}
 	}
 
@@ -176,9 +186,10 @@ int piIoComm_open_serial(void)
 	}
 	piIoComm_fd_m = fd;
 #ifdef DEBUG_SERIALCOMM
-	DF_PRINTK("filp_open %d\n", (int)piIoComm_fd_m);
+	pr_info("filp_open %d\n", (int)piIoComm_fd_m);
 #endif
 	sema_init(&queueSem, 0);
+	sema_init(&recvLenSem, 1);
 	clear();
 
 //    hRecvThread_s = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
@@ -199,27 +210,27 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 
 #ifdef DEBUG_SERIALCOMM
 	if (i16uLen_p == 1) {
-		DF_PRINTK("send %d: %02x\n", i16uLen_p, buf_p[0]);
+		pr_info("send %d: %02x\n", i16uLen_p, buf_p[0]);
 	} else if (i16uLen_p == 2) {
-		DF_PRINTK("send %d: %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1]);
+		pr_info("send %d: %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1]);
 	} else if (i16uLen_p == 3) {
-		DF_PRINTK("send %d: %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2]);
+		pr_info("send %d: %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2]);
 	} else if (i16uLen_p == 4) {
-		DF_PRINTK("send %d: %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3]);
+		pr_info("send %d: %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3]);
 	} else if (i16uLen_p == 5) {
-		DF_PRINTK("send %d: %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3],
+		pr_info("send %d: %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3],
 			  buf_p[4]);
 	} else if (i16uLen_p == 6) {
-		DF_PRINTK("send %d: %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3],
+		pr_info("send %d: %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3],
 			  buf_p[4], buf_p[5]);
 	} else if (i16uLen_p == 7) {
-		DF_PRINTK("send %d: %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
+		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
 			  buf_p[3], buf_p[4], buf_p[5], buf_p[6]);
 	} else if (i16uLen_p == 8) {
-		DF_PRINTK("send %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
+		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
 			  buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7]);
 	} else {
-		DF_PRINTK("send %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0], buf_p[1],
+		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0], buf_p[1],
 			  buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
 	}
 	//printk("vfs_write(%d, %d, %d)\n", (int)piIoComm_fd_m, i16uLen_p, (int)piIoComm_fd_m->f_pos);
@@ -229,74 +240,99 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 		write_l += vfs_write(piIoComm_fd_m, buf_p + i16uSent_l, i16uLen_p - i16uSent_l, &piIoComm_fd_m->f_pos);
 		if (write_l < 0) {
 #ifdef DEBUG_SERIALCOMM
-			DF_PRINTK("write error %d\n", (int)write_l);
+			pr_info("write error %d\n", (int)write_l);
 #endif
 			return -1;
 		}
 		i16uSent_l += write_l;
 		if (i16uSent_l <= i16uLen_p) {
 #ifdef DEBUG_SERIALCOMM
-			DF_PRINTK("send: %d/%d bytes sent\n", i16uSent_l, i16uLen_p);
+			pr_info("send: %d/%d bytes sent\n", i16uSent_l, i16uLen_p);
 #endif
 		} else {
 #ifdef DEBUG_SERIALCOMM
-			DF_PRINTK("fatal write error %d\n", (int)write_l);
+			pr_info("fatal write error %d\n", (int)write_l);
 #endif
 			return -2;
 		}
 	}
+	clear();
 	vfs_fsync(piIoComm_fd_m, 1);
 	return 0;
 }
 
 int piIoComm_recv(INT8U * buf_p, INT16U i16uLen_p)
 {
+	return piIoComm_recv_timeout(buf_p, i16uLen_p, REV_PI_IO_TIMEOUT);
+}
+
+int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
+{
+	INT16U i;
+	down(&recvLenSem);
 	if (i16uRecvLen_s > 0) {
-		printk("recv: last recv is not finished\n");
+		pr_err("recv: last recv is not finished\n");
 		clear();
 	}
 
-	i16uRecvLen_s = i16uLen_p;
-	if (down_timeout(&queueSem, msecs_to_jiffies(REV_PI_IO_TIMEOUT)) == 0) {
-		int i;
-
-		for (i = 0; i < i16uLen_p; i++)
-			recv(&buf_p[i]);
-
-#ifdef DEBUG_SERIALCOMM
-		if (i16uLen_p == 1) {
-			DF_PRINTK("recv %d: %02x\n", i16uLen_p, buf_p[0]);
-		} else if (i16uLen_p == 2) {
-			DF_PRINTK("recv %d: %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1]);
-		} else if (i16uLen_p == 3) {
-			DF_PRINTK("recv %d: %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2]);
-		} else if (i16uLen_p == 4) {
-			DF_PRINTK("recv %d: %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3]);
-		} else if (i16uLen_p == 5) {
-			DF_PRINTK("recv %d: %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
-				  buf_p[3], buf_p[4]);
-		} else if (i16uLen_p == 6) {
-			DF_PRINTK("recv %d: %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
-				  buf_p[3], buf_p[4], buf_p[5]);
-		} else if (i16uLen_p == 7) {
-			DF_PRINTK("recv %d: %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1],
-				  buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6]);
-		} else if (i16uLen_p == 8) {
-			DF_PRINTK("recv %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1],
-				  buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7]);
-		} else {
-			DF_PRINTK("recv %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0],
-				  buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
-		}
-#endif
-		return i16uLen_p;
+	i = 0;
+	while (i < i16uLen_p && recv(&buf_p[i]))
+	{
+		i++;
 	}
-	// timeout
+//	if (i > 0)
+//	{
+//		pr_info("recv old data %d/%d\n", i, i16uLen_p);
+//	}
+	if (i == i16uLen_p)
+	{
+		// alle Daten wurden schon empfangen
+		up(&recvLenSem);
+	}
+	else
+	{
+		i16uRecvLen_s = i16uLen_p - i;
+		up(&recvLenSem);
+
+		if (down_timeout(&queueSem, msecs_to_jiffies(timeout_p)) != 0) {
+			// timeout
+		#ifdef DEBUG_SERIALCOMM
+			pr_info("recv timeout: %d/%d \n", i16uRecvLen_s, i16uLen_p);
+		#endif
+			clear();
+			return 0;
+		}
+		for (; i < i16uLen_p; i++)
+			recv(&buf_p[i]);
+	}
+
 #ifdef DEBUG_SERIALCOMM
-	DF_PRINTK("recv timeout: %d \n", i16uLen_p);
+	if (i16uLen_p == 1) {
+		pr_info("recv %d: %02x\n", i16uLen_p, buf_p[0]);
+	} else if (i16uLen_p == 2) {
+		pr_info("recv %d: %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1]);
+	} else if (i16uLen_p == 3) {
+		pr_info("recv %d: %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2]);
+	} else if (i16uLen_p == 4) {
+		pr_info("recv %d: %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3]);
+	} else if (i16uLen_p == 5) {
+		pr_info("recv %d: %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
+			  buf_p[3], buf_p[4]);
+	} else if (i16uLen_p == 6) {
+		pr_info("recv %d: %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
+			  buf_p[3], buf_p[4], buf_p[5]);
+	} else if (i16uLen_p == 7) {
+		pr_info("recv %d: %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1],
+			  buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6]);
+	} else if (i16uLen_p == 8) {
+		pr_info("recv %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1],
+			  buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7]);
+	} else {
+		pr_info("recv %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0],
+			  buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
+	}
 #endif
-	clear();
-	return 0;
+	return i16uLen_p;
 }
 
 INT8U piIoComm_Crc8(INT8U * pi8uFrame_p, INT16U i16uLen_p)
@@ -318,7 +354,7 @@ void piIoComm_finish(void)
 {
 	if (piIoComm_fd_m != NULL) {
 #ifdef DEBUG_SERIALCOMM
-		DF_PRINTK("filp_close %d\n", (int)piIoComm_fd_m);
+		pr_info("filp_close %d\n", (int)piIoComm_fd_m);
 #endif
 		filp_close(piIoComm_fd_m, NULL);
 		piIoComm_fd_m = NULL;
@@ -328,7 +364,7 @@ void piIoComm_finish(void)
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
 {
 #ifdef DEBUG_GPIO
-	DF_PRINTK("sniff1A: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
+	pr_info("sniff1A: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
 #endif
 	piIoComm_writeSniff(GPIO_SNIFF1A, eVal_p, eMode_p);
 }
@@ -336,7 +372,7 @@ void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
 void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p)
 {
 #ifdef DEBUG_GPIO
-	DF_PRINTK("sniff1B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
+	pr_info("sniff1B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
 #endif
 	piIoComm_writeSniff(GPIO_SNIFF1B, eVal_p, eMode_p);
 }
@@ -344,7 +380,7 @@ void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p)
 void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p)
 {
 #ifdef DEBUG_GPIO
-	DF_PRINTK("sniff2A: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
+	pr_info("sniff2A: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
 #endif
 	piIoComm_writeSniff(GPIO_SNIFF2A, eVal_p, eMode_p);
 }
@@ -352,7 +388,7 @@ void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p)
 void piIoComm_writeSniff2B(EGpioValue eVal_p, EGpioMode eMode_p)
 {
 #ifdef DEBUG_GPIO
-	DF_PRINTK("sniff2B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
+	pr_info("sniff2B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
 #endif
 	piIoComm_writeSniff(GPIO_SNIFF2B, eVal_p, eMode_p);
 }
@@ -369,7 +405,7 @@ EGpioValue piIoComm_readSniff1A()
 {
 	EGpioValue v = piIoComm_readSniff(GPIO_SNIFF1A);
 #ifdef DEBUG_GPIO
-	DF_PRINTK("sniff1A: input value %d\n", (int)v);
+	pr_info("sniff1A: input value %d\n", (int)v);
 #endif
 	return v;
 }
@@ -378,7 +414,7 @@ EGpioValue piIoComm_readSniff1B()
 {
 	EGpioValue v = piIoComm_readSniff(GPIO_SNIFF1B);
 #ifdef DEBUG_GPIO
-	DF_PRINTK("sniff1B: input value %d\n", (int)v);
+	pr_info("sniff1B: input value %d\n", (int)v);
 #endif
 	return v;
 }
@@ -387,7 +423,7 @@ EGpioValue piIoComm_readSniff2A()
 {
 	EGpioValue v = piIoComm_readSniff(GPIO_SNIFF2A);
 #ifdef DEBUG_GPIO
-	DF_PRINTK("sniff2A: input value %d\n", (int)v);
+	pr_info("sniff2A: input value %d\n", (int)v);
 #endif
 	return v;
 }
@@ -396,7 +432,7 @@ EGpioValue piIoComm_readSniff2B()
 {
 	EGpioValue v = piIoComm_readSniff(GPIO_SNIFF2B);
 #ifdef DEBUG_GPIO
-	DF_PRINTK("sniff2B: input value %d\n", (int)v);
+	pr_info("sniff2B: input value %d\n", (int)v);
 #endif
 	return v;
 }
@@ -434,7 +470,7 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 
 	if (piIoComm_send((INT8U *) & suSendTelegram_l, RS485_HDRLEN + i8uSendDataLen_p + 1) == 0) {
 #ifdef DEBUG_SERIALCOMM
-		DF_PRINTK("send gateprotocol addr %d cmd 0x%04x\n", suSendTelegram_l.i8uDstAdr,
+		pr_info("send gateprotocol addr %d cmd 0x%04x\n", suSendTelegram_l.i8uDstAdr,
 			  suSendTelegram_l.i16uCmd);
 #endif
 		if (i8uAdress_p == 255)	// address 255 is for broardcasts without reply
@@ -444,7 +480,7 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 			if (suRecvTelegram_l.ai8uData[suRecvTelegram_l.i8uDataLen] !=
 			    piIoComm_Crc8((INT8U *) & suRecvTelegram_l, RS485_HDRLEN + suRecvTelegram_l.i8uDataLen)) {
 #ifdef DEBUG_SERIALCOMM
-				DF_PRINTK
+				pr_info
 				    ("recv gateprotocol crc error: len=%d, %02x %02x %02x %02x %02x %02x %02x %02x\n",
 				     suRecvTelegram_l.i8uDataLen, suRecvTelegram_l.ai8uData[0],
 				     suRecvTelegram_l.ai8uData[1], suRecvTelegram_l.ai8uData[2],
@@ -455,12 +491,12 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 				i32uRv_l = 4;
 			} else if (suRecvTelegram_l.i16uCmd & MODGATE_RS485_COMMAND_ANSWER_ERROR) {
 #ifdef DEBUG_SERIALCOMM
-				DF_PRINTK("recv gateprotocol error %08x\n", *(INT32U *) (suRecvTelegram_l.ai8uData));
+				pr_info("recv gateprotocol error %08x\n", *(INT32U *) (suRecvTelegram_l.ai8uData));
 #endif
 				i32uRv_l = 3;
 			} else {
 #ifdef DEBUG_SERIALCOMM
-				DF_PRINTK("recv gateprotocol addr %d cmd 0x%04x\n", suRecvTelegram_l.i8uSrcAdr,
+				pr_info("recv gateprotocol addr %d cmd 0x%04x\n", suRecvTelegram_l.i8uSrcAdr,
 					  suRecvTelegram_l.i16uCmd);
 #endif
 				if (pi8uRecvData_p != NULL) {
@@ -593,12 +629,26 @@ INT32S piIoComm_gotoFWUMode(int address)
 	return fwuEnterFwuMode(address);
 }
 
-INT32S piIoComm_setSerNum(int address, INT32U serNum)
+INT32S piIoComm_fwuSetSerNum(int address, INT32U serNum)
 {
 	return fwuWriteSerialNum(address, serNum);
+}
+
+INT32S piIoComm_fwuFlashErase(int address)
+{
+	return fwuEraseFlash(address);
+}
+
+INT32S piIoComm_fwuFlashWrite(int address, INT32U flashAddr, char *data, INT32U length)
+{
+	return fwuWrite(address, flashAddr, data, length);
 }
 
 INT32S piIoComm_fwuReset(int address)
 {
 	return fwuResetModule(address);
 }
+
+
+
+

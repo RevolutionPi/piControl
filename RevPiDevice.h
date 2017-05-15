@@ -24,6 +24,7 @@ typedef struct _SDevice
 {
     INT8U i8uAddress;
     INT8U i8uActive;
+    INT8U i8uScan;			// found on scan
     INT16U i16uInputOffset;
     INT16U i16uOutputOffset;
     INT16U i16uConfigLength;
@@ -46,6 +47,7 @@ typedef struct _SDeviceConfig
 } SDeviceConfig;
 
 extern SDeviceConfig RevPiScan;
+extern const MODGATECOM_IDResp RevPi_ID_g;
 
 TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *pModgateId_p);
 
@@ -57,4 +59,5 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void);
 TBOOL RevPiDevice_writeNextConfigurationLeft(void);
 void RevPiDevice_startDataexchange(void);
 void RevPiDevice_stopDataexchange(void);
+void RevPiDevice_checkFirmwareUpdate(void);
 

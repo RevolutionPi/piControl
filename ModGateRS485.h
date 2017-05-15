@@ -19,7 +19,7 @@
 #include <IoProtocol.h>
 
 #define MAX_TELEGRAM_DATA_SIZE 256
-#define MAX_RAW_DATA_SIZE      256
+#define MAX_FWU_DATA_SIZE      250
 
 #define RS485_HDRLEN (offsetof(SRs485Telegram, ai8uData))
 
@@ -47,23 +47,23 @@ typedef enum
     eCmdGetErrorLog           = 0x000f,
     eCmdScriptMessage         = 0x0010,
     eCmdAgentCode             = 0x0011,     //!< Agent testing only, not in productive environment
-    eCmdserFlashErase         = 0x0012,     // löschen des externen Flash 
+    eCmdserFlashErase         = 0x0012,     // löschen des externen Flash
     eCmdserFlashWrite         = 0x0013,     // schreiben auf externen Flash
     // Commands from PiBridge master to slave
-    eCmdPiIoSetAddress        = 0x0014,     // PiBridge master sends the module address 
+    eCmdPiIoSetAddress        = 0x0014,     // PiBridge master sends the module address
     eCmdPiIoSetTermination    = 0x0015,     // The slave should set the RS485 termination resistor
     eCmdPiIoConfigure         = 0x0016,     // The configuration data for the slave
     eCmdPiIoStartDataExchange = 0x0017,     // Slave have to start dataexchange
 } ERs485Command;
 
-typedef enum 
+typedef enum
 {
     eIoConfig,
     eGateProtocol,
     eIoProtocol,
 } ERs485Protocol;
 
-typedef 
+typedef
 #include <COMP_packBegin.h>
 struct
 {
@@ -73,7 +73,7 @@ struct
     INT16U i16uSequNr;
     INT8U i8uDataLen;
     INT8U ai8uData[MAX_TELEGRAM_DATA_SIZE];
-} 
+}
 #include <COMP_packEnd.h>
 SRs485Telegram;
 

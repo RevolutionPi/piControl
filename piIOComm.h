@@ -24,7 +24,8 @@ extern int piIoComm_timeoutCnt_m;
 
 int piIoComm_open_serial(void);
 int piIoComm_send(INT8U *buf_p, INT16U i16uLen_p);
-int piIoComm_recv(INT8U *buf_p, INT16U i16uLen_p);
+int piIoComm_recv(INT8U *buf_p, INT16U i16uLen_p);	// using default timeout REV_PI_IO_TIMEOUT
+int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p);
 int UartThreadProc ( void *pArg);
 
 INT8U piIoComm_Crc8(INT8U *pi8uFrame_p, INT16U i16uLen_p);
@@ -50,6 +51,8 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p);
 INT32S piIoComm_gotoGateProtocol(void);
 INT32S piIoComm_gotoFWUMode(int address);
-INT32S piIoComm_setSerNum(int address, INT32U serNum);
+INT32S piIoComm_fwuSetSerNum(int address, INT32U serNum);
+INT32S piIoComm_fwuFlashErase(int address);
+INT32S piIoComm_fwuFlashWrite(int address, INT32U flashAddr, char *data, INT32U length);
 INT32S piIoComm_fwuReset(int address);
 

@@ -54,4 +54,7 @@ typedef struct _piConnectionlist {
 int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piCopylist ** cl,
 		  piConnectionList ** conn);
 
+struct file *open_filename(const char *filename, int flags);
+void close_filename(struct file *file);
+
 #endif

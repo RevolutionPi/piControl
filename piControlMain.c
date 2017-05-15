@@ -48,11 +48,12 @@
 #include <PiBridgeMaster.h>
 #include <RevPiDevice.h>
 #include <piIOComm.h>
+#include "piFirmwareUpdate.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("1.1.0");
+MODULE_VERSION("1.2.0");
 
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
@@ -75,7 +76,7 @@ static struct file_operations piControlFops = {
 owner:	THIS_MODULE,
 read:	piControlRead,
 write:	piControlWrite,
-llseek:piControlSeek,
+llseek: piControlSeek,
 open:	piControlOpen,
 unlocked_ioctl:piControlIoctl,
 release:piControlRelease
@@ -86,6 +87,7 @@ tpiControlDev piDev_g;
 static dev_t piControlMajor;
 static struct class *piControlClass;
 static struct module *piSpiModule;
+static char pcErrorMessage[200];
 
 /******************************************************************************/
 /*******************************  Functions  **********************************/
@@ -723,6 +725,16 @@ static void __exit piControlCleanup(void)
 	pr_info_drv("piControlCleanup done\n");
 }
 
+// true: system is initialized
+// false: system is not operational
+bool isInitialized(void)
+{
+	if (piDev_g.init_step < 17) {
+		return false;
+	}
+	return true;
+}
+
 // true: system is running
 // false: system is not operational
 bool isRunning(void)
@@ -753,6 +765,20 @@ bool waitRunning(int timeout)	// ms
 
 	return true;
 }
+
+void printUserMsg(const char *s, ...)
+{
+	va_list argp;
+
+	va_start(argp, s);
+
+	vsnprintf(pcErrorMessage, sizeof(pcErrorMessage), s, argp);
+	pcErrorMessage[sizeof(pcErrorMessage)-1] = 0;	// always add a terminating 0
+
+	pr_info("%s", pcErrorMessage);
+}
+
+
 
 /*****************************************************************************/
 /*              O P E N                                                      */
@@ -818,7 +844,6 @@ static int piControlRelease(struct inode *inode, struct file *file)
 		if (pos_inst == priv)
 		{
 			list_del(pos);
-			printk("remove entry from list\n");
 			break;
 		}
 	}
@@ -916,6 +941,88 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 	return nwrite;		// length written
 }
 
+
+static int piControlReset(tpiControlInst *priv) {
+	int status = -EFAULT;
+	void *vptr;
+	int timeout = 10000;	// ms
+
+	if (piDev_g.ent != NULL)
+	{
+		vptr = piDev_g.ent;
+		piDev_g.ent = NULL;
+		kfree(vptr);
+	}
+	if (piDev_g.devs != NULL)
+	{
+		vptr = piDev_g.devs;
+		piDev_g.devs = NULL;
+		kfree(vptr);
+	}
+	if (piDev_g.cl != NULL)
+	{
+		vptr = piDev_g.cl;
+		piDev_g.cl = NULL;
+		kfree(vptr);
+	}
+
+	/* start application */
+	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
+		// file not found, try old location
+		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
+		// ignore errors
+	}
+
+	PiBridgeMaster_Reset();
+
+	if (!waitRunning(timeout)) {
+		status = -ETIMEDOUT;
+	} else {
+		struct list_head *pCon;
+
+		mutex_lock(&piDev_g.lockListCon);
+		list_for_each(pCon, &piDev_g.listCon)
+		{
+			tpiControlInst *pos_inst;
+			pos_inst = list_entry(pCon, tpiControlInst, list);
+			if (pos_inst != priv)
+			{
+				struct list_head *pEv;
+				tpiEventEntry *pEntry;
+				bool found = false;
+
+				// add the event to the list only, if it not already there
+				mutex_lock(&pos_inst->lockEventList);
+				list_for_each(pEv, &pos_inst->piEventList) {
+					pEntry = list_entry(pEv, tpiEventEntry, list);
+					if (pEntry->event == piEvReset) {
+						found = true;
+						break;
+					}
+				}
+
+				if (!found) {
+					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
+					pEntry->event = piEvReset;
+					pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum, (unsigned int)pEntry);
+					list_add_tail(&pEntry->list, &pos_inst->piEventList);
+					mutex_unlock(&pos_inst->lockEventList);
+					pr_info_drv("reset(%d): inform instance %d\n", priv->instNum, pos_inst->instNum);
+					wake_up(&pos_inst->wq);
+				}
+				else
+				{
+					mutex_unlock(&pos_inst->lockEventList);
+				}
+			}
+		}
+		mutex_unlock(&piDev_g.lockListCon);
+
+		status = 0;
+	}
+	return status;
+}
+
 /*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
@@ -924,12 +1031,16 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	int status = -EFAULT;
 	tpiControlInst *priv;
 	int timeout = 10000;	// ms
-	void *vptr;
 
 	if (!isRunning())
 		return -EAGAIN;
 
 	priv = (tpiControlInst *) file->private_data;
+
+	if (prg_nr != KB_GET_LAST_MESSAGE) {
+		// clear old message
+		pcErrorMessage[0] = 0;
+	}
 
 	switch (prg_nr) {
 	case KB_CMD1:
@@ -948,84 +1059,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_RESET:
-		if (!isRunning())
+		if (!isInitialized()) {
 			return -EFAULT;
-
-		PiBridgeMaster_Stop();
-
-		if (piDev_g.ent != NULL)
-		{
-			vptr = piDev_g.ent;
-			piDev_g.ent = NULL;
-			kfree(vptr);
 		}
-		if (piDev_g.devs != NULL)
-		{
-			vptr = piDev_g.devs;
-			piDev_g.devs = NULL;
-			kfree(vptr);
+		if (isRunning()) {
+			PiBridgeMaster_Stop();
 		}
-		if (piDev_g.cl != NULL)
-		{
-			vptr = piDev_g.cl;
-			piDev_g.cl = NULL;
-			kfree(vptr);
-		}
-
-		/* start application */
-		if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
-			// file not found, try old location
-			piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
-			// ignore errors
-		}
-
-		PiBridgeMaster_Reset();
-
-		if (!waitRunning(timeout)) {
-			status = -ETIMEDOUT;
-		} else {
-			struct list_head *pCon;
-
-			mutex_lock(&piDev_g.lockListCon);
-			list_for_each(pCon, &piDev_g.listCon)
-			{
-				tpiControlInst *pos_inst;
-				pos_inst = list_entry(pCon, tpiControlInst, list);
-				if (pos_inst != priv)
-				{
-					struct list_head *pEv;
-					tpiEventEntry *pEntry;
-					bool found = false;
-
-					// add the event to the list only, if it not already there
-					mutex_lock(&pos_inst->lockEventList);
-					list_for_each(pEv, &pos_inst->piEventList) {
-						pEntry = list_entry(pEv, tpiEventEntry, list);
-						if (pEntry->event == piEvReset) {
-							found = true;
-							break;
-						}
-					}
-
-					if (!found) {
-						pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
-						pEntry->event = piEvReset;
-						pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum, (unsigned int)pEntry);
-						list_add_tail(&pEntry->list, &pos_inst->piEventList);
-						mutex_unlock(&pos_inst->lockEventList);
-						pr_info_drv("reset(%d): inform instance %d\n", priv->instNum, pos_inst->instNum);
-						wake_up(&pos_inst->wq);
-					}
-					else
-					{
-						mutex_unlock(&pos_inst->lockEventList);
-					}
-				}
-			}
-			mutex_unlock(&piDev_g.lockListCon);
-
-			status = 0;
-		}
+		status = piControlReset(priv);
 		break;
 
 	case KB_GET_DEVICE_INFO:
@@ -1205,7 +1245,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return 0;	// nothing to do
 
 			status = 0;
-			now = hrtimer_cb_get_time(&piDev_g.ioTimer);
+			now = ktime_get();
 
 			rt_mutex_lock(&piDev_g.lockPI);
 			piDev_g.tLastOutput2 = piDev_g.tLastOutput1;
@@ -1248,6 +1288,60 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		}
 		break;
 
+	case KB_DIO_RESET_COUNTER:
+		{
+			SDioCounterReset tel;
+			SDIOResetCounter *pPar = (SDIOResetCounter *)usr_addr;
+			int i;
+			bool found = false;
+
+			if (!isRunning())
+				return -EFAULT;
+
+			for (i = 0; i < RevPiScan.i8uDeviceCount && !found; i++) {
+				if (RevPiScan.dev[i].i8uAddress == pPar->i8uAddress
+				    && RevPiScan.dev[i].i8uActive
+				    && (RevPiScan.dev[i].sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
+				     || RevPiScan.dev[i].sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DI_16))
+				{
+					found = true;
+					break;
+				}
+			}
+			if (!found || pPar->i16uBitfield == 0)
+			{
+				DF_PRINTK("piControlIoctl: resetCounter failed bitfield 0x%x", pPar->i16uBitfield);
+				return -EINVAL;
+			}
+
+			tel.uHeader.sHeaderTyp1.bitAddress = pPar->i8uAddress;
+			tel.uHeader.sHeaderTyp1.bitIoHeaderType = 0;
+			tel.uHeader.sHeaderTyp1.bitReqResp = 0;
+			tel.uHeader.sHeaderTyp1.bitLength = sizeof(SDioCounterReset) - IOPROTOCOL_HEADER_LENGTH - 1;
+			tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
+			tel.i16uChannels = pPar->i16uBitfield;
+
+#if 0
+			mutex_lock(&piDev_g.lockUserTel);
+			if (copy_from_user(&piDev_g.requestUserTel, &tel, sizeof(tel)))
+			{
+				mutex_unlock(&piDev_g.lockUserTel);
+				DF_PRINTK("piControlIoctl: resetCounter failed copy");
+				status = -EFAULT;
+				break;
+			}
+#else
+			mutex_lock(&piDev_g.lockUserTel);
+			memcpy(&piDev_g.requestUserTel, &tel, sizeof(tel));
+#endif
+			piDev_g.pendingUserTel = true;
+			down(&piDev_g.semUserTel);
+			status = piDev_g.statusUserTel;
+			DF_PRINTK("piControlIoctl: resetCounter result %d", status);
+			mutex_unlock(&piDev_g.lockUserTel);
+		}
+		break;
+
 	case KB_INTERN_SET_SERIAL_NUM:
 		{
 			INT32U *pData = (INT32U *) usr_addr;	// pData is an array containing the module address and the serial number
@@ -1258,17 +1352,15 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			PiBridgeMaster_Stop();
 			msleep(500);
 
-			if (PiBridgeMaster_gotoFWUMode(pData[0]) == 0) {
-				msleep(500);
+			if (PiBridgeMaster_FWUModeEnter(pData[0], 1) == 0) {
 
-				if (PiBridgeMaster_setSerNum(pData[1]) == 0) {
+				if (PiBridgeMaster_FWUsetSerNum(pData[1]) == 0) {
 					DF_PRINTK
 					    ("piControlIoctl: set serial number to %u in module %u",
 					     pData[1], pData[0]);
 				}
-				msleep(1000);
 
-				PiBridgeMaster_fwuReset();
+				PiBridgeMaster_FWUReset();
 				msleep(1000);
 			}
 
@@ -1284,6 +1376,53 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		}
 		break;
 
+	case KB_UPDATE_DEVICE_FIRMWARE:
+		{
+			int i, ret, cnt;
+
+			if (!isRunning()) {
+				printUserMsg("piControl is not running");
+				return -EFAULT;
+			}
+
+			// at the moment the update works only, if there is only one module connected on the right
+			if (RevPiScan.i8uDeviceCount > 2)	// RevPi + Module to update
+			{
+				printUserMsg("Too many modules! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
+				return -EFAULT;
+			}
+			if (RevPiScan.i8uDeviceCount < 2
+			    || RevPiScan.dev[1].i8uActive == 0
+			    || RevPiScan.dev[1].sId.i16uModulType >= PICONTROL_SW_OFFSET)
+			{
+				printUserMsg("No module to update! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
+				return -EFAULT;
+			}
+
+			PiBridgeMaster_Stop();
+			msleep(50);
+
+			cnt = 0;
+			for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
+				ret = FWU_update(&RevPiScan.dev[i]);
+				if (ret > 0) {
+					cnt++;
+					// update only one device per call
+					break;
+				} else {
+					status = cnt;
+				}
+			}
+
+			if (cnt) {
+				// at least one module was updated, make a reset
+				status = piControlReset(priv);
+			} else {
+				PiBridgeMaster_Continue();
+			}
+		}
+		break;
+
 	case KB_INTERN_IO_MSG:
 		{
 			SIOGeneric *tel = (SIOGeneric *)usr_addr;
@@ -1294,6 +1433,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			mutex_lock(&piDev_g.lockUserTel);
 			if (copy_from_user(&piDev_g.requestUserTel, tel, sizeof(SIOGeneric)))
 			{
+				mutex_unlock(&piDev_g.lockUserTel);
 				status = -EFAULT;
 				break;
 			}
@@ -1302,6 +1442,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			status = piDev_g.statusUserTel;
 			if (copy_to_user(tel, &piDev_g.responseUserTel, sizeof(SIOGeneric)))
 			{
+				mutex_unlock(&piDev_g.lockUserTel);
 				status = -EFAULT;
 				break;
 			}
@@ -1331,6 +1472,16 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		}
 		break;
 
+	case KB_GET_LAST_MESSAGE:
+		{
+			if (copy_to_user((void*)usr_addr, pcErrorMessage, sizeof(pcErrorMessage)))
+			{
+				dev_err(priv->dev, "piControlIoctl: copy_to_user failed");
+				return -EFAULT;
+			}
+			status = 0;
+		}
+		break;
 	default:
 		dev_err(priv->dev, "Invalid Ioctl");
 		return (-EINVAL);

@@ -114,6 +114,7 @@ static void ksz8851InitSpi(void)
 #endif
 
     BSP_SPI_RWPERI_init(KSZ8851_SPI_PORT, &TFS_spi_configuration_s, &BSP_KSZ8851_tRwPeriData_g);
+    pr_info("BSP_SPI_RWPERI_init done\n");
 }
 
 //+=============================================================================================
@@ -263,6 +264,8 @@ TBOOL ksz8851Init(void)
 
     /* Read device chip ID */
     dev_id = ksz8851_regrd(REG_CHIP_ID);
+    pr_info("read chip id %x, expected %x\n", dev_id, CHIP_ID_8851_16);
+
     if (dev_id != CHIP_ID_8851_16)
 	return bFALSE;	// wrong chip or HW problem
 
@@ -706,13 +709,13 @@ void ksz8851HardwareReset(void)
     //printk("ksz8851HardwareReset\n");
     if (gpio_request(GPIO_RESET, "KSZReset") < 0)
     {
-	//printk("Can not get GPIO_RESET\n");
+	printk("Can not get GPIO_RESET\n");
     }
     else
     {
 	if (gpio_direction_output(GPIO_RESET, 1) < 0)
 	{
-	    //printk("GPIO_RESET failed\n");
+	    printk("GPIO_RESET failed\n");
 	}
 	msleep(20);
 	gpio_set_value(GPIO_RESET, 0);

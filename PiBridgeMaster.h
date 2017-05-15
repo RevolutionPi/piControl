@@ -23,15 +23,18 @@ typedef enum _EPiBridgeMasterStatus {
 	enPiBridgeMasterStatus_ConfigDialogueRight,	// 5
 	enPiBridgeMasterStatus_SlaveDetectionRight,	// 6
 	enPiBridgeMasterStatus_InitialSlaveDetectionLeft,	// 7
-	enPiBridgeMasterStatus_ConfigLeftStart,	// 8
+	enPiBridgeMasterStatus_ConfigLeftStart,		// 8
 	enPiBridgeMasterStatus_ConfigDialogueLeft,	// 9
 	enPiBridgeMasterStatus_SlaveDetectionLeft,	// 10
-	enPiBridgeMasterStatus_EndOfConfig,	// 11
+	enPiBridgeMasterStatus_EndOfConfig,		// 11
+	enPiBridgeMasterStatus_Continue,		// 12
 
 	// states for MGate Protocol
-	enPiBridgeMasterStatus_FWUMode,	// 12
-	enPiBridgeMasterStatus_ProgramSerialNum,	// 13
-	enPiBridgeMasterStatus_FWUReset,	// 14
+	enPiBridgeMasterStatus_FWUMode,			// 13
+	enPiBridgeMasterStatus_ProgramSerialNum,	// 14
+	enPiBridgeMasterStatus_FWUFlashErase,		// 15
+	enPiBridgeMasterStatus_FWUFlashWrite,	// 16
+	enPiBridgeMasterStatus_FWUReset,	// 17
 
 } EPiBridgeMasterStatus;
 
@@ -40,6 +43,8 @@ typedef struct _SRevPiCoreImage {
 	INT8U i8uStatus;
 	INT8U i8uIOCycle;
 	INT16U i16uRS485ErrorCnt;
+	INT8U i8uCPUTemperature;
+	INT8U i8uCPUFrequency;
 
 	// output data: set by application
 	INT8U i8uLED;
@@ -53,7 +58,10 @@ int PiBridgeMaster_Adjust(void);
 void PiBridgeMaster_setDefaults(void);
 int PiBridgeMaster_Run(void);
 void PiBridgeMaster_Stop(void);
+void PiBridgeMaster_Continue(void);
 int PiBridgeMaster_gotoMGateComMode(void);
-int PiBridgeMaster_gotoFWUMode(INT32U address);
-int PiBridgeMaster_setSerNum(INT32U serNum);
-int PiBridgeMaster_fwuReset(void);
+INT32S PiBridgeMaster_FWUModeEnter(INT32U address, INT8U i8uScanned);
+INT32S PiBridgeMaster_FWUsetSerNum(INT32U serNum);
+INT32S PiBridgeMaster_FWUflashErase(void);
+INT32S PiBridgeMaster_FWUflashWrite(INT32U flash_add, char *data, INT32U length);
+INT32S PiBridgeMaster_FWUReset(void);

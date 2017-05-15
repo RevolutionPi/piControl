@@ -30,15 +30,15 @@
 
 SDeviceConfig RevPiScan;
 
-static const MODGATECOM_IDResp RevPi_ID_s =
+const MODGATECOM_IDResp RevPi_ID_g =
 {
     .i32uSerialnumber           = 1,
     .i16uModulType              = KUNBUS_FW_DESCR_TYP_PI_CORE,
     .i16uHW_Revision            = 1,
     .i16uSW_Major               = 1,
-    .i16uSW_Minor               = 1,  //TODO
+    .i16uSW_Minor               = 2,  //TODO
     .i32uSVN_Revision           = 0,
-    .i16uFBS_InputLength        = 4,
+    .i16uFBS_InputLength        = 6,
     .i16uFBS_OutputLength       = 5,
     .i16uFeatureDescriptor      = MODGATE_feature_IODataExchange
 };
@@ -56,10 +56,11 @@ void RevPiDevice_init(void)
 
     // RevPi as first entry to device list
     RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uAddress = 0;
-    RevPiScan.dev[RevPiScan.i8uDeviceCount].sId = RevPi_ID_s;
+    RevPiScan.dev[RevPiScan.i8uDeviceCount].sId = RevPi_ID_g;
     RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset = 0;
     RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset = (INT16U)((int)&((SRevPiCoreImage *)0)->i8uLED);
     RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uActive = 1;
+    RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uScan = 1;
     RevPiScan.i8uDeviceCount++;
 }
 
@@ -242,6 +243,7 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_OutputLength);
 #endif
 	RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uActive = 1;
+	RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uScan = 1;
 	RevPiScan.i8uDeviceCount++;
 	RevPiScan.i8uAddressRight++;
 		return bTRUE;
@@ -279,6 +281,7 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_OutputLength);
 #endif
 	RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uActive = 1;
+	RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uScan = 1;
 	RevPiScan.i8uDeviceCount++;
 	RevPiScan.i8uAddressLeft--;
 		return bTRUE;
@@ -309,3 +312,17 @@ void RevPiDevice_stopDataexchange(void)
 #endif
     }
 }
+
+void RevPiDevice_checkFirmwareUpdate(void)
+{
+	int j;
+	// Schleife über alle Module die automatisch erkannt wurden
+	for (j = 0; j < RevPiScan.i8uDeviceCount; j++) {
+		if (RevPiScan.dev[j].i8uAddress != 0 && RevPiScan.dev[j].sId.i16uModulType < PICONTROL_SW_OFFSET)
+		{
+
+		}
+	}
+}
+
+
