@@ -124,7 +124,7 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 			break;
 		}
 		ret = json_parser_string(parser, buffer, read, &processed);
-		pr_err("json_parser_string returned %d: %d %u\n", ret, read, processed);
+		//pr_err("json_parser_string returned %d: %d %u\n", ret, read, processed);
 		for (i = 0; i < processed; i++) {
 			if (buffer[i] == '\n') {
 				col = 0;

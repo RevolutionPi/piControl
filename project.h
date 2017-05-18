@@ -45,11 +45,17 @@
 #define pr_info_config(fmt, ...)
 #endif
 
-#if 1
+#if 0
 #define DEBUG_MASTER_STATE
 #define pr_info_master(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#define pr_info_master2(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#elif 1
+#define DEBUG_MASTER_STATE
+#define pr_info_master(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#define pr_info_master2(fmt, ...)
 #else
 #define pr_info_master(fmt, ...)
+#define pr_info_master2(fmt, ...)
 #endif
 
 #if 0

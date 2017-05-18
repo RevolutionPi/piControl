@@ -196,7 +196,7 @@ void PiBridgeMaster_setDefaults(void)
 	{
 		if (piDev_g.ent->ent[i].i32uDefault != 0)
 		{
-			pr_info("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
+			pr_info_master2("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
 				piDev_g.ent->ent[i].i8uAddress,
 				piDev_g.ent->ent[i].i8uType,
 				piDev_g.ent->ent[i].i16uBitLength,
@@ -296,6 +296,8 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_info_master("Enter InitialSlaveDetectionRight State\n");
 				bEntering_s = bFALSE;
+				piIoComm_readSniff1A();
+				piIoComm_readSniff1B();
 			}
 			if (piIoComm_readSniff2B() == enGpioValue_High) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigRightStart;
@@ -346,15 +348,18 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_info_master("Enter SlaveDetectionRight State\n");
 				bEntering_s = bFALSE;
+				kbUT_TimerStart(&tTimeoutTimer_s, 10);
 			}
-			if (piIoComm_readSniff2B() == enGpioValue_High) {
-				// configure next right slave
-				eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
-				bEntering_s = bTRUE;
-			} else {
-				// no more slaves on the right side, configure left slaves
-				eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
-				bEntering_s = bTRUE;
+			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+				if (piIoComm_readSniff2B() == enGpioValue_High) {
+					// configure next right slave
+					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
+					bEntering_s = bTRUE;
+				} else {
+					// no more slaves on the right side, configure left slaves
+					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
+					bEntering_s = bTRUE;
+				}
 			}
 			break;
 			// *****************************************************************************************
@@ -416,15 +421,18 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_info_master("Enter SlaveDetectionLeft State\n");
 				bEntering_s = bFALSE;
+				kbUT_TimerStart(&tTimeoutTimer_s, 10);
 			}
-			if (piIoComm_readSniff2A() == enGpioValue_High) {
-				// configure next left slave
-				eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
-				bEntering_s = bTRUE;
-			} else {
-				// no more slaves on the left
-				eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
-				bEntering_s = bTRUE;
+			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+				if (piIoComm_readSniff2A() == enGpioValue_High) {
+					// configure next left slave
+					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
+					bEntering_s = bTRUE;
+				} else {
+					// no more slaves on the left
+					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
+					bEntering_s = bTRUE;
+				}
 			}
 			break;
 			// *****************************************************************************************
@@ -443,7 +451,7 @@ int PiBridgeMaster_Run(void)
 					case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 					case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 						ret = piDIOComm_Init(i);
-						pr_info_dio("piDIOComm_Init done %d\n", ret);
+						pr_info("piDIOComm_Init done %d\n", ret);
 						if (ret != 0)
 						{
 							// init failed -> deactive module
@@ -453,7 +461,7 @@ int PiBridgeMaster_Run(void)
 						break;
 					case KUNBUS_FW_DESCR_TYP_PI_AIO:
 						ret = piAIOComm_Init(i);
-						pr_info_aio("piAIOComm_Init done %d\n", ret);
+						pr_info("piAIOComm_Init done %d\n", ret);
 						if (ret != 0)
 						{
 							// init failed -> deactive module
@@ -536,7 +544,7 @@ int PiBridgeMaster_Run(void)
 						case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 						case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 							ret = piDIOComm_Init(i);
-							pr_info_dio("piDIOComm_Init done %d\n", ret);
+							pr_info("piDIOComm_Init done %d\n", ret);
 							if (ret != 0)
 							{
 								// init failed -> deactive module
@@ -546,7 +554,7 @@ int PiBridgeMaster_Run(void)
 							break;
 						case KUNBUS_FW_DESCR_TYP_PI_AIO:
 							ret = piAIOComm_Init(i);
-							pr_info_aio("piAIOComm_Init done %d\n", ret);
+							pr_info("piAIOComm_Init done %d\n", ret);
 							if (ret != 0)
 							{
 								// init failed -> deactive module

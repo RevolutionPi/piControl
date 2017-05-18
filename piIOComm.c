@@ -473,7 +473,7 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 		pr_info("send gateprotocol addr %d cmd 0x%04x\n", suSendTelegram_l.i8uDstAdr,
 			  suSendTelegram_l.i16uCmd);
 #endif
-		if (i8uAdress_p == 255)	// address 255 is for broardcasts without reply
+		if (i8uAdress_p == 255)	// address 255 is for broadcasts without reply
 			return 0;
 
 		if (piIoComm_recv((INT8U *) & suRecvTelegram_l, RS485_HDRLEN + i8uRecvDataLen_p + 1) > 0) {
@@ -495,7 +495,7 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 #endif
 				i32uRv_l = 3;
 			} else {
-#ifdef DEBUG_SERIALCOMM
+#if 1 //xx def DEBUG_SERIALCOMM
 				pr_info("recv gateprotocol addr %d cmd 0x%04x\n", suRecvTelegram_l.i8uSrcAdr,
 					  suRecvTelegram_l.i16uCmd);
 #endif

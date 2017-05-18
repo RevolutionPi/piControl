@@ -184,31 +184,31 @@ TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *
     INT32U ret_l;
     //
     ret_l = piIoComm_sendRS485Tel(eCmdGetDeviceInfo, i8uAddress_p, NULL, 0, (INT8U*)pModgateId_p, sizeof(MODGATECOM_IDResp));
-    msleep(10);    // wait a while
+    msleep(3);    // wait a while
     if (ret_l)
     {
 #ifdef DEBUG_DEVICE
-	DF_PRINTK("piIoComm_sendRS485Tel(GetDeviceInfo) failed %d\n", ret_l);
+	pr_err("piIoComm_sendRS485Tel(GetDeviceInfo) failed %d\n", ret_l);
 #endif
 	return bFALSE;
     }
 
     ret_l = piIoComm_sendRS485Tel(eCmdPiIoConfigure, i8uAddress_p, NULL, 0, NULL, 0);
-    msleep(10);    // wait a while
+    msleep(3);    // wait a while
     if (ret_l)
     {
 #ifdef DEBUG_DEVICE
-	DF_PRINTK("piIoComm_sendRS485Tel(PiIoConfigure) failed %d\n", ret_l);
+	pr_err("piIoComm_sendRS485Tel(PiIoConfigure) failed %d\n", ret_l);
 #endif
 	return bFALSE;
 	}
 
     ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
-    msleep(10);    // wait a while
+    msleep(3);    // wait a while
     if (ret_l)
     {
 #ifdef DEBUG_DEVICE
-	DF_PRINTK("piIoComm_sendRS485Tel(PiIoSetAddress) failed %d\n", ret_l);
+	pr_err("piIoComm_sendRS485Tel(PiIoSetAddress) failed %d\n", ret_l);
 #endif
 	return bFALSE;
 	}
@@ -233,12 +233,12 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 									 + RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength;
 	}
 #ifdef DEBUG_DEVICE
-	DF_PRINTK("found %d. device on right side. Moduletype %d. Designated address %d\n",
+	pr_info("found %d. device on right side. Moduletype %d. Designated address %d\n",
 	    RevPiScan.i8uDeviceCount+1, RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uModulType, RevPiScan.i8uAddressRight);
-	DF_PRINTK("input offset  %5d  len %3d\n",
+	pr_info("input offset  %5d  len %3d\n",
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset,
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength);
-	DF_PRINTK("output offset %5d  len %3d\n",
+	pr_info("output offset %5d  len %3d\n",
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset,
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_OutputLength);
 #endif
@@ -269,14 +269,14 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 									 + RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength;
 	}
 #ifdef DEBUG_DEVICE
-	DF_PRINTK("found %d. device on left side. Moduletype %d. Designated address %d\n",
+	pr_info("found %d. device on left side. Moduletype %d. Designated address %d\n",
 	    RevPiScan.i8uDeviceCount+1,
 	    RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uModulType,
 	    RevPiScan.i8uAddressLeft);
-	DF_PRINTK("input offset  %5d  len %3d\n",
+	pr_info("input offset  %5d  len %3d\n",
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset,
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength);
-	DF_PRINTK("output offset %5d  len %3d\n",
+	pr_info("output offset %5d  len %3d\n",
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset,
 		  RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_OutputLength);
 #endif
@@ -296,7 +296,7 @@ void RevPiDevice_startDataexchange(void)
     if (ret_l)
     {
 #ifdef DEBUG_DEVICE
-	DF_PRINTK("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
+	pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
 #endif
     }
 }
@@ -308,7 +308,7 @@ void RevPiDevice_stopDataexchange(void)
     if (ret_l)
     {
 #ifdef DEBUG_DEVICE
-	DF_PRINTK("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
+	pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
 #endif
     }
 }
