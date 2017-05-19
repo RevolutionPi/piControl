@@ -633,7 +633,7 @@ void setBit(int offset, int bit, int value)
  * @param[in]   Bit number (0 - 7)
  *
  ************************************************************************************/
-void getBit(int offset, int bit)
+void getBit(int offset, int bit, bool quiet)
 {
     int rc;
     SPIValue sPIValue;
@@ -648,9 +648,16 @@ void getBit(int offset, int bit)
     sPIValue.i8uBit = bit;
     // Get bit
     rc = piControlGetBitValue(&sPIValue);
-    if (rc < 0) {
+    if (rc < 0)
+    {
         printf("Get bit error\n");
-    } else {
+    }
+    else if (quiet)
+    {
+        printf("%d\n", sPIValue.i8uValue);
+    }
+    else
+    {
         printf("Get bit %d at offset %d. Value %d\n", bit, offset, sPIValue.i8uValue);
     }
 }
@@ -752,7 +759,7 @@ int main(int argc, char *argv[])
     int offset;
     int length;
     int address;
-    unsigned int val;
+    int val;
     char format;
     int bit;
     bool cyclic = true;     // default is cyclic output
@@ -821,13 +828,15 @@ int main(int argc, char *argv[])
                 readData(offset, length, cyclic, format, quiet);
                 return 0;
             }
-            rc = sscanf(optarg, "%s,%c", szVariableName, &format);
-            if (rc == 2) {
-                readVariableValue(szVariableName, cyclic, format, quiet);
-                return 0;
-            }
             rc = sscanf(optarg, "%s", szVariableName);
             if (rc == 1) {
+                pszTok = strtok(szVariableName, ",");
+                if (pszTok != NULL) {
+                    pszTok = strtok(NULL, ",");
+                    if (pszTok != NULL) {
+                        format = *pszTok;
+                    }
+                }
                 readVariableValue(szVariableName, cyclic, format, quiet);
                 return 0;
             }
@@ -870,7 +879,7 @@ int main(int argc, char *argv[])
         case 'R':   // reset counter
             rc = sscanf(optarg, "%d,0x%x", &address, &val);
             if (rc != 2) {
-                rc = sscanf(optarg, "%d,%u", &address, &val);
+                rc = sscanf(optarg, "%d,%d", &address, &val);
                 if (rc != 2) {
                     printf("Wrong arguments for counter reset function\n");
                     printf("Try '-R address,value' (without spaces)\n");
@@ -887,7 +896,7 @@ int main(int argc, char *argv[])
                 printf("Try '-g offset,bit' (without spaces)\n");
                 return 0;
             }
-            getBit(offset, bit);
+            getBit(offset, bit, quiet);
             break;
 
         case 'x':
@@ -920,13 +929,16 @@ int main(int argc, char *argv[])
             piControlIntMsg(IOP_TYP1_CMD_DATA4, NULL, 0);
             break;
         case 'b':
-	    unsigned char enable;
-            // Enable/disable outputs
-            if (*optarg == '0')
-                enable = 0;
-            else
-                enable = 1;
-            piControlIntMsg(IOP_TYP1_CMD_DATA6, &enable, 1);
+            {
+                unsigned char enable;
+
+                            // Enable/disable outputs
+                if (*optarg == '0')
+                    enable = 0;
+                else
+                    enable = 1;
+                piControlIntMsg(IOP_TYP1_CMD_DATA6, &enable, 1);
+            }
             break;
 #endif
         case 'h':

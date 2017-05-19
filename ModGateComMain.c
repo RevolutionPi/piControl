@@ -648,51 +648,53 @@ void MODGATECOM_run(void)
 		clr = 0;
 
 		string[0] = 0;
-		switch (AL_Data_s[0].i8uState) {
+		// left module has index 1
+		switch (AL_Data_s[1].i8uState) {
 		case MODGATE_ST_HW_CHECK:
-			len = sprintf(string, "Module %d: HW check     ", 0);
-			clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
+			len = sprintf(string, "Module L: HW check     ");
+			clr |= PICONTROL_STATUS_LEFT_GATEWAY;
 			break;
 		case MODGATE_ST_LINK_CHECK:
-			len = sprintf(string, "Module %d: Link check   ", 0);
-			clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
+			len = sprintf(string, "Module L: Link check   ");
+			clr |= PICONTROL_STATUS_LEFT_GATEWAY;
 			break;
 		case MODGATE_ST_ID_REQ:	// id request und response werden für die Ausgabe nicht unterschieden
 		case MODGATE_ST_ID_RESP:
-			len = sprintf(string, "Module %d: id request   ", 0);
-			clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
+			len = sprintf(string, "Module L: id request   ");
+			clr |= PICONTROL_STATUS_LEFT_GATEWAY;
 			break;
 		case MODGATE_ST_RUN_NO_DATA:
-			len = sprintf(string, "Module %d: run no data  ", 0);
-			clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
+			len = sprintf(string, "Module L: run no data  ");
+			clr |= PICONTROL_STATUS_LEFT_GATEWAY;
 			break;
 		case MODGATE_ST_RUN:
-			len = sprintf(string, "Module %d: run          ", 0);
-			set |= PICONTROL_STATUS_RIGHT_GATEWAY;
+			len = sprintf(string, "Module L: run          ");
+			set |= PICONTROL_STATUS_LEFT_GATEWAY;
 			break;
 		}
 
-		switch (AL_Data_s[1].i8uState) {
+		// right module has index 0
+		switch (AL_Data_s[0].i8uState) {
 		case MODGATE_ST_HW_CHECK:
-			sprintf(&string[len], "Module %d: HW check\n", 1);
-			clr |= PICONTROL_STATUS_LEFT_GATEWAY;
+			sprintf(&string[len], "Module R: HW check\n");
+			clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
 			break;
 		case MODGATE_ST_LINK_CHECK:
-			sprintf(&string[len], "Module %d: Link check\n", 1);
-			clr |= PICONTROL_STATUS_LEFT_GATEWAY;
+			sprintf(&string[len], "Module R: Link check\n");
+			clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
 			break;
 		case MODGATE_ST_ID_REQ:	// id request und response werden für die Ausgabe nicht unterschieden
 		case MODGATE_ST_ID_RESP:
-			sprintf(&string[len], "Module %d: id request\n", 1);
-			clr |= PICONTROL_STATUS_LEFT_GATEWAY;
+			sprintf(&string[len], "Module R: id request\n");
+			clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
 			break;
 		case MODGATE_ST_RUN_NO_DATA:
-			sprintf(&string[len], "Module %d: run no data\n", 1);
-			clr |= PICONTROL_STATUS_LEFT_GATEWAY;
+			sprintf(&string[len], "Module R: run no data\n");
+			clr |= PICONTROL_STATUS_RIGHT_GATEWAY;
 			break;
 		case MODGATE_ST_RUN:
-			sprintf(&string[len], "Module %d: run\n", 1);
-			set |= PICONTROL_STATUS_LEFT_GATEWAY;
+			sprintf(&string[len], "Module R: run\n");
+			set |= PICONTROL_STATUS_RIGHT_GATEWAY;
 			break;
 		}
 		pr_info("%s", string);

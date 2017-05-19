@@ -32,6 +32,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/miscdevice.h>
+#include <linux/thermal.h>
 #include <asm/div64.h>
 
 #include <bsp/uart/uart.h>
@@ -54,6 +55,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck");
 MODULE_DESCRIPTION("piControl Driver");
 MODULE_VERSION("1.2.0");
+MODULE_SOFTDEP("bcm2835-thermal");
+
 
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
@@ -92,6 +95,7 @@ static char pcErrorMessage[200];
 /******************************************************************************/
 /*******************************  Functions  **********************************/
 /******************************************************************************/
+
 
 /******************************************************************************/
 /***************************** CS Functions  **********************************/
@@ -618,6 +622,14 @@ static int __init piControlInit(void)
 	param.sched_priority = RT_PRIO_BRIDGE;
 	sched_setscheduler(piDev_g.pIoThread, SCHED_FIFO, &param);
 	piDev_g.init_step = 17;
+
+
+	piDev_g.thermal_zone = thermal_zone_get_zone_by_name("bcm2835_thermal");
+	if (IS_ERR(piDev_g.thermal_zone)) {
+		pr_err("could not find thermal zone 'bcm2835_thermal'\n");
+		piDev_g.thermal_zone = NULL;
+	}
+
 
 	DF_PRINTK("piControlInit done\n");
 	return 0;

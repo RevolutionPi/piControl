@@ -47,6 +47,7 @@ typedef struct spiControlDev
     int         init_step;
     struct cdev cdev;        // Char device structure
     struct device *dev;
+    struct thermal_zone_device *thermal_zone;
 
     // piGate stuff
     INT8U i8uLeftMGateIdx;      // index of left GateModule in RevPiDevice_asDevice_m

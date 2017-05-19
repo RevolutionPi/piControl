@@ -18,6 +18,9 @@
 #include <linux/slab.h>		// included for KERN_INFO
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/jiffies.h>
+#include <linux/thermal.h>
+#include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include <kbUtilities.h>
 #include <ModGateRS485.h>
@@ -37,6 +40,43 @@ static INT32U i32uFWUAddress, i32uFWUSerialNum, i32uFWUFlashAddr, i32uFWUlength,
 static INT32S i32sRetVal;
 static char *pcFWUdata;
 
+#define VCMSG_ID_ARM_CLOCK 0x000000003		/* Clock/Voltage ID's */
+
+static int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 *val)
+{
+	struct rpi_firmware *fw = rpi_firmware_get(NULL);
+	struct {
+		u32 id;
+		u32 val;
+	} packet;
+	int ret;
+
+	packet.id = id;
+	packet.val = *val;
+	ret = rpi_firmware_property(fw, tag, &packet, sizeof(packet));
+	if (ret)
+		return ret;
+
+	*val = packet.val;
+
+	return 0;
+}
+
+static uint32_t bcm2835_cpufreq_get_clock(void)
+{
+	u32 rate;
+	int ret;
+
+	ret = bcm2835_cpufreq_clock_property(RPI_FIRMWARE_GET_CLOCK_RATE, VCMSG_ID_ARM_CLOCK, &rate);
+	if (ret) {
+		pr_err("Failed to get clock (%d)\n", ret);
+		return 0;
+	}
+
+	rate /= 1000 * 1000; //convert to MHz
+
+	return rate;
+}
 
 void PiBridgeMaster_Stop(void)
 {
@@ -677,7 +717,6 @@ int PiBridgeMaster_Run(void)
 
 	rt_mutex_unlock(&piDev_g.lockBridgeState);
 	if (RevPiScan.pCoreData != NULL) {
-		RevPiScan.pCoreData->i8uStatus = RevPiScan.i8uStatus;
 	}
 
 	if (eBridgeStateLast_s != piDev_g.eBridgeState) {
@@ -690,8 +729,12 @@ int PiBridgeMaster_Run(void)
 		}
 		eBridgeStateLast_s = piDev_g.eBridgeState;
 	}
-	// set LED
+	// set LED and status
 	if (RevPiScan.pCoreData != NULL) {
+		static unsigned long last_update;
+
+		RevPiScan.pCoreData->i8uStatus = RevPiScan.i8uStatus;
+
 		led = RevPiScan.pCoreData->i8uLED;
 		if (led != last_led) {
 			gpio_set_value_cansleep(GPIO_LED_AGRN, (led & PICONTROL_LED_A1_GREEN) ? 1 : 0);
@@ -700,6 +743,24 @@ int PiBridgeMaster_Run(void)
 			gpio_set_value_cansleep(GPIO_LED_BRED, (led & PICONTROL_LED_A2_RED) ? 1 : 0);
 
 			last_led = led;
+		}
+
+		// update every 1 sec
+		if ((jiffies - last_update) > msecs_to_jiffies(1000)) {
+			if (piDev_g.thermal_zone != NULL) {
+				int temp, ret;
+
+				ret = thermal_zone_get_temp(piDev_g.thermal_zone, &temp);
+				if (ret) {
+					pr_err("could not read cpu temperature");
+				} else {
+					RevPiScan.pCoreData->i8uCPUTemperature = temp / 1000;
+				}
+			}
+
+			RevPiScan.pCoreData->i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
+
+			last_update = jiffies;
 		}
 	}
 
