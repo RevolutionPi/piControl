@@ -740,9 +740,18 @@ void printHelp(char *programname)
     printf("                     E.g.: -b 0,5,1:\n");
     printf("                     Set bit 5 to 1 of byte at offset 0.\n");
     printf("\n");
+    printf("     -R <addr>,<bs>: Reset counters/encoders in a digital input module like DIO or DI.\n");
+    printf("                     <addr> is the address of module as displayed with option -d.\n");
+    printf("                     <bs> is a bitset. If the counter on input pin n must be reset,\n");
+    printf("                     the n-th bit must be set to 1.\n");
+    printf("                     E.g.: -R 32,0x0014:\n");
+    printf("                     Reset the counters on input pin I_3 and I_5.\n");
+    printf("\n");
     printf("                 -x: Reset piControl process.\n");
     printf("\n");
     printf("                 -l: Wait for reset of piControl process.\n");
+    printf("\n");
+    printf("                 -f: Update firmware. (see tutorials on website for more info) \n");
 }
 
 /***********************************************************************************/
@@ -909,8 +918,19 @@ int main(int argc, char *argv[])
 
         case 'l':
             rc = piControlWaitForEvent();
-            if (rc) {
+            if (rc < 0)
+            {
                 printf("WaitForEvent returned: %d (%s)\n", rc, strerror(-rc));
+                return rc;
+            }
+            else if (rc == 1)
+            {
+                printf("WaitForEvent returned: Reset\n");
+                return rc;
+            }
+            else
+            {
+                printf("WaitForEvent returned: %d\n", rc);
                 return rc;
             }
             break;
