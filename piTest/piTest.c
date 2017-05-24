@@ -768,7 +768,7 @@ int main(int argc, char *argv[])
     int offset;
     int length;
     int address;
-    int val;
+    unsigned int val;
     char format;
     int bit;
     bool cyclic = true;     // default is cyclic output
@@ -888,7 +888,7 @@ int main(int argc, char *argv[])
         case 'R':   // reset counter
             rc = sscanf(optarg, "%d,0x%x", &address, &val);
             if (rc != 2) {
-                rc = sscanf(optarg, "%d,%d", &address, &val);
+                rc = sscanf(optarg, "%d,%u", &address, &val);
                 if (rc != 2) {
                     printf("Wrong arguments for counter reset function\n");
                     printf("Try '-R address,value' (without spaces)\n");
