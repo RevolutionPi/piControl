@@ -205,18 +205,18 @@ typedef enum SPI_EBufferSendState_
 #define SPI_BaudRatePrescaler_128       ((uint16_t)0x0030)
 #define SPI_BaudRatePrescaler_256       ((uint16_t)0x0038)
 #define IS_SPI_BAUDRATE_PRESCALER(PRESCALER) (((PRESCALER) == SPI_BaudRatePrescaler_2) || \
-                                              ((PRESCALER) == SPI_BaudRatePrescaler_4) || \
-                                              ((PRESCALER) == SPI_BaudRatePrescaler_8) || \
-                                              ((PRESCALER) == SPI_BaudRatePrescaler_16) || \
-                                              ((PRESCALER) == SPI_BaudRatePrescaler_32) || \
-                                              ((PRESCALER) == SPI_BaudRatePrescaler_64) || \
-                                              ((PRESCALER) == SPI_BaudRatePrescaler_128) || \
-                                              ((PRESCALER) == SPI_BaudRatePrescaler_256))
+					      ((PRESCALER) == SPI_BaudRatePrescaler_4) || \
+					      ((PRESCALER) == SPI_BaudRatePrescaler_8) || \
+					      ((PRESCALER) == SPI_BaudRatePrescaler_16) || \
+					      ((PRESCALER) == SPI_BaudRatePrescaler_32) || \
+					      ((PRESCALER) == SPI_BaudRatePrescaler_64) || \
+					      ((PRESCALER) == SPI_BaudRatePrescaler_128) || \
+					      ((PRESCALER) == SPI_BaudRatePrescaler_256))
 
 #define SPI_NSS_Soft                    ((uint16_t)0x0200)
 #define SPI_NSS_Hard                    ((uint16_t)0x0000)
 #define IS_SPI_NSS(NSS) (((NSS) == SPI_NSS_Soft) || \
-                         ((NSS) == SPI_NSS_Hard))
+			 ((NSS) == SPI_NSS_Hard))
 
 #define BSP_SPI_ENABLE(SPIX)				(SPIX->CR1) |= (SPI_CR1_SPE)
 #define BSP_SPI_DISABLE(SPIX)				(SPIX->CR1) &= (~SPI_CR1_SPE)
@@ -258,7 +258,7 @@ typedef enum SPI_EBufferSendState_
 
 #ifdef _RECORD_SPI_
 #define BSP_SPI_WRITE(SPIX, BYTE)			(SPIX->DR) = (BYTE);    \
-                                            xxRecSpi(BYTE)
+					    xxRecSpi(BYTE)
 #else
 // For STM32F30x BYTE access to DR is mandatory to get 8 clocks per write on SPI CLK
 // Therefore casting Data to (byte) has been added!
@@ -284,7 +284,7 @@ typedef enum SPI_EBufferSendState_
 #define FRAME_TIMER_PERIOD		500
 
 #define BSP_SPI_CLEAR_RX_ERRORS(SPIX)		tmp = (SPIX->DR);							\
-                                            tmp = (SPIX->SR)
+					    tmp = (SPIX->SR)
 
 #define	TOGGLE_SPI_RX_FRAME_LED()
 #define	TOGGLE_SPI_TX_FRAME_LED()
@@ -321,11 +321,8 @@ void    spi_transceive_irq (INT8U i8uPort_p);
 
 void    BSP_SPI_RWPERI_init (INT8U i8uPort_p, const HW_SPI_CONFIGURATION *ptHwConf_p, BSP_SPI_TRwPeriData *ptRwPeriData_p);
 void    BSP_SPI_RWPERI_deinit (INT8U i8uPort_p);
-void    BSP_SPI_RWPERI_prepareSpi (BSP_SPI_TRwPeriData *ptRwPeriData_p);
 void    BSP_SPI_RWPERI_chipSelectEnable (BSP_SPI_TRwPeriData *ptRwPeriData_p);
 void    BSP_SPI_RWPERI_chipSelectDisable (BSP_SPI_TRwPeriData *ptRwPeriData_p);
-void    BSP_SPI_RWPERI_spiDisable (BSP_SPI_TRwPeriData *ptRwPeriData_p);
-void    BSP_SPI_RWPERI_spiEnable (BSP_SPI_TRwPeriData *ptRwPeriData_p);
 
 /// @}
 

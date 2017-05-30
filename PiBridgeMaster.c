@@ -488,7 +488,7 @@ int PiBridgeMaster_Run(void)
 					case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 					case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 						ret = piDIOComm_Init(i);
-						pr_info("piDIOComm_Init done %d\n", ret);
+						pr_info("piDIOComm_Init(%d) done %d\n", RevPiScan.dev[i].i8uAddress, ret);
 						if (ret != 0) {
 							// init failed -> deactive module
 							pr_err("piDIOComm_Init module %d failed %d\n",
@@ -498,7 +498,7 @@ int PiBridgeMaster_Run(void)
 						break;
 					case KUNBUS_FW_DESCR_TYP_PI_AIO:
 						ret = piAIOComm_Init(i);
-						pr_info("piAIOComm_Init done %d\n", ret);
+						pr_info("piAIOComm_Init(%d) done %d\n", RevPiScan.dev[i].i8uAddress, ret);
 						if (ret != 0) {
 							// init failed -> deactive module
 							pr_err("piAIOComm_Init module %d failed %d\n",
@@ -618,7 +618,11 @@ int PiBridgeMaster_Run(void)
 						   && RevPiScan.pCoreData->i16uRS485ErrorLimit1 <
 						   RevPiScan.i16uErrorCnt) {
 						// bad communication with inputs -> set inputs to default values
-						pr_err("too many communication errors -> set inputs to default\n");
+						pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
+							RevPiScan.dev[0].i16uErrorCnt, RevPiScan.dev[1].i16uErrorCnt,
+							RevPiScan.dev[2].i16uErrorCnt, RevPiScan.dev[3].i16uErrorCnt,
+							RevPiScan.dev[4].i16uErrorCnt, RevPiScan.dev[5].i16uErrorCnt,
+							RevPiScan.dev[6].i16uErrorCnt, RevPiScan.dev[7].i16uErrorCnt);
 					}
 				}
 			} else {

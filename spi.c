@@ -216,11 +216,10 @@ void BSP_SPI_RWPERI_deinit (
     }
 }
 
-
 void    spi_select_chip(INT8U i8uChip_p)
 {
-    if (i8uChip_p > SPI_CHANNEL_NUMBER)
-	return;
+//xx    if (i8uChip_p > SPI_CHANNEL_NUMBER)
+//	return;
 
 
     i8uCurrentCS_g = i8uChip_p;
@@ -403,13 +402,31 @@ void BSP_SPI_RWPERI_init (
 //! \ingroup
 //-------------------------------------------------------------------------------------------------
 ktime_t enable, disable;
+int selectCnt = 0;
+int __debug_show_msg;
+
 
 void BSP_SPI_RWPERI_chipSelectEnable (
     BSP_SPI_TRwPeriData *ptRwPeriData_p)
-
 {
-    gpio_set_value(i32sFdCS_g[i8uCurrentCS_g], 0);
-    enable = hrtimer_cb_get_time(&ioTimer);
+
+	if (selectCnt != 0)
+	{
+		pr_err("chipSelectEnable(%d) must select %u\n", i8uCurrentCS_g, selectCnt);
+		dump_stack();
+		selectCnt = 0;
+	}
+
+	if (i8uCurrentCS_g > SPI_CHANNEL_NUMBER)
+	{
+		pr_err("chipSelectEnable(%d) > %d\n", i8uCurrentCS_g, SPI_CHANNEL_NUMBER);
+	}
+	else
+	{
+		selectCnt++;
+		gpio_set_value(i32sFdCS_g[i8uCurrentCS_g], 0);
+		enable = hrtimer_cb_get_time(&ioTimer);
+	}
 }
 
 //*************************************************************************************************
@@ -427,63 +444,26 @@ void BSP_SPI_RWPERI_chipSelectDisable (
     BSP_SPI_TRwPeriData *ptRwPeriData_p)
 
 {
-    gpio_set_value(i32sFdCS_g[i8uCurrentCS_g], 1);
-    disable = hrtimer_cb_get_time(&ioTimer);
-    if (ktime_ms_delta(disable, enable) > 2)
-    {
-	pr_info("overtime %d us\n", (int)ktime_us_delta(disable, enable));
-    }
-}
-
-//*************************************************************************************************
-//| Function: BSP_SPI_RWPERI_prepareSpi
-//|
-//! \brief
-//!
-//!
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
-void BSP_SPI_RWPERI_prepareSpi (
-    BSP_SPI_TRwPeriData *ptRwPeriData_p)
-
-{
-
-}
-
-//*************************************************************************************************
-//| Function: BSP_SPI_RWPERI_spiDisable
-//|
-//! disables the SPI and switches the corresponding PINs to GPIOs
-//!
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
-void BSP_SPI_RWPERI_spiDisable (
-    BSP_SPI_TRwPeriData *ptRwPeriData_p)
-
-{
-}
-
-//*************************************************************************************************
-//| Function: BSP_SPI_RWPERI_spiEnable
-//|
-//! \brief
-//!
-//!
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
-void BSP_SPI_RWPERI_spiEnable (
-    BSP_SPI_TRwPeriData *ptRwPeriData_p)
-
-{
+	if (i8uCurrentCS_g > SPI_CHANNEL_NUMBER)
+	{
+		pr_err("chipSelectDisable(%d) > %d\n", i8uCurrentCS_g, SPI_CHANNEL_NUMBER);
+	}
+	else
+	{
+		selectCnt--;
+		if (selectCnt < 0)
+		{
+			pr_info_spi2("chipSelectDisable problem %d\n", selectCnt);
+			selectCnt = 0;
+			//dump_stack();
+		}
+		gpio_set_value(i32sFdCS_g[i8uCurrentCS_g], 1);
+		disable = hrtimer_cb_get_time(&ioTimer);
+		if (ktime_ms_delta(disable, enable) > 2)
+		{
+			pr_info("overtime %d us\n", (int)ktime_us_delta(disable, enable));
+		}
+	}
 }
 
 

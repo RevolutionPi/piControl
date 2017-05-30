@@ -22,7 +22,7 @@ piControl-objs += kbUtilities.o
 piControl-objs += kbAlloc.o
 piControl-objs += systick.o
 
-ccflags-y := -Os
+ccflags-y := -O0
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
 KDIR    := /home/md/pi/kernelpkg/kbuild7

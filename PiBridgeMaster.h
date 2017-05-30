@@ -49,7 +49,9 @@ typedef struct _SRevPiCoreImage {
 
 	// output data: set by application
 	INT8U i8uLED;
-	INT16U i16uRS485ErrorLimit1;
+	INT8U i8uMode;
+	INT8U i16uRS485ErrorLimit1;
+	//xx INT16U i16uRS485ErrorLimit1;
 	INT16U i16uRS485ErrorLimit2;
 
 } __attribute__ ((__packed__)) SRevPiCoreImage;

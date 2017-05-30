@@ -79,6 +79,19 @@
 #define pr_info_drv(fmt, ...)
 #endif
 
+#if 0
+#define DEBUG_DEVICE_SPI
+#define pr_info_spi(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#define pr_info_spi2(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#elif 1
+extern int __debug_show_msg;
+#define pr_info_spi(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#define pr_info_spi2(fmt, ...)	if (__debug_show_msg) pr_info(fmt, ##__VA_ARGS__)
+#else
+#define pr_info_spi(fmt, ...)
+#define pr_info_spi2(fmt, ...)
+#endif
+
 //#define DEBUG_SERIALCOMM
 #define DEBUG_GPIO
 #define DEBUG_DEVICE
