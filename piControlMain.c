@@ -839,7 +839,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 static int piControlRelease(struct inode *inode, struct file *file)
 {
 	tpiControlInst *priv;
-	struct list_head *pos;
+	struct list_head *pos, *n;
 
 	priv = (tpiControlInst *) file->private_data;
 
@@ -848,17 +848,16 @@ static int piControlRelease(struct inode *inode, struct file *file)
 	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
 	piDev_g.PnAppCon--;
 
-	mutex_lock(&piDev_g.lockListCon);
-	list_for_each(pos, &piDev_g.listCon)
+	list_for_each_safe(pos, n, &priv->piEventList)
 	{
-		tpiControlInst *pos_inst;
-		pos_inst = list_entry(pos, tpiControlInst, list);
-		if (pos_inst == priv)
-		{
-			list_del(pos);
-			break;
-		}
+		tpiEventEntry *pos_inst;
+		pos_inst = list_entry(pos, tpiEventEntry, list);
+		list_del(pos);
+		kfree(pos_inst);
 	}
+
+	mutex_lock(&piDev_g.lockListCon);
+	list_del(&priv->list);
 	mutex_unlock(&piDev_g.lockListCon);
 
 	kfree(priv);
