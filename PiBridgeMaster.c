@@ -32,6 +32,12 @@
 #include <piDIOComm.h>
 #include <piAIOComm.h>
 
+#define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
+#define MAX_CONFIG_RETRIES 3	// max. retries for configuring a IO module
+#define MAX_INIT_RETRIES 3	// max. retries for configuring all IO modules
+#define END_CONFIG_TIME	3000	// max. time for configuring IO modules, same timeout is used in the modules
+
+static int init_retry = MAX_INIT_RETRIES;
 static volatile TBOOL bEntering_s = bTRUE;
 static EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
 static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
@@ -40,9 +46,7 @@ static INT32U i32uFWUAddress, i32uFWUSerialNum, i32uFWUFlashAddr, i32uFWUlength,
 static INT32S i32sRetVal;
 static char *pcFWUdata;
 
-#define VCMSG_ID_ARM_CLOCK 0x000000003		/* Clock/Voltage ID's */
-
-static int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 *val)
+static int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val)
 {
 	struct rpi_firmware *fw = rpi_firmware_get(NULL);
 	struct {
@@ -73,7 +77,7 @@ static uint32_t bcm2835_cpufreq_get_clock(void)
 		return 0;
 	}
 
-	rate /= 1000 * 1000; //convert to MHz
+	rate /= 1000 * 1000;	//convert to MHz
 
 	return rate;
 }
@@ -100,9 +104,9 @@ void PiBridgeMaster_Reset(void)
 	rt_mutex_lock(&piDev_g.lockBridgeState);
 	piDev_g.eBridgeState = piBridgeInit;
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
-	RevPiScan.i8uStatus = 0;
-
 	bEntering_s = bTRUE;
+	RevPiScan.i8uStatus = 0;
+	init_retry = MAX_INIT_RETRIES;
 
 	RevPiDevice_init();
 	rt_mutex_unlock(&piDev_g.lockBridgeState);
@@ -130,8 +134,8 @@ int PiBridgeMaster_Adjust(void)
 				// Außerdem muss ModuleType, InputLength und OutputLength gleich sein.
 				if (RevPiScan.dev[j].sId.i16uModulType != piDev_g.devs->dev[i].i16uModuleType) {
 					pr_info("## address %d: incorrect module type %d != %d\n",
-						  RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uModulType,
-						  piDev_g.devs->dev[i].i16uModuleType);
+						RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uModulType,
+						piDev_g.devs->dev[i].i16uModuleType);
 					result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
 					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
 					done = 1;
@@ -139,8 +143,8 @@ int PiBridgeMaster_Adjust(void)
 				}
 				if (RevPiScan.dev[j].sId.i16uFBS_InputLength != piDev_g.devs->dev[i].i16uInputLength) {
 					pr_info("## address %d: incorrect input length %d != %d\n",
-						  RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uFBS_InputLength,
-						  piDev_g.devs->dev[i].i16uInputLength);
+						RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uFBS_InputLength,
+						piDev_g.devs->dev[i].i16uInputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
 					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
 					done = 1;
@@ -148,9 +152,9 @@ int PiBridgeMaster_Adjust(void)
 				}
 				if (RevPiScan.dev[j].sId.i16uFBS_OutputLength != piDev_g.devs->dev[i].i16uOutputLength) {
 					pr_info("## address %d: incorrect output length %d != %d\n",
-						  RevPiScan.dev[j].i8uAddress,
-						  RevPiScan.dev[j].sId.i16uFBS_OutputLength,
-						  piDev_g.devs->dev[i].i16uOutputLength);
+						RevPiScan.dev[j].i8uAddress,
+						RevPiScan.dev[j].sId.i16uFBS_OutputLength,
+						piDev_g.devs->dev[i].i16uOutputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH;
 					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
 					done = 1;
@@ -159,9 +163,10 @@ int PiBridgeMaster_Adjust(void)
 				// we found the device in the configuration file
 				// -> adjust offsets
 				pr_info_master("Adjust: base %d in %d out %d conf %d\n",
-					  piDev_g.devs->dev[i].i16uBaseOffset,
-					  piDev_g.devs->dev[i].i16uInputOffset,
-					  piDev_g.devs->dev[i].i16uOutputOffset, piDev_g.devs->dev[i].i16uConfigOffset);
+					       piDev_g.devs->dev[i].i16uBaseOffset,
+					       piDev_g.devs->dev[i].i16uInputOffset,
+					       piDev_g.devs->dev[i].i16uOutputOffset,
+					       piDev_g.devs->dev[i].i16uConfigOffset);
 
 				RevPiScan.dev[j].i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 				RevPiScan.dev[j].i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
@@ -189,17 +194,15 @@ int PiBridgeMaster_Adjust(void)
 			RevPiScan.i8uStatus |= PICONTROL_STATUS_MISSING_MODULE;
 
 			j = RevPiScan.i8uDeviceCount;
-			if (piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET)
-			{
+			if (piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET) {
 				// if a module is already defined as software module in the RAP file,
 				// it is handled by user space software and therefore always active
 				RevPiScan.dev[j].i8uActive = 1;
 				RevPiScan.dev[j].sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
-			}
-			else
-			{
+			} else {
 				RevPiScan.dev[j].i8uActive = 0;
-				RevPiScan.dev[j].sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;
+				RevPiScan.dev[j].sId.i16uModulType =
+				    piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;
 			}
 			RevPiScan.dev[j].i8uAddress = piDev_g.devs->dev[i].i8uAddress;
 			RevPiScan.dev[j].i8uScan = 0;
@@ -232,20 +235,16 @@ void PiBridgeMaster_setDefaults(void)
 
 	memset(piDev_g.ai8uPIDefault, 0, KB_PI_LEN);
 
-	for (i=0; i<piDev_g.ent->i16uNumEntries; i++)
-	{
-		if (piDev_g.ent->ent[i].i32uDefault != 0)
-		{
+	for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
+		if (piDev_g.ent->ent[i].i32uDefault != 0) {
 			pr_info_master2("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
-				piDev_g.ent->ent[i].i8uAddress,
-				piDev_g.ent->ent[i].i8uType,
-				piDev_g.ent->ent[i].i16uBitLength,
-				piDev_g.ent->ent[i].i16uOffset,
-				piDev_g.ent->ent[i].i8uBitPos,
-				piDev_g.ent->ent[i].i32uDefault);
+					piDev_g.ent->ent[i].i8uAddress,
+					piDev_g.ent->ent[i].i8uType,
+					piDev_g.ent->ent[i].i16uBitLength,
+					piDev_g.ent->ent[i].i16uOffset,
+					piDev_g.ent->ent[i].i8uBitPos, piDev_g.ent->ent[i].i32uDefault);
 
-			if (piDev_g.ent->ent[i].i16uBitLength == 1)
-			{
+			if (piDev_g.ent->ent[i].i16uBitLength == 1) {
 				INT8U i8uValue, i8uMask, addr, bit;
 
 				addr = piDev_g.ent->ent[i].i16uOffset;
@@ -262,31 +261,28 @@ void PiBridgeMaster_setDefaults(void)
 				else
 					i8uValue &= ~i8uMask;
 				piDev_g.ai8uPIDefault[addr] = i8uValue;
-			}
-			else if (piDev_g.ent->ent[i].i16uBitLength == 8)
-			{
-				piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset] = (INT8U)piDev_g.ent->ent[i].i32uDefault;
-			}
-			else if (piDev_g.ent->ent[i].i16uBitLength == 16 && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN-1)
-			{
-				INT16U *pi16uPtr = (INT16U *)&piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
+			} else if (piDev_g.ent->ent[i].i16uBitLength == 8) {
+				piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset] =
+				    (INT8U) piDev_g.ent->ent[i].i32uDefault;
+			} else if (piDev_g.ent->ent[i].i16uBitLength == 16
+				   && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN - 1) {
+				INT16U *pi16uPtr = (INT16U *) & piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
 
-				*pi16uPtr = (INT16U)piDev_g.ent->ent[i].i32uDefault;
-			}
-			else if (piDev_g.ent->ent[i].i16uBitLength == 32 && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN-3)
-			{
-				INT32U *pi32uPtr = (INT32U *)&piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
+				*pi16uPtr = (INT16U) piDev_g.ent->ent[i].i32uDefault;
+			} else if (piDev_g.ent->ent[i].i16uBitLength == 32
+				   && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN - 3) {
+				INT32U *pi32uPtr = (INT32U *) & piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
 
-				*pi32uPtr = (INT32U)piDev_g.ent->ent[i].i32uDefault;
+				*pi32uPtr = (INT32U) piDev_g.ent->ent[i].i32uDefault;
 			}
 		}
 	}
 }
 
-
 int PiBridgeMaster_Run(void)
 {
 	static kbUT_Timer tTimeoutTimer_s;
+	static kbUT_Timer tConfigTimeoutTimer_s;
 	static int error_cnt;
 	INT8U led;
 	static INT8U last_led;
@@ -338,6 +334,7 @@ int PiBridgeMaster_Run(void)
 				bEntering_s = bFALSE;
 				piIoComm_readSniff1A();
 				piIoComm_readSniff1B();
+				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
 			}
 			if (piIoComm_readSniff2B() == enGpioValue_High) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigRightStart;
@@ -372,7 +369,7 @@ int PiBridgeMaster_Run(void)
 			// Write configuration data to the currently selected slave
 			if (RevPiDevice_writeNextConfigurationRight() == bFALSE) {
 				error_cnt++;
-				if (error_cnt > 5) {
+				if (error_cnt > MAX_CONFIG_RETRIES) {
 					// no more slaves on the right side, configure left slaves
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
 					bEntering_s = bTRUE;
@@ -445,7 +442,7 @@ int PiBridgeMaster_Run(void)
 			// Write configuration data to the currently selected slave
 			if (RevPiDevice_writeNextConfigurationLeft() == bFALSE) {
 				error_cnt++;
-				if (error_cnt > 5) {
+				if (error_cnt > MAX_CONFIG_RETRIES) {
 					// no more slaves on the right side, configure left slaves
 					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
 					bEntering_s = bTRUE;
@@ -492,26 +489,27 @@ int PiBridgeMaster_Run(void)
 					case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 						ret = piDIOComm_Init(i);
 						pr_info("piDIOComm_Init done %d\n", ret);
-						if (ret != 0)
-						{
+						if (ret != 0) {
 							// init failed -> deactive module
-							pr_err("piDIOComm_Init module %d failed %d\n", RevPiScan.dev[i].i8uAddress, ret);
+							pr_err("piDIOComm_Init module %d failed %d\n",
+							       RevPiScan.dev[i].i8uAddress, ret);
 							RevPiScan.dev[i].i8uActive = 0;
 						}
 						break;
 					case KUNBUS_FW_DESCR_TYP_PI_AIO:
 						ret = piAIOComm_Init(i);
 						pr_info("piAIOComm_Init done %d\n", ret);
-						if (ret != 0)
-						{
+						if (ret != 0) {
 							// init failed -> deactive module
-							pr_err("piAIOComm_Init module %d failed %d\n", RevPiScan.dev[i].i8uAddress, ret);
+							pr_err("piAIOComm_Init module %d failed %d\n",
+							       RevPiScan.dev[i].i8uAddress, ret);
 							RevPiScan.dev[i].i8uActive = 0;
 						}
 						break;
 					}
 				}
 			}
+			ret = 0;
 
 			eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
 			bEntering_s = bFALSE;
@@ -523,20 +521,20 @@ int PiBridgeMaster_Run(void)
 				pr_info_master("Enter EndOfConfig State\n\n");
 				for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
 					pr_info_master("Device %2d: Addr %d Type %x  Act %d  In %d Out %d\n",
-						  i,
-						  RevPiScan.dev[i].i8uAddress,
-						  RevPiScan.dev[i].sId.i16uModulType,
-						  RevPiScan.dev[i].i8uActive,
-						  RevPiScan.dev[i].sId.i16uFBS_InputLength,
-						  RevPiScan.dev[i].sId.i16uFBS_OutputLength);
+						       i,
+						       RevPiScan.dev[i].i8uAddress,
+						       RevPiScan.dev[i].sId.i16uModulType,
+						       RevPiScan.dev[i].i8uActive,
+						       RevPiScan.dev[i].sId.i16uFBS_InputLength,
+						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
 					pr_info_master("           input offset  %5d  len %3d\n",
-						  RevPiScan.dev[i].i16uInputOffset,
-						  RevPiScan.dev[i].sId.i16uFBS_InputLength);
+						       RevPiScan.dev[i].i16uInputOffset,
+						       RevPiScan.dev[i].sId.i16uFBS_InputLength);
 					pr_info_master("           output offset %5d  len %3d\n",
-						  RevPiScan.dev[i].i16uOutputOffset,
-						  RevPiScan.dev[i].sId.i16uFBS_OutputLength);
+						       RevPiScan.dev[i].i16uOutputOffset,
+						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
 					pr_info_master("           serial number %d\n",
-						  RevPiScan.dev[i].sId.i32uSerialnumber);
+						       RevPiScan.dev[i].sId.i32uSerialnumber);
 				}
 
 				pr_info_master("\n");
@@ -550,18 +548,18 @@ int PiBridgeMaster_Run(void)
 				pr_info_master("After Adjustment\n");
 				for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
 					pr_info_master("Device %2d: Addr %d Type %x  Act %d  In %d Out %d\n",
-						  i,
-						  RevPiScan.dev[i].i8uAddress,
-						  RevPiScan.dev[i].sId.i16uModulType,
-						  RevPiScan.dev[i].i8uActive,
-						  RevPiScan.dev[i].sId.i16uFBS_InputLength,
-						  RevPiScan.dev[i].sId.i16uFBS_OutputLength);
+						       i,
+						       RevPiScan.dev[i].i8uAddress,
+						       RevPiScan.dev[i].sId.i16uModulType,
+						       RevPiScan.dev[i].i8uActive,
+						       RevPiScan.dev[i].sId.i16uFBS_InputLength,
+						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
 					pr_info_master("           input offset  %5d  len %3d\n",
-						  RevPiScan.dev[i].i16uInputOffset,
-						  RevPiScan.dev[i].sId.i16uFBS_InputLength);
+						       RevPiScan.dev[i].i16uInputOffset,
+						       RevPiScan.dev[i].sId.i16uFBS_InputLength);
 					pr_info_master("           output offset %5d  len %3d\n",
-						  RevPiScan.dev[i].i16uOutputOffset,
-						  RevPiScan.dev[i].sId.i16uFBS_OutputLength);
+						       RevPiScan.dev[i].i16uOutputOffset,
+						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
 				}
 				pr_info_master("\n");
 #endif
@@ -585,20 +583,20 @@ int PiBridgeMaster_Run(void)
 						case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 							ret = piDIOComm_Init(i);
 							pr_info("piDIOComm_Init done %d\n", ret);
-							if (ret != 0)
-							{
+							if (ret != 0) {
 								// init failed -> deactive module
-								pr_err("piDIOComm_Init module %d failed %d\n", RevPiScan.dev[i].i8uAddress, ret);
+								pr_err("piDIOComm_Init module %d failed %d\n",
+								       RevPiScan.dev[i].i8uAddress, ret);
 								RevPiScan.dev[i].i8uActive = 0;
 							}
 							break;
 						case KUNBUS_FW_DESCR_TYP_PI_AIO:
 							ret = piAIOComm_Init(i);
 							pr_info("piAIOComm_Init done %d\n", ret);
-							if (ret != 0)
-							{
+							if (ret != 0) {
 								// init failed -> deactive module
-								pr_err("piAIOComm_Init module %d failed %d\n", RevPiScan.dev[i].i8uAddress, ret);
+								pr_err("piAIOComm_Init module %d failed %d\n",
+								       RevPiScan.dev[i].i8uAddress, ret);
 								RevPiScan.dev[i].i8uActive = 0;
 							}
 							break;
@@ -632,14 +630,41 @@ int PiBridgeMaster_Run(void)
 			break;
 			// *****************************************************************************************
 
+		case enPiBridgeMasterStatus_InitRetry:
+			if (bEntering_s) {
+				pr_info_master("Enter Initialization Retry\n");
+				bEntering_s = bFALSE;
+			}
+			if (kbUT_TimerExpired(&tConfigTimeoutTimer_s)) {
+				piDev_g.eBridgeState = piBridgeInit;
+				eRunStatus_s = enPiBridgeMasterStatus_Init;
+				bEntering_s = bTRUE;
+				RevPiScan.i8uStatus = 0;
+
+				RevPiDevice_init();
+			}
+			break;
+
 		default:
 			break;
 
 		}
 
 		if (ret && piDev_g.eBridgeState != piBridgeRun) {
-			pr_info("set BridgeState to running\n");
-			piDev_g.eBridgeState = piBridgeRun;
+			if (init_retry > 0
+			    && (piIoComm_readSniff2A() || piIoComm_readSniff2B()
+				|| (RevPiScan.i8uStatus & PICONTROL_STATUS_MISSING_MODULE))) {
+				// at least one IO module did not complete the initialization process
+				// wait for the timeout in the module
+				pr_info("initialization of module not finished -> retry\n");
+				eRunStatus_s = enPiBridgeMasterStatus_InitRetry;
+				bEntering_s = bTRUE;
+				piDev_g.eBridgeState = piBridgeInit;
+				init_retry--;
+			} else {
+				pr_info("set BridgeState to running\n");
+				piDev_g.eBridgeState = piBridgeRun;
+			}
 		}
 	} else			// piDev_g.eBridgeState == piBridgeStop
 	{
@@ -650,8 +675,7 @@ int PiBridgeMaster_Run(void)
 			eRunStatus_s = enPiBridgeMasterStatus_Init;
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUMode) {
 			if (bEntering_s) {
-				if (i8uFWUScanned == 0)
-				{
+				if (i8uFWUScanned == 0) {
 					// old mGates always use 2
 					i32uFWUAddress = 2;
 				}
@@ -659,7 +683,7 @@ int PiBridgeMaster_Run(void)
 				i32sRetVal = piIoComm_gotoFWUMode(i32uFWUAddress);
 				pr_info("piIoComm_gotoFWUMode returned %d\n", i32sRetVal);
 
-				if (i32uFWUAddress == RevPiScan.i8uAddressRight-1)
+				if (i32uFWUAddress == RevPiScan.i8uAddressRight - 1)
 					i32uFWUAddress = 2;	// address must be 2 in the following calls
 				else
 					i32uFWUAddress = 1;	// address must be 1 in the following calls
@@ -689,14 +713,16 @@ int PiBridgeMaster_Run(void)
 				INT32U i32uOffset = 0, len;
 				i32sRetVal = 0;
 
-				while (i32sRetVal == 0 && i32uFWUlength > 0)
-				{
+				while (i32sRetVal == 0 && i32uFWUlength > 0) {
 					if (i32uFWUlength > MAX_FWU_DATA_SIZE)
 						len = MAX_FWU_DATA_SIZE;
 					else
 						len = i32uFWUlength;
-					i32sRetVal = piIoComm_fwuFlashWrite(i32uFWUAddress, i32uFWUFlashAddr+i32uOffset, pcFWUdata+i32uOffset, len);
-					pr_info("piIoComm_fwuFlashWrite(0x%08x, %x) returned %d\n", i32uFWUFlashAddr+i32uOffset, len, i32sRetVal);
+					i32sRetVal =
+					    piIoComm_fwuFlashWrite(i32uFWUAddress, i32uFWUFlashAddr + i32uOffset,
+								   pcFWUdata + i32uOffset, len);
+					pr_info("piIoComm_fwuFlashWrite(0x%08x, %x) returned %d\n",
+						i32uFWUFlashAddr + i32uOffset, len, i32sRetVal);
 					i32uOffset += len;
 					i32uFWUlength -= len;
 				}
@@ -744,7 +770,6 @@ int PiBridgeMaster_Run(void)
 
 			last_led = led;
 		}
-
 		// update every 1 sec
 		if ((jiffies - last_update) > msecs_to_jiffies(1000)) {
 			if (piDev_g.thermal_zone != NULL) {
@@ -799,7 +824,6 @@ INT32S PiBridgeMaster_FWUsetSerNum(INT32U serNum)
 	}
 	return -1;
 }
-
 
 INT32S PiBridgeMaster_FWUflashErase(void)
 {

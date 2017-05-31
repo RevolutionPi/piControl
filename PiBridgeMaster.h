@@ -23,18 +23,19 @@ typedef enum _EPiBridgeMasterStatus {
 	enPiBridgeMasterStatus_ConfigDialogueRight,	// 5
 	enPiBridgeMasterStatus_SlaveDetectionRight,	// 6
 	enPiBridgeMasterStatus_InitialSlaveDetectionLeft,	// 7
-	enPiBridgeMasterStatus_ConfigLeftStart,		// 8
+	enPiBridgeMasterStatus_ConfigLeftStart,	// 8
 	enPiBridgeMasterStatus_ConfigDialogueLeft,	// 9
 	enPiBridgeMasterStatus_SlaveDetectionLeft,	// 10
-	enPiBridgeMasterStatus_EndOfConfig,		// 11
-	enPiBridgeMasterStatus_Continue,		// 12
+	enPiBridgeMasterStatus_EndOfConfig,	// 11
+	enPiBridgeMasterStatus_Continue,	// 12
+	enPiBridgeMasterStatus_InitRetry,	// 13
 
 	// states for MGate Protocol
-	enPiBridgeMasterStatus_FWUMode,			// 13
-	enPiBridgeMasterStatus_ProgramSerialNum,	// 14
-	enPiBridgeMasterStatus_FWUFlashErase,		// 15
-	enPiBridgeMasterStatus_FWUFlashWrite,	// 16
-	enPiBridgeMasterStatus_FWUReset,	// 17
+	enPiBridgeMasterStatus_FWUMode,	// 14
+	enPiBridgeMasterStatus_ProgramSerialNum,	// 15
+	enPiBridgeMasterStatus_FWUFlashErase,	// 16
+	enPiBridgeMasterStatus_FWUFlashWrite,	// 17
+	enPiBridgeMasterStatus_FWUReset,	// 18
 
 } EPiBridgeMasterStatus;
 
