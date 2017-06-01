@@ -231,7 +231,7 @@ void showDeviceList(void)
  * @param[in]   Length
  *
  ************************************************************************************/
-void readData(uint16_t offset, uint16_t length, bool cyclic, char format, bool quiet)
+void readData(uint16_t offset, uint16_t length, bool cyclic, char format, bool quiet, bool block)
 {
     int rc;
     uint8_t *pValues;
@@ -285,8 +285,15 @@ void readData(uint16_t offset, uint16_t length, bool cyclic, char format, bool q
             if ((val % line_len) != 0)
                 printf("\n");
         }
-        if (cyclic)
+        if (block) {
+            rc = piControlWaitForEvent();
+            if (rc < 0) {
+                printf("WaitForEvent returned: %d (%s)\n", rc, strerror(-rc));
+                return;
+            }
+        } else if (cyclic) {
             sleep(1);
+        }
     } while (cyclic);
 }
 
@@ -772,6 +779,7 @@ int main(int argc, char *argv[])
     char format;
     int bit;
     bool cyclic = true;     // default is cyclic output
+    bool block = false;     // default is non-blocking output
     bool quiet = false;      // default is verbose output
     unsigned long value;
     char szVariableName[256];
@@ -800,9 +808,9 @@ int main(int argc, char *argv[])
     
     // Scan argument
 #ifdef KUNBUS_TEST
-    while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlfab:")) != -1) {
+    while ((c = getopt(argc, argv, "dv:1bqr:w:s:R:g:xlfab:")) != -1) {
 #else
-    while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlf")) != -1) {
+    while ((c = getopt(argc, argv, "dv:1bqr:w:s:R:g:xlf")) != -1) {
 #endif
         switch (c) {
         case 'd':
@@ -820,6 +828,10 @@ int main(int argc, char *argv[])
         case '1':   // execute the command only once, not cyclic
             cyclic = false;
             break;
+            
+        case 'b':   // execute the command only when necessary, not cyclic
+            block = true;
+            break;
 
         case 'q':   // execute the command quietly
             quiet = true;
@@ -829,12 +841,12 @@ int main(int argc, char *argv[])
             format = 'd';
             rc = sscanf(optarg, "%d,%d,%c", &offset, &length, &format);
             if (rc == 3) {
-                readData(offset, length, cyclic, format, quiet);
+                readData(offset, length, cyclic, format, quiet, block);
                 return 0;
             }
             rc = sscanf(optarg, "%d,%d", &offset, &length);
             if (rc == 2) {
-                readData(offset, length, cyclic, format, quiet);
+                readData(offset, length, cyclic, format, quiet, block);
                 return 0;
             }
             rc = sscanf(optarg, "%s", szVariableName);

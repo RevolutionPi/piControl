@@ -70,6 +70,8 @@
 
 #define  KB_WAIT_FOR_EVENT		_IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET			1		// piControl was reset, reload configuration
+#define  KB_EVENT_DINPUT_CHANGED	2		// piControl digital input state was changed
+#define  KB_EVENT_DOUTPUT_CHANGED	3		// piControl digital output state was changed
 
 // the following call are for KUNBUS internal use only. uncomment the following define to activate them.
 // #define KUNBUS_TEST

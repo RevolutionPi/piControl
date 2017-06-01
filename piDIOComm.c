@@ -4,6 +4,7 @@
 #include <linux/fcntl.h>
 #include <linux/termios.h>
 #include <linux/syscalls.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/segment.h>
 #include <linux/fs.h>
@@ -174,11 +175,52 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
     p = 255;
     for (i=len_l; i>0; i--)
     {
-	if (data_out[i-1] != last_out[i8uAddress][i-1])
-	{
-	    p = i-1;
-	    break;
-	}
+		if (data_out[i-1] != last_out[i8uAddress][i-1])
+		{
+			// generate an input changed event for all open instances
+			struct list_head *pCon;
+
+			mutex_lock(&piDev_g.lockListCon);
+			list_for_each(pCon, &piDev_g.listCon)
+			{
+				tpiControlInst *pos_inst;
+
+				struct list_head *pEv;
+				tpiEventEntry *pEntry;
+				bool found = false;
+
+				pos_inst = list_entry(pCon, tpiControlInst, list);
+
+				// add the event to the list only, if it not already there
+				mutex_lock(&pos_inst->lockEventList);
+				list_for_each(pEv, &pos_inst->piEventList) {
+					pEntry = list_entry(pEv, tpiEventEntry, list);
+					if (pEntry->event == piEvDOChanged) {
+						found = true;
+						break;
+					}
+				}
+
+				if (!found) {
+					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
+					pEntry->event = piEvDOChanged;
+					pr_info_drv("doutput_changed: add tail %d %x", pos_inst->instNum, (unsigned int)pEntry);
+					list_add_tail(&pEntry->list, &pos_inst->piEventList);
+					mutex_unlock(&pos_inst->lockEventList);
+					pr_info_drv("doutput_changed: inform instance %d\n", pos_inst->instNum);
+					wake_up(&pos_inst->wq);
+				}
+				else
+				{
+					mutex_unlock(&pos_inst->lockEventList);
+				}
+			}
+			mutex_unlock(&piDev_g.lockListCon);
+
+			p = i-1;
+
+			break;
+		}
     }
 
 //    if (p == 255)
@@ -264,7 +306,55 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 		}
 
 		rt_mutex_lock(&piDev_g.lockPI);
+
+		// compare previous and current input state to check if we have to generate an input changed event
+		ret = memcmp(piDev_g.ai8uPI + RevPiScan.dev[i8uDevice_p].i16uInputOffset, data_in, sizeof(data_in));
+
 		memcpy(piDev_g.ai8uPI + RevPiScan.dev[i8uDevice_p].i16uInputOffset, data_in, sizeof(data_in));
+
+		if(ret != 0)
+		{
+			// generate an input changed event for all open instances
+			struct list_head *pCon;
+
+			mutex_lock(&piDev_g.lockListCon);
+			list_for_each(pCon, &piDev_g.listCon)
+			{
+				tpiControlInst *pos_inst;
+
+				struct list_head *pEv;
+				tpiEventEntry *pEntry;
+				bool found = false;
+
+				pos_inst = list_entry(pCon, tpiControlInst, list);
+
+				// add the event to the list only, if it not already there
+				mutex_lock(&pos_inst->lockEventList);
+				list_for_each(pEv, &pos_inst->piEventList) {
+					pEntry = list_entry(pEv, tpiEventEntry, list);
+					if (pEntry->event == piEvDIChanged) {
+						found = true;
+						break;
+					}
+				}
+
+				if (!found) {
+					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
+					pEntry->event = piEvDIChanged;
+					pr_info_drv("dinput_changed: add tail %d %x", pos_inst->instNum, (unsigned int)pEntry);
+					list_add_tail(&pEntry->list, &pos_inst->piEventList);
+					mutex_unlock(&pos_inst->lockEventList);
+					pr_info_drv("dinput_changed: inform instance %d\n", pos_inst->instNum);
+					wake_up(&pos_inst->wq);
+				}
+				else
+				{
+					mutex_unlock(&pos_inst->lockEventList);
+				}
+			}
+			mutex_unlock(&piDev_g.lockListCon);
+		}
+
 		rt_mutex_unlock(&piDev_g.lockPI);
 
 #ifdef DEBUG_DEVICE_DIO

@@ -38,6 +38,8 @@ typedef enum
 typedef enum piEvent
 {
 	piEvReset = 1,
+	piEvDIChanged = 2,
+	piEvDOChanged = 3,
 } enPiEvent;
 
 
