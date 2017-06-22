@@ -67,8 +67,8 @@ typedef
 #include <COMP_packBegin.h>
 struct
 {
-    INT8U i8uDstAdr;
-    INT8U i8uSrcAdr;
+    INT8U i8uDstAddr;
+    INT8U i8uSrcAddr;
     INT16U i16uCmd;
     INT16U i16uSequNr;
     INT8U i8uDataLen;

@@ -252,8 +252,8 @@ INT32U fwuSendTel (
     INT32U i32uRv_l = 0;
 
     memset(&suSendTelegram_l, 0, sizeof(SRs485Telegram));
-    suSendTelegram_l.i8uDstAdr = address;       // destination
-    suSendTelegram_l.i8uSrcAdr = 0;             // sender PC/RevPi
+    suSendTelegram_l.i8uDstAddr = address;       // destination
+    suSendTelegram_l.i8uSrcAddr = 0;             // sender PC/RevPi
     suSendTelegram_l.i16uCmd = i16uCmd_p;       // command
     if(pi8uData_p != 0)
     {

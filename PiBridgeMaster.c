@@ -33,9 +33,9 @@
 #include <piAIOComm.h>
 
 #define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
-#define MAX_CONFIG_RETRIES 3	// max. retries for configuring a IO module
-#define MAX_INIT_RETRIES 3	// max. retries for configuring all IO modules
-#define END_CONFIG_TIME	3000	// max. time for configuring IO modules, same timeout is used in the modules
+#define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
+#define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
+#define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
 
 static int init_retry = MAX_INIT_RETRIES;
 static volatile TBOOL bEntering_s = bTRUE;
@@ -491,8 +491,13 @@ int PiBridgeMaster_Run(void)
 						pr_info("piDIOComm_Init(%d) done %d\n", RevPiScan.dev[i].i8uAddress, ret);
 						if (ret != 0) {
 							// init failed -> deactive module
-							pr_err("piDIOComm_Init module %d failed %d\n",
-							       RevPiScan.dev[i].i8uAddress, ret);
+							if (ret == 4) {
+								pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
+									RevPiScan.dev[i].i8uAddress);
+							} else {
+								pr_err("piDIOComm_Init(%d) failed, error %d\n",
+									RevPiScan.dev[i].i8uAddress, ret);
+							}
 							RevPiScan.dev[i].i8uActive = 0;
 						}
 						break;
@@ -501,8 +506,13 @@ int PiBridgeMaster_Run(void)
 						pr_info("piAIOComm_Init(%d) done %d\n", RevPiScan.dev[i].i8uAddress, ret);
 						if (ret != 0) {
 							// init failed -> deactive module
-							pr_err("piAIOComm_Init module %d failed %d\n",
-							       RevPiScan.dev[i].i8uAddress, ret);
+							if (ret == 4) {
+								pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
+									RevPiScan.dev[i].i8uAddress);
+							} else {
+								pr_err("piAIOComm_Init(%d) failed, error %d\n",
+									RevPiScan.dev[i].i8uAddress, ret);
+							}
 							RevPiScan.dev[i].i8uActive = 0;
 						}
 						break;
@@ -585,8 +595,13 @@ int PiBridgeMaster_Run(void)
 							pr_info("piDIOComm_Init done %d\n", ret);
 							if (ret != 0) {
 								// init failed -> deactive module
-								pr_err("piDIOComm_Init module %d failed %d\n",
-								       RevPiScan.dev[i].i8uAddress, ret);
+								if (ret == 4) {
+									pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
+										RevPiScan.dev[i].i8uAddress);
+								} else {
+									pr_err("piDIOComm_Init(%d) failed, error %d\n",
+										RevPiScan.dev[i].i8uAddress, ret);
+								}
 								RevPiScan.dev[i].i8uActive = 0;
 							}
 							break;
@@ -595,8 +610,13 @@ int PiBridgeMaster_Run(void)
 							pr_info("piAIOComm_Init done %d\n", ret);
 							if (ret != 0) {
 								// init failed -> deactive module
-								pr_err("piAIOComm_Init module %d failed %d\n",
-								       RevPiScan.dev[i].i8uAddress, ret);
+								if (ret == 4) {
+									pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
+										RevPiScan.dev[i].i8uAddress);
+								} else {
+									pr_err("piAIOComm_Init(%d) failed, error %d\n",
+										RevPiScan.dev[i].i8uAddress, ret);
+								}
 								RevPiScan.dev[i].i8uActive = 0;
 							}
 							break;

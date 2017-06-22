@@ -456,8 +456,8 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 	INT32S i32uRv_l = 0;
 
 	memset(&suSendTelegram_l, 0, sizeof(SRs485Telegram));
-	suSendTelegram_l.i8uDstAdr = i8uAdress_p;	// receiver address
-	suSendTelegram_l.i8uSrcAdr = 0;	// sender Master
+	suSendTelegram_l.i8uDstAddr = i8uAdress_p;	// receiver address
+	suSendTelegram_l.i8uSrcAddr = 0;	// sender Master
 	suSendTelegram_l.i16uCmd = i16uCmd_p;	// command
 	if (pi8uSendData_p != NULL) {
 		suSendTelegram_l.i8uDataLen = i8uSendDataLen_p;
@@ -470,13 +470,19 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 
 	if (piIoComm_send((INT8U *) & suSendTelegram_l, RS485_HDRLEN + i8uSendDataLen_p + 1) == 0) {
 #ifdef DEBUG_SERIALCOMM
-		pr_info("send gateprotocol addr %d cmd 0x%04x\n", suSendTelegram_l.i8uDstAdr,
+		pr_info("send gateprotocol addr %d cmd 0x%04x\n", suSendTelegram_l.i8uDstAddr,
 			  suSendTelegram_l.i16uCmd);
 #endif
 		if (i8uAdress_p == 255)	// address 255 is for broadcasts without reply
 			return 0;
 
 		if (piIoComm_recv((INT8U *) & suRecvTelegram_l, RS485_HDRLEN + i8uRecvDataLen_p + 1) > 0) {
+#ifdef DEBUG_SERIALCOMM
+			pr_info("recv gateprotocol cmd/addr %x/%d -> %x/%d\n",
+				  i16uCmd_p, i8uAdress_p,
+				  suRecvTelegram_l.i16uCmd, suRecvTelegram_l.i8uSrcAddr
+				  );
+#endif
 			if (suRecvTelegram_l.ai8uData[suRecvTelegram_l.i8uDataLen] !=
 			    piIoComm_Crc8((INT8U *) & suRecvTelegram_l, RS485_HDRLEN + suRecvTelegram_l.i8uDataLen)) {
 #ifdef DEBUG_SERIALCOMM
@@ -495,10 +501,6 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
 #endif
 				i32uRv_l = 3;
 			} else {
-#if 1 //xx def DEBUG_SERIALCOMM
-				pr_info("recv gateprotocol addr %d cmd 0x%04x\n", suRecvTelegram_l.i8uSrcAdr,
-					  suRecvTelegram_l.i16uCmd);
-#endif
 				if (pi8uRecvData_p != NULL) {
 					memcpy(pi8uRecvData_p, suRecvTelegram_l.ai8uData, i8uRecvDataLen_p);
 				}

@@ -403,8 +403,9 @@ void BSP_SPI_RWPERI_init (
 //-------------------------------------------------------------------------------------------------
 ktime_t enable, disable;
 int selectCnt = 0;
+#ifdef DEBUG_DEVICE_SPI
 int __debug_show_msg;
-
+#endif
 
 void BSP_SPI_RWPERI_chipSelectEnable (
     BSP_SPI_TRwPeriData *ptRwPeriData_p)

@@ -144,13 +144,13 @@ static INT16U ksz8851_regrd(INT16U reg)
     /* Add byte enables to cmd */
     if (reg & 2)
     {
-        /* Odd word address writes bytes 2 and 3 */
-        cmd |= (0xc << 10);
+	/* Odd word address writes bytes 2 and 3 */
+	cmd |= (0xc << 10);
     }
     else
     {
-        /* Even word address write bytes 0 and 1 */
-        cmd |= (0x3 << 10);
+	/* Even word address write bytes 0 and 1 */
+	cmd |= (0x3 << 10);
     }
 
     /* Add opcode to cmd */
@@ -187,12 +187,12 @@ static void ksz8851_regwr(INT16U reg, INT16U wrdata)
 
     /* Add byte enables to cmd */
     if (reg & 2) {
-        /* Odd word address writes bytes 2 and 3 */
-        cmd |= (0xc << 10);
+	/* Odd word address writes bytes 2 and 3 */
+	cmd |= (0xc << 10);
     }
     else {
-        /* Even word address write bytes 0 and 1 */
-        cmd |= (0x3 << 10);
+	/* Even word address write bytes 0 and 1 */
+	cmd |= (0x3 << 10);
     }
 
     /* Add opcode to cmd */
@@ -278,9 +278,9 @@ TBOOL ksz8851Init(void)
     /* Read device chip ID */
     dev_id = ksz8851_regrd(KSZ8851_CIDER);
     if (dev_id != KSZ8851_CIDER_CHIP_ID_8851_16)
-        return bFALSE;	// wrong chip or HW problem
+	return bFALSE;	// wrong chip or HW problem
 
-        /* Enable QMU Transmit Frame Data Pointer Auto Increment */
+	/* Enable QMU Transmit Frame Data Pointer Auto Increment */
     ksz8851_regwr(KSZ8851_TXFDPR, KSZ8851_XFDPR_ADDR_PTR_AUTO_INC);
 
     /* Enable QMU Transmit: */
@@ -308,7 +308,7 @@ TBOOL ksz8851Init(void)
     /* Clear the interrupts status */
     ksz8851_regwr(KSZ8851_ISR, 0xffff);
     ksz8851_regwr(KSZ8851_IER, KSZ8851_IER_PHY | KSZ8851_IER_RX | KSZ8851_IER_RX_OVERRUN |
-        KSZ8851_IER_TX_STOPPED | KSZ8851_IER_RX_STOPPED | KSZ8851_IER_RX_SPI_ERROR);
+	KSZ8851_IER_TX_STOPPED | KSZ8851_IER_RX_STOPPED | KSZ8851_IER_RX_SPI_ERROR);
 
     /* Enable QMU Transmit */
     spi_setbits(KSZ8851_TXCR, KSZ8851_TXCR_ENABLE);
@@ -388,43 +388,46 @@ static void ksz8851BeginPacketSend(INT16U packetLength)
 #if 0
     if (txmir == 0)
     {
-        ksz8851ReInit();
+	ksz8851ReInit();
 
-        /* Check if TXQ memory size is available for this transmit packet */
-        txmir = ksz8851_regrd(KSZ8851_TXMIR) & KSZ8851_TXMIR_AVAILABLE_MASK;
+	/* Check if TXQ memory size is available for this transmit packet */
+	txmir = ksz8851_regrd(KSZ8851_TXMIR) & KSZ8851_TXMIR_AVAILABLE_MASK;
     }
 #endif
     if (txmir < (packetLength + 4))
     {
-        unsigned long start = jiffies;
-        /* Not enough space to send packet. */
+	unsigned long start = jiffies;
+	/* Not enough space to send packet. */
 
-        /* Enable TXQ memory available monitor */
-        ksz8851_regwr(KSZ8851_TXNTFSR, (packetLength + 4));
+	/* Enable TXQ memory available monitor */
+	ksz8851_regwr(KSZ8851_TXNTFSR, (packetLength + 4));
 
-        spi_setbits(KSZ8851_TXQCR, KSZ8851_TXQCR_MEM_AVAILABLE_INT);
+	spi_setbits(KSZ8851_TXQCR, KSZ8851_TXQCR_MEM_AVAILABLE_INT);
 
-        /* When the isr register has the TXSAIS bit set, there's
-        * enough room for the packet.
-        */
-        do
-        {
-            isr = ksz8851_regrd(KSZ8851_ISR);
-        } while (!(isr & KSZ8851_IER_TX_SPACE)
-            && jiffies_to_msecs(jiffies - start) < 100);
+	/* When the isr register has the TXSAIS bit set, there's
+	* enough room for the packet.
+	*/
+	do
+	{
+	    isr = ksz8851_regrd(KSZ8851_ISR);
+	} while (!(isr & KSZ8851_IER_TX_SPACE)
+	    && jiffies_to_msecs(jiffies - start) < 100);
 
+	if (!jiffies_to_msecs(jiffies - start) < 100)
+	{
 #ifdef MODGATE_DEBUG_LED
-        if (!jiffies_to_msecs(jiffies - start) < 100)
-        {
-            LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
-        }
+	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
 #endif
+#ifdef __KUNBUSPI_KERNEL__
+	    pr_info_modgate("Timeout because TX buffer is full\n");
+#endif
+	}
 
-        /* Disable TXQ memory available monitor */
-        spi_clrbits(KSZ8851_TXQCR, KSZ8851_TXQCR_MEM_AVAILABLE_INT);
+	/* Disable TXQ memory available monitor */
+	spi_clrbits(KSZ8851_TXQCR, KSZ8851_TXQCR_MEM_AVAILABLE_INT);
 
-        /* Clear the flag */
-        ksz8851_regwr(KSZ8851_ISR, KSZ8851_IER_TX_SPACE);
+	/* Clear the flag */
+	ksz8851_regwr(KSZ8851_ISR, KSZ8851_IER_TX_SPACE);
     }
 
     /* Enable TXQ write access */
@@ -455,9 +458,9 @@ static void ksz8851SendPacketData(INT8U *localBuffer, INT16U length)
     i16uLengthSum_s += length;
 
     pr_info_spi2("send: %02x%02x%02x%02x%02x%02x %02x%02x%02x%02x%02x%02x %02x%02x\n",
-        localBuffer[0], localBuffer[1], localBuffer[2], localBuffer[3], localBuffer[4], localBuffer[5],
-        localBuffer[6], localBuffer[7], localBuffer[8], localBuffer[9], localBuffer[10], localBuffer[11],
-        localBuffer[12], localBuffer[13]);
+	localBuffer[0], localBuffer[1], localBuffer[2], localBuffer[3], localBuffer[4], localBuffer[5],
+	localBuffer[6], localBuffer[7], localBuffer[8], localBuffer[9], localBuffer[10], localBuffer[11],
+	localBuffer[12], localBuffer[13]);
 
     spi_transceive(KSZ8851_SPI_PORT, localBuffer, 0, length, bTRUE);
 }
@@ -496,53 +499,53 @@ INT16U ksz8851ProcessInterrupt(void)
 
     if (isr & KSZ8851_IER_PHY)
     {
-        bLink_s = (ksz8851_regrd(KSZ8851_P1SR) & KSZ8851_P1SR_STATUS_LINK_GOOD) ? bTRUE : bFALSE;
-        clr |= KSZ8851_IER_PHY;
+	bLink_s = (ksz8851_regrd(KSZ8851_P1SR) & KSZ8851_P1SR_STATUS_LINK_GOOD) ? bTRUE : bFALSE;
+	clr |= KSZ8851_IER_PHY;
 #ifdef MODGATE_DEBUG_LED
-        if (bLink_s)
-        {
-            LED_setLed(MODGATE_DEBUG_LED, LED_ST_GREEN_ON);
-        }
-        else
-        {
-            LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_OFF);
-        }
+	if (bLink_s)
+	{
+	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_GREEN_ON);
+	}
+	else
+	{
+	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_OFF);
+	}
 #endif
     }
 
     if (isr & (KSZ8851_IER_RX_OVERRUN | KSZ8851_IER_TX_STOPPED | KSZ8851_IER_RX_STOPPED | KSZ8851_IER_RX_SPI_ERROR))
     {
-        // serious error
-        clr |= isr;
+	// serious error
+	clr |= isr;
 #ifdef MODGATE_DEBUG_LED
-        LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
+	LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
 #endif
     }
 
     if (isr & KSZ8851_IER_RX_OVERRUN)
     {
 #if 0
-        ksz8851ReInit();
+	ksz8851ReInit();
 
-        isr = ksz8851_regrd(KSZ8851_ISR);
-        clr = 0;
+	isr = ksz8851_regrd(KSZ8851_ISR);
+	clr = 0;
 #else
-        clr |= KSZ8851_IER_RX_OVERRUN;
+	clr |= KSZ8851_IER_RX_OVERRUN;
 #endif
     }
 
     if (isr & (KSZ8851_IER_RX_WOL_LINKUP))
     {
-        // ignore and clear some interrupts
-        clr |= KSZ8851_IER_RX_WOL_LINKUP;
+	// ignore and clear some interrupts
+	clr |= KSZ8851_IER_RX_WOL_LINKUP;
     }
 
     if (clr != 0)
     {
-        /* Clear the flags */
-        ksz8851_regwr(KSZ8851_ISR, clr);
-        isr &= ~clr;
-        //XX isr = ksz8851_regrd(KSZ8851_ISR);
+	/* Clear the flags */
+	ksz8851_regwr(KSZ8851_ISR, clr);
+	isr &= ~clr;
+	//XX isr = ksz8851_regrd(KSZ8851_ISR);
     }
 
     return isr;
@@ -566,29 +569,29 @@ static INT16U ksz8851BeginPacketRetrieve(void)
     pr_info_spi2("ksz8851BeginPacketRetrieve enter %d\n", spi_selected_chip());
     if (rxFrameCount == 0)
     {
-        recvIntStatus = ksz8851ProcessInterrupt();
-        if (!(recvIntStatus & KSZ8851_IER_RX))
-        {
-            // No packets available
-            pr_info_spi2("ksz8851BeginPacketRetrieve abort1 %d\n", spi_selected_chip());
-            return 0;
-        }
+	recvIntStatus = ksz8851ProcessInterrupt();
+	if (!(recvIntStatus & KSZ8851_IER_RX))
+	{
+	    // No packets available
+	    pr_info_spi2("ksz8851BeginPacketRetrieve abort1 %d\n", spi_selected_chip());
+	    return 0;
+	}
 
-        // clear RX interrupt, chip sets the frame count register
-        ksz8851_regwr(KSZ8851_ISR, KSZ8851_IER_RX);
+	// clear RX interrupt, chip sets the frame count register
+	ksz8851_regwr(KSZ8851_ISR, KSZ8851_IER_RX);
 
-        /* Read rx total frame count */
-        rxfctr = ksz8851_regrd(KSZ8851_RXFCTR);
-        rxFrameCount = (rxfctr & KSZ8851_RXFCTR_FRAME_CNT_MASK) >> 8;
+	/* Read rx total frame count */
+	rxfctr = ksz8851_regrd(KSZ8851_RXFCTR);
+	rxFrameCount = (rxfctr & KSZ8851_RXFCTR_FRAME_CNT_MASK) >> 8;
 
-        if (rxFrameCount == 0)
-        {
-            // this should not happen, ISR signals packet but frame count is 0
-            // -> clear ISR
-            pr_info_spi2("ksz8851BeginPacketRetrieve abort2 %d\n", spi_selected_chip());
+	if (rxFrameCount == 0)
+	{
+	    // this should not happen, ISR signals packet but frame count is 0
+	    // -> clear ISR
+	    pr_info_spi2("ksz8851BeginPacketRetrieve abort2 %d\n", spi_selected_chip());
 
-            return 0;
-        }
+	    return 0;
+	}
     }
 
     /* read rx frame header status */
@@ -597,26 +600,26 @@ static INT16U ksz8851BeginPacketRetrieve(void)
 
     if (rxfhsr & KSZ8851_RXFHSR_ERRORS)
     {
-        /* Issue the RELEASE error frame command */
-        unsigned long start = jiffies;
-        spi_setbits(KSZ8851_RXQCR, KSZ8851_RXQCR_CMD_FREE_PACKET);
-        do {
-            rxQCmdReg = ksz8851_regrd(KSZ8851_RXQCR);
-        } while (jiffies_to_msecs(jiffies - start) < 100 &&
-            rxQCmdReg & KSZ8851_RXQCR_CMD_FREE_PACKET);
+	/* Issue the RELEASE error frame command */
+	unsigned long start = jiffies;
+	spi_setbits(KSZ8851_RXQCR, KSZ8851_RXQCR_CMD_FREE_PACKET);
+	do {
+	    rxQCmdReg = ksz8851_regrd(KSZ8851_RXQCR);
+	} while (jiffies_to_msecs(jiffies - start) < 100 &&
+	    rxQCmdReg & KSZ8851_RXQCR_CMD_FREE_PACKET);
 #ifdef MODGATE_DEBUG_LED
-        if (!jiffies_to_msecs(jiffies - start) < 100)
-        {
-            LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
-        }
+	if (!jiffies_to_msecs(jiffies - start) < 100)
+	{
+	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
+	}
 #endif
 
-        rxFrameCount = 0;
+	rxFrameCount = 0;
 
-        tmp = ksz8851_regrd(KSZ8851_RXFHSR);
-        pr_info_spi("ksz8851BeginPacketRetrieve(%d) abort3 RXFHSR %04x %04x  fc %d\n", spi_selected_chip(), rxfhsr, tmp, rxFrameCount);
+	tmp = ksz8851_regrd(KSZ8851_RXFHSR);
+	pr_info_spi("ksz8851BeginPacketRetrieve(%d) abort3 RXFHSR %04x %04x  fc %d\n", spi_selected_chip(), rxfhsr, tmp, rxFrameCount);
 
-        return 0;
+	return 0;
     }
 
     /* Read byte count (4-byte CRC included) */
@@ -624,24 +627,24 @@ static INT16U ksz8851BeginPacketRetrieve(void)
 
     if (rxPacketLength <= 0)
     {
-        /* Issue the RELEASE error frame command */
-        unsigned long start = jiffies;
-        spi_setbits(KSZ8851_RXQCR, KSZ8851_RXQCR_CMD_FREE_PACKET);
-        do {
-            rxQCmdReg = ksz8851_regrd(KSZ8851_RXQCR);
-        } while (jiffies_to_msecs(jiffies - start) < 100 &&
-            rxQCmdReg & KSZ8851_RXQCR_CMD_FREE_PACKET);
+	/* Issue the RELEASE error frame command */
+	unsigned long start = jiffies;
+	spi_setbits(KSZ8851_RXQCR, KSZ8851_RXQCR_CMD_FREE_PACKET);
+	do {
+	    rxQCmdReg = ksz8851_regrd(KSZ8851_RXQCR);
+	} while (jiffies_to_msecs(jiffies - start) < 100 &&
+	    rxQCmdReg & KSZ8851_RXQCR_CMD_FREE_PACKET);
 #ifdef MODGATE_DEBUG_LED
-        if (!jiffies_to_msecs(jiffies - start) < 100)
-        {
-            LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
-        }
+	if (!jiffies_to_msecs(jiffies - start) < 100)
+	{
+	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
+	}
 #endif
 
-        pr_info_spi("ksz8851BeginPacketRetrieve(%d) abort4  fc %d\n", spi_selected_chip(), rxFrameCount);
-        rxFrameCount = 0;
+	pr_info_spi("ksz8851BeginPacketRetrieve(%d) abort4  fc %d\n", spi_selected_chip(), rxFrameCount);
+	rxFrameCount = 0;
 
-        return 0;
+	return 0;
     }
 
     /* Clear rx frame pointer */
@@ -721,23 +724,23 @@ TBOOL ksz8851PacketRead(
     if (i16uLength > *pi16uLength_p)
     {
 #ifdef __KUNBUSPI_KERNEL__
-        pr_err("ksz8851PacketRead(%d) too long %d > %d\n", spi_selected_chip(), i16uLength, *pi16uLength_p);
-        ksz8851RetrievePacketData(dummy, i16uLength);
+	pr_err("ksz8851PacketRead(%d) too long %d > %d\n", spi_selected_chip(), i16uLength, *pi16uLength_p);
+	ksz8851RetrievePacketData(dummy, i16uLength);
 #endif
-        *pi16uLength_p = i16uLength;
-        bRet = bFALSE;
+	*pi16uLength_p = i16uLength;
+	bRet = bFALSE;
     }
     else if (i16uLength == 0)
     {
-        // no packet
+	// no packet
     }
     else
     {
-        ksz8851RetrievePacketData(ptRXbuffer, i16uLength);
-        *pi16uLength_p = i16uLength;
-        ksz8851EndPacketRetrieve();
+	ksz8851RetrievePacketData(ptRXbuffer, i16uLength);
+	*pi16uLength_p = i16uLength;
+	ksz8851EndPacketRetrieve();
 
-        bRet = bTRUE;
+	bRet = bTRUE;
     }
 
     return bRet;
@@ -755,12 +758,12 @@ TBOOL ksz8851PacketSend(
     /* wait for the bit to be cleared before send another new TX frame */
     if ((ksz8851_regrd(KSZ8851_TXQCR) & KSZ8851_TXQCR_ENQUEUE) == 1)
     {
-        return bFALSE;
+	return bFALSE;
     }
 
     if (i16uLength & 0x0003)
     {
-        i16uLength = (i16uLength + 3) & 0xfffc;
+	i16uLength = (i16uLength + 3) & 0xfffc;
     }
 
     pr_info_spi2("ksz8851PacketSend begin %d\n", spi_selected_chip());
@@ -785,19 +788,19 @@ void ksz8851HardwareReset(void)
     pr_info_spi("ksz8851HardwareReset\n");
     if (gpio_request(GPIO_RESET, "KSZReset") < 0)
     {
-        pr_err("kzs8851Reset: Can not get GPIO_RESET\n");
+	pr_err("kzs8851Reset: Can not get GPIO_RESET\n");
     }
     else
     {
-        if (gpio_direction_output(GPIO_RESET, 1) < 0)
-        {
-            pr_err("GPIO_RESET failed\n");
-        }
-        msleep(20);
-        gpio_set_value(GPIO_RESET, 0);
-        msleep(80);
+	if (gpio_direction_output(GPIO_RESET, 1) < 0)
+	{
+	    pr_err("GPIO_RESET failed\n");
+	}
+	msleep(20);
+	gpio_set_value(GPIO_RESET, 0);
+	msleep(80);
 
-        gpio_free(GPIO_RESET);
+	gpio_free(GPIO_RESET);
     }
 #elif defined(__KUNBUSPI__)
     char device[100];
@@ -805,8 +808,8 @@ void ksz8851HardwareReset(void)
     int gpio = open(device, O_RDWR);
     if (gpio < 0)
     {
-        pr_info_spi("cannot open gpio: %s\n", device);
-        return;
+	pr_info_spi("cannot open gpio: %s\n", device);
+	return;
     }
 
     write(gpio, "1", 1);
@@ -822,14 +825,14 @@ void ksz8851HardwareReset(void)
     t = kbUT_getCurrentMs();
     while ((kbUT_getCurrentMs() - t) < 11)
     {
-        DELAY_80NS;
+	DELAY_80NS;
     }
     GPIO_WriteBit(KSZ8851_SPI_RESET_PORT, KSZ8851_SPI_RESET_PIN, Bit_RESET);
     // wait 80 ms
     t = kbUT_getCurrentMs();
     while ((kbUT_getCurrentMs() - t) < 81)
     {
-        DELAY_80NS;
+	DELAY_80NS;
     }
 #endif // __KUNBUSPI__
 
