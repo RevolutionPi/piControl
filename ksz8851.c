@@ -430,6 +430,13 @@ static void ksz8851BeginPacketSend(INT16U packetLength)
 	ksz8851_regwr(KSZ8851_ISR, KSZ8851_IER_TX_SPACE);
     }
 
+    /* Check if TXQ memory size is available for this transmit packet */
+    txmir = ksz8851_regrd(KSZ8851_TXMIR) & KSZ8851_TXMIR_AVAILABLE_MASK;
+    if (txmir == 0)
+    {
+	ksz8851ReInit();
+    }
+
     /* Enable TXQ write access */
     spi_setbits(KSZ8851_RXQCR, KSZ8851_RXQCR_START);
 
@@ -524,7 +531,7 @@ INT16U ksz8851ProcessInterrupt(void)
 
     if (isr & KSZ8851_IER_RX_OVERRUN)
     {
-#if 0
+#if 1
 	ksz8851ReInit();
 
 	isr = ksz8851_regrd(KSZ8851_ISR);
@@ -726,6 +733,7 @@ TBOOL ksz8851PacketRead(
 #ifdef __KUNBUSPI_KERNEL__
 	pr_err("ksz8851PacketRead(%d) too long %d > %d\n", spi_selected_chip(), i16uLength, *pi16uLength_p);
 	ksz8851RetrievePacketData(dummy, i16uLength);
+	ksz8851EndPacketRetrieve();
 #endif
 	*pi16uLength_p = i16uLength;
 	bRet = bFALSE;
