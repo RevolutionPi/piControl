@@ -413,7 +413,7 @@ static void ksz8851BeginPacketSend(INT16U packetLength)
 	} while (!(isr & KSZ8851_IER_TX_SPACE)
 	    && jiffies_to_msecs(jiffies - start) < 100);
 
-	if (!jiffies_to_msecs(jiffies - start) < 100)
+	if (jiffies_to_msecs(jiffies - start) >= 100)
 	{
 #ifdef MODGATE_DEBUG_LED
 	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
@@ -615,7 +615,7 @@ static INT16U ksz8851BeginPacketRetrieve(void)
 	} while (jiffies_to_msecs(jiffies - start) < 100 &&
 	    rxQCmdReg & KSZ8851_RXQCR_CMD_FREE_PACKET);
 #ifdef MODGATE_DEBUG_LED
-	if (!jiffies_to_msecs(jiffies - start) < 100)
+	if (jiffies_to_msecs(jiffies - start) >= 100)
 	{
 	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
 	}
@@ -642,7 +642,7 @@ static INT16U ksz8851BeginPacketRetrieve(void)
 	} while (jiffies_to_msecs(jiffies - start) < 100 &&
 	    rxQCmdReg & KSZ8851_RXQCR_CMD_FREE_PACKET);
 #ifdef MODGATE_DEBUG_LED
-	if (!jiffies_to_msecs(jiffies - start) < 100)
+	if (jiffies_to_msecs(jiffies - start) >= 100)
 	{
 	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_RED_ON);
 	}
