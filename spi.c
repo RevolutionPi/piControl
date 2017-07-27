@@ -218,16 +218,17 @@ void BSP_SPI_RWPERI_deinit (
 
 void    spi_select_chip(INT8U i8uChip_p)
 {
-//xx    if (i8uChip_p > SPI_CHANNEL_NUMBER)
-//	return;
-
-
     i8uCurrentCS_g = i8uChip_p;
 }
 
 INT8U   spi_selected_chip(void)
 {
-    return i8uCurrentCS_g;
+	if (i8uCurrentCS_g > SPI_CHANNEL_NUMBER)
+	{
+		pr_err("illegal value %d of i8uCurrentCS_g\n", i8uCurrentCS_g);
+		return 0;
+	}
+	return i8uCurrentCS_g;
 }
 
 //+=============================================================================================
@@ -298,6 +299,7 @@ INT32U spi_transceive (
     if (i32sRv_l < 0)
     {
 	pr_err("spi_sync_transfer len %d failed %d\n", len_p, i32sRv_l);
+	dump_stack();
 	return SPI_RET_MSG_ERROR;
     }
 

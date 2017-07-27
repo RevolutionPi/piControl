@@ -5,7 +5,7 @@
 //|
 //+---------------------------------------------------------------------------------------------
 //|
-//|             File-ID:                $Id: ModGateComMain.c 11087 2016-11-01 12:42:22Z mduckeck $
+//|             File-ID:                $Id: ModGateComMain.c 11815 2017-06-14 05:35:41Z mduckeck $
 //|             Location:               $URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/ModGateCom/sw/ModGateComMain.c $
 //|             Company:                $Cpn: KUNBUS GmbH $
 //|
@@ -28,16 +28,21 @@
 #else
 #include <string.h>
 
-#include <bsp\bspConfig.h>
-#include <bsp\gpio\gpio.h>
+#include <bsp/bspConfig.h>
 
-#include <bsp\setjmp\BspSetJmp.h>
-#include <bsp\led\led.h>
-#include <bsp\flash\FlashDriver.h>
-#include <bsp\timer\timer.h>
+#include <bsp/setjmp/BspSetJmp.h>
+#include <bsp/led/led.h>
+#include <bsp/flash/FlashDriver.h>
+#include <bsp/timer/timer.h>
 
 #include <kbEndianess.h>
 #include <application.h>
+#endif
+
+#ifdef PRINT_MODGATE_COM_STATE
+#if defined(__KUNBUSPI__)
+#define DF_PRINTK(...)      printf(__VA_ARGS__)
+#endif
 #endif
 
 #include <bsp/bspError.h>
@@ -46,13 +51,14 @@
 #include <kbAlloc.h>
 
 #include <bsp/spi/spi.h>
-#include <bsp/ksz8851/ksz8851.h>
 
 #include <ModGateComMain.h>
 #include <ModGateComError.h>
 #include <ModGateRS485.h>
 
 #include <bsp/systick/systick.h>
+
+static ETHERNET_INTERFACE *EthDrv_s;
 
 void *LL_pvPacketHeapHandle_g;
 static MODGATECOM_Packet asuPacketMem_s[7];	// 6 packets plus malloc-overhead
@@ -63,6 +69,7 @@ static MODGATECOM_Packet asuPacketMem_s[7];	// 6 packets plus malloc-overhead
 
 #define MG_AL_MAX_RETRY      5
 #define MG_AL_TIMEOUT       80
+#define MG_AL_ID_REQ_DELAY	 1
 
 MODGATECOM_IDResp MODGATE_OwnID_g;	//!< ID-Data of this mGate
 static INT8U i8uOwnFieldbusState_s;	//!< Fieldbus State of this mGate
@@ -121,9 +128,10 @@ INT32U MG_LL_init(LLHandle llHdl)
 	llHdl->Header.i8uCounter = 1;
 
 	llHdl->state = 0;
-	llHdl->tick = 0;
+	llHdl->send_tick = 0;
+	llHdl->recv_tick = 0;
 	llHdl->timed_out = bFALSE;
-	llHdl->retry = 0;
+	llHdl->send_retry = 0;
 
 	llHdl->pLastData = 0;
 
@@ -131,7 +139,7 @@ INT32U MG_LL_init(LLHandle llHdl)
 		LL_pvPacketHeapHandle_g = kbUT_initHeap((INT8U *) asuPacketMem_s, sizeof(asuPacketMem_s));
 	}
 
-	if (!ksz8851Init()) {
+	if (!EthDrv_s->init()) {
 		MODGATECOM_error(BSPE_KSZ8851_RESET, bTRUE, 0);
 		// returns never
 	}
@@ -139,22 +147,25 @@ INT32U MG_LL_init(LLHandle llHdl)
 	return MODGATECOM_NO_ERROR;
 }
 
+// return TRUE, while we are waiting for an ACK
 TBOOL MG_LL_pending(LLHandle llHdl)
 {
-	if (llHdl->state == 1) {
+	if (llHdl->send_tick != 0) {
 		return bTRUE;
 	} else {
 		return bFALSE;
 	}
 }
 
+// stop waiting for an ACK
 void MG_LL_abort(LLHandle llHdl)
 {
 	if (llHdl->pLastData) {
 		kbUT_free(llHdl->pLastData);
 		llHdl->pLastData = 0;
 	}
-	llHdl->state = 0;
+	//xx llHdl->recv_tick = 0;
+	llHdl->send_tick = 0;
 }
 
 // return TRUE once, if a timeout occurred
@@ -167,51 +178,61 @@ TBOOL MG_LL_timed_out(LLHandle llHdl)
 
 INT32U MG_LL_send(LLHandle llHdl, MODGATECOM_Packet * pData_p)
 {
-	if (llHdl->state == 0 || llHdl->state == 2) {
-		if (!ksz8851Link()) {
+	if (llHdl->state >= 2) {
+		pr_info_modgate("%d: should no send %x, ack missing. cmd %x\n", spi_selected_chip(), llHdl->Header.i8uCounter,
+			pData_p->strTransportLayer.i16uCmd);
+		llHdl->state = 1;
+	}
+
+	if (llHdl->state >= 2) {
+		pr_info_modgate("%d: cannot send, ack missing. cmd %x\n", spi_selected_chip(),
+			pData_p->strTransportLayer.i16uCmd);
+		kbUT_free(pData_p);
+		return MODGATECOM_ERROR_SEND_UNACKED;
+	} else {
+		if (!EthDrv_s->link()) {
 			kbUT_free(pData_p);
 			MG_LL_abort(llHdl);
-			pr_info_modgate("MG_LL_send: no link\n");
 			return MODGATECOM_ERROR_NO_LINK;
 		}
 
-		memcpy(pData_p, &llHdl->Header, sizeof(llHdl->Header));
-		if (ksz8851PacketSend((INT8U *) pData_p, MODGATE_TL_HEADER_LEN + pData_p->strTransportLayer.i16uDataLength)) {	// success
-			//pr_info_modgate("MG_LL_send: sendPacket done\n");
-			llHdl->state = 1;	// wait for ack
-			llHdl->retry = 0;
-
-			llHdl->Header.i8uCounter++;
-			if (llHdl->Header.i8uCounter == 0)
-				llHdl->Header.i8uCounter = 1;
+		//memcpy(pData_p, &llHdl->Header, sizeof(llHdl->Header));
+		pData_p->strLinkLayer = llHdl->Header;
+		if (EthDrv_s->packetSend((INT8U *) pData_p, MODGATE_TL_HEADER_LEN + pData_p->strTransportLayer.i16uDataLength)) {	// success
+			llHdl->state++;	// wait for ack
+			llHdl->recv_tick = 0;
+			llHdl->send_retry = 0;
+			llHdl->send_tick = kbUT_getCurrentMs();
+			if (llHdl->send_tick == 0)
+				llHdl->send_tick++;
 
 			if (llHdl->pLastData) {
 				kbUT_free(llHdl->pLastData);
 			}
 			llHdl->pLastData = pData_p;
 
-			llHdl->tick = kbUT_getCurrentMs();
+			llHdl->Header.i8uCounter++;
+			if (llHdl->Header.i8uCounter == 0)
+				llHdl->Header.i8uCounter = 1;
+
 			return MODGATECOM_NO_ERROR;
 		} else {	// send failed
-			pr_info_modgate("MG_LL_send: sendPacket failed\n");
 			MODGATECOM_error(MODGATECOM_ERROR_SEND_FAILED, bFALSE, 0);
-			llHdl->state = 0;
 			kbUT_free(pData_p);
 			return MODGATECOM_ERROR_SEND_FAILED;
 		}
-	} else {
-		pr_info_modgate("MG_LL_send: missing ack\n");
-		kbUT_free(pData_p);
-		return MODGATECOM_ERROR_SEND_UNACKED;
 	}
 }
+
+void ksz8851_show(void);
 
 MODGATECOM_Packet *MG_LL_recv(LLHandle llHdl, INT32U * pi32uStatus_p, INT16U * pi16uLen_p)
 {
 	INT16U i16uPackelLen_l = MODGATE_LL_MAX_LEN;
-	INT16U i16uISR;
+	MODGATECOM_Packet *pPacket_l;
+	TBOOL ret;
 
-	MODGATECOM_Packet *pPacket_l = (MODGATECOM_Packet *) kbUT_malloc(LL_pvPacketHeapHandle_g, 10, i16uPackelLen_l);
+	pPacket_l = (MODGATECOM_Packet *) kbUT_malloc(LL_pvPacketHeapHandle_g, 10, i16uPackelLen_l);
 	if (pPacket_l == 0) {
 		MODGATECOM_error(MODGATECOM_ERROR_OUT_OF_MEMORY_1, bTRUE, 0);
 		*pi32uStatus_p = MODGATECOM_ERROR_OUT_OF_MEMORY_1;
@@ -220,89 +241,145 @@ MODGATECOM_Packet *MG_LL_recv(LLHandle llHdl, INT32U * pi32uStatus_p, INT16U * p
 
 	(void)pi16uLen_p;	// ignore parameter
 
-	i16uISR = ksz8851ProcessInterrupt();
-
-	if (!ksz8851Link()) {
+	if (!EthDrv_s->link()) {
 		kbUT_free(pPacket_l);
 		MG_LL_abort(llHdl);
 		*pi32uStatus_p = MODGATECOM_ERROR_NO_LINK;
 		return 0;
 	}
 
-	if ((i16uISR & KSZ8851_IER_RX)
-	    && ksz8851PacketRead((INT8U *) pPacket_l, &i16uPackelLen_l)) {
-		if (llHdl->state == 2) {
-			// we should not receive packets in state 2 because the last packet was not ACKed yet
-			//MODGATECOM_error(MODGATECOM_ERROR_ACK_MISSING, bFALSE, 0);
-		}
-		if (pPacket_l->strLinkLayer.i8uCounter == 0) {
-			// empty ack
-			kbUT_free(pPacket_l);
-			llHdl->state = 0;
-			return 0;
-		} else if (i16uPackelLen_l < MODGATE_TL_HEADER_LEN + pPacket_l->strTransportLayer.i16uDataLength) {
-			// incomplete packet -> ignore
-			kbUT_free(pPacket_l);
-			return 0;
-		} else {
-			// store number for next ACK
-			llHdl->Header.i8uACK = pPacket_l->strLinkLayer.i8uCounter;
-
-			llHdl->tick = kbUT_getCurrentMs();	// start timer for T1
-			llHdl->state = 2;
-			return pPacket_l;
-		}
-	} else {
-		kbUT_free(pPacket_l);
-		// no packet received -> check for timeout now
-		if (llHdl->state == 1) {
-			if ((kbUT_getCurrentMs() - llHdl->tick) >= T2_ACK_TIMEOUT) {
-				// ack missing -> send packet again up to T2_ACK_RETRY times
-				if (llHdl->retry > T2_ACK_RETRY) {
-					// ignore missing ACK an go back to idle state
-					MG_LL_abort(llHdl);
-					llHdl->timed_out = bTRUE;
-				} else if (ksz8851PacketSend((INT8U *) llHdl->pLastData, MODGATE_TL_HEADER_LEN + llHdl->pLastData->strTransportLayer.i16uDataLength)) {	// success
-					llHdl->tick = kbUT_getCurrentMs();
-					llHdl->retry++;
+	while (1) {
+		read_again:
+		i16uPackelLen_l = MODGATE_LL_MAX_LEN;
+		ret = EthDrv_s->packetRead((INT8U *) pPacket_l, &i16uPackelLen_l);
+		if (ret) {
+			check_again:
+			if (!IS_BROADCAST(pPacket_l->strLinkLayer.i8uDestination)
+			    || pPacket_l->strLinkLayer.i16uType != 0x9C41) {
+				// packet is from another protocol -> ignore it
+				// try to read another packet
+			} else if (i16uPackelLen_l <
+				   MODGATE_TL_HEADER_LEN + pPacket_l->strTransportLayer.i16uDataLength) {
+				// incomplete packet -> ignore
+				// try to read another packet
+			} else {
+				INT8U diff;
+				if (pPacket_l->strLinkLayer.i8uACK < llHdl->Header.i8uCounter) {
+					diff = llHdl->Header.i8uCounter - pPacket_l->strLinkLayer.i8uACK;
 				} else {
-					MODGATECOM_error(MODGATECOM_ERROR_SEND_FAILED, bTRUE, 0);
-					*pi32uStatus_p = MODGATECOM_ERROR_SEND_FAILED;
-					return 0;
+					diff = llHdl->Header.i8uCounter - pPacket_l->strLinkLayer.i8uACK - 1;
+				}
+				if (diff > llHdl->state) {
+					// the ack is too old -> ignore it
+					pr_info_modgate("%d: too old ack: ack %x cnt %x state %d\n", spi_selected_chip(),
+						pPacket_l->strLinkLayer.i8uACK, llHdl->Header.i8uCounter, llHdl->state);
+
+					// try to read the next packet from the receive queue
+					//goto read_again;
+					i16uPackelLen_l = MODGATE_LL_MAX_LEN;
+					ret = EthDrv_s->packetRead((INT8U *) pPacket_l, &i16uPackelLen_l);
+					if (ret) {
+						pr_info_modgate("%d: take next packet\n", spi_selected_chip());
+						goto check_again;
+					}
+				}
+                //else {
+					llHdl->send_tick = 0;
+					llHdl->state = diff - 1;
+					if (llHdl->pLastData) {
+						kbUT_free(llHdl->pLastData);
+						llHdl->pLastData = 0;
+					}
+				//}
+
+				// store number for next ACK
+				llHdl->Header.i8uACK = pPacket_l->strLinkLayer.i8uCounter;
+
+				if (pPacket_l->strLinkLayer.i8uCounter == 0) {
+					// packet is an empty ack, no ack is needed
+					llHdl->state = 0;
+					llHdl->send_tick = 0;
+					// try to read another packet
+				} else {
+					// we have a valid packet -> return
+					llHdl->recv_tick = kbUT_getCurrentMs();	// start timer for T1
+					if (llHdl->recv_tick == 0)
+						llHdl->recv_tick++;	// avoid 0 because it has a special meaning
+					return pPacket_l;
 				}
 			}
-		} else if (llHdl->state == 2) {
-			if ((kbUT_getCurrentMs() - llHdl->tick) >= T1_ACK_TIMEOUT) {
-				MODGATECOM_Packet *pSendPacket_l;
-
-				// send an empty ack
-				if (llHdl->pLastData) {
-					kbUT_free(llHdl->pLastData);
-					llHdl->pLastData = 0;
+		} else {
+			kbUT_free(pPacket_l);
+			// no packet received -> check for timeout now
+			if (llHdl->pLastData && llHdl->send_tick != 0) {
+				if ((kbUT_getCurrentMs() - llHdl->send_tick) >= T2_ACK_TIMEOUT) {
+					// ack missing -> send packet again up to T2_ACK_RETRY times
+//					if (llHdl->send_retry > T2_ACK_RETRY
+//					    || llHdl->pLastData->strTransportLayer.i16uCmd == 1) {
+					if (1) {
+						pr_info_modgate
+						    ("%d: EthDrv_s->PacketSend: abort %d  tick %u  now %u  cmd %d len %d\n",
+						     spi_selected_chip(), llHdl->send_retry, llHdl->send_tick,
+						     kbUT_getCurrentMs(), llHdl->pLastData->strTransportLayer.i16uCmd,
+						     MODGATE_TL_HEADER_LEN +
+						     llHdl->pLastData->strTransportLayer.i16uDataLength);
+						// ignore missing ACK an go back to idle state
+						MG_LL_abort(llHdl);
+						llHdl->timed_out = bTRUE;
+					} else {
+						// resend
+						pr_info_modgate
+						    ("%d: EthDrv_s->PacketSend: retry %d  tick %u  now %u  cmd %d len %d\n",
+						     spi_selected_chip(), llHdl->send_retry, llHdl->send_tick,
+						     kbUT_getCurrentMs(), llHdl->pLastData->strTransportLayer.i16uCmd,
+						     MODGATE_TL_HEADER_LEN +
+						     llHdl->pLastData->strTransportLayer.i16uDataLength);
+						if (EthDrv_s->packetSend((INT8U *) llHdl->pLastData, MODGATE_TL_HEADER_LEN + llHdl->pLastData->strTransportLayer.i16uDataLength)) {	// success
+							llHdl->send_tick = kbUT_getCurrentMs();
+							llHdl->send_retry++;
+						} else {
+							MODGATECOM_error(MODGATECOM_ERROR_SEND_FAILED, bTRUE, 0);
+							*pi32uStatus_p = MODGATECOM_ERROR_SEND_FAILED;
+							return 0;
+						}
+					}
 				}
+			} else if (llHdl->recv_tick != 0) {
+				if ((kbUT_getCurrentMs() - llHdl->recv_tick) >= T1_ACK_TIMEOUT) {
+					MODGATECOM_Packet *pSendPacket_l;
 
-				pSendPacket_l =
-				    (MODGATECOM_Packet *) kbUT_malloc(LL_pvPacketHeapHandle_g, 1,
-								      MODGATE_TL_HEADER_LEN);
-				if (pSendPacket_l == 0) {
-					MODGATECOM_error(MODGATECOM_ERROR_OUT_OF_MEMORY_2, bTRUE, 0);
-					*pi32uStatus_p = MODGATECOM_ERROR_OUT_OF_MEMORY_2;
-					return 0;
+					// send an empty ack
+					if (llHdl->pLastData) {
+						kbUT_free(llHdl->pLastData);
+						llHdl->pLastData = 0;
+					}
+
+					pSendPacket_l = (MODGATECOM_Packet *)
+					    kbUT_malloc(LL_pvPacketHeapHandle_g, 1, MODGATE_TL_HEADER_LEN);
+					if (pSendPacket_l == 0) {
+						MODGATECOM_error(MODGATECOM_ERROR_OUT_OF_MEMORY_2, bTRUE, 0);
+						*pi32uStatus_p = MODGATECOM_ERROR_OUT_OF_MEMORY_2;
+						return 0;
+					}
+
+					pSendPacket_l->strLinkLayer = llHdl->Header;
+					pSendPacket_l->strLinkLayer.i8uCounter = 0;	// for an ack is no additional ack necessary
+					pSendPacket_l->strTransportLayer.i16uCmd = 0;
+					pSendPacket_l->strTransportLayer.i16uDataLength = 0;
+					pSendPacket_l->strTransportLayer.i32uError = MODGATECOM_NO_ERROR;
+					pSendPacket_l->strTransportLayer.i8uVersion = 0xaa;
+					pSendPacket_l->strTransportLayer.i8uReserved = 0x50;
+
+					pr_info_modgate("%d: send empty ack %x\n", spi_selected_chip(), llHdl->Header.i8uACK);
+
+					EthDrv_s->packetSend((INT8U *) pSendPacket_l, MODGATE_TL_HEADER_LEN);
+					kbUT_free(pSendPacket_l);
+					llHdl->recv_tick = 0;
 				}
-
-				memcpy(&pSendPacket_l->strLinkLayer, &llHdl->Header, MODGATE_LL_HEADER_LEN);
-				pSendPacket_l->strLinkLayer.i8uCounter = 0;	// for an ack is no additional ack necessary
-				pSendPacket_l->strTransportLayer.i16uCmd = 0;
-				pSendPacket_l->strTransportLayer.i16uDataLength = 0;
-				pSendPacket_l->strTransportLayer.i32uError = MODGATECOM_NO_ERROR;
-
-				ksz8851PacketSend((INT8U *) pSendPacket_l, MODGATE_TL_HEADER_LEN);
-				kbUT_free(pSendPacket_l);
-				llHdl->state = 0;
 			}
+			*pi32uStatus_p = MODGATECOM_ERROR_NO_PACKET;
+			return 0;
 		}
-		*pi32uStatus_p = MODGATECOM_ERROR_NO_PACKET;
-		return 0;
 	}
 }
 
@@ -315,10 +392,13 @@ INT8U data[530];
 int l = 60, j;
 #endif
 
-INT32U MODGATECOM_init(INT8U * pi8uInData_p, INT16U i16uInDataLen_p, INT8U * pi8uOutData_p, INT16U i16uOutDataLen_p)
+INT32U MODGATECOM_init(INT8U * pi8uInData_p, INT16U i16uInDataLen_p,
+		       INT8U * pi8uOutData_p, INT16U i16uOutDataLen_p, ETHERNET_INTERFACE * EthDrv_p)
 {
 	INT32U i32uRet_l = MODGATECOM_NO_ERROR;
 	int inst;
+
+	EthDrv_s = EthDrv_p;
 
 	// ID response
 #ifdef __KUNBUSPI_KERNEL__
@@ -348,19 +428,11 @@ INT32U MODGATECOM_init(INT8U * pi8uInData_p, INT16U i16uInDataLen_p, INT8U * pi8
 	MODGATE_OwnID_g.i16uFBS_OutputLength = i16uOutDataLen_p;
 	MODGATE_OwnID_g.i16uFeatureDescriptor = MODGATE_feature_IODataExchange;
 
-	ksz8851HardwareReset();
+	EthDrv_s->hardwareReset();
 
 	for (inst = 0; inst < MODGATECOM_MAX_MODULES; inst++) {
-#if MODGATECOM_MAX_MODULES > 1
-#if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
 		spi_select_chip(inst);
-//              if (RevPiScan.pCoreData != NULL) {
-//                      RevPiScan.pCoreData->i8uMode |= (1 << inst);
-//              }
-#else
-#error SPI chip select must be implemented
-#endif
-#endif
+
 		// initialize fieldbus states
 		AL_Data_s[inst].i8uState = MODGATE_ST_HW_CHECK;	//!< modular Gateway state machine state
 		i8uOwnFieldbusState_s = FBSTATE_OFFLINE;
@@ -409,11 +481,15 @@ laError:
 void MODGATECOM_run(void)
 {
 	static TBOOL bSend = bTRUE;
-	INT32U i32uStatus_l;
+	INT32U i32uStatus_l, i32uRet;
 	INT16U i16uLen_l;
 	MODGATECOM_Packet *pPacket_l = 0;
 	INT32U oldState, newState;
 	int inst;
+	static INT32U l1, l1_max = 0;
+	static INT32U l2, l2_max = 0;
+	static INT32U l3, l3_max = 0;
+    static INT32U wrong_state;
 
 #ifdef __KUNBUSPI_KERNEL__
 #elif defined(__KUNBUSPI__)
@@ -422,19 +498,11 @@ void MODGATECOM_run(void)
 	ModGateRs485Run();
 #endif
 #endif
-#ifdef DEBUG_DEVICE_SPI
-	if (RevPiScan.pCoreData != NULL && RevPiScan.pCoreData->i8uMode > 0) {
-		__debug_show_msg = 1;
-		RevPiScan.pCoreData->i8uMode--;
-	} else {
-		if (__debug_show_msg != 0)
-			pr_err("stop message print\n");
 
-		__debug_show_msg = 0;
-	}
-#endif
 	oldState = 0;
 	for (inst = 0; inst < MODGATECOM_MAX_MODULES; inst++) {
+		TBOOL bDone = bFALSE;
+
 		oldState <<= 8;
 		if (AL_Data_s[inst].i8uState == MODGATE_ST_ID_RESP) {
 			oldState += MODGATE_ST_ID_REQ;
@@ -442,47 +510,58 @@ void MODGATECOM_run(void)
 			oldState += AL_Data_s[inst].i8uState;
 		}
 
-#if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
-		//if (RevPiScan.pCoreData != NULL && (RevPiScan.pCoreData->i8uMode & (1 << inst)))
-		{
-			spi_select_chip(inst);
-#else
-		{
-#endif
+		spi_select_chip(inst);
+
+		while (!bDone) {
 			// try to receive a packet first
+			DURSTART(l1);
 			pPacket_l = MG_LL_recv(&AL_Data_s[inst].llParas, &i32uStatus_l, &i16uLen_l);
+			DURSTOP(l1);
 #ifdef __KUNBUSPI_KERNEL__
 			if (pPacket_l && piDev_g.eBridgeState != piBridgeRun) {
-				pr_info_modgate("MG_LL_recv: drop\n");
+				//pr_info_modgate("%d: MG_LL_recv: drop\n", spi_selected_chip());
 				// while the modules are not enumerated, all packets are ignored
 				kbUT_free(pPacket_l);
 				pPacket_l = 0;
 			}
 #endif
+			DURSTART(l3);
 			if (pPacket_l) {
-				pr_info_modgate("MG_LL_recv: packet 0x%x\n", pPacket_l->strTransportLayer.i16uCmd);
+				//pr_info_modgate("%d: MG_LL_recv: packet 0x%x\n", inst, pPacket_l->strTransportLayer.i16uCmd);
 				switch (pPacket_l->strTransportLayer.i16uCmd) {
 				case MODGATE_AL_CMD_ID_Req:
 					// send response in all states
-					MODGATECOM_send_ID_Resp(&AL_Data_s[inst]);
+					i32uRet = MODGATECOM_send_ID_Resp(&AL_Data_s[inst]);
+					if (i32uRet != MODGATECOM_NO_ERROR) {
+						pr_info_modgate("%d: send id res failed 0x%x\n", inst, i32uRet);
+					}
+#ifdef __KUNBUSPI_KERNEL__
+					// start timer and send id request of it runs out
+					kbUT_TimerStart(&AL_Data_s[inst].AL_Timeout, MG_AL_ID_REQ_DELAY);
+#endif
 					break;
 
 				case MODGATE_AL_CMD_ID_Resp:
-					if (AL_Data_s[inst].i8uState == MODGATE_ST_ID_RESP) {
-						// if we are waiting for the response, precess it and go to run state
+					//if (AL_Data_s[inst].i8uState == MODGATE_ST_ID_REQ ||
+					//    AL_Data_s[inst].i8uState == MODGATE_ST_ID_RESP) {
+                    if (AL_Data_s[inst].i8uState >= MODGATE_ST_ID_REQ) {
+						// if we are waiting for the response, process it and go to run state
 						if (MODGATECOM_recv_Id_Resp(&AL_Data_s[inst], pPacket_l)) {
 							AL_Data_s[inst].i8uState = MODGATE_ST_RUN_NO_DATA;
 							AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
 							bSend = bTRUE;
 						}
 						pPacket_l = 0;
-					}
-					// otherwise ignore message
+                    }
+                    //else {
+                    //    // otherwise ignore message
+                    //    wrong_state++;
+                    //}
 					break;
 
 				case MODGATE_AL_CMD_cyclicPD:
-					if (AL_Data_s[inst].i8uState == MODGATE_ST_RUN_NO_DATA
-					    || AL_Data_s[inst].i8uState == MODGATE_ST_RUN) {
+					if (AL_Data_s[inst].i8uState == MODGATE_ST_RUN_NO_DATA ||
+					    AL_Data_s[inst].i8uState == MODGATE_ST_RUN) {
 						MODGATECOM_recv_cyclicPD(&AL_Data_s[inst], pPacket_l);
 						pPacket_l = 0;
 						AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_RUN;
@@ -495,6 +574,13 @@ void MODGATECOM_run(void)
 						// the LED is turned on for 2 seconds
 						// if more packets a missing the power LED will start blinking
 						static INT32U tick, cnt, diff, diffAvg;
+						static INT32U ltick[20], ldiff[20], lidx, lidx2;
+
+						ltick[lidx] = kbUT_getCurrentMs();
+						ldiff[lidx] = ltick[lidx] - ltick[lidx2];
+						lidx2 = lidx;
+						lidx = (lidx + 1) % 20;
+
 						if (cnt == 0) {
 							BSP_count_up_timer_init(1);
 							BSP_count_up_timer_start();
@@ -520,7 +606,7 @@ void MODGATECOM_run(void)
 							}
 						}
 #endif
-					}
+                    }
 					break;
 
 				case MODGATE_AL_CMD_ST_Req:	// not used
@@ -528,9 +614,9 @@ void MODGATECOM_run(void)
 				case MODGATE_AL_CMD_updatePD:	// not used
 				default:
 					// ignore packet
-					kbUT_free(pPacket_l);
-					pPacket_l = 0;
-					return;
+					pr_err("%d: MG_LL_recv: return unknown packet 0x%x\n", inst,
+					       pPacket_l->strTransportLayer.i16uCmd);
+					break;
 				}
 				if (pPacket_l != 0) {
 					// ignore packet
@@ -541,94 +627,103 @@ void MODGATECOM_run(void)
 				if (i32uStatus_l == MODGATECOM_ERROR_NO_LINK) {
 					AL_Data_s[inst].i8uState = MODGATE_ST_LINK_CHECK;
 				}
+				// queue is empty, leave the loop
+				//break;
+				bDone = bTRUE;
 			}
+			DURSTOP(l3);
+		}
 
-			// check state
+		// check state
 #ifdef __KUNBUSPI_KERNEL__
-			if (piDev_g.eBridgeState == piBridgeRun)
+		if (piDev_g.eBridgeState == piBridgeRun)
 #endif
-			{
-				switch (AL_Data_s[inst].i8uState) {
-				case MODGATE_ST_HW_CHECK:
-					{
-						AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_LINK_MISSING;
-						// nothing to do
-						AL_Data_s[inst].i8uState = MODGATE_ST_LINK_CHECK;
-					}
-					break;
+		{
+			switch (AL_Data_s[inst].i8uState) {
+			case MODGATE_ST_HW_CHECK:
+				{
+					AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_LINK_MISSING;
+					// nothing to do
+					AL_Data_s[inst].i8uState = MODGATE_ST_LINK_CHECK;
+				}
+				break;
 
-				case MODGATE_ST_LINK_CHECK:
-					{
-						// set input data to 0
-						memset(AL_Data_s[inst].pi8uInData, 0,
-						       AL_Data_s[inst].i16uInDataLenActive);
-
-						if (ksz8851Link()) {
-							AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
-							AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
-						} else {
-							AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_LINK_MISSING;
-						}
-					}
-					break;
-
-				case MODGATE_ST_ID_REQ:
-					{
-						if (MODGATECOM_send_ID_Req(&AL_Data_s[inst]) == MODGATECOM_NO_ERROR) {
-							AL_Data_s[inst].i8uState = MODGATE_ST_ID_RESP;
-							kbUT_TimerStart(&AL_Data_s[inst].AL_Timeout, MG_AL_TIMEOUT);
-						}
-					}
-					break;
-
-				case MODGATE_ST_ID_RESP:
-					{
-						if (kbUT_TimerExpired(&AL_Data_s[inst].AL_Timeout)) {
-							AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
-							AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
-						}
-					}
-					break;
-
-				case MODGATE_ST_RUN_NO_DATA:
+			case MODGATE_ST_LINK_CHECK:
+				{
 					// set input data to 0
 					memset(AL_Data_s[inst].pi8uInData, 0, AL_Data_s[inst].i16uInDataLenActive);
-				case MODGATE_ST_RUN:
-					if (bSend) {
-						if (!MG_LL_pending(&AL_Data_s[inst].llParas)) {
-							INT32U ret = MODGATECOM_send_cyclicPD(&AL_Data_s[inst]);
-							if (ret == MODGATECOM_NO_ERROR) {
-								kbUT_TimerStart(&AL_Data_s[inst].AL_Timeout,
-										MG_AL_TIMEOUT);
-								bSend = bFALSE;
-							} else if (ret == MODGATECOM_ERROR_NO_LINK) {
-								AL_Data_s[inst].i8uState = MODGATE_ST_LINK_CHECK;
-								AL_Data_s[inst].enLedStateAct =
-								    MODGATECOM_enPLS_LINK_MISSING;
-							}
+
+					if (EthDrv_s->link()) {
+						AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
+						AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
+					} else {
+						AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_LINK_MISSING;
+					}
+				}
+				break;
+
+			case MODGATE_ST_ID_REQ:
+				{
+#ifdef __KUNBUSPI_KERNEL__
+					if (kbUT_TimerExpired(&AL_Data_s[inst].AL_Timeout)) {
+#endif
+						i32uRet = MODGATECOM_send_ID_Req(&AL_Data_s[inst]);
+						if (i32uRet == MODGATECOM_NO_ERROR) {
+							AL_Data_s[inst].i8uState = MODGATE_ST_ID_RESP;
+							kbUT_TimerStart(&AL_Data_s[inst].AL_Timeout, MG_AL_TIMEOUT);
 						} else {
-							if (MG_LL_timed_out(&AL_Data_s[inst].llParas)) {
-								AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
-								AL_Data_s[inst].enLedStateAct =
-								    MODGATECOM_enPLS_DATA_MISSING;
-							}
+							pr_info_modgate("%d: send id req failed 0x%x\n", inst, i32uRet);
+						}
+#ifdef __KUNBUSPI_KERNEL__
+					}
+#endif
+				}
+				break;
+
+			case MODGATE_ST_ID_RESP:
+				{
+					if (kbUT_TimerExpired(&AL_Data_s[inst].AL_Timeout)) {
+						AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
+						AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
+					}
+				}
+				break;
+
+			case MODGATE_ST_RUN_NO_DATA:
+				// set input data to 0
+				memset(AL_Data_s[inst].pi8uInData, 0, AL_Data_s[inst].i16uInDataLenActive);
+			case MODGATE_ST_RUN:
+				DURSTART(l2);
+				if (bSend) {
+					if (!MG_LL_pending(&AL_Data_s[inst].llParas)) {
+						INT32U ret = MODGATECOM_send_cyclicPD(&AL_Data_s[inst]);
+						if (ret == MODGATECOM_NO_ERROR) {
+							kbUT_TimerStart(&AL_Data_s[inst].AL_Timeout, MG_AL_TIMEOUT);
+							bSend = bFALSE;
+						} else if (ret == MODGATECOM_ERROR_NO_LINK) {
+							AL_Data_s[inst].i8uState = MODGATE_ST_LINK_CHECK;
+							AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_LINK_MISSING;
 						}
 					} else {
-						if (kbUT_TimerExpired(&AL_Data_s[inst].AL_Timeout)) {
+						if (MG_LL_timed_out(&AL_Data_s[inst].llParas)) {
+							pr_info_modgate("%d: MODGATERUN_run data timeout\n", inst);
 							AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
 							AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
 						}
 					}
-					break;
-
-				default:
-					break;
+				} else {
+					if (kbUT_TimerExpired(&AL_Data_s[inst].AL_Timeout)) {
+                        AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
+                        AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
+					}
 				}
+				DURSTOP(l2);
+				break;
+
+			default:
+				break;
 			}
 		}
-#if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
-		spi_select_chip(64);
-#endif
 	}
 
 	newState = 0;
@@ -725,7 +820,7 @@ void MODGATECOM_run(void)
 			set |= PICONTROL_STATUS_RIGHT_GATEWAY;
 			break;
 		}
-		pr_info("%s", string);
+		pr_info("%d %s", kbUT_getCurrentMs(), string);
 
 		RevPiScan.i8uStatus &= ~clr;
 		RevPiScan.i8uStatus |= set;
@@ -736,17 +831,17 @@ void MODGATECOM_run(void)
 	MODGATECOM_managePowerLedRun();
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_managePowerLedRun
-//|
-//! \brief
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_managePowerLedRun
+    //|
+    //! \brief
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 void MODGATECOM_managePowerLedRun(void)
 {
 #if defined(__KUNBUSPI_KERNEL__) || defined(__KUNBUSPI__)
@@ -902,21 +997,21 @@ void MODGATECOM_managePowerLedRun(void)
 #endif // __STM32GENERIC__
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_Send_ID_Req
-//|
-//! \brief
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_Send_ID_Req
+    //|
+    //! \brief
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 INT32U MODGATECOM_send_ID_Req(ALHandle alHdl)
 {
-	MODGATECOM_Packet *pPacket_l =
-	    (MODGATECOM_Packet *) kbUT_malloc(LL_pvPacketHeapHandle_g, 2, MODGATE_TL_HEADER_LEN);
+	MODGATECOM_Packet *pPacket_l = (MODGATECOM_Packet *) kbUT_malloc(LL_pvPacketHeapHandle_g, 2,
+									 MODGATE_TL_HEADER_LEN);
 	if (pPacket_l == 0) {
 		MODGATECOM_error(MODGATECOM_ERROR_OUT_OF_MEMORY_3, bTRUE, 0);
 		return MODGATECOM_ERROR_OUT_OF_MEMORY_3;
@@ -925,21 +1020,23 @@ INT32U MODGATECOM_send_ID_Req(ALHandle alHdl)
 	pPacket_l->strTransportLayer.i16uCmd = MODGATE_AL_CMD_ID_Req;
 	pPacket_l->strTransportLayer.i16uDataLength = 0;
 	pPacket_l->strTransportLayer.i32uError = MODGATECOM_NO_ERROR;
+	pPacket_l->strTransportLayer.i8uVersion = 0xaa;
+	pPacket_l->strTransportLayer.i8uReserved = 0x51;
 
 	return MG_LL_send(&alHdl->llParas, pPacket_l);
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_Send_ID_Resp
-//|
-//! \brief
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_Send_ID_Resp
+    //|
+    //! \brief
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 INT32U MODGATECOM_send_ID_Resp(ALHandle alHdl)
 {
 	MODGATECOM_Packet *pPacket_l = (MODGATECOM_Packet *) kbUT_malloc(LL_pvPacketHeapHandle_g, 3,
@@ -953,22 +1050,24 @@ INT32U MODGATECOM_send_ID_Resp(ALHandle alHdl)
 	pPacket_l->strTransportLayer.i16uCmd = MODGATE_AL_CMD_ID_Resp;
 	pPacket_l->strTransportLayer.i16uDataLength = sizeof(MODGATECOM_IDResp);
 	pPacket_l->strTransportLayer.i32uError = MODGATECOM_NO_ERROR;
+	pPacket_l->strTransportLayer.i8uVersion = 0xaa;
+	pPacket_l->strTransportLayer.i8uReserved = 0x52;
 	memcpy(pPacket_l->i8uData, &MODGATE_OwnID_g, sizeof(MODGATECOM_IDResp));
 
 	return MG_LL_send(&alHdl->llParas, pPacket_l);
 }
 
-//*************************************************************************************************
-//| Function: MG_recv_Id_Resp
-//|
-//! \brief
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MG_recv_Id_Resp
+    //|
+    //! \brief
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 TBOOL MODGATECOM_recv_Id_Resp(ALHandle alHdl, MODGATECOM_Packet * pPacket_p)
 {
 	memcpy(&alHdl->OtherID, pPacket_p->i8uData, sizeof(MODGATECOM_IDResp));
@@ -996,17 +1095,17 @@ TBOOL MODGATECOM_recv_Id_Resp(ALHandle alHdl, MODGATECOM_Packet * pPacket_p)
 	return bTRUE;
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_Send_cyclicPD
-//|
-//! \brief
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_Send_cyclicPD
+    //|
+    //! \brief
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 INT32U MODGATECOM_send_cyclicPD(ALHandle alHdl)
 {
 	MODGATECOM_CyclicPD *strCyclicPd;
@@ -1023,6 +1122,8 @@ INT32U MODGATECOM_send_cyclicPD(ALHandle alHdl)
 	pPacket_l->strTransportLayer.i16uCmd = MODGATE_AL_CMD_cyclicPD;
 	pPacket_l->strTransportLayer.i16uDataLength = sizeof(MODGATECOM_CyclicPD) + alHdl->i16uOutDataLenActive;
 	pPacket_l->strTransportLayer.i32uError = MODGATECOM_NO_ERROR;
+	pPacket_l->strTransportLayer.i8uVersion = 0xaa;
+	pPacket_l->strTransportLayer.i8uReserved = 0x53;
 
 	// Eigener Feldbusstatus
 	strCyclicPd->i8uFieldbusStatus = i8uOwnFieldbusState_s;
@@ -1036,17 +1137,17 @@ INT32U MODGATECOM_send_cyclicPD(ALHandle alHdl)
 	return MG_LL_send(&alHdl->llParas, pPacket_l);
 }
 
-//*************************************************************************************************
-//| Function: MG_recv_cyclicPD
-//|
-//! \brief
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MG_recv_cyclicPD
+    //|
+    //! \brief
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 TBOOL MODGATECOM_recv_cyclicPD(ALHandle alHdl, MODGATECOM_Packet * pPacket_p)
 {
 	MODGATECOM_CyclicPD *strCyclicPd = (MODGATECOM_CyclicPD *) pPacket_p->i8uData;
@@ -1064,67 +1165,67 @@ TBOOL MODGATECOM_recv_cyclicPD(ALHandle alHdl, MODGATECOM_Packet * pPacket_p)
 	return bTRUE;
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_SetOwnFieldbusState
-//|
-//! \brief  Set the own fieldbus state. It will be sent to the partner in the next cyclicPD packet
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_SetOwnFieldbusState
+    //|
+    //! \brief  Set the own fieldbus state. It will be sent to the partner in the next cyclicPD packet
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 void MODGATECOM_SetOwnFieldbusState(INT8U i8uOwnFieldbusState_p)
 {
 	i8uOwnFieldbusState_s = i8uOwnFieldbusState_p;
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_GetOwnFieldbusState
-//|
-//! \brief  Return the own fieldbus state.
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_GetOwnFieldbusState
+    //|
+    //! \brief  Return the own fieldbus state.
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 INT8U MODGATECOM_GetOwnFieldbusState(void)
 {
 	return i8uOwnFieldbusState_s;
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_GetOtherFieldbusState
-//|
-//! \brief  Return the fieldbus state of the partner.
-//! It is updated with each cyclicPD packet from partner.
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_GetOtherFieldbusState
+    //|
+    //! \brief  Return the fieldbus state of the partner.
+    //! It is updated with each cyclicPD packet from partner.
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 INT8U MODGATECOM_GetOtherFieldbusState(INT8U i8uInst_p)
 {
 	return AL_Data_s[i8uInst_p].i8uOtherFieldbusState;
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_GetState
-//|
-//! \brief  Return the state of the mGate state machine
-//!
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_GetState
+    //|
+    //! \brief  Return the state of the mGate state machine
+    //!
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 MODGATE_AL_Status MODGATECOM_GetState(INT8U i8uInst_p)
 {
 #ifdef __STM32GENERIC__
@@ -1137,18 +1238,18 @@ MODGATE_AL_Status MODGATECOM_GetState(INT8U i8uInst_p)
 	return (MODGATE_AL_Status) AL_Data_s[i8uInst_p].i8uState;
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_GetLedState
-//|
-//! \brief  Return the state of the mGate LED state machine
-//!
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_GetLedState
+    //|
+    //! \brief  Return the state of the mGate LED state machine
+    //!
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 MODGATECOM_EPowerLedState MODGATECOM_GetLedState(void)
 {
 #ifdef __STM32GENERIC__
@@ -1158,35 +1259,35 @@ MODGATECOM_EPowerLedState MODGATECOM_GetLedState(void)
 #endif // __STM32GENERIC__
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_GetInputDataLengthActive
-//|
-//! \brief  Return the active length of the (own) input data (minimum negotiated with peer)
-//!
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_GetInputDataLengthActive
+    //|
+    //! \brief  Return the active length of the (own) input data (minimum negotiated with peer)
+    //!
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 INT16U MODGATECOM_GetInputDataLengthActive(INT8U i8uInst_p)	// in modular Gateways, always 0 must be passed
 {
 	return AL_Data_s[i8uInst_p].i16uInDataLenActive;
 }
 
-//*************************************************************************************************
-//| Function: MODGATECOM_GetOutputDataLengthActive
-//|
-//! \brief  Return the active length of the (own) output data (minimum negotiated with peer)
-//!
-//!
-//! \detailed
-//!
-//!
-//!
-//! \ingroup
-//-------------------------------------------------------------------------------------------------
+    //*************************************************************************************************
+    //| Function: MODGATECOM_GetOutputDataLengthActive
+    //|
+    //! \brief  Return the active length of the (own) output data (minimum negotiated with peer)
+    //!
+    //!
+    //! \detailed
+    //!
+    //!
+    //!
+    //! \ingroup
+    //-------------------------------------------------------------------------------------------------
 INT16U MODGATECOM_GetOutputDataLengthActive(INT8U i8uInst_p)	// in modular Gateways, always 0 must be passed
 {
 	return AL_Data_s[i8uInst_p].i16uOutDataLenActive;

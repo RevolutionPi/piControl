@@ -11,6 +11,7 @@
 //#define DEBUG
 
 #include <common_define.h>
+#include <project.h>
 
 #include <linux/module.h>	// included for all kernel modules
 #include <linux/kernel.h>	// included for KERN_INFO
@@ -40,9 +41,9 @@
 #include <ModGateComMain.h>
 #include <ModGateComError.h>
 #include <bsp/spi/spi.h>
+#include <bsp/ksz8851/ksz8851.h>
 
 #include <kbUtilities.h>
-#include <project.h>
 #include <piControlMain.h>
 #include <piControl.h>
 #include <piConfig.h>
@@ -112,6 +113,10 @@ int piGateThread(void *data)
 	ktime_t time;
 	INT8U i8uLastState[2];
 	int i;
+	INT32U j1, j1_max = 0;
+	INT32U j2, j2_max = 0;
+	INT32U j3, j3_max = 0;
+	INT32U j4, j4_max = 0;
 #ifdef VERBOSE
 	INT16U val;
 	val = 0;
@@ -134,10 +139,13 @@ int piGateThread(void *data)
 	while (!kthread_should_stop()) {
 		time.tv64 += INTERVAL_PI_GATE;
 
+		DURSTART(j4);
 		hrtimer_start(&piDev_g.gateTimer, time, HRTIMER_MODE_ABS);
 		down(&piDev_g.gateSem);
+		DURSTOP(j4);
 
 		if (isRunning()) {
+			DURSTART(j1);
 			rt_mutex_lock(&piDev_g.lockPI);
 			if (piDev_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
 				memcpy(piDev_g.ai8uOutput,
@@ -152,9 +160,12 @@ int piGateThread(void *data)
 				       RevPiScan.dev[piDev_g.i8uLeftMGateIdx].sId.i16uFBS_OutputLength);
 			}
 			rt_mutex_unlock(&piDev_g.lockPI);
+			DURSTOP(j1);
 		}
 
+		DURSTART(j2);
 		MODGATECOM_run();
+		DURSTOP(j2);
 
 		if (MODGATECOM_has_fatal_error()) {
 			// stop the thread if an fatal error occurred
@@ -201,6 +212,7 @@ int piGateThread(void *data)
 		i8uLastState[0] = AL_Data_s[0].i8uState;
 		i8uLastState[1] = AL_Data_s[1].i8uState;
 
+		DURSTART(j3);
 		if (isRunning()) {
 			rt_mutex_lock(&piDev_g.lockPI);
 			if (piDev_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
@@ -216,6 +228,8 @@ int piGateThread(void *data)
 			}
 			rt_mutex_unlock(&piDev_g.lockPI);
 		}
+		DURSTOP(j3);
+
 #ifdef VERBOSE
 		val++;
 		if (val >= 200) {
@@ -584,7 +598,7 @@ static int __init piControlInit(void)
 	}
 	piDev_g.init_step = 13;
 
-	i32uRv = MODGATECOM_init(piDev_g.ai8uInput, KB_PD_LEN, piDev_g.ai8uOutput, KB_PD_LEN);
+	i32uRv = MODGATECOM_init(piDev_g.ai8uInput, KB_PD_LEN, piDev_g.ai8uOutput, KB_PD_LEN, &EthDrvKSZ8851_g);
 	if (i32uRv != MODGATECOM_NO_ERROR) {
 		printk("MODGATECOM_init error %08x\n", i32uRv);
 		cleanup();
@@ -1391,6 +1405,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_UPDATE_DEVICE_FIRMWARE:
 		{
 			int i, ret, cnt;
+			INT32U *pData = (INT32U *) usr_addr;	// pData is null or points to the module address
 
 			if (!isRunning()) {
 				printUserMsg("piControl is not running");
@@ -1398,11 +1413,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			// at the moment the update works only, if there is only one module connected on the right
+#ifndef ENDTEST_DIO
 			if (RevPiScan.i8uDeviceCount > 2)	// RevPi + Module to update
 			{
 				printUserMsg("Too many modules! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
 				return -EFAULT;
 			}
+#endif
 			if (RevPiScan.i8uDeviceCount < 2
 			    || RevPiScan.dev[1].i8uActive == 0
 			    || RevPiScan.dev[1].sId.i16uModulType >= PICONTROL_SW_OFFSET)
@@ -1416,13 +1433,23 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			cnt = 0;
 			for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
-				ret = FWU_update(&RevPiScan.dev[i]);
-				if (ret > 0) {
-					cnt++;
-					// update only one device per call
-					break;
-				} else {
-					status = cnt;
+				if (pData != 0 && RevPiScan.dev[i].i8uAddress != *pData)
+				{
+					// if pData is not 0, we want to update one specific module
+					// -> update all others
+					pr_info("skip %d addr %d\n", i, RevPiScan.dev[i].i8uAddress);
+				}
+				else
+				{
+					ret = FWU_update(&RevPiScan.dev[i]);
+					pr_info("update %d addr %d ret %d\n", i, RevPiScan.dev[i].i8uAddress, ret);
+					if (ret > 0) {
+						cnt++;
+						// update only one device per call
+						break;
+					} else {
+						status = cnt;
+					}
 				}
 			}
 

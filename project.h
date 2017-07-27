@@ -31,8 +31,10 @@
 #ifndef BSPCONFIG_H_INC
 #define BSPCONFIG_H_INC
 
+#define ENDTEST_DIO
+
 #define PRINT_MODGATE_COM_STATE
-#if 0
+#if 1
 #define pr_info_modgate(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #else
 #define pr_info_modgate(fmt, ...)
@@ -119,20 +121,20 @@ extern int __debug_show_msg;
 #define KB_PD_LEN       512
 #define KB_PI_LEN       4096
 
-#define GPIO_LED_PWRRED     16
-#define GPIO_LED_AGRN       30
-#define GPIO_LED_ARED       6
-#define GPIO_LED_BGRN       32
-#define GPIO_LED_BRED       33
+#define GPIO_LED_PWRRED		16
+#define GPIO_LED_AGRN		30
+#define GPIO_LED_ARED		 6
+#define GPIO_LED_BGRN		32
+#define GPIO_LED_BRED		33
 
-#define GPIO_RESET      40
-#define GPIO_CS_KSZ0    35
-#define GPIO_CS_KSZ1    36
-#define GPIO_SNIFF1A    42
-#define GPIO_SNIFF1B    43
-#define GPIO_SNIFF2A    28
-#define GPIO_SNIFF2B    29
-#define KSZ8851_SPI_PORT 0      // we use SPI port 0 for both sides
+#define GPIO_RESET		40
+#define GPIO_CS_KSZ0		35
+#define GPIO_CS_KSZ1		36
+#define GPIO_SNIFF1A		42
+#define GPIO_SNIFF1B		43
+#define GPIO_SNIFF2A		28
+#define GPIO_SNIFF2B		29
+#define KSZ8851_SPI_PORT	 0      // we use SPI port 0 for both sides
 
 
 //#define VERBOSE
@@ -140,6 +142,15 @@ extern int __debug_show_msg;
 
 #undef pr_fmt
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
+
+//#define MEASURE_DURATION
+#define DURSTART(x)	x = kbUT_getCurrentMs()
+#define DURSTOP(x)	x = (kbUT_getCurrentMs() - x); \
+			if (x < 0x80000000 && x##_max < x) \
+			{ \
+				x##_max = x; \
+				pr_info("max " #x " %u\n", x##_max); \
+			}
 
 
 #endif // BSPCONFIG_H_INC

@@ -191,8 +191,6 @@ int PiBridgeMaster_Adjust(void)
 	// nun wird die Liste der automatisch erkannten Module um die ergänzt, die nur in der Konfiguration vorkommen.
 	for (i = 0; i < piDev_g.devs->i16uNumDevices; i++) {
 		if (state[i] == 0) {
-			RevPiScan.i8uStatus |= PICONTROL_STATUS_MISSING_MODULE;
-
 			j = RevPiScan.i8uDeviceCount;
 			if (piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET) {
 				// if a module is already defined as software module in the RAP file,
@@ -200,6 +198,7 @@ int PiBridgeMaster_Adjust(void)
 				RevPiScan.dev[j].i8uActive = 1;
 				RevPiScan.dev[j].sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
 			} else {
+				RevPiScan.i8uStatus |= PICONTROL_STATUS_MISSING_MODULE;
 				RevPiScan.dev[j].i8uActive = 0;
 				RevPiScan.dev[j].sId.i16uModulType =
 				    piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;
@@ -543,8 +542,10 @@ int PiBridgeMaster_Run(void)
 					pr_info_master("           output offset %5d  len %3d\n",
 						       RevPiScan.dev[i].i16uOutputOffset,
 						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
-					pr_info_master("           serial number %d\n",
-						       RevPiScan.dev[i].sId.i32uSerialnumber);
+					pr_info_master("           serial number %d  version %d.%d\n",
+						       RevPiScan.dev[i].sId.i32uSerialnumber,
+						       RevPiScan.dev[i].sId.i16uSW_Major,
+						       RevPiScan.dev[i].sId.i16uSW_Minor);
 				}
 
 				pr_info_master("\n");
@@ -575,10 +576,11 @@ int PiBridgeMaster_Run(void)
 #endif
 				PiBridgeMaster_setDefaults();
 
+#ifndef ENDTEST_DIO
 				rt_mutex_lock(&piDev_g.lockPI);
 				memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
 				rt_mutex_unlock(&piDev_g.lockPI);
-
+#endif
 				msleep(100);	// wait a while
 				pr_info("start data exchange\n");
 				RevPiDevice_startDataexchange();
@@ -680,7 +682,7 @@ int PiBridgeMaster_Run(void)
 				|| (RevPiScan.i8uStatus & PICONTROL_STATUS_MISSING_MODULE))) {
 				// at least one IO module did not complete the initialization process
 				// wait for the timeout in the module
-				pr_info("initialization of module not finished -> retry\n");
+				pr_info("initialization of module not finished (%d,%d,%d) -> retry\n", piIoComm_readSniff2A(), piIoComm_readSniff2B(), (RevPiScan.i8uStatus & PICONTROL_STATUS_MISSING_MODULE));
 				eRunStatus_s = enPiBridgeMasterStatus_InitRetry;
 				bEntering_s = bTRUE;
 				piDev_g.eBridgeState = piBridgeInit;
@@ -795,7 +797,7 @@ int PiBridgeMaster_Run(void)
 			last_led = led;
 		}
 		// update every 1 sec
-		if ((jiffies - last_update) > msecs_to_jiffies(1000)) {
+		if ((kbUT_getCurrentMs() - last_update) > 1000) {
 			if (piDev_g.thermal_zone != NULL) {
 				int temp, ret;
 
@@ -809,7 +811,7 @@ int PiBridgeMaster_Run(void)
 
 			RevPiScan.pCoreData->i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
 
-			last_update = jiffies;
+			last_update = kbUT_getCurrentMs();
 		}
 	}
 

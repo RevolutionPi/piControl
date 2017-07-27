@@ -2,14 +2,19 @@
 #ifndef __KSZ8851_H__
 #define __KSZ8851_H__
 
+#include <bsp/Ethernet/EthernetInterface.h>
 
 void ksz8851HardwareReset(void);
 TBOOL ksz8851Init(void);
-INT16U ksz8851ProcessInterrupt(void);
 TBOOL ksz8851Link(void);
 TBOOL ksz8851PacketSend(INT8U *ptTXbuffer, INT16U i16uLength);
 TBOOL ksz8851PacketRead(INT8U *ptRXbuffer, INT16U *pi16uLength_p);
+INT16U ksz8851ProcessInterrupt(void);
 
+INT32U ksz8851readMIB(INT8U reg);
+
+
+extern ETHERNET_INTERFACE EthDrvKSZ8851_g;
 
 /*****************************************************************************
 *
