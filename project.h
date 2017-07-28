@@ -1,32 +1,34 @@
-//+=============================================================================================
-//|
-//!		\file project
-//!
-//!		Configuration of RevPi I/O driver
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|		File-ID:		$Id: project.h 383 2016-10-31 07:45:14Z mduckeck $
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|		       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
-//|		       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
-//|		       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
-//|		+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
-//|		|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
-//|		|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
-//|		|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
-//|		|
-//|		|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
-//|		|             |
-//|		+-------------+
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|		Files required:	(none)
-//|
-//+=============================================================================================
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
+ */
 
 #ifndef BSPCONFIG_H_INC
 #define BSPCONFIG_H_INC
@@ -34,7 +36,7 @@
 #define ENDTEST_DIO
 
 #define PRINT_MODGATE_COM_STATE
-#if 1
+#if 0
 #define pr_info_modgate(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #else
 #define pr_info_modgate(fmt, ...)
@@ -74,7 +76,7 @@
 #define pr_info_aio(fmt, ...)
 #endif
 
-#if 1
+#if 0
 #define DEBUG_LINUX_DRV
 #define pr_info_drv(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #else
@@ -144,6 +146,7 @@ extern int __debug_show_msg;
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
 
 //#define MEASURE_DURATION
+#ifdef MEASURE_DURATION
 #define DURSTART(x)	x = kbUT_getCurrentMs()
 #define DURSTOP(x)	x = (kbUT_getCurrentMs() - x); \
 			if (x < 0x80000000 && x##_max < x) \
@@ -151,7 +154,7 @@ extern int __debug_show_msg;
 				x##_max = x; \
 				pr_info("max " #x " %u\n", x##_max); \
 			}
-
+#endif
 
 #endif // BSPCONFIG_H_INC
 

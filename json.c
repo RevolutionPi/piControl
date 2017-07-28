@@ -1,21 +1,41 @@
-/*
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
  * Copyright (C) 2009 Vincent Hanquez <vincent@snarc.org>
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation; version 2.1 or version 3.0 only.
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- */
-
-/*
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
+ *
  * the class, states and state transition tables has been inspired by the JSON_parser.c
  * available at http://json.org, but are quite different on the way that the
  * parser handles its parse buffer and contains significant differences that affect
  * the JSON compliance.
+ *
+ *=======================================================================================
  */
 
 #include <linux/module.h>    // included for all kernel modules
@@ -81,7 +101,7 @@ static uint8_t character_class[128] = {
 /* define all states and actions that will be taken on each transition.
  *
  * states are defined first because of the fact they are use as index in the
- * transitions table. they usually contains either a number or a prefix _ 
+ * transitions table. they usually contains either a number or a prefix _
  * for simple state like string, object, value ...
  *
  * actions are defined starting from 0x80. state error is defined as 0xff
@@ -263,11 +283,11 @@ static int state_grow(json_parser *parser)
     void *ptr;
 
     if (parser->config.max_nesting != 0)
-        return JSON_ERROR_NESTING_LIMIT;
+	return JSON_ERROR_NESTING_LIMIT;
 
     ptr = parser_realloc(parser, parser->stack, newsize * sizeof(uint8_t));
     if (!ptr)
-        return JSON_ERROR_NO_MEMORY;
+	return JSON_ERROR_NO_MEMORY;
     parser->stack = ptr;
     parser->stack_size = newsize;
     return 0;
@@ -276,9 +296,9 @@ static int state_grow(json_parser *parser)
 static int state_push(json_parser *parser, int mode)
 {
     if (parser->stack_offset >= parser->stack_size) {
-        int ret = state_grow(parser);
-        if (ret)
-            return ret;
+	int ret = state_grow(parser);
+	if (ret)
+	    return ret;
     }
     parser->stack[parser->stack_offset++] = mode;
     return 0;
@@ -287,10 +307,10 @@ static int state_push(json_parser *parser, int mode)
 static int state_pop(json_parser *parser, int mode)
 {
     if (parser->stack_offset == 0)
-        return JSON_ERROR_POP_EMPTY;
+	return JSON_ERROR_POP_EMPTY;
     parser->stack_offset--;
     if (parser->stack[parser->stack_offset] != mode)
-        return JSON_ERROR_POP_UNEXPECTED_MODE;
+	return JSON_ERROR_POP_UNEXPECTED_MODE;
     return 0;
 }
 
@@ -301,14 +321,14 @@ static int buffer_grow(json_parser *parser)
     uint32_t max = parser->config.max_data;
 
     if (max > 0 && parser->buffer_size == max)
-        return JSON_ERROR_DATA_LIMIT;
+	return JSON_ERROR_DATA_LIMIT;
     newsize = parser->buffer_size * 2;
     if (max > 0 && newsize > max)
-        newsize = max;
+	newsize = max;
 
     ptr = parser_realloc(parser, parser->buffer, newsize * sizeof(char));
     if (!ptr)
-        return JSON_ERROR_NO_MEMORY;
+	return JSON_ERROR_NO_MEMORY;
     parser->buffer = ptr;
     parser->buffer_size = newsize;
     return 0;
@@ -319,9 +339,9 @@ static int buffer_push(json_parser *parser, unsigned char c)
     int ret;
 
     if (parser->buffer_offset + 1 >= parser->buffer_size) {
-        ret = buffer_grow(parser);
-        if (ret)
-            return ret;
+	ret = buffer_grow(parser);
+	if (ret)
+	    return ret;
     }
     parser->buffer[parser->buffer_offset++] = c;
     return 0;
@@ -330,7 +350,7 @@ static int buffer_push(json_parser *parser, unsigned char c)
 static int do_callback_withbuf(json_parser *parser, int type)
 {
     if (!parser->callback)
-        return 0;
+	return 0;
     parser->buffer[parser->buffer_offset] = '\0';
     return (*parser->callback)(parser->userdata, type, parser->buffer, parser->buffer_offset);
 }
@@ -338,7 +358,7 @@ static int do_callback_withbuf(json_parser *parser, int type)
 static int do_callback(json_parser *parser, int type)
 {
     if (!parser->callback)
-        return 0;
+	return 0;
     return (*parser->callback)(parser->userdata, type, NULL, 0);
 }
 
@@ -350,12 +370,12 @@ static int do_buffer(json_parser *parser)
     case JSON_KEY: case JSON_STRING:
     case JSON_FLOAT: case JSON_INT:
     case JSON_NULL: case JSON_TRUE: case JSON_FALSE:
-        ret = do_callback_withbuf(parser, parser->type);
-        if (ret)
-            return ret;
-        break;
+	ret = do_callback_withbuf(parser, parser->type);
+	if (ret)
+	    return ret;
+	break;
     default:
-        break;
+	break;
     }
     parser->buffer_offset = 0;
     return ret;
@@ -387,43 +407,43 @@ static int decode_unicode_char(json_parser *parser)
     int offset = parser->buffer_offset;
 
     uval = (hex(b[offset - 4]) << 12) | (hex(b[offset - 3]) << 8)
-         | (hex(b[offset - 2]) << 4) | hex(b[offset - 1]);
+	 | (hex(b[offset - 2]) << 4) | hex(b[offset - 1]);
 
     parser->buffer_offset -= 4;
 
     /* fast case */
     if (!parser->unicode_multi && uval < 0x80) {
-        b[parser->buffer_offset++] = (char) uval;
-        return 0;
+	b[parser->buffer_offset++] = (char) uval;
+	return 0;
     }
 
     if (parser->unicode_multi) {
-        if (!IS_LOW_SURROGATE(uval))
-            return JSON_ERROR_UNICODE_MISSING_LOW_SURROGATE;
+	if (!IS_LOW_SURROGATE(uval))
+	    return JSON_ERROR_UNICODE_MISSING_LOW_SURROGATE;
 
-        uval = 0x10000 + ((parser->unicode_multi & 0x3ff) << 10) + (uval & 0x3ff);
-        b[parser->buffer_offset++] = (char) ((uval >> 18) | 0xf0);
-        b[parser->buffer_offset++] = (char) (((uval >> 12) & 0x3f) | 0x80);
-        b[parser->buffer_offset++] = (char) (((uval >> 6) & 0x3f) | 0x80);
-        b[parser->buffer_offset++] = (char) ((uval & 0x3f) | 0x80);
-        parser->unicode_multi = 0;
-        return 0;
+	uval = 0x10000 + ((parser->unicode_multi & 0x3ff) << 10) + (uval & 0x3ff);
+	b[parser->buffer_offset++] = (char) ((uval >> 18) | 0xf0);
+	b[parser->buffer_offset++] = (char) (((uval >> 12) & 0x3f) | 0x80);
+	b[parser->buffer_offset++] = (char) (((uval >> 6) & 0x3f) | 0x80);
+	b[parser->buffer_offset++] = (char) ((uval & 0x3f) | 0x80);
+	parser->unicode_multi = 0;
+	return 0;
     }
 
     if (IS_LOW_SURROGATE(uval))
-        return JSON_ERROR_UNICODE_UNEXPECTED_LOW_SURROGATE;
+	return JSON_ERROR_UNICODE_UNEXPECTED_LOW_SURROGATE;
     if (IS_HIGH_SURROGATE(uval)) {
-        parser->unicode_multi = uval;
-        return 0;
+	parser->unicode_multi = uval;
+	return 0;
     }
 
     if (uval < 0x800) {
-        b[parser->buffer_offset++] = (char) ((uval >> 6) | 0xc0);
-        b[parser->buffer_offset++] = (char) ((uval & 0x3f) | 0x80);
+	b[parser->buffer_offset++] = (char) ((uval >> 6) | 0xc0);
+	b[parser->buffer_offset++] = (char) ((uval & 0x3f) | 0x80);
     } else {
-        b[parser->buffer_offset++] = (char) ((uval >> 12) | 0xe0);
-        b[parser->buffer_offset++] = (char) (((uval >> 6) & 0x3f) | 0x80);
-        b[parser->buffer_offset++] = (char) (((uval >> 0) & 0x3f) | 0x80);
+	b[parser->buffer_offset++] = (char) ((uval >> 12) | 0xe0);
+	b[parser->buffer_offset++] = (char) (((uval >> 6) & 0x3f) | 0x80);
+	b[parser->buffer_offset++] = (char) (((uval >> 0) & 0x3f) | 0x80);
     }
     return 0;
 }
@@ -459,7 +479,7 @@ int act_uc(json_parser *parser)
 int act_yb(json_parser *parser)
 {
     if (!parser->config.allow_yaml_comments)
-        return JSON_ERROR_COMMENT_NOT_ALLOWED;
+	return JSON_ERROR_COMMENT_NOT_ALLOWED;
     parser->save_state = parser->state;
     return 0;
 }
@@ -467,7 +487,7 @@ int act_yb(json_parser *parser)
 int act_cb(json_parser *parser)
 {
     if (!parser->config.allow_c_comments)
-        return JSON_ERROR_COMMENT_NOT_ALLOWED;
+	return JSON_ERROR_COMMENT_NOT_ALLOWED;
     parser->save_state = parser->state;
     return 0;
 }
@@ -524,12 +544,12 @@ int act_se(json_parser *parser)
 int act_sp(json_parser *parser)
 {
     if (parser->stack_offset == 0)
-        return JSON_ERROR_COMMA_OUT_OF_STRUCTURE;
+	return JSON_ERROR_COMMA_OUT_OF_STRUCTURE;
     if (parser->stack[parser->stack_offset - 1] == MODE_OBJECT) {
-        parser->expecting_key = 1;
-        parser->state = STATE__K;
+	parser->expecting_key = 1;
+	parser->state = STATE__K;
     } else
-        parser->state = STATE__V;
+	parser->state = STATE__V;
     return 0;
 }
 
@@ -568,13 +588,13 @@ static int do_action(json_parser *parser, int next_state)
     struct action_descr *descr = &actions_map[next_state & ~0x80];
 
     if (descr->call) {
-        int ret;
-        if (descr->dobuffer)
-            CHK(do_buffer(parser));
-        CHK((descr->call)(parser));
+	int ret;
+	if (descr->dobuffer)
+	    CHK(do_buffer(parser));
+	CHK((descr->call)(parser));
     }
     if (descr->state)
-        parser->state = descr->state;
+	parser->state = descr->state;
     parser->type = descr->type;
     return 0;
 }
@@ -584,12 +604,12 @@ static int do_action(json_parser *parser, int next_state)
  * return JSON_ERROR_NO_MEMORY if memory allocation failed or SUCCESS.
  */
 int json_parser_init(json_parser *parser, json_config *config,
-                     json_parser_callback callback, void *userdata)
+		     json_parser_callback callback, void *userdata)
 {
     memset(parser, 0, sizeof(*parser));
 
     if (config)
-        memcpy(&parser->config, config, sizeof(json_config));
+	memcpy(&parser->config, config, sizeof(json_config));
     parser->callback = callback;
     parser->userdata = userdata;
 
@@ -599,25 +619,25 @@ int json_parser_init(json_parser *parser, json_config *config,
 
     /* initialize the parse stack */
     parser->stack_size = (parser->config.max_nesting > 0)
-        ? parser->config.max_nesting
-        : LIBJSON_DEFAULT_STACK_SIZE;
+	? parser->config.max_nesting
+	: LIBJSON_DEFAULT_STACK_SIZE;
 
     parser->stack = parser_calloc(parser, parser->stack_size, sizeof(parser->stack[0]));
     if (!parser->stack)
-        return JSON_ERROR_NO_MEMORY;
+	return JSON_ERROR_NO_MEMORY;
 
     /* initialize the parse buffer */
     parser->buffer_size = (parser->config.buffer_initial_size > 0)
-        ? parser->config.buffer_initial_size
-        : LIBJSON_DEFAULT_BUFFER_SIZE;
+	? parser->config.buffer_initial_size
+	: LIBJSON_DEFAULT_BUFFER_SIZE;
 
     if (parser->config.max_data > 0 && parser->buffer_size > parser->config.max_data)
-        parser->buffer_size = parser->config.max_data;
+	parser->buffer_size = parser->config.max_data;
 
     parser->buffer = parser_calloc(parser, parser->buffer_size, sizeof(char));
     if (!parser->buffer) {
-        kfree(parser->stack);
-        return JSON_ERROR_NO_MEMORY;
+	kfree(parser->stack);
+	return JSON_ERROR_NO_MEMORY;
     }
     return 0;
 }
@@ -626,7 +646,7 @@ int json_parser_init(json_parser *parser, json_config *config,
 int json_parser_free(json_parser *parser)
 {
     if (!parser)
-        return 0;
+	return 0;
     kfree(parser->stack);
     kfree(parser->buffer);
     parser->stack = NULL;
@@ -646,7 +666,7 @@ int json_parser_is_done(json_parser *parser)
  * the user can supplied a valid processed pointer that will
  * be fill with the number of processed characters before returning */
 int json_parser_string(json_parser *parser, const char *s,
-                       uint32_t length, uint32_t *processed)
+		       uint32_t length, uint32_t *processed)
 {
     int ret;
     int next_class, next_state;
@@ -655,43 +675,43 @@ int json_parser_string(json_parser *parser, const char *s,
 
     ret = 0;
     for (i = 0; i < length; i++) {
-        unsigned char ch = s[i];
+	unsigned char ch = s[i];
 
-        ret = 0;
-        next_class = (ch >= 128) ? C_OTHER : character_class[ch];
-        if (next_class == C_ERROR) {
-            ret = JSON_ERROR_BAD_CHAR;
-            break;
-        }
+	ret = 0;
+	next_class = (ch >= 128) ? C_OTHER : character_class[ch];
+	if (next_class == C_ERROR) {
+	    ret = JSON_ERROR_BAD_CHAR;
+	    break;
+	}
 
-        next_state = state_transition_table[parser->state][next_class];
-        buffer_policy = buffer_policy_table[parser->state][next_class];
-        TRACING("addchar %d (current-state=%d, next-state=%d, buf-policy=%d)\n",
-            ch, parser->state, next_state, buffer_policy);
-        if (next_state == STATE___) {
-            ret = JSON_ERROR_UNEXPECTED_CHAR;
-            break;
-        }
+	next_state = state_transition_table[parser->state][next_class];
+	buffer_policy = buffer_policy_table[parser->state][next_class];
+	TRACING("addchar %d (current-state=%d, next-state=%d, buf-policy=%d)\n",
+	    ch, parser->state, next_state, buffer_policy);
+	if (next_state == STATE___) {
+	    ret = JSON_ERROR_UNEXPECTED_CHAR;
+	    break;
+	}
 
-        /* add char to buffer */
-        if (buffer_policy) {
-            ret = (buffer_policy == 2)
-                ? buffer_push_escape(parser, ch)
-                : buffer_push(parser, ch);
-            if (ret)
-                break;
-        }
+	/* add char to buffer */
+	if (buffer_policy) {
+	    ret = (buffer_policy == 2)
+		? buffer_push_escape(parser, ch)
+		: buffer_push(parser, ch);
+	    if (ret)
+		break;
+	}
 
-        /* move to the next level */
-        if (IS_STATE_ACTION(next_state))
-            ret = do_action(parser, next_state);
-        else
-            parser->state = next_state;
-        if (ret)
-            break;
+	/* move to the next level */
+	if (IS_STATE_ACTION(next_state))
+	    ret = do_action(parser, next_state);
+	else
+	    parser->state = next_state;
+	if (ret)
+	    break;
     }
     if (processed)
-        *processed = i;
+	*processed = i;
     return ret;
 }
 
@@ -706,13 +726,13 @@ int json_parser_char(json_parser *parser, unsigned char ch)
 static int dom_push(struct json_parser_dom *ctx, void *val)
 {
     if (ctx->stack_offset == ctx->stack_size) {
-        void *ptr;
-        uint32_t newsize = ctx->stack_size * 2;
-        ptr = memory_realloc(ctx->user_realloc, ctx->stack, newsize);
-        if (!ptr)
-            return JSON_ERROR_NO_MEMORY;
-        ctx->stack = ptr;
-        ctx->stack_size = newsize;
+	void *ptr;
+	uint32_t newsize = ctx->stack_size * 2;
+	ptr = memory_realloc(ctx->user_realloc, ctx->stack, newsize);
+	if (!ptr)
+	    return JSON_ERROR_NO_MEMORY;
+	ctx->stack = ptr;
+	ctx->stack_size = newsize;
     }
     ctx->stack[ctx->stack_offset].val = val;
     ctx->stack[ctx->stack_offset].key = NULL;
@@ -729,16 +749,16 @@ static int dom_pop(struct json_parser_dom *ctx, void **val)
 }
 
 int json_parser_dom_init(json_parser_dom *dom,
-                         json_parser_dom_create_structure create_structure,
-                         json_parser_dom_create_data create_data,
-                         json_parser_dom_append append)
+			 json_parser_dom_create_structure create_structure,
+			 json_parser_dom_create_data create_data,
+			 json_parser_dom_append append)
 {
     memset(dom, 0, sizeof(*dom));
     dom->stack_size = 1024;
     dom->stack_offset = 0;
     dom->stack = memory_calloc(dom->user_calloc, dom->stack_size, sizeof(*(dom->stack)));
     if (!dom->stack)
-        return JSON_ERROR_NO_MEMORY;
+	return JSON_ERROR_NO_MEMORY;
     dom->append = append;
     dom->create_structure = create_structure;
     dom->create_data = create_data;
@@ -760,40 +780,40 @@ int json_parser_dom_callback(void *userdata, int type, const char *data, uint32_
     switch (type) {
     case JSON_ARRAY_BEGIN:
     case JSON_OBJECT_BEGIN:
-        v = ctx->create_structure(type == JSON_OBJECT_BEGIN);
-        if (!v)
-            return JSON_ERROR_CALLBACK;
-        dom_push(ctx, v);
-        break;
+	v = ctx->create_structure(type == JSON_OBJECT_BEGIN);
+	if (!v)
+	    return JSON_ERROR_CALLBACK;
+	dom_push(ctx, v);
+	break;
     case JSON_OBJECT_END:
     case JSON_ARRAY_END:
-        dom_pop(ctx, &v);
-        if (ctx->stack_offset > 0) {
-            stack = &(ctx->stack[ctx->stack_offset - 1]);
-            ctx->append(stack->val, stack->key, stack->key_length, v);
-            kfree(stack->key);
-        } else
-            ctx->root_structure = v;
-        break;
+	dom_pop(ctx, &v);
+	if (ctx->stack_offset > 0) {
+	    stack = &(ctx->stack[ctx->stack_offset - 1]);
+	    ctx->append(stack->val, stack->key, stack->key_length, v);
+	    kfree(stack->key);
+	} else
+	    ctx->root_structure = v;
+	break;
     case JSON_KEY:
-        stack = &(ctx->stack[ctx->stack_offset - 1]);
-        stack->key = memory_calloc(ctx->user_calloc, length + 1, sizeof(char));
-        stack->key_length = length;
-        if (!stack->key)
-            return JSON_ERROR_NO_MEMORY;
-        memcpy(stack->key, data, length);
-        break;
+	stack = &(ctx->stack[ctx->stack_offset - 1]);
+	stack->key = memory_calloc(ctx->user_calloc, length + 1, sizeof(char));
+	stack->key_length = length;
+	if (!stack->key)
+	    return JSON_ERROR_NO_MEMORY;
+	memcpy(stack->key, data, length);
+	break;
     case JSON_STRING:
     case JSON_INT:
     case JSON_FLOAT:
     case JSON_NULL:
     case JSON_TRUE:
     case JSON_FALSE:
-        stack = &(ctx->stack[ctx->stack_offset - 1]);
-        v = ctx->create_data(type, data, length);
-        ctx->append(stack->val, stack->key, stack->key_length, v);
-        kfree(stack->key);
-        break;
+	stack = &(ctx->stack[ctx->stack_offset - 1]);
+	v = ctx->create_data(type, data, length);
+	ctx->append(stack->val, stack->key, stack->key_length, v);
+	kfree(stack->key);
+	break;
     }
     return 0;
 }

@@ -1,17 +1,40 @@
-//+=============================================================================================
-//|
-//|    This file defines global macros for several levels of debug messages and runtime checks.
-//|    It should be included in all files after project.h. 
-//|    CMN_CHECK_LEVEL can be set in project.h
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|    File-ID:    $Id: common_debug.h 7218 2014-10-10 13:43:52Z mduckeck $
-//|    Location:   $URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/common/sw/common_debug.h $
-//|
-//|    Copyright:  KUNBUS GmbH
-//|
-//+=============================================================================================
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * For licencing details see COPYING
+ *
+ *=======================================================================================
+ *
+ * This file defines global macros for several levels of debug messages and runtime checks.
+ * It should be included in all files after project.h.
+ * CMN_CHECK_LEVEL can be set in project.h
+ *
+ *=======================================================================================
+ */
 
 #ifndef _COMMON_DEBUG_H_
 #define _COMMON_DEBUG_H_
@@ -24,9 +47,9 @@ CMN_CHECK_LEVEL defines how checks and debug messages are active
 3		same checks as at level 2, but with printf
 
 CMN_DEBUG calls printf only on CMN_CHECK_LEVEL 3 (for targets with stdout)
-The second parameter is a printf parameter list. 
+The second parameter is a printf parameter list.
 kbDebugLevelMask_g must be defined in the main programm and set to an appropriate
-bit mask. The first parameter of kbDEBUGis linked kbDebugLevelMask_g by bitwise 'and'. 
+bit mask. The first parameter of kbDEBUGis linked kbDebugLevelMask_g by bitwise 'and'.
 So debug messages can be turned on and off even at runtime.
 
 Example:
@@ -54,7 +77,7 @@ CMN_ASSERT(checkLink(), "no link");
 #if CMN_CHECK_LEVEL >= 0 || CMN_CHECK_LEVEL <= 2
 
 #define CMN_ASSERT(assertion, errCode, message)	if(!(assertion)) platformError(errCode, bTRUE, 0);
-#define CMN_DEBUG(level, X)				
+#define CMN_DEBUG(level, X)
 
 #elif CMN_CHECK_LEVEL == 3
 
@@ -62,7 +85,7 @@ CMN_ASSERT(checkLink(), "no link");
 extern "C" INT32U CMN_DebugLevelMask_g;	// must be defined in globally in main()
 #else
 extern INT32U CMN_DebugLevelMask_g;	// must be defined in globally in main()
-#endif 
+#endif
 
 #include <stdio.h>
 

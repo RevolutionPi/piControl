@@ -1,15 +1,34 @@
-//+=============================================================================================
-//|
-//!    \file kbUtilities.c
-//!    Common usable functions, independent from other modules.
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|    File-ID:    $Id: kbUtilities.c 10496 2016-06-17 11:37:26Z mduckeck $
-//|    Location:   $URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/utilities/sw/kbUtilities.c $
-//|    Copyright:  KUNBUS GmbH
-//|
-//+=============================================================================================
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
+ */
 
 #ifdef __KUNBUSPI_KERNEL__
 #include <linux/string.h>
@@ -89,20 +108,20 @@ void kbUT_TimerStart (
 //-------------------------------------------------------------------------------------------------
 TBOOL kbUT_TimerRunning (
     kbUT_Timer *ptTimer_p)      //!< [in] pointer to timer struct
-                                //! \return = bTRUE: timer is actual running, = bFALSE: timer is
-                                //! either not started or expired.
+				//! \return = bTRUE: timer is actual running, = bFALSE: timer is
+				//! either not started or expired.
 
 {
     INT32U i32uTimeDiff_l;
 
     if (ptTimer_p->bRun == bTRUE)
     {
-        i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
-        if (i32uTimeDiff_l >= ptTimer_p->i32uDuration)
-        {  // Timer expired
-            ptTimer_p->bExpired = bTRUE;
-            ptTimer_p->bRun = bFALSE;
-        }
+	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
+	if (i32uTimeDiff_l >= ptTimer_p->i32uDuration)
+	{  // Timer expired
+	    ptTimer_p->bExpired = bTRUE;
+	    ptTimer_p->bRun = bFALSE;
+	}
     }
 
     return (ptTimer_p->bRun);
@@ -127,13 +146,13 @@ TBOOL kbUT_TimerExpired (
 
     if (ptTimer_p->bRun == bTRUE)
     {
-        i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
-        if (i32uTimeDiff_l >= ptTimer_p->i32uDuration)
-        {  // Timer expired
-            ptTimer_p->bExpired = bTRUE;
-            ptTimer_p->bRun = bFALSE;
-            bRv_l = bTRUE;
-        }
+	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
+	if (i32uTimeDiff_l >= ptTimer_p->i32uDuration)
+	{  // Timer expired
+	    ptTimer_p->bExpired = bTRUE;
+	    ptTimer_p->bRun = bFALSE;
+	    bRv_l = bTRUE;
+	}
     }
 
     bRv_l = ptTimer_p->bExpired;
@@ -156,7 +175,7 @@ TBOOL kbUT_TimerExpired (
 //-------------------------------------------------------------------------------------------------
 INT32U kbUT_TimeElapsed (
     kbUT_Timer *ptTimer_p)      //!< [in] pointer to timer
-                                //! \return time elapsed since timer started in ms
+				//! \return time elapsed since timer started in ms
 
 {
 
@@ -164,7 +183,7 @@ INT32U kbUT_TimeElapsed (
 
     if (ptTimer_p->bRun == bTRUE)
     {
-        i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
+	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
     }
 
     return (i32uTimeDiff_l);
@@ -180,8 +199,8 @@ INT32U kbUT_TimeElapsed (
 //-------------------------------------------------------------------------------------------------
 TBOOL kbUT_TimerInUse (
     kbUT_Timer *ptTimer_p)      //!< [in] pointer to timer struct
-                                //! \return = bTRUE: timer is actual running, = bFALSE: timer is
-                                //! either not started or expired and can be restarted now
+				//! \return = bTRUE: timer is actual running, = bFALSE: timer is
+				//! either not started or expired and can be restarted now
 
 {
   return (ptTimer_p->bRun || ptTimer_p->bExpired);
@@ -211,18 +230,18 @@ void kbUT_crc32 (
 
     for (i = 0; i < i16uCnt_p; i++)
     {
-        i32uCrc_l ^= (INT32U)pi8uData_p[i];
-        for (j = 0; j < 8; j++)
-        {
-            if (i32uCrc_l & 0x00000001)
-            {
-                i32uCrc_l = (i32uCrc_l >> 1) ^ CRC32_POLY;
-            }
-            else
-            {
-                i32uCrc_l >>= 1;
-            }
-        }
+	i32uCrc_l ^= (INT32U)pi8uData_p[i];
+	for (j = 0; j < 8; j++)
+	{
+	    if (i32uCrc_l & 0x00000001)
+	    {
+		i32uCrc_l = (i32uCrc_l >> 1) ^ CRC32_POLY;
+	    }
+	    else
+	    {
+		i32uCrc_l >>= 1;
+	    }
+	}
     }
 
     *pi32uCrc_p = i32uCrc_l;
@@ -293,66 +312,66 @@ unsigned long kbUT_atoi(const char *start, int *success)
 
     /* skip whitespace */
     while (*s==' ' || *s=='\t') {
-        s++;
+	s++;
     }
 
     /* check for sign */
     if (*s=='-') {
-        neg=1;
-        s++;
+	neg=1;
+	s++;
     } else if (*s=='0') {
-        s++;
-        if (*s=='x' || *s=='X') {
-            base = 16;
-            s++;
-        }
+	s++;
+	if (*s=='x' || *s=='X') {
+	    base = 16;
+	    s++;
+	}
     } else if (*s=='+') {
-        s++;
+	s++;
     }
 
     max = 0xffffffff / base;
 
     /* process each digit */
     while (*s) {
-        unsigned digit = 0;
-        if (*s >= '0' && *s <= '9')
-        {
-            digit = *s - '0';
-        }
-        else if (base == 16 && *s >= 'a' && *s <= 'f')
-        {
-            digit = *s - 'a' + 10;
-        }
-        else if (base == 16 && *s >= 'A' && *s <= 'F')
-        {
-            digit = *s - 'A' + 10;
-        }
-        else
-        {
-            // unknown character -> stop conversion
-            break;
-        }
-        if (val > max)
-            *success = 0; // overflow
+	unsigned digit = 0;
+	if (*s >= '0' && *s <= '9')
+	{
+	    digit = *s - '0';
+	}
+	else if (base == 16 && *s >= 'a' && *s <= 'f')
+	{
+	    digit = *s - 'a' + 10;
+	}
+	else if (base == 16 && *s >= 'A' && *s <= 'F')
+	{
+	    digit = *s - 'A' + 10;
+	}
+	else
+	{
+	    // unknown character -> stop conversion
+	    break;
+	}
+	if (val > max)
+	    *success = 0; // overflow
 
-        /* shift the number over and add in the new digit */
-        val = val*base + digit;
+	/* shift the number over and add in the new digit */
+	val = val*base + digit;
 
-        /* look at the next character */
-        s++;
+	/* look at the next character */
+	s++;
     }
 
     if (s == start)
     {
-        // not a single character has been converted, this is not successful
-        *success = 0;
-        return val;
+	// not a single character has been converted, this is not successful
+	*success = 0;
+	return val;
     }
 
     /* handle negative numbers */
     if (neg) {
-        val = ~(val-1);
-        return val;
+	val = ~(val-1);
+	return val;
     }
 
     /* done */

@@ -1,14 +1,34 @@
-/*
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
  * Copyright (C) 2009 Vincent Hanquez <vincent@snarc.org>
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation; version 2.1 or version 3.0 only.
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
  */
 
 #ifndef JSON_H
@@ -21,7 +41,7 @@
 #define JSON_MINOR	7
 #define JSON_VERSION	(JSON_MAJOR * 100 + JSON_MINOR)
 
-typedef enum 
+typedef enum
 {
     JSON_NONE,
     JSON_ARRAY_BEGIN,
@@ -111,7 +131,7 @@ typedef struct json_parser {
  * a config and its userdata.
  * return JSON_ERROR_NO_MEMORY if memory allocation failed or SUCCESS.  */
 int json_parser_init(json_parser *parser, json_config *cfg,
-                     json_parser_callback callback, void *userdata);
+		     json_parser_callback callback, void *userdata);
 
 /** json_parser_free freed memory structure allocated by the parser */
 int json_parser_free(json_parser *parser);
@@ -121,7 +141,7 @@ int json_parser_free(json_parser *parser);
  * the user can supplied a valid processed pointer that will
  * be fill with the number of processed characters before returning */
 int json_parser_string(json_parser *parser, const char *string,
-                       uint32_t length, uint32_t *processed);
+		       uint32_t length, uint32_t *processed);
 
 /** json_parser_char append one single char to the parser
  * return 0 if everything went ok, a JSON_ERROR_* otherwise */
@@ -165,9 +185,9 @@ typedef struct json_parser_dom
 
 /** initialize a parser dom structure with the necessary callbacks */
 int json_parser_dom_init(json_parser_dom *helper,
-                         json_parser_dom_create_structure create_structure,
-                         json_parser_dom_create_data create_data,
-                         json_parser_dom_append append);
+			 json_parser_dom_create_structure create_structure,
+			 json_parser_dom_create_data create_data,
+			 json_parser_dom_append append);
 /** free memory allocated by the DOM callback helper */
 int json_parser_dom_free(json_parser_dom *ctx);
 

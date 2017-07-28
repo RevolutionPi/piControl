@@ -1,3 +1,34 @@
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
+ */
 
 #ifndef __KSZ8851_H__
 #define __KSZ8851_H__
@@ -154,9 +185,9 @@ extern ETHERNET_INTERFACE EthDrvKSZ8851_g;
 #define   KSZ8851_TXCR_CRC_ENABLE          0x0002    /* Enable adding a CRC to the end of transmit frame */
 #define   KSZ8851_TXCR_ENABLE              0x0001    /* Enable transmit */
 #define   KSZ8851_TXCR_DEFAULT             ( KSZ8851_TXCR_ICMP_CHECKSUM | KSZ8851_TXCR_UDP_CHECKSUM | \
-                                            KSZ8851_TXCR_TCP_CHECKSUM |  KSZ8851_TXCR_IP_CHECKSUM |  \
-                                            KSZ8851_TXCR_FLOW_ENABLE | \
-                                            KSZ8851_TXCR_PAD_ENABLE | KSZ8851_TXCR_CRC_ENABLE )
+					    KSZ8851_TXCR_TCP_CHECKSUM |  KSZ8851_TXCR_IP_CHECKSUM |  \
+					    KSZ8851_TXCR_FLOW_ENABLE | \
+					    KSZ8851_TXCR_PAD_ENABLE | KSZ8851_TXCR_CRC_ENABLE )
 
 #define KSZ8851_TXSR                    0x72       /* TXSR */
 #define   KSZ8851_TXSR_LATE_COL            0x2000    /* Transmit late collision occurs */
@@ -180,7 +211,7 @@ extern ETHERNET_INTERFACE EthDrvKSZ8851_g;
 #define   KSZ8851_RXCR1_INVERSE_FILTER      0x0002    /* Receive with address check in inverse filtering mode */
 #define   KSZ8851_RXCR1_ENABLE              0x0001    /* Enable receive */
 #define   KSZ8851_RXCR1_DEFAULT             (KSZ8851_RXCR1_BROADCAST |     \
-                                             KSZ8851_RXCR1_ALL_MULTICAST | KSZ8851_RXCR1_UNICAST | KSZ8851_RXCR1_BAD_PACKET | KSZ8851_RXCR1_PROMISCUOUS)
+					     KSZ8851_RXCR1_ALL_MULTICAST | KSZ8851_RXCR1_UNICAST | KSZ8851_RXCR1_BAD_PACKET | KSZ8851_RXCR1_PROMISCUOUS)
 
 #define KSZ8851_RXCR2               0x76       /* RXCR2 */
 #define   KSZ8851_RXCR2_BURST_LEN_MASK      0x00e0    /* SRDBL SPI Receive Data Burst Length */
@@ -196,7 +227,7 @@ extern ETHERNET_INTERFACE EthDrvKSZ8851_g;
 #define   KSZ8851_RXCR2_ICMP_CHECKSUM       0x0002    /* Enable ICMP frame checksum verification */
 #define   KSZ8851_RXCR2_BLOCK_MAC           0x0001    /* Receive drop frame if the SA is same as device MAC address */
 #define   KSZ8851_RXCR2_DEFAULT             ( KSZ8851_RXCR2_IPV6_UDP_FRAG_PASS | KSZ8851_RXCR2_UDP_LITE_CHECKSUM | \
-                                              KSZ8851_RXCR2_ICMP_CHECKSUM )
+					      KSZ8851_RXCR2_ICMP_CHECKSUM )
 
 
 #define KSZ8851_TXMIR            0x78       /* TXMIR */
@@ -217,7 +248,7 @@ extern ETHERNET_INTERFACE EthDrvKSZ8851_g;
 #define   KSZ8851_RXFHSR_RUNT_ERROR               0x0002    /* Received frame was damaged by a collision */
 #define   KSZ8851_RXFHSR_BAD_CRC                  0x0001    /* Received frame has a CRC error */
 #define   KSZ8851_RXFHSR_ERRORS                   ( KSZ8851_RXFHSR_BAD_CRC | KSZ8851_RXFHSR_TOO_LONG | KSZ8851_RXFHSR_RUNT_ERROR | KSZ8851_RXFHSR_PHY_ERROR | \
-                                                    KSZ8851_RXFHSR_ICMP_ERROR | KSZ8851_RXFHSR_IP_ERROR | KSZ8851_RXFHSR_TCP_ERROR | KSZ8851_RXFHSR_UDP_ERROR )
+						    KSZ8851_RXFHSR_ICMP_ERROR | KSZ8851_RXFHSR_IP_ERROR | KSZ8851_RXFHSR_TCP_ERROR | KSZ8851_RXFHSR_UDP_ERROR )
 
 #define KSZ8851_RXFHBCR        0x7E       /* RXFHBCR */
 #define   KSZ8851_RXFHBCR_BYTE_CNT_MASK            0x0FFF    /* Received frame byte size mask */
@@ -420,7 +451,7 @@ extern ETHERNET_INTERFACE EthDrvKSZ8851_g;
 #define KSZ8851_P1CR              0xF6       /* P1CR */
 #define   KSZ8851_P1CR_OFF                0x8000     /* Turn off all the port LEDs (LED3/LED2/LED1/LED0) */
 #define   KSZ8851_P1CR_TX_DISABLE             0x4000     /* Disable port transmit */
-#define   KSZ8851_P1CR_AUTO_NEG_RESTART       0x2000     /* Restart auto-negotiation */ 
+#define   KSZ8851_P1CR_AUTO_NEG_RESTART       0x2000     /* Restart auto-negotiation */
 #define   KSZ8851_P1CR_POWER_DOWN             0x0800     /* Set port power-down */
 #define   KSZ8851_P1CR_AUTO_MDIX_DISABLE      0x0400     /* Disable auto MDI-X */
 #define   KSZ8851_P1CR_FORCE_MDIX             0x0200     /* Force MDI-X */

@@ -1,8 +1,33 @@
-/*!
+/*=======================================================================================
  *
- * Project: piControl
- * (C)    : KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
  *
+ *---------------------------------------------------------------------------------------
+ *
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
  */
 
 /******************************************************************************/
@@ -20,6 +45,7 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <asm/uaccess.h>
+#include <asm/elf.h>
 #include <linux/semaphore.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
@@ -113,10 +139,13 @@ int piGateThread(void *data)
 	ktime_t time;
 	INT8U i8uLastState[2];
 	int i;
+	s64 interval;
+#ifdef MEASURE_DURATION
 	INT32U j1, j1_max = 0;
 	INT32U j2, j2_max = 0;
 	INT32U j3, j3_max = 0;
 	INT32U j4, j4_max = 0;
+#endif
 #ifdef VERBOSE
 	INT16U val;
 	val = 0;
@@ -128,6 +157,13 @@ int piGateThread(void *data)
 	i8uLastState[1] = 0;
 
 	//TODO down(&piDev.gateSem);
+	pr_info("number of CPUs: %d\n", NR_CPUS);
+	if (NR_CPUS == 1) {
+		// use a longer interval time on CM1
+		interval = INTERVAL_PI_GATE + INTERVAL_PI_GATE;
+	} else {
+		interval = INTERVAL_PI_GATE;
+	}
 
 	time = hrtimer_cb_get_time(&piDev_g.gateTimer);
 
@@ -137,7 +173,7 @@ int piGateThread(void *data)
 	DF_PRINTK("mGate thread started\n");
 
 	while (!kthread_should_stop()) {
-		time.tv64 += INTERVAL_PI_GATE;
+		time.tv64 += interval;
 
 		DURSTART(j4);
 		hrtimer_start(&piDev_g.gateTimer, time, HRTIMER_MODE_ABS);

@@ -1,32 +1,37 @@
-//+=============================================================================================
-//|
-//!		\file ksz88851.c
-//!
-//!		Driver for KSZ8851 ethernet controller with spi interface
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|		File-ID:		$Id: ksz8851.c 11088 2016-11-01 12:44:53Z mduckeck $
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|		       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
-//|		       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
-//|		       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
-//|		+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
-//|		|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
-//|		|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
-//|		|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
-//|		|
-//|		|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
-//|		|             |
-//|		+-------------+
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|		Files required:	(none)
-//|
-//+=============================================================================================
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
+ *
+ * Driver for KSZ8851 ethernet controller with spi interface
+ *
+ */
 
 #include <common_define.h>
 #include <project.h>
@@ -555,7 +560,7 @@ INT16U ksz8851ProcessInterrupt(void)
     {
     bLink_s[spi_selected_chip()] = (ksz8851_regrd(KSZ8851_P1SR) & KSZ8851_P1SR_STATUS_LINK_GOOD) ? bTRUE : bFALSE;
 	clr |= KSZ8851_IER_PHY;
-#if 0 //xx def MODGATE_DEBUG_LED
+#ifdef MODGATE_DEBUG_LED
 	if (bLink_s[spi_selected_chip()])
 	{
 	    LED_setLed(MODGATE_DEBUG_LED, LED_ST_GREEN_ON);
@@ -799,11 +804,10 @@ TBOOL ksz8851PacketRead(
 
     if (i16uLength > *pi16uLength_p)
     {
-#if 1 //def __KUNBUSPI_KERNEL__
 	pr_err("ksz8851PacketRead(%d) too long %d > %d\n", spi_selected_chip(), i16uLength, *pi16uLength_p);
 	ksz8851RetrievePacketData(dummy, i16uLength);
 	ksz8851EndPacketRetrieve();
-#endif
+
 	*pi16uLength_p = i16uLength;
 	bRet = bFALSE;
     }
@@ -839,7 +843,7 @@ TBOOL ksz8851PacketSend(
     if (i16uLength > 500)
     {
 	if ((kbUT_getCurrentMs() - last) > 10) {
-	    pr_info("PackSend pause %u\n", (kbUT_getCurrentMs() - last));
+	    pr_info_spi("PackSend pause %u\n", (kbUT_getCurrentMs() - last));
 	    //dump_stack();
 	}
 	last = kbUT_getCurrentMs();
@@ -888,13 +892,13 @@ void ksz8851HardwareReset(void)
     pr_info_spi("ksz8851HardwareReset\n");
     if (gpio_request(GPIO_RESET, "KSZReset") < 0)
     {
-	pr_err("kzs8851Reset: Can not get GPIO_RESET\n");
+	pr_err("kzs8851Reset: Cannot request gpio GPIO_RESET\n");
     }
     else
     {
 	if (gpio_direction_output(GPIO_RESET, 1) < 0)
 	{
-	    pr_err("GPIO_RESET failed\n");
+	    pr_err("setting GPIO_RESET failed\n");
 	}
 	pr_info("ksz8851HardwareReset\n");
 	msleep(20);

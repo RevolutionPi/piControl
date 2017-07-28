@@ -1,15 +1,34 @@
-//+=============================================================================================
-//|
-//!             \file ModGateComMain.c
-//!             Communication layers of mGate
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|             File-ID:                $Id: ModGateComMain.c 11815 2017-06-14 05:35:41Z mduckeck $
-//|             Location:               $URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/ModGateCom/sw/ModGateComMain.c $
-//|             Company:                $Cpn: KUNBUS GmbH $
-//|
-//+=============================================================================================
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
+ */
 
 #include <common_define.h>
 
@@ -164,7 +183,6 @@ void MG_LL_abort(LLHandle llHdl)
 		kbUT_free(llHdl->pLastData);
 		llHdl->pLastData = 0;
 	}
-	//xx llHdl->recv_tick = 0;
 	llHdl->send_tick = 0;
 }
 
@@ -249,7 +267,6 @@ MODGATECOM_Packet *MG_LL_recv(LLHandle llHdl, INT32U * pi32uStatus_p, INT16U * p
 	}
 
 	while (1) {
-		read_again:
 		i16uPackelLen_l = MODGATE_LL_MAX_LEN;
 		ret = EthDrv_s->packetRead((INT8U *) pPacket_l, &i16uPackelLen_l);
 		if (ret) {
@@ -283,7 +300,7 @@ MODGATECOM_Packet *MG_LL_recv(LLHandle llHdl, INT32U * pi32uStatus_p, INT16U * p
 						goto check_again;
 					}
 				}
-                //else {
+		//else {
 					llHdl->send_tick = 0;
 					llHdl->state = diff - 1;
 					if (llHdl->pLastData) {
@@ -486,11 +503,11 @@ void MODGATECOM_run(void)
 	MODGATECOM_Packet *pPacket_l = 0;
 	INT32U oldState, newState;
 	int inst;
+#ifdef MEASURE_DURATION
 	static INT32U l1, l1_max = 0;
 	static INT32U l2, l2_max = 0;
 	static INT32U l3, l3_max = 0;
-    static INT32U wrong_state;
-
+#endif
 #ifdef __KUNBUSPI_KERNEL__
 #elif defined(__KUNBUSPI__)
 #else
@@ -544,7 +561,7 @@ void MODGATECOM_run(void)
 				case MODGATE_AL_CMD_ID_Resp:
 					//if (AL_Data_s[inst].i8uState == MODGATE_ST_ID_REQ ||
 					//    AL_Data_s[inst].i8uState == MODGATE_ST_ID_RESP) {
-                    if (AL_Data_s[inst].i8uState >= MODGATE_ST_ID_REQ) {
+		    if (AL_Data_s[inst].i8uState >= MODGATE_ST_ID_REQ) {
 						// if we are waiting for the response, process it and go to run state
 						if (MODGATECOM_recv_Id_Resp(&AL_Data_s[inst], pPacket_l)) {
 							AL_Data_s[inst].i8uState = MODGATE_ST_RUN_NO_DATA;
@@ -552,11 +569,11 @@ void MODGATECOM_run(void)
 							bSend = bTRUE;
 						}
 						pPacket_l = 0;
-                    }
-                    //else {
-                    //    // otherwise ignore message
-                    //    wrong_state++;
-                    //}
+		    }
+		    //else {
+		    //    // otherwise ignore message
+		    //    wrong_state++;
+		    //}
 					break;
 
 				case MODGATE_AL_CMD_cyclicPD:
@@ -606,7 +623,7 @@ void MODGATECOM_run(void)
 							}
 						}
 #endif
-                    }
+		    }
 					break;
 
 				case MODGATE_AL_CMD_ST_Req:	// not used
@@ -713,8 +730,8 @@ void MODGATECOM_run(void)
 					}
 				} else {
 					if (kbUT_TimerExpired(&AL_Data_s[inst].AL_Timeout)) {
-                        AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
-                        AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
+			AL_Data_s[inst].i8uState = MODGATE_ST_ID_REQ;
+			AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_DATA_MISSING;
 					}
 				}
 				DURSTOP(l2);

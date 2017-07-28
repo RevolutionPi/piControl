@@ -1,15 +1,34 @@
-//+=============================================================================================
-//|
-//!		\file bspError.h
-//!		Default Error Values.
-//|
-//+---------------------------------------------------------------------------------------------
-//|
-//|		File-ID:		$Id: bspError.h 9415 2015-10-26 15:28:18Z dconzelmann $
-//|		Location:		$URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/bsp/sw/bsp/bspError.h $
-//|		Company:		$Cpn: KUNBUS GmbH $
-//|
-//+=============================================================================================
+/*=======================================================================================
+ *
+ *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
+ *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
+ *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
+ *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
+ *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
+ *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
+ *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
+ *	|
+ *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
+ *	|             |
+ *	+-------------+
+ *
+ *---------------------------------------------------------------------------------------
+ *
+ * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License V2 as published by
+ * the Free Software Foundation
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *  For licencing details see COPYING
+ *
+ *=======================================================================================
+ */
 #ifndef BSPERROR_H_INC
 #define BSPERROR_H_INC
 
@@ -47,8 +66,8 @@
 
 #define BSPE_EE_VAR_NOT_EXIST               0x00020000  //!< Requested Variable from EEPROM does not exist
 #define BSPE_EE_WRITE_ERROR                 0x00020001  //!< Write Error during wirte to EEPROM
-#define BSPE_EE_WRITE_ADR_NOT_EXIST         0x00020002  //!< requested adress for write is out of range  
-#define BSPE_EE_READ_ADR_NOT_EXIST          0x00020003  //!< requested adress for read is out of range  
+#define BSPE_EE_WRITE_ADR_NOT_EXIST         0x00020002  //!< requested adress for write is out of range
+#define BSPE_EE_READ_ADR_NOT_EXIST          0x00020003  //!< requested adress for read is out of range
 #define BSPE_EE_INIT_ERROR_01               0x00020004  //!< Error during EEPROM initialization occured
 #define BSPE_EE_PAGE_FULL                   0x00020005  //!< Internal use: EEPROM page is full
 #define BSPE_EE_NO_VALID_PAGE               0x00020006  //!< Internal Error: no valid Page found
@@ -67,13 +86,13 @@
 #define BSPE_EE_INIT_ERROR_14               0x00020013  //!< Error during EEPROM initialization occured
 #define BSPE_EE_INIT_ERROR_15               0x00020014  //!< Error during EEPROM initialization occured
 #define BSPE_EE_INIT_ERROR_16               0x00020015  //!< Error during EEPROM initialization occured
-#define BSPE_EE_RD_BYTE_ADR_OUT_OF_RANGE    0x00020016  //!< requested adress is out of range  
-#define BSPE_EE_RD_WORD_ADR_OUT_OF_RANGE    0x00020017  //!< requested adress is out of range  
-#define BSPE_EE_RD_DWORD_ADR_OUT_OF_RANGE   0x00020018  //!< requested adress is out of range  
-#define BSPE_EE_WR_BYTE_ADR_OUT_OF_RANGE    0x00020019  //!< requested adress is out of range  
-#define BSPE_EE_WR_WORD_ADR_OUT_OF_RANGE    0x0002001a  //!< requested adress is out of range  
-#define BSPE_EE_WR_DWORD_ADR_OUT_OF_RANGE   0x0002001b  //!< requested adress is out of range  
-#define BSPE_EE_DEF_DATA_ADR_OUT_OF_RANGE   0x0002001c  //!< requested adress is out of range  
+#define BSPE_EE_RD_BYTE_ADR_OUT_OF_RANGE    0x00020016  //!< requested adress is out of range
+#define BSPE_EE_RD_WORD_ADR_OUT_OF_RANGE    0x00020017  //!< requested adress is out of range
+#define BSPE_EE_RD_DWORD_ADR_OUT_OF_RANGE   0x00020018  //!< requested adress is out of range
+#define BSPE_EE_WR_BYTE_ADR_OUT_OF_RANGE    0x00020019  //!< requested adress is out of range
+#define BSPE_EE_WR_WORD_ADR_OUT_OF_RANGE    0x0002001a  //!< requested adress is out of range
+#define BSPE_EE_WR_DWORD_ADR_OUT_OF_RANGE   0x0002001b  //!< requested adress is out of range
+#define BSPE_EE_DEF_DATA_ADR_OUT_OF_RANGE   0x0002001c  //!< requested adress is out of range
 #define BSPE_EE_ADDRESES_OUT_OF_SPACE       0x0002001d  //!< Too much EEPROM addresses defined
 #define BSPE_EE_FORMAT_FACTORY_RESET        0x0002001e  //!< Format of EEPROM failed in BSP_EEPROM_factoryReset ()
 #define BSPE_EE_WRITE_READY_TIME_OUT        0x0002001f  //!< Ready signal after a write does not appear
@@ -93,7 +112,7 @@
 #define BSPE_UART_PARITY                    0x00040004  //!< Parity Type is not supported
 #define BSPE_UART_DATA_LEN                  0x00040005  //!< Data Length is not supported
 #define BSPE_UART_TX_NOT_EMPTY              0x00040006  //!< Transmitter Register is not empty during a send attempt
-#define BSPE_UART_BUS_JOB_PENDING           0x00040007  //!< Send Buffer: There is actually a job pending 
+#define BSPE_UART_BUS_JOB_PENDING           0x00040007  //!< Send Buffer: There is actually a job pending
 
 #define BSPE_TIMER_NUM_ERR                  0x00050000  //!< Timer Number does not exist
 #define BSPE_TIMER_PRESCALE_RANGE           0x00050001  //!< Prescal factor for timer initialization is out of range
@@ -104,12 +123,12 @@
 #define BSPE_LED_GET_OUT_OF_RANGE           0x00060002  //!< Index of Get LED is out of Range
 
 #define BSPE_SPI_PORT_ERR                   0x00070000  //!< Port Number is not supported
-#define BSPE_SPI_BUS_JOB_PENDING            0x00070001  //!< Send Buffer: There is actually a job pending 
+#define BSPE_SPI_BUS_JOB_PENDING            0x00070001  //!< Send Buffer: There is actually a job pending
 #define BSPE_SPI_DMA_PERR					0x00070002	///< DMA Pointer invalid or missing
 #define BSPE_SPI_INV_PRT					0x00070003	///< Invalid SPI Port
 #define BSPE_SPI_PRT_RANGE					0x00070004	///< Invalid SPI Port
 
-#define BSPE_CC_INIT_ERR                    0x00080000  //!< Error in time of HW interface intialization 
+#define BSPE_CC_INIT_ERR                    0x00080000  //!< Error in time of HW interface intialization
 #define BSPE_CC_INIT_HSI_ERR                0x00080001	//!< internal HSI RC (8 MHz) error
 #define BSPE_CC_INIT_HSE_ERR                0x00080002	//!< ext. high frequency OSC error
 #define BSPE_CC_INIT_PLL_ERR                0x00080003	//!< PLL init error
@@ -117,7 +136,7 @@
 #define BSPE_EXTI_LINE1                     0x00090000  //!< EXTI; Invalid Line Parameter
 #define BSPE_EXTI_ALREADY_INIT              0x00090001  //!< Line is already initialized
 #define BSPE_EXTI_PRIO_CONFLICT             0x00090002  //!< Interrupt Priorization conflict
-#define BSPE_EXTI_PORT                      0x00090003  //!< Invalid Port 
+#define BSPE_EXTI_PORT                      0x00090003  //!< Invalid Port
 #define BSPE_EXTI_NO_EDGE                   0x00090004  //!< Invalid Edge Setting
 #define BSPE_EXTI_INVALID_PIN               0x00090005  //!< Invalid Edge Setting
 #define BSPE_EXTI_INTERN1                   0x00090006  //!< Internal error
@@ -195,17 +214,17 @@
 
 
 #ifdef __cplusplus
-extern "C" { 
-#endif 
+extern "C" {
+#endif
 
 void bspSetExceptionPoint (BSP_TJumpBuf *ptJumpBuf_p);
 BSP_TJumpBuf *bspGetExceptionPoint (void);
 
 void bspError (INT32U i32uErrCode_p, TBOOL bFatalErr_p, INT8U i8uParaCnt_p, ...);
 
-#ifdef  __cplusplus 
-} 
-#endif 
+#ifdef  __cplusplus
+}
+#endif
 
 
 #endif //BSPERROR_H_INC
