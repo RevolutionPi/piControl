@@ -175,7 +175,10 @@ INT32U piAIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 			aioConfig_s[i8uConfigured_s].sAioRtdConfig[0].i8uSensorType = pEnt[i].i32uDefault;
 			break;
 		case AIO_OFFSET_RTD1Method:
-			aioConfig_s[i8uConfigured_s].sAioRtdConfig[0].i8uMeasureMethod = pEnt[i].i32uDefault;
+			if (pEnt[i].i32uDefault == 1)
+				aioConfig_s[i8uConfigured_s].sAioRtdConfig[0].i8uMeasureMethod = 1;	// 4 wire
+			else
+				aioConfig_s[i8uConfigured_s].sAioRtdConfig[0].i8uMeasureMethod = 0;	// 2 or 3 wire
 			break;
 		case AIO_OFFSET_RTD1Factor:
 			aioConfig_s[i8uConfigured_s].sAioRtdConfig[0].i16sA1 = pEnt[i].i32uDefault;
@@ -190,7 +193,10 @@ INT32U piAIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 			aioConfig_s[i8uConfigured_s].sAioRtdConfig[1].i8uSensorType = pEnt[i].i32uDefault;
 			break;
 		case AIO_OFFSET_RTD2Method:
-			aioConfig_s[i8uConfigured_s].sAioRtdConfig[1].i8uMeasureMethod = pEnt[i].i32uDefault;
+			if (pEnt[i].i32uDefault == 1)
+				aioConfig_s[i8uConfigured_s].sAioRtdConfig[1].i8uMeasureMethod = 1;	// 4 wire
+			else
+				aioConfig_s[i8uConfigured_s].sAioRtdConfig[1].i8uMeasureMethod = 0;	// 2 or 3 wire
 			break;
 		case AIO_OFFSET_RTD2Factor:
 			aioConfig_s[i8uConfigured_s].sAioRtdConfig[1].i16sA1 = pEnt[i].i32uDefault;
