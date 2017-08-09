@@ -170,7 +170,7 @@ int piGateThread(void *data)
 	/* start after one second */
 	time.tv64 += HZ;
 
-	DF_PRINTK("mGate thread started\n");
+	pr_info("mGate thread started\n");
 
 	while (!kthread_should_stop()) {
 		time.tv64 += interval;
@@ -205,7 +205,7 @@ int piGateThread(void *data)
 
 		if (MODGATECOM_has_fatal_error()) {
 			// stop the thread if an fatal error occurred
-			printk("mGate exit thread because of fatal error\n");
+			pr_err("mGate exit thread because of fatal error\n");
 			return -1;
 		}
 
@@ -213,12 +213,12 @@ int piGateThread(void *data)
 		    && AL_Data_s[0].i8uState >= MODGATE_ST_RUN_NO_DATA && i8uLastState[0] < MODGATE_ST_RUN_NO_DATA) {
 			// das mGate wurde beim Scan nicht erkannt, PiBridgeEth Kommunikation ist aber möglich
 			// suche den Konfigeintrag dazu
-			DF_PRINTK("search for right mGate %d\n", AL_Data_s[0].OtherID.i16uModulType);
+			pr_info("search for right mGate %d\n", AL_Data_s[0].OtherID.i16uModulType);
 			for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
 				if (RevPiScan.dev[i].sId.i16uModulType ==
 				    (AL_Data_s[0].OtherID.i16uModulType | PICONTROL_NOT_CONNECTED)
 				    && RevPiScan.dev[i].i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
-					DF_PRINTK("found mGate %d\n", i);
+					pr_info("found mGate %d\n", i);
 					RevPiScan.dev[i].i8uActive = 1;
 					RevPiScan.dev[i].sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
 					piDev_g.i8uRightMGateIdx = i;
@@ -230,13 +230,13 @@ int piGateThread(void *data)
 		    && AL_Data_s[1].i8uState >= MODGATE_ST_RUN_NO_DATA && i8uLastState[1] < MODGATE_ST_RUN_NO_DATA) {
 			// das mGate wurde beim Scan nicht erkannt, PiBridgeEth Kommunikation ist aber möglich
 			// suche den Konfigeintrag dazu
-			DF_PRINTK("search for left mGate %d\n", AL_Data_s[1].OtherID.i16uModulType);
+			pr_info("search for left mGate %d\n", AL_Data_s[1].OtherID.i16uModulType);
 			for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
 
 				if (RevPiScan.dev[i].sId.i16uModulType ==
 				    (AL_Data_s[1].OtherID.i16uModulType | PICONTROL_NOT_CONNECTED)
 				    && RevPiScan.dev[i].i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
-					DF_PRINTK("found mGate %d\n", i);
+					pr_info("found mGate %d\n", i);
 					RevPiScan.dev[i].i8uActive = 1;
 					RevPiScan.dev[i].sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
 					piDev_g.i8uLeftMGateIdx = i;
@@ -271,7 +271,7 @@ int piGateThread(void *data)
 		if (val >= 200) {
 			val = 0;
 			if (piDev_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-				DF_PRINTK("right  %02x %02x   %d %d\n",
+				pr_info("right  %02x %02x   %d %d\n",
 					  *(piDev_g.ai8uPI +
 					    RevPiDevice.dev[piDev_g.i8uRightMGateIdx].i16uInputOffset),
 					  *(piDev_g.ai8uPI +
@@ -279,11 +279,11 @@ int piGateThread(void *data)
 					  RevPiDevice.dev[piDev_g.i8uRightMGateIdx].i16uInputOffset,
 					  RevPiDevice.dev[piDev_g.i8uRightMGateIdx].i16uOutputOffset);
 			} else {
-				DF_PRINTK("right  no device\n");
+				pr_info("right  no device\n");
 			}
 
 			if (piDev_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-				DF_PRINTK("left %02x %02x   %d %d\n",
+				pr_info("left %02x %02x   %d %d\n",
 					  *(piDev_g.ai8uPI +
 					    RevPiDevice.dev[piDev_g.i8uLeftMGateIdx].i16uInputOffset),
 					  *(piDev_g.ai8uPI +
@@ -291,13 +291,13 @@ int piGateThread(void *data)
 					  RevPiDevice.dev[piDev_g.i8uLeftMGateIdx].i16uInputOffset,
 					  RevPiDevice.dev[piDev_g.i8uLeftMGateIdx].i16uOutputOffset);
 			} else {
-				DF_PRINTK("left   no device\n");
+				pr_info("left   no device\n");
 			}
 		}
 #endif
 	}
 
-	printk("mGate exit\n");
+	pr_info("mGate exit\n");
 	return 0;
 }
 
@@ -317,7 +317,7 @@ int piIoThread(void *data)
 	hrtimer_init(&piDev_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	piDev_g.ioTimer.function = piIoTimer;
 
-	printk("piIO thread started\n");
+	pr_info("piIO thread started\n");
 
 	now = hrtimer_cb_get_time(&piDev_g.ioTimer);
 
@@ -344,7 +344,7 @@ int piIoThread(void *data)
 				// the outputs were not written by logiCAD for more than twice the normal period
 				// the logiRTS must have been stopped or crashed
 				// -> set all outputs to 0
-				DF_PRINTK("logiRTS timeout, set all output to 0\n");
+				pr_info("logiRTS timeout, set all output to 0\n");
 				rt_mutex_lock(&piDev_g.lockPI);
 				for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
 					uint16_t len = piDev_g.cl->ent[i].i16uLength;
@@ -377,7 +377,7 @@ int piIoThread(void *data)
 		if ((now.tv64 - time.tv64) > 0) {
 			// the call of PiBridgeMaster_Run() needed more time than the INTERVAL
 			// -> wait an additional ms
-			//DF_PRINTK("%d ms too late, state %d\n", (int)((now.tv64 - time.tv64) >> 20), piDev_g.eBridgeState);
+			//pr_info("%d ms too late, state %d\n", (int)((now.tv64 - time.tv64) >> 20), piDev_g.eBridgeState);
 			time.tv64 = now.tv64 + INTERVAL_ADDITIONAL;
 		}
 
@@ -387,7 +387,7 @@ int piIoThread(void *data)
 
 	RevPiDevice_finish();
 
-	printk("piIO exit\n");
+	pr_info("piIO exit\n");
 	return 0;
 }
 
@@ -397,7 +397,7 @@ int piIoThread(void *data)
 #ifdef UART_TEST
 void piControlDummyReceive(INT8U i8uChar_p)
 {
-	printk("Got character %c\n", i8uChar_p);
+	pr_info("Got character %c\n", i8uChar_p);
 }
 #endif
 
@@ -417,7 +417,7 @@ static int __init piControlInit(void)
 	struct sched_param param;
 	int res;
 
-	DF_PRINTK("built: %s\n", COMPILETIME);
+	pr_info("built: %s\n", COMPILETIME);
 
 	// Uart
 #ifdef UART_TEST		// test
@@ -462,22 +462,15 @@ static int __init piControlInit(void)
 	piDev_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piDev_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 
-#if 0
-	res = misc_register(&piControl_dev);
-	if (res) {
-		DF_PRINTK("can't misc_register on minor=%d\n", 155);
-		return -EFAULT;
-	}
-#else
 	// alloc_chrdev_region return 0 on success
 	res = alloc_chrdev_region(&piControlMajor, 0, 2, "piControl");
 
 	if (res) {
-		DF_PRINTK("ERROR: PN Driver not registered \n");
+		pr_info("ERROR: PN Driver not registered \n");
 		cleanup();
 		return res;
 	} else {
-		DF_PRINTK("MAJOR-No.  : %d\n", MAJOR(piControlMajor));
+		pr_info("MAJOR-No.  : %d\n", MAJOR(piControlMajor));
 	}
 	piDev_g.init_step = 1;
 
@@ -512,19 +505,18 @@ static int __init piControlInit(void)
 	}
 
 	if (cdev_add(&piDev_g.cdev, curdev, 1)) {
-		DF_PRINTK("Add Cdev failed\n");
+		pr_info("Add Cdev failed\n");
 		cleanup();
 		return -EFAULT;
 	} else {
-		DF_PRINTK("MAJOR-No.  : %d  MINOR-No.  : %d\n", MAJOR(curdev), MINOR(curdev));
+		pr_info("MAJOR-No.  : %d  MINOR-No.  : %d\n", MAJOR(curdev), MINOR(curdev));
 	}
 	piDev_g.init_step = 2;
 
-#endif
 
 	/* Request gpios */
 	if (gpio_request(GPIO_LED_PWRRED, "GPIO_LED_PWRRED")) {
-		printk("cannot open gpio GPIO_LED_PWRRED\n");
+		pr_err("cannot open gpio GPIO_LED_PWRRED\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -534,7 +526,7 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 3;
 
 	if (gpio_request(GPIO_LED_AGRN, "GPIO_LED_AGRN")) {
-		printk("cannot open gpio GPIO_LED_AGRN\n");
+		pr_err("cannot open gpio GPIO_LED_AGRN\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -544,7 +536,7 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 4;
 
 	if (gpio_request(GPIO_LED_ARED, "GPIO_LED_ARED")) {
-		printk("cannot open gpio GPIO_LED_ARED\n");
+		pr_err("cannot open gpio GPIO_LED_ARED\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -554,7 +546,7 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 5;
 
 	if (gpio_request(GPIO_LED_BGRN, "GPIO_LED_BGRN")) {
-		printk("cannot open gpio GPIO_LED_BGRN\n");
+		pr_err("cannot open gpio GPIO_LED_BGRN\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -564,7 +556,7 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 6;
 
 	if (gpio_request(GPIO_LED_BRED, "GPIO_LED_BRED")) {
-		printk("cannot open gpio GPIO_LED_ARED\n");
+		pr_err("cannot open gpio GPIO_LED_ARED\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -574,7 +566,7 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 7;
 
 	if (gpio_request(GPIO_SNIFF1A, "Sniff1A") < 0) {
-		printk("Cannot open gpio GPIO_SNIFF1A\n");
+		pr_err("Cannot open gpio GPIO_SNIFF1A\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -583,7 +575,7 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 8;
 
 	if (gpio_request(GPIO_SNIFF1B, "Sniff1B") < 0) {
-		printk("Cannot open gpio GPIO_SNIFF1B\n");
+		pr_err("Cannot open gpio GPIO_SNIFF1B\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -592,7 +584,7 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 9;
 
 	if (gpio_request(GPIO_SNIFF2A, "Sniff2A") < 0) {
-		printk("Cannot open gpio GPIO_SNIFF2A\n");
+		pr_err("Cannot open gpio GPIO_SNIFF2A\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -601,7 +593,7 @@ static int __init piControlInit(void)
 	piDev_g.init_step = 10;
 
 	if (gpio_request(GPIO_SNIFF2B, "Sniff2B") < 0) {
-		printk("Cannot open gpio GPIO_SNIFF2B\n");
+		pr_err("Cannot open gpio GPIO_SNIFF2B\n");
 		cleanup();
 		return -EFAULT;
 	} else {
@@ -620,7 +612,7 @@ static int __init piControlInit(void)
 	sema_init(&piDev_g.gateSem, 0);
 
 	if (piIoComm_init()) {
-		printk("open serial port failed\n");
+		pr_err("open serial port failed\n");
 		cleanup();
 		return -EFAULT;
 	}
@@ -636,7 +628,7 @@ static int __init piControlInit(void)
 
 	i32uRv = MODGATECOM_init(piDev_g.ai8uInput, KB_PD_LEN, piDev_g.ai8uOutput, KB_PD_LEN, &EthDrvKSZ8851_g);
 	if (i32uRv != MODGATECOM_NO_ERROR) {
-		printk("MODGATECOM_init error %08x\n", i32uRv);
+		pr_err("MODGATECOM_init error %08x\n", i32uRv);
 		cleanup();
 		return -EFAULT;
 	}
@@ -645,7 +637,7 @@ static int __init piControlInit(void)
 	/* run threads */
 	piDev_g.pGateThread = kthread_run(&piGateThread, NULL, "piGateT");
 	if (piDev_g.pGateThread == NULL) {
-		printk("kthread_run(gate) failed\n");
+		pr_err("kthread_run(gate) failed\n");
 		cleanup();
 		return -EFAULT;
 	}
@@ -655,7 +647,7 @@ static int __init piControlInit(void)
 
 	piDev_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
 	if (piDev_g.pUartThread == NULL) {
-		printk("kthread_run(uart) failed\n");
+		pr_err("kthread_run(uart) failed\n");
 		cleanup();
 		return -EFAULT;
 	}
@@ -665,7 +657,7 @@ static int __init piControlInit(void)
 
 	piDev_g.pIoThread = kthread_run(&piIoThread, NULL, "piIoT");
 	if (piDev_g.pIoThread == NULL) {
-		printk("kthread_run(io) failed\n");
+		pr_err("kthread_run(io) failed\n");
 		cleanup();
 		return -EFAULT;
 	}
@@ -681,7 +673,7 @@ static int __init piControlInit(void)
 	}
 
 
-	DF_PRINTK("piControlInit done\n");
+	pr_info("piControlInit done\n");
 	return 0;
 }
 
@@ -763,7 +755,7 @@ static void cleanup(void)
 		dev_t curdev;
 
 		curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor) + devindex);
-		DF_PRINTK("Remove MINOR-No.  : %d\n", MINOR(curdev));
+		pr_info("Remove MINOR-No.  : %d\n", MINOR(curdev));
 		device_destroy(piControlClass, curdev);
 	}
 
@@ -869,7 +861,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 
 	init_waitqueue_head(&priv->wq);
 
-	dev_info(priv->dev, "piControlOpen");
+	//dev_info(priv->dev, "piControlOpen");
 
 	piDev_g.PnAppCon++;
 	priv->instNum = piDev_g.PnAppCon;
@@ -893,7 +885,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 
 	priv = (tpiControlInst *) file->private_data;
 
-	dev_info(priv->dev, "piControlRelease");
+	//dev_info(priv->dev, "piControlRelease");
 
 	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
 	piDev_g.PnAppCon--;
@@ -946,7 +938,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 	pPd = piDev_g.ai8uPI + *ppos;
 
 #ifdef VERBOSE
-	DF_PRINTK("piControlRead Count=%u, Pos=%llu: %02x %02x\n", count, *ppos, pPd[0], pPd[1]);
+	pr_info("piControlRead Count=%u, Pos=%llu: %02x %02x\n", count, *ppos, pPd[0], pPd[1]);
 #endif
 
 	rt_mutex_lock(&piDev_g.lockPI);
@@ -996,7 +988,7 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 	}
 	rt_mutex_unlock(&piDev_g.lockPI);
 #ifdef VERBOSE
-	DF_PRINTK("piControlWrite Count=%u, Pos=%llu: %02x %02x\n", count, *ppos, pPd[0], pPd[1]);
+	pr_info("piControlWrite Count=%u, Pos=%llu: %02x %02x\n", count, *ppos, pPd[0], pPd[1]);
 #endif
 	*ppos += nwrite;
 
@@ -1107,16 +1099,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	switch (prg_nr) {
 	case KB_CMD1:
 		// do something, copy_from_user ... copy_to_user
-		printk("jetzt mal printk\n");
-		DF_PRINTK("jetzt DF_PRINTK\n");
-		msleep(100);
-		dev_info(priv->dev, "Got IOCTL 1");
+		//dev_info(priv->dev, "Got IOCTL 1");
 		status = 0;
 		break;
 
 	case KB_CMD2:
 		// do something, copy_from_user ... copy_to_user
-		dev_info(priv->dev, "Got IOCTL 2");
+		//dev_info(priv->dev, "Got IOCTL 2");
 		status = 0;
 		break;
 
@@ -1249,8 +1238,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				rt_mutex_unlock(&piDev_g.lockPI);
 
 #ifdef VERBOSE
-				DF_PRINTK
-				    ("piControlIoctl Addr=%u, bit=%u: %02x %02x\n",
+				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n",
 				     pValue->i16uAddress, pValue->i8uBit, pValue->i8uValue, i8uValue_l);
 #endif
 
@@ -1273,7 +1261,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
-				//DF_PRINTK("strcmp(%s, %s)\n", piDev_g.ent->ent[i].strVarName, var->strVarName);
+				//pr_info("strcmp(%s, %s)\n", piDev_g.ent->ent[i].strVarName, var->strVarName);
 				if (strcmp(piDev_g.ent->ent[i].strVarName, var->strVarName) == 0) {
 					var->i16uAddress = piDev_g.ent->ent[i].i16uOffset;
 					var->i8uBit = piDev_g.ent->ent[i].i8uBitPos;
@@ -1299,7 +1287,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EFAULT;
 
 			if (file == 0 || usr_addr == 0) {
-				DF_PRINTK("piControlIoctl: illegal parameter\n");
+				pr_info("piControlIoctl: illegal parameter\n");
 				return -EINVAL;
 			}
 
@@ -1321,7 +1309,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					len /= 8;
 #if 0
 					if (memcmp(piDev_g.ai8uPI + addr, (void *)(usr_addr + addr), len))
-						printk("piControlIoctl copy %d bytes at offset %d: %x %x %x %x\n", len, addr,
+						pr_info("piControlIoctl copy %d bytes at offset %d: %x %x %x %x\n", len, addr,
 						       ((unsigned char *)(usr_addr + addr))[0],
 							((unsigned char *)(usr_addr + addr))[1],
 							((unsigned char *)(usr_addr + addr))[2],
@@ -1343,7 +1331,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					val2 |= val1;
 					piDev_g.ai8uPI[addr] = val2;
 
-					//DF_PRINTK("piControlIoctl copy mask %02x at offset %d\n", mask, addr);
+					//pr_info("piControlIoctl copy mask %02x at offset %d\n", mask, addr);
 				}
 			}
 			rt_mutex_unlock(&piDev_g.lockPI);
@@ -1372,7 +1360,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 			if (!found || pPar->i16uBitfield == 0)
 			{
-				DF_PRINTK("piControlIoctl: resetCounter failed bitfield 0x%x", pPar->i16uBitfield);
+				pr_info("piControlIoctl: resetCounter failed bitfield 0x%x", pPar->i16uBitfield);
 				return -EINVAL;
 			}
 
@@ -1388,7 +1376,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (copy_from_user(&piDev_g.requestUserTel, &tel, sizeof(tel)))
 			{
 				mutex_unlock(&piDev_g.lockUserTel);
-				DF_PRINTK("piControlIoctl: resetCounter failed copy");
+				pr_info("piControlIoctl: resetCounter failed copy");
 				status = -EFAULT;
 				break;
 			}
@@ -1399,7 +1387,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			piDev_g.pendingUserTel = true;
 			down(&piDev_g.semUserTel);
 			status = piDev_g.statusUserTel;
-			DF_PRINTK("piControlIoctl: resetCounter result %d", status);
+			pr_info("piControlIoctl: resetCounter result %d", status);
 			mutex_unlock(&piDev_g.lockUserTel);
 		}
 		break;
@@ -1417,8 +1405,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (PiBridgeMaster_FWUModeEnter(pData[0], 1) == 0) {
 
 				if (PiBridgeMaster_FWUsetSerNum(pData[1]) == 0) {
-					DF_PRINTK
-					    ("piControlIoctl: set serial number to %u in module %u",
+					pr_info("piControlIoctl: set serial number to %u in module %u",
 					     pData[1], pData[0]);
 				}
 

@@ -45,7 +45,7 @@
 #include <project.h>
 
 #ifdef VERBOSE
-#define TRACING(fmt, ...)	DF_PRINTK("tracing: " fmt, ##__VA_ARGS__)
+#define TRACING(fmt, ...)	pr_info("tracing: " fmt, ##__VA_ARGS__)
 #else
 #define TRACING(fmt, ...)	((void) 0)
 #endif

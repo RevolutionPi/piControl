@@ -62,7 +62,7 @@ const MODGATECOM_IDResp RevPi_ID_g = {
 
 void RevPiDevice_init(void)
 {
-	printk("RevPiDevice_init()\n");
+	pr_info("RevPiDevice_init()\n");
 	piDev_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piDev_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 	RevPiScan.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
@@ -82,7 +82,7 @@ void RevPiDevice_init(void)
 
 void RevPiDevice_finish(void)
 {
-	//printk("RevPiDevice_finish()\n");
+	//pr_info("RevPiDevice_finish()\n");
 	piIoComm_finish();
 }
 

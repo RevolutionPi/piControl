@@ -225,7 +225,7 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 
 //    if (p != 255)
 //    {
-//        DF_PRINTK("dev %2d: send cyclic Data diff %d\n", i8uAddress, p);
+//        pr_info("dev %2d: send cyclic Data diff %d\n", i8uAddress, p);
 //    }
 
     if (p == 255 || p < 2)
@@ -278,7 +278,7 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 	ret = piIoComm_recv((INT8U*)&sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
 	if (ret > 0)
 	{
-//            DF_PRINTK("dev %2d: cmd %d  len %d\n",
+//            pr_info("dev %2d: cmd %d  len %d\n",
 //                      i8uAddress, sResponse_l.uHeader.sHeaderTyp1.bitCommand, sResponse_l.uHeader.sHeaderTyp1.bitLength);
 
 	    if (sResponse_l.ai8uData[len_l] == piIoComm_Crc8((INT8U*)&sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l))

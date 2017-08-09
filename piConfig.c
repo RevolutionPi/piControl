@@ -1017,7 +1017,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	for (i = 0; i < (*ent)->i16uNumEntries && d <= exported_outputs; i++) {
 		if ((*ent)->ent[i].i8uType == 0x82) {
 			if (d == exported_outputs) {
-				printk("### internal error 1 ### %d %d  %d %d\n", i, (*ent)->i16uNumEntries, d,
+				pr_err("### internal error 1 ### %d %d  %d %d\n", i, (*ent)->i16uNumEntries, d,
 				       exported_outputs);
 				exported_outputs = 0;
 			} else {
@@ -1040,7 +1040,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			&& ((*cl)->ent[d - 1].i8uBitMask & (*cl)->ent[d].i8uBitMask)
 		    )
 		    ) {
-			printk("### internal error 2 ### %d\n", d);
+			pr_err("### internal error 2 ### %d\n", d);
 			exported_outputs = 0;
 			break;
 		} else {

@@ -33,7 +33,7 @@
 #ifndef BSPCONFIG_H_INC
 #define BSPCONFIG_H_INC
 
-#define ENDTEST_DIO
+//#define ENDTEST_DIO
 
 #define PRINT_MODGATE_COM_STATE
 #if 0
@@ -140,7 +140,7 @@ extern int __debug_show_msg;
 
 
 //#define VERBOSE
-#define DF_PRINTK(...)      printk(KBUILD_MODNAME ": " __VA_ARGS__)
+//#define DF_PRINTK(...)      printk(KBUILD_MODNAME ": " __VA_ARGS__)
 
 #undef pr_fmt
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt

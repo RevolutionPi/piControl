@@ -600,6 +600,8 @@ int PiBridgeMaster_Run(void)
 				rt_mutex_lock(&piDev_g.lockPI);
 				memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
 				rt_mutex_unlock(&piDev_g.lockPI);
+#else
+#warning Defaultvalues are NOT set in process image
 #endif
 				msleep(100);	// wait a while
 				pr_info("start data exchange\n");

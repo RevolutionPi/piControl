@@ -117,13 +117,13 @@ int UartThreadProc(void *pArg)
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
 
-	//printk("vfs_read(%d, ....)\n", (int)piIoComm_fd_m);
+	//pr_info("vfs_read(%d, ....)\n", (int)piIoComm_fd_m);
 
 	while (!kthread_should_stop()) {
 		//TODO optimize
 		int r = vfs_read(piIoComm_fd_m, acBuf_l, MAX_READ_BUF, &piIoComm_fd_m->f_pos);
 		if (r != MAX_READ_BUF) {	// not finished yet
-			//printk("vfs_read(%d, ....) == %d\n", (int)piIoComm_fd_m, r);
+			//pr_info("vfs_read(%d, ....) == %d\n", (int)piIoComm_fd_m, r);
 			clear();
 			set_fs(oldfs);
 			return -1;
@@ -138,12 +138,12 @@ int UartThreadProc(void *pArg)
 					// the length in the received header is used.
 					int l = REV_PI_RECV_IO_HEADER_LEN - i16uRecvLen_s;
 					ioHeader_l.ai8uHeader[l-1] = acBuf_l[0];
-					printk("UartThread: %d %02x\n", l, acBuf_l[0]);
+					pr_info("UartThread: %d %02x\n", l, acBuf_l[0]);
 					if (l == IOPROTOCOL_HEADER_LENGTH) {
 						// now we have received two bytes and can read length field
 						// we already received the header, set the length to the length of data plus crc byte
 						i16uRecvLen_s = ioHeader_l.sHeaderTyp1.bitLength + 1;
-						printk("UartThread: len=%d\n", i16uRecvLen_s);
+						pr_info("UartThread: len=%d\n", i16uRecvLen_s);
 					}
 				}
 				if (i16uRecvLen_s == 0) {
@@ -160,7 +160,7 @@ int UartThreadProc(void *pArg)
 
 	set_fs(oldfs);
 
-	printk("UART Thread Exit\n");
+	pr_info("UART Thread Exit\n");
 
 	return (0);
 }
@@ -193,7 +193,7 @@ int piIoComm_open_serial(void)
 		r = fd->f_op->unlocked_ioctl(fd, TCGETS, (unsigned long)&newtio);
 		if (r < 0) {
 			set_fs(oldfs);
-			printk("unlocked_ioctl TCGETS failed %d\n", r);
+			pr_info("unlocked_ioctl TCGETS failed %d\n", r);
 			return (-1);
 		}
 #if 0
@@ -211,7 +211,7 @@ int piIoComm_open_serial(void)
 #endif
 		if (fd->f_op->unlocked_ioctl(fd, TCSETS, (unsigned long)&newtio) < 0) {
 			set_fs(oldfs);
-			printk("unlocked_ioctl TCSETS failed\n");
+			pr_info("unlocked_ioctl TCSETS failed\n");
 			return -1;
 		}
 		set_fs(oldfs);
@@ -227,7 +227,7 @@ int piIoComm_open_serial(void)
 //    hRecvThread_s = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
 //    if (hRecvThread_s == NULL)
 //    {
-//        printk("kthread_run failed\n");
+//        pr_info("kthread_run failed\n");
 //    }
 //    param.sched_priority = RT_PRIO_UART;
 //    sched_setscheduler(hRecvThread_s, SCHED_FIFO, &param);
@@ -265,7 +265,7 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0], buf_p[1],
 			  buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
 	}
-	//printk("vfs_write(%d, %d, %d)\n", (int)piIoComm_fd_m, i16uLen_p, (int)piIoComm_fd_m->f_pos);
+	//pr_info("vfs_write(%d, %d, %d)\n", (int)piIoComm_fd_m, i16uLen_p, (int)piIoComm_fd_m->f_pos);
 #endif
 
 	while (i16uSent_l < i16uLen_p) {
@@ -566,7 +566,7 @@ INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p)
 	    || last_out[pRequest_p->uHeader.sHeaderTyp1.bitAddress][1] != pRequest_p->ai8uData[1]) {
 		last_out[pRequest_p->uHeader.sHeaderTyp1.bitAddress][0] = pRequest_p->ai8uData[0];
 		last_out[pRequest_p->uHeader.sHeaderTyp1.bitAddress][1] = pRequest_p->ai8uData[1];
-		printk("dev %2d: send cyclic Data addr %d + %d output 0x%02x 0x%02x\n",
+		pr_info("dev %2d: send cyclic Data addr %d + %d output 0x%02x 0x%02x\n",
 			  pRequest_p->uHeader.sHeaderTyp1.bitAddress,
 			  pRequest_p->uHeader.sHeaderTyp1.bitAddress,
 			  RevPiDevice.dev[i8uDevice_p].i16uOutputOffset,
@@ -584,22 +584,22 @@ INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p)
 				// success
 #ifdef DEBUG_DEVICE_IO
 				int i;
-				printk("len %d, resp %d, cmd %d\n",
+				pr_info("len %d, resp %d, cmd %d\n",
 				       pResponse_p->uHeader.sHeaderTyp1.bitLength,
 				       pResponse_p->uHeader.sHeaderTyp1.bitReqResp,
 				       pResponse_p->uHeader.sHeaderTyp1.bitCommand);
 				for (i=0; i<pResponse_p->uHeader.sHeaderTyp1.bitLength; i++)
 				{
-					printk("%02x ", pResponse_p->ai8uData[i]);
+					pr_info("%02x ", pResponse_p->ai8uData[i]);
 				}
-				printk("\n");
+				pr_info("\n");
 #endif
 #if 0 //def DEBUG_DEVICE_IO
 				if (last_in[pRequest_p->uHeader.sHeaderTyp1.bitAddress][0] != pResponse_p->ai8uData[0]
 				    || last_in[pRequest_p->uHeader.sHeaderTyp1.bitAddress][1] != pResponse_p->ai8uData[1]) {
 					last_in[pRequest_p->uHeader.sHeaderTyp1.bitAddress][0] = pResponse_p->ai8uData[0];
 					last_in[pRequest_p->uHeader.sHeaderTyp1.bitAddress][1] = pResponse_p->ai8uData[1];
-					printk("dev %2d: recv cyclic Data addr %d + %d input 0x%02x 0x%02x\n\n",
+					pr_info("dev %2d: recv cyclic Data addr %d + %d input 0x%02x 0x%02x\n\n",
 						  RevPiDevice.dev[i8uDevice_p].i8uAddress,
 						  sResponse_l.uHeader.sHeaderTyp1.bitAddress,
 						  RevPiDevice.dev[i8uDevice_p].i16uInputOffset, sResponse_l.ai8uData[0],
@@ -609,8 +609,8 @@ INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p)
 			} else {
 				i32uRv_l = 1;
 #ifdef DEBUG_DEVICE_IO
-				printk("dev %2d: recv ioprotocol crc error\n", pRequest_p->uHeader.sHeaderTyp1.bitAddress);
-				printk("len %d, resp %d, cmd %d\n",
+				pr_info("dev %2d: recv ioprotocol crc error\n", pRequest_p->uHeader.sHeaderTyp1.bitAddress);
+				pr_info("len %d, resp %d, cmd %d\n",
 				       pResponse_p->uHeader.sHeaderTyp1.bitLength,
 				       pResponse_p->uHeader.sHeaderTyp1.bitReqResp,
 				       pResponse_p->uHeader.sHeaderTyp1.bitCommand);
@@ -619,13 +619,13 @@ INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p)
 		} else {
 			i32uRv_l = 2;
 #ifdef DEBUG_DEVICE_IO
-			printk("dev %2d: recv ioprotocol timeout error\n", pRequest_p->uHeader.sHeaderTyp1.bitAddress);
+			pr_info("dev %2d: recv ioprotocol timeout error\n", pRequest_p->uHeader.sHeaderTyp1.bitAddress);
 #endif
 		}
 	} else {
 		i32uRv_l = 3;
 #ifdef DEBUG_DEVICE_IO
-		printk("dev %2d: send ioprotocol send error %d\n", pRequest_p->uHeader.sHeaderTyp1.bitAddress, ret);
+		pr_info("dev %2d: send ioprotocol send error %d\n", pRequest_p->uHeader.sHeaderTyp1.bitAddress, ret);
 #endif
 	}
 	return i32uRv_l;
@@ -652,7 +652,7 @@ INT32S piIoComm_gotoGateProtocol(void)
 		// there is no reply
 	} else {
 #ifdef DEBUG_DEVICE_IO
-		printk("dev all: send ioprotocol send error %d\n", ret);
+		pr_info("dev all: send ioprotocol send error %d\n", ret);
 #endif
 	}
 	return 0;

@@ -58,12 +58,6 @@
 #include <application.h>
 #endif
 
-#ifdef PRINT_MODGATE_COM_STATE
-#if defined(__KUNBUSPI__)
-#define DF_PRINTK(...)      printf(__VA_ARGS__)
-#endif
-#endif
-
 #include <bsp/bspError.h>
 #include <bsp/mGateDecode/mGateDecode.h>
 #include <kbUtilities.h>
