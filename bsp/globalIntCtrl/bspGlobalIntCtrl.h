@@ -2,12 +2,6 @@
 //|
 //|    functions for diable and enable of global interrupts
 //|
-//+---------------------------------------------------------------------------------------------
-//|
-//|    File-ID:    $Id: bspGlobalIntCtrl.h 11307 2016-12-20 09:06:06Z reusch $
-//|    Location:   $URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/bsp/sw/bsp/globalIntCtrl/bspGlobalIntCtrl.h $
-//|    Copyright:  KUNBUS GmbH
-//|
 //+=============================================================================================
 
 #ifndef BSPGLOBALINTCTRL_H_INC

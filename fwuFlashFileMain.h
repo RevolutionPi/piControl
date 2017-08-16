@@ -6,16 +6,6 @@
 //|
 //+---------------------------------------------------------------------------------------------
 //|
-//|		File-ID:		$Id: fwuFlashFileMain.h 9082 2015-08-24 12:42:28Z mduckeck $
-//|		Date:			$Date: 2015-08-24 14:42:28 +0200 (Mo, 24 Aug 2015) $
-//|		File Revision:	$Rev: 9082 $
-//|
-//|		Author:			$Author: mduckeck $
-//|		Location:		$URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/firmware/sw/fwuFlashFileMain.h $
-//|		Company:		$Cpn: KUNBUS GmbH $
-//|
-//+---------------------------------------------------------------------------------------------
-//|
 //|		Files required:	(none)
 //|
 //+=============================================================================================

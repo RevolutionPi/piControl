@@ -6,16 +6,6 @@
 //|
 //+---------------------------------------------------------------------------------------------
 //|
-//|		File-ID:		$Id: fwuFlashMain.h 5362 2014-01-23 09:50:40Z fbrandauer $
-//|		Date:			$Date: 2014-01-23 10:50:40 +0100 (Do, 23 Jan 2014) $
-//|		File Revision:	$Rev: 5362 $
-//|
-//|		Author:			$Author: fbrandauer $
-//|		Location:		$URL: http://srv-kunbus03.de.pilz.local/feldbus/software/trunk/platform/firmware/sw/fwuFlashMain.h $
-//|		Company:		$Cpn: KUNBUS GmbH $
-//|
-//+---------------------------------------------------------------------------------------------
-//|
 //|		Files required:	(none)
 //|
 //+=============================================================================================
