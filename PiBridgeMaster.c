@@ -796,10 +796,10 @@ int PiBridgeMaster_Run(void)
 	if (eBridgeStateLast_s != piDev_g.eBridgeState) {
 		if (piDev_g.eBridgeState == piBridgeRun) {
 			RevPiScan.i8uStatus |= PICONTROL_STATUS_RUNNING;
-			gpio_set_value_cansleep(GPIO_LED_PWRRED, 0);
+			led_trigger_event(&piDev_g.power_red, LED_OFF);
 		} else {
 			RevPiScan.i8uStatus &= ~PICONTROL_STATUS_RUNNING;
-			gpio_set_value_cansleep(GPIO_LED_PWRRED, 1);
+			led_trigger_event(&piDev_g.power_red, LED_FULL);
 		}
 		eBridgeStateLast_s = piDev_g.eBridgeState;
 	}
@@ -811,11 +811,18 @@ int PiBridgeMaster_Run(void)
 
 		led = RevPiScan.pCoreData->i8uLED;
 		if (led != last_led) {
-			gpio_set_value_cansleep(GPIO_LED_AGRN, (led & PICONTROL_LED_A1_GREEN) ? 1 : 0);
-			gpio_set_value_cansleep(GPIO_LED_ARED, (led & PICONTROL_LED_A1_RED) ? 1 : 0);
-			gpio_set_value_cansleep(GPIO_LED_BGRN, (led & PICONTROL_LED_A2_GREEN) ? 1 : 0);
-			gpio_set_value_cansleep(GPIO_LED_BRED, (led & PICONTROL_LED_A2_RED) ? 1 : 0);
-
+			led_trigger_event(&piDev_g.a1_green,
+					  (led & PICONTROL_LED_A1_GREEN) ?
+					  LED_FULL : LED_OFF);
+			led_trigger_event(&piDev_g.a1_red,
+					  (led & PICONTROL_LED_A1_RED) ?
+					  LED_FULL : LED_OFF);
+			led_trigger_event(&piDev_g.a2_green,
+					  (led & PICONTROL_LED_A2_GREEN) ?
+					  LED_FULL : LED_OFF);
+			led_trigger_event(&piDev_g.a2_red,
+					  (led & PICONTROL_LED_A2_RED) ?
+					  LED_FULL : LED_OFF);
 			last_led = led;
 		}
 		// update every 1 sec

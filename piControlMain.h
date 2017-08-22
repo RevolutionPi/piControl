@@ -44,6 +44,7 @@
 #include <linux/sem.h>
 #include <linux/kthread.h>
 #include <linux/hrtimer.h>
+#include <linux/leds.h>
 #include <linux/semaphore.h>
 #include <linux/wait.h>
 #include <piConfig.h>
@@ -121,6 +122,12 @@ typedef struct spiControlDev
     struct task_struct *pIoThread;
     struct hrtimer ioTimer;
     struct semaphore ioSem;
+
+	struct led_trigger power_red;
+	struct led_trigger a1_green;
+	struct led_trigger a1_red;
+	struct led_trigger a2_green;
+	struct led_trigger a2_red;
 } tpiControlDev;
 
 typedef struct spiEventEntry

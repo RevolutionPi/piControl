@@ -123,12 +123,6 @@ extern int __debug_show_msg;
 #define KB_PD_LEN       512
 #define KB_PI_LEN       4096
 
-#define GPIO_LED_PWRRED		16
-#define GPIO_LED_AGRN		30
-#define GPIO_LED_ARED		 6
-#define GPIO_LED_BGRN		32
-#define GPIO_LED_BRED		33
-
 #define GPIO_RESET		40
 #define GPIO_CS_KSZ0		35
 #define GPIO_CS_KSZ1		36

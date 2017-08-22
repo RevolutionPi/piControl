@@ -112,7 +112,13 @@ unlocked_ioctl:piControlIoctl,
 release:piControlRelease
 };
 
-tpiControlDev piDev_g;
+tpiControlDev piDev_g = {
+	.power_red.name = "power_red",
+	.a1_green.name	= "a1_green",
+	.a1_red.name	= "a1_red",
+	.a2_green.name	= "a2_green",
+	.a2_red.name	= "a2_red",
+};
 
 static dev_t piControlMajor;
 static struct class *piControlClass;
@@ -459,8 +465,6 @@ static int __init piControlInit(void)
 		}
 	}
 
-	memset(&piDev_g, 0, sizeof(piDev_g));
-
 	piDev_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piDev_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 
@@ -515,55 +519,15 @@ static int __init piControlInit(void)
 	}
 	piDev_g.init_step = 2;
 
-
-	/* Request gpios */
-	if (gpio_request(GPIO_LED_PWRRED, "GPIO_LED_PWRRED")) {
-		pr_err("cannot open gpio GPIO_LED_PWRRED\n");
+	res = devm_led_trigger_register(piDev_g.dev, &piDev_g.power_red) ||
+	      devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_green)  ||
+	      devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_red)	 ||
+	      devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_green)  ||
+	      devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_red);
+	if (res) {
+		pr_err("cannot register LED triggers\n");
 		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_output(GPIO_LED_PWRRED, 0);
-		gpio_export(GPIO_LED_PWRRED, 0);
-	}
-	piDev_g.init_step = 3;
-
-	if (gpio_request(GPIO_LED_AGRN, "GPIO_LED_AGRN")) {
-		pr_err("cannot open gpio GPIO_LED_AGRN\n");
-		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_output(GPIO_LED_AGRN, 0);
-		gpio_export(GPIO_LED_AGRN, 0);
-	}
-	piDev_g.init_step = 4;
-
-	if (gpio_request(GPIO_LED_ARED, "GPIO_LED_ARED")) {
-		pr_err("cannot open gpio GPIO_LED_ARED\n");
-		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_output(GPIO_LED_ARED, 0);
-		gpio_export(GPIO_LED_ARED, 0);
-	}
-	piDev_g.init_step = 5;
-
-	if (gpio_request(GPIO_LED_BGRN, "GPIO_LED_BGRN")) {
-		pr_err("cannot open gpio GPIO_LED_BGRN\n");
-		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_output(GPIO_LED_BGRN, 0);
-		gpio_export(GPIO_LED_BGRN, 0);
-	}
-	piDev_g.init_step = 6;
-
-	if (gpio_request(GPIO_LED_BRED, "GPIO_LED_BRED")) {
-		pr_err("cannot open gpio GPIO_LED_ARED\n");
-		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_output(GPIO_LED_BRED, 0);
-		gpio_export(GPIO_LED_BRED, 0);
+		return res;
 	}
 	piDev_g.init_step = 7;
 
@@ -727,26 +691,6 @@ static void cleanup(void)
 	if (piDev_g.init_step >= 8) {
 		piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
 		gpio_free(GPIO_SNIFF1A);
-	}
-	if (piDev_g.init_step >= 7) {
-		gpio_unexport(GPIO_LED_BRED);
-		gpio_free(GPIO_LED_BRED);
-	}
-	if (piDev_g.init_step >= 6) {
-		gpio_unexport(GPIO_LED_BGRN);
-		gpio_free(GPIO_LED_BGRN);
-	}
-	if (piDev_g.init_step >= 5) {
-		gpio_unexport(GPIO_LED_ARED);
-		gpio_free(GPIO_LED_ARED);
-	}
-	if (piDev_g.init_step >= 4) {
-		gpio_unexport(GPIO_LED_AGRN);
-		gpio_free(GPIO_LED_AGRN);
-	}
-	if (piDev_g.init_step >= 3) {
-		gpio_unexport(GPIO_LED_PWRRED);
-		gpio_free(GPIO_LED_PWRRED);
 	}
 	if (piDev_g.init_step >= 2) {
 		cdev_del(&piDev_g.cdev);
