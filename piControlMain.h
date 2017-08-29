@@ -66,11 +66,17 @@ typedef enum piEvent
 	piEvReset = 1,
 } enPiEvent;
 
+enum revpi_machine {
+	REVPI_CORE,
+	REVPI_COMPACT,
+};
 
 typedef struct spiControlDev
 {
     // device driver stuff
     int         init_step;
+    enum revpi_machine machine_type;
+    void *machine;
     struct cdev cdev;        // Char device structure
     struct device *dev;
     struct thermal_zone_device *thermal_zone;

@@ -60,6 +60,7 @@
 #include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/thermal.h>
+#include <linux/of.h>
 #include <asm/div64.h>
 
 #include <bsp/uart/uart.h>
@@ -464,6 +465,11 @@ static int __init piControlInit(void)
 			return -ENODEV;
 		}
 	}
+
+	if (of_machine_is_compatible("kunbus,revpi-compact"))
+		piDev_g.machine_type = REVPI_COMPACT;
+	else
+		piDev_g.machine_type = REVPI_CORE;
 
 	piDev_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piDev_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
