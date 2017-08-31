@@ -537,39 +537,18 @@ static int __init piControlInit(void)
 	}
 	piDev_g.init_step = 7;
 
-	if (gpio_request(GPIO_SNIFF1A, "Sniff1A") < 0) {
-		pr_err("Cannot open gpio GPIO_SNIFF1A\n");
+	res = devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF1A,
+				    GPIOF_DIR_IN, "Sniff1A")   ||
+	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF1B,
+				    GPIOF_DIR_IN, "Sniff1B")   ||
+	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF2A,
+				    GPIOF_DIR_IN, "Sniff2A")   ||
+	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF2B,
+				    GPIOF_DIR_IN, "Sniff2B");
+	if (res) {
+		pr_err("cannot request sniff GPIOs\n");
 		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_input(GPIO_SNIFF1A);
-	}
-	piDev_g.init_step = 8;
-
-	if (gpio_request(GPIO_SNIFF1B, "Sniff1B") < 0) {
-		pr_err("Cannot open gpio GPIO_SNIFF1B\n");
-		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_input(GPIO_SNIFF1B);
-	}
-	piDev_g.init_step = 9;
-
-	if (gpio_request(GPIO_SNIFF2A, "Sniff2A") < 0) {
-		pr_err("Cannot open gpio GPIO_SNIFF2A\n");
-		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_input(GPIO_SNIFF2A);
-	}
-	piDev_g.init_step = 10;
-
-	if (gpio_request(GPIO_SNIFF2B, "Sniff2B") < 0) {
-		pr_err("Cannot open gpio GPIO_SNIFF2B\n");
-		cleanup();
-		return -EFAULT;
-	} else {
-		gpio_direction_input(GPIO_SNIFF2B);
+		return res;
 	}
 	piDev_g.init_step = 11;
 
@@ -681,22 +660,12 @@ static void cleanup(void)
 	if (piDev_g.init_step >= 12) {
 		piIoComm_finish();
 	}
-	/* unregister gpio */
+	/* reset GPIO direction */
 	if (piDev_g.init_step >= 11) {
 		piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-		gpio_free(GPIO_SNIFF2B);
-	}
-	if (piDev_g.init_step >= 10) {
 		piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
-		gpio_free(GPIO_SNIFF2A);
-	}
-	if (piDev_g.init_step >= 9) {
 		piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-		gpio_free(GPIO_SNIFF1B);
-	}
-	if (piDev_g.init_step >= 8) {
 		piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
-		gpio_free(GPIO_SNIFF1A);
 	}
 	if (piDev_g.init_step >= 2) {
 		cdev_del(&piDev_g.cdev);
