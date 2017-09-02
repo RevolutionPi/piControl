@@ -410,6 +410,117 @@ void piControlDummyReceive(INT8U i8uChar_p)
 
 #include "compiletime.h"
 
+static int revpi_core_init(void)
+{
+	struct sched_param param;
+	INT32U i32uRv;
+	int res;
+
+	BUILD_BUG_ON(!IS_ENABLED(CONFIG_SPI_BCM2835));
+
+	if (IS_MODULE(CONFIG_SPI_BCM2835)) {
+		request_module(SPI_MODULE);
+
+		mutex_lock(&module_mutex);
+		piSpiModule = find_module(SPI_MODULE);
+		if (piSpiModule && !try_module_get(piSpiModule))
+			piSpiModule = NULL;
+		mutex_unlock(&module_mutex);
+
+		if (!piSpiModule) {
+			pr_err("cannot load %s module", SPI_MODULE);
+			return -ENODEV;
+		}
+	}
+
+	res = devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF1A,
+				    GPIOF_DIR_IN, "Sniff1A")   ||
+	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF1B,
+				    GPIOF_DIR_IN, "Sniff1B")   ||
+	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF2A,
+				    GPIOF_DIR_IN, "Sniff2A")   ||
+	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF2B,
+				    GPIOF_DIR_IN, "Sniff2B");
+	if (res) {
+		pr_err("cannot request sniff GPIOs\n");
+		return res;
+	}
+	piDev_g.init_step = 11;
+
+	if (piIoComm_init()) {
+		pr_err("open serial port failed\n");
+		return -EFAULT;
+	}
+	piDev_g.init_step = 12;
+
+	i32uRv = MODGATECOM_init(piDev_g.ai8uInput, KB_PD_LEN, piDev_g.ai8uOutput, KB_PD_LEN, &EthDrvKSZ8851_g);
+	if (i32uRv != MODGATECOM_NO_ERROR) {
+		pr_err("MODGATECOM_init error %08x\n", i32uRv);
+		return -EFAULT;
+	}
+	piDev_g.init_step = 14;
+
+	/* run threads */
+	piDev_g.pGateThread = kthread_run(&piGateThread, NULL, "piGateT");
+	if (IS_ERR(piDev_g.pGateThread)) {
+		pr_err("kthread_run(gate) failed\n");
+		return PTR_ERR(piDev_g.pGateThread);
+	}
+	param.sched_priority = RT_PRIO_GATE;
+	sched_setscheduler(piDev_g.pGateThread, SCHED_FIFO, &param);
+
+	piDev_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
+	if (IS_ERR(piDev_g.pUartThread)) {
+		pr_err("kthread_run(uart) failed\n");
+		return PTR_ERR(piDev_g.pUartThread);
+	}
+	param.sched_priority = RT_PRIO_UART;
+	sched_setscheduler(piDev_g.pUartThread, SCHED_FIFO, &param);
+
+	piDev_g.pIoThread = kthread_run(&piIoThread, NULL, "piIoT");
+	if (IS_ERR(piDev_g.pIoThread)) {
+		pr_err("kthread_run(io) failed\n");
+		return PTR_ERR(piDev_g.pIoThread);
+	}
+	param.sched_priority = RT_PRIO_BRIDGE;
+	sched_setscheduler(piDev_g.pIoThread, SCHED_FIFO, &param);
+
+	return 0;
+}
+
+static void revpi_core_fini(void)
+{
+	// the IoThread cannot be stopped
+	if (!IS_ERR_OR_NULL(piDev_g.pIoThread))
+		kthread_stop(piDev_g.pIoThread);
+	if (!IS_ERR_OR_NULL(piDev_g.pUartThread))
+		kthread_stop(piDev_g.pUartThread);
+	if (!IS_ERR_OR_NULL(piDev_g.pGateThread))
+		kthread_stop(piDev_g.pGateThread);
+
+	if (piDev_g.init_step >= 14) {
+		/* unregister spi */
+		BSP_SPI_RWPERI_deinit(0);
+	}
+
+	if (piDev_g.init_step >= 12) {
+		piIoComm_finish();
+	}
+
+	/* reset GPIO direction */
+	if (piDev_g.init_step >= 11) {
+		piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
+		piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
+		piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+		piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+	}
+
+	if (piSpiModule) {
+		module_put(piSpiModule);
+		piSpiModule = NULL;
+	}
+}
+
 static char *piControlClass_devnode(struct device *dev, umode_t * mode)
 {
 	if (mode)
@@ -421,9 +532,7 @@ static char *piControlClass_devnode(struct device *dev, umode_t * mode)
 static int __init piControlInit(void)
 {
 	int devindex = 0;
-	INT32U i32uRv;
 	dev_t curdev;
-	struct sched_param param;
 	int res;
 
 	pr_info("built: %s\n", COMPILETIME);
@@ -448,23 +557,6 @@ static int __init piControlInit(void)
 	UART_close(0);
 	return -EFAULT;
 #endif
-
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_SPI_BCM2835));
-
-	if (IS_MODULE(CONFIG_SPI_BCM2835)) {
-		request_module(SPI_MODULE);
-
-		mutex_lock(&module_mutex);
-		piSpiModule = find_module(SPI_MODULE);
-		if (piSpiModule && !try_module_get(piSpiModule))
-			piSpiModule = NULL;
-		mutex_unlock(&module_mutex);
-
-		if (!piSpiModule) {
-			pr_err("cannot load %s module", SPI_MODULE);
-			return -ENODEV;
-		}
-	}
 
 	if (of_machine_is_compatible("kunbus,revpi-compact"))
 		piDev_g.machine_type = REVPI_COMPACT;
@@ -537,21 +629,6 @@ static int __init piControlInit(void)
 	}
 	piDev_g.init_step = 7;
 
-	res = devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF1A,
-				    GPIOF_DIR_IN, "Sniff1A")   ||
-	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF1B,
-				    GPIOF_DIR_IN, "Sniff1B")   ||
-	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF2A,
-				    GPIOF_DIR_IN, "Sniff2A")   ||
-	      devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF2B,
-				    GPIOF_DIR_IN, "Sniff2B");
-	if (res) {
-		pr_err("cannot request sniff GPIOs\n");
-		cleanup();
-		return res;
-	}
-	piDev_g.init_step = 11;
-
 	/* init some data */
 	rt_mutex_init(&piDev_g.lockPI);
 	rt_mutex_init(&piDev_g.lockBridgeState);
@@ -562,58 +639,22 @@ static int __init piControlInit(void)
 	sema_init(&piDev_g.ioSem, 0);
 	sema_init(&piDev_g.gateSem, 0);
 
-	if (piIoComm_init()) {
-		pr_err("open serial port failed\n");
-		cleanup();
-		return -EFAULT;
-	}
-	piDev_g.init_step = 12;
-
 	/* start application */
 	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
 		// file not found, try old location
 		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
 		// ignore errors
 	}
-	piDev_g.init_step = 13;
+	piDev_g.init_step = 8;
 
-	i32uRv = MODGATECOM_init(piDev_g.ai8uInput, KB_PD_LEN, piDev_g.ai8uOutput, KB_PD_LEN, &EthDrvKSZ8851_g);
-	if (i32uRv != MODGATECOM_NO_ERROR) {
-		pr_err("MODGATECOM_init error %08x\n", i32uRv);
+	if (piDev_g.machine_type == REVPI_CORE)
+		res = revpi_core_init();
+	if (res) {
 		cleanup();
-		return -EFAULT;
+		return res;
 	}
-	piDev_g.init_step = 14;
 
-	/* run threads */
-	piDev_g.pGateThread = kthread_run(&piGateThread, NULL, "piGateT");
-	if (IS_ERR(piDev_g.pGateThread)) {
-		pr_err("kthread_run(gate) failed\n");
-		cleanup();
-		return PTR_ERR(piDev_g.pGateThread);
-	}
-	param.sched_priority = RT_PRIO_GATE;
-	sched_setscheduler(piDev_g.pGateThread, SCHED_FIFO, &param);
-
-	piDev_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
-	if (IS_ERR(piDev_g.pUartThread)) {
-		pr_err("kthread_run(uart) failed\n");
-		cleanup();
-		return PTR_ERR(piDev_g.pUartThread);
-	}
-	param.sched_priority = RT_PRIO_UART;
-	sched_setscheduler(piDev_g.pUartThread, SCHED_FIFO, &param);
-
-	piDev_g.pIoThread = kthread_run(&piIoThread, NULL, "piIoT");
-	if (IS_ERR(piDev_g.pIoThread)) {
-		pr_err("kthread_run(io) failed\n");
-		cleanup();
-		return PTR_ERR(piDev_g.pIoThread);
-	}
-	param.sched_priority = RT_PRIO_BRIDGE;
-	sched_setscheduler(piDev_g.pIoThread, SCHED_FIFO, &param);
 	piDev_g.init_step = 17;
-
 
 	piDev_g.thermal_zone = thermal_zone_get_zone_by_name("bcm2835_thermal");
 	if (IS_ERR(piDev_g.thermal_zone)) {
@@ -631,19 +672,10 @@ static int __init piControlInit(void)
 /*****************************************************************************/
 static void cleanup(void)
 {
-	// the IoThread cannot be stopped
-	if (!IS_ERR_OR_NULL(piDev_g.pIoThread))
-		kthread_stop(piDev_g.pIoThread);
-	if (!IS_ERR_OR_NULL(piDev_g.pUartThread))
-		kthread_stop(piDev_g.pUartThread);
-	if (!IS_ERR_OR_NULL(piDev_g.pGateThread))
-		kthread_stop(piDev_g.pGateThread);
+	if (piDev_g.machine_type == REVPI_CORE)
+		revpi_core_fini();
 
-	if (piDev_g.init_step >= 14) {
-		/* unregister spi */
-		BSP_SPI_RWPERI_deinit(0);
-	}
-	if (piDev_g.init_step >= 13) {
+	if (piDev_g.init_step >= 8) {
 		if (piDev_g.ent != NULL)
 			kfree(piDev_g.ent);
 		piDev_g.ent = NULL;
@@ -651,16 +683,6 @@ static void cleanup(void)
 		if (piDev_g.devs != NULL)
 			kfree(piDev_g.devs);
 		piDev_g.devs = NULL;
-	}
-	if (piDev_g.init_step >= 12) {
-		piIoComm_finish();
-	}
-	/* reset GPIO direction */
-	if (piDev_g.init_step >= 11) {
-		piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
 	}
 	if (piDev_g.init_step >= 2) {
 		cdev_del(&piDev_g.cdev);
@@ -678,11 +700,6 @@ static void cleanup(void)
 	if (!IS_ERR_OR_NULL(piControlClass))
 		class_destroy(piControlClass);
 	unregister_chrdev_region(piControlMajor, 2);
-
-	if (piSpiModule) {
-		module_put(piSpiModule);
-		piSpiModule = NULL;
-	}
 }
 
 static void __exit piControlCleanup(void)
