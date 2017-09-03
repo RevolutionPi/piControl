@@ -587,30 +587,28 @@ static int __init piControlInit(void)
 
 	/* run threads */
 	piDev_g.pGateThread = kthread_run(&piGateThread, NULL, "piGateT");
-	if (piDev_g.pGateThread == NULL) {
+	if (IS_ERR(piDev_g.pGateThread)) {
 		pr_err("kthread_run(gate) failed\n");
 		cleanup();
-		return -EFAULT;
+		return PTR_ERR(piDev_g.pGateThread);
 	}
 	param.sched_priority = RT_PRIO_GATE;
 	sched_setscheduler(piDev_g.pGateThread, SCHED_FIFO, &param);
-	piDev_g.init_step = 15;
 
 	piDev_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
-	if (piDev_g.pUartThread == NULL) {
+	if (IS_ERR(piDev_g.pUartThread)) {
 		pr_err("kthread_run(uart) failed\n");
 		cleanup();
-		return -EFAULT;
+		return PTR_ERR(piDev_g.pUartThread);
 	}
 	param.sched_priority = RT_PRIO_UART;
 	sched_setscheduler(piDev_g.pUartThread, SCHED_FIFO, &param);
-	piDev_g.init_step = 16;
 
 	piDev_g.pIoThread = kthread_run(&piIoThread, NULL, "piIoT");
-	if (piDev_g.pIoThread == NULL) {
+	if (IS_ERR(piDev_g.pIoThread)) {
 		pr_err("kthread_run(io) failed\n");
 		cleanup();
-		return -EFAULT;
+		return PTR_ERR(piDev_g.pIoThread);
 	}
 	param.sched_priority = RT_PRIO_BRIDGE;
 	sched_setscheduler(piDev_g.pIoThread, SCHED_FIFO, &param);
@@ -634,16 +632,13 @@ static int __init piControlInit(void)
 static void cleanup(void)
 {
 	// the IoThread cannot be stopped
-
-	if (piDev_g.init_step >= 17) {
+	if (!IS_ERR_OR_NULL(piDev_g.pIoThread))
 		kthread_stop(piDev_g.pIoThread);
-	}
-	if (piDev_g.init_step >= 16) {
+	if (!IS_ERR_OR_NULL(piDev_g.pUartThread))
 		kthread_stop(piDev_g.pUartThread);
-	}
-	if (piDev_g.init_step >= 15) {
+	if (!IS_ERR_OR_NULL(piDev_g.pGateThread))
 		kthread_stop(piDev_g.pGateThread);
-	}
+
 	if (piDev_g.init_step >= 14) {
 		/* unregister spi */
 		BSP_SPI_RWPERI_deinit(0);
