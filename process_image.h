@@ -67,6 +67,19 @@ static inline void cycletimer_destroy(struct cycletimer *ct)
 	destroy_hrtimer_on_stack(&ct->sleeper.timer);
 }
 
+static __always_inline void assign_bit_in_byte(u8 nr, u8 *addr, bool value)
+{
+	if (value)
+		*addr |= BIT(nr);
+	else
+		*addr &= ~BIT(nr);
+}
+
+static __always_inline int test_bit_in_byte(u8 nr, u8 *addr)
+{
+	return (*addr >> nr) & 1;
+}
+
 #define flip_process_image(shadow, offset)				   \
 {									   \
 	rt_mutex_lock(&piDev_g.lockPI);					   \

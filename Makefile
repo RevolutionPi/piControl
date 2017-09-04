@@ -21,6 +21,7 @@ piControl-objs += PiBridgeMaster.o
 piControl-objs += kbUtilities.o
 piControl-objs += kbAlloc.o
 piControl-objs += systick.o
+piControl-objs += revpi_compact.o
 
 ccflags-y := -O2
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT

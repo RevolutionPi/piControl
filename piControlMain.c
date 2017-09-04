@@ -78,6 +78,7 @@
 #include <RevPiDevice.h>
 #include <piIOComm.h>
 #include "piFirmwareUpdate.h"
+#include "revpi_compact.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck");
@@ -649,6 +650,10 @@ static int __init piControlInit(void)
 
 	if (piDev_g.machine_type == REVPI_CORE)
 		res = revpi_core_init();
+	else if (piDev_g.machine_type == REVPI_COMPACT) {
+		struct revpi_compact_config config = { .ain[0] = 1, .ain[1] = BIT(0)|BIT(1)|BIT(2), };
+		res = revpi_compact_init(&config);
+	}
 	if (res) {
 		cleanup();
 		return res;
@@ -674,6 +679,8 @@ static void cleanup(void)
 {
 	if (piDev_g.machine_type == REVPI_CORE)
 		revpi_core_fini();
+	else if (piDev_g.machine_type == REVPI_COMPACT)
+		revpi_compact_fini();
 
 	if (piDev_g.init_step >= 8) {
 		if (piDev_g.ent != NULL)
