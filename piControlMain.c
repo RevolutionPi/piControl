@@ -405,7 +405,9 @@ void piControlDummyReceive(INT8U i8uChar_p)
 
 static char *piControlClass_devnode(struct device *dev, umode_t * mode)
 {
-	*mode = S_IRUGO | S_IWUGO;
+	if (mode)
+		*mode = S_IRUGO | S_IWUGO;
+
 	return NULL;
 }
 
