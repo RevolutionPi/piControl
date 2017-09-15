@@ -353,7 +353,9 @@ INT32U piAIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 	INT32U i32uRv_l = 0;
 	SIOGeneric sRequest_l;
 	SIOGeneric sResponse_l;
-	INT8U len_l, data_out[4], data_in[19];
+	INT8U len_l;
+	INT8U data_out[sizeof(SAioRequest) - IOPROTOCOL_HEADER_LENGTH - 1];
+	INT8U data_in[sizeof(SAioResponse) - IOPROTOCOL_HEADER_LENGTH - 1];
 	INT8U i8uAddress;
 	int ret;
 #ifdef DEBUG_DEVICE_AIO

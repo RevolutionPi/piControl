@@ -1,3 +1,9 @@
+picontrol (1.1.1-1) stable; urgency=medium
+
+  * Bugfix in piControlIf
+
+ -- Kunbus <admin@kunbus.de>  Wed, 20 Sep 2017 09:50:28 +0200
+
 picontrol (1.1.0-1) stable; urgency=medium
 
   * Initial release

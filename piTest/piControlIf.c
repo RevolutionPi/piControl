@@ -289,6 +289,9 @@ int piControlGetBitValue(SPIValue *pSpiValue)
     if (PiControlHandle_g < 0)
 	return -ENODEV;
 
+    pSpiValue->i16uAddress += pSpiValue->i8uBit / 8;
+    pSpiValue->i8uBit %= 8;
+    
     if (ioctl(PiControlHandle_g, KB_GET_VALUE, pSpiValue) < 0)
 	return errno;
 
@@ -313,6 +316,9 @@ int piControlSetBitValue(SPIValue *pSpiValue)
     if (PiControlHandle_g < 0)
 	return -ENODEV;
 
+    pSpiValue->i16uAddress += pSpiValue->i8uBit / 8;
+    pSpiValue->i8uBit %= 8;
+    
     if (ioctl(PiControlHandle_g, KB_SET_VALUE, pSpiValue) < 0)
 	return errno;
 
@@ -404,7 +410,7 @@ int piControlResetCounter(int address, int bitfield)
 }
 
 
-int piControlUpdateFirmware(void)
+int piControlUpdateFirmware(uint32_t addr_p)
 {
     int ret;
     char cMsg[255];
@@ -414,7 +420,11 @@ int piControlUpdateFirmware(void)
     if (PiControlHandle_g < 0)
 	return -ENODEV;
 
+    if (addr_p == 0)
     ret = ioctl(PiControlHandle_g, KB_UPDATE_DEVICE_FIRMWARE, NULL);
+    else
+        ret = ioctl(PiControlHandle_g, KB_UPDATE_DEVICE_FIRMWARE, &addr_p);
+
     if (ret < 0)
     {
 	perror("Firmware update failed");
@@ -462,6 +472,23 @@ int piControlIntMsg(int msg, unsigned char *data, int size)
     }
     return ret;
 }
+
+int piControlSetSerial(int addr, int serial)
+{
+    int ret;
+    INT32U data[2];
+    data[0] = addr;
+    data[1] = serial;
+    
+    piControlOpen();
+
+    if (PiControlHandle_g < 0)
+        return -ENODEV;
+
+    ret = ioctl(PiControlHandle_g, KB_INTERN_SET_SERIAL_NUM, data);
+    return ret;
+}
+
 #endif
 
 
