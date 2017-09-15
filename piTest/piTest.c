@@ -806,7 +806,7 @@ int main(int argc, char *argv[])
 
     // Scan argument
 #ifdef KUNBUS_TEST
-    while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlfab:")) != -1) {
+    while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlfab:c:")) != -1) {
 #else
     while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlf")) != -1) {
 #endif
@@ -942,7 +942,7 @@ int main(int argc, char *argv[])
 	    break;
 
 	case 'f':
-	    rc = piControlUpdateFirmware();
+	    rc = piControlUpdateFirmware(32);
 	    if (rc) {
 		printf("piControlUpdateFirmware returned: %d (%s)\n", rc, strerror(-rc));
 		return rc;
@@ -966,6 +966,19 @@ int main(int argc, char *argv[])
 		piControlIntMsg(IOP_TYP1_CMD_DATA6, &enable, 1);
 	    }
 	    break;
+        case 'c':
+            {
+                int addr, serial;
+                
+                rc = sscanf(optarg, "%d,%d", &addr, &serial);
+                if (rc != 2) {
+                    printf("Wrong arguments for set serial function\n");
+                    return 0;
+                }
+                
+                rc = piControlSetSerial(addr, serial);
+            }
+            break;
 #endif
 	case 'h':
 	default:

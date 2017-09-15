@@ -67,9 +67,10 @@ int piControlGetVariableInfo(SPIVariable *pSpiVariable);
 int piControlFindVariable(const char *name);
 int piControlResetCounter(int address, int bitfield);
 int piControlWaitForEvent(void);
-int piControlUpdateFirmware(void);
+int piControlUpdateFirmware(uint32_t addr_p);
 #ifdef KUNBUS_TEST
 int piControlIntMsg(int msg, unsigned char *data, int size);
+int piControlSetSerial(int addr, int serial);
 #endif
 
 void piControlClose(void);

@@ -397,9 +397,9 @@ static piDevice *extract_devices(json_val_t * element, int lvl)
 					memset(ret, 0, sizeof(piDevice));
 				}
 				if (strcmp(element->u.object[i]->key, TOKEN_TYPE) == 0) {
-					ret->dev.i16uModuleType = simple_strtoul(element->u.object[i]->val->u.data);
+					kstrtou16(element->u.object[i]->val->u.data, 0, &ret->dev.i16uModuleType);
 				} else if (strcmp(element->u.object[i]->key, TOKEN_POSITION) == 0) {
-					ret->dev.i8uAddress = simple_strtoul(element->u.object[i]->val->u.data);
+					kstrtou8(element->u.object[i]->val->u.data, 0, ret->dev.i8uAddress);
 				} else if (strcmp(element->u.object[i]->key, TOKEN_INPUT) == 0) {
 					int j;
 					int idx = 0;
@@ -421,9 +421,10 @@ static piDevice *extract_devices(json_val_t * element, int lvl)
 							p->ent.i8uAddress = ret->dev.i8uAddress;
 							p->ent.i8uType = 1;	// input
 							p->ent.i16uIndex = idx++;
-							p->ent.i16uLength = simple_strtoul(array[2]->u.data) / 8;
-							p->ent.i16uOffset = simple_strtoul(array[3]->u.data);
-							p->ent.i32uDefault = simple_strtoul(array[1]->u.data);
+							kstrtou16(array[2]->u.data, 0, &p->ent.i16uLength);
+							p->ent.i16uLength /= 8;
+							kstrtou16(array[3]->u.data, 0, &p->ent.i16uOffset);
+							kstrtou16(array[1]->u.data, 0, &p->ent.i32uDefault);
 
 							appendEntry(&first, p);
 						}
@@ -496,14 +497,14 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 					ret = find_devices(element->u.object[i]->val, NULL, 100);
 				} else if (lvl == 101) {	// we found a device, parse elements
 					if (strcmp(element->u.object[i]->key, TOKEN_TYPE) == 0) {
-						pDev->i16uModuleType =
-						    simple_strtoul(element->u.object[i]->val->u.data, NULL, 0);
+						if (kstrtou16(element->u.object[i]->val->u.data, 0, &pDev->i16uModuleType) != 0)
+							pDev->i16uModuleType = 0;
 					} else if (strcmp(element->u.object[i]->key, TOKEN_POSITION) == 0) {
-						pDev->i8uAddress =
-						    simple_strtoul(element->u.object[i]->val->u.data, NULL, 0);
+						if (kstrtou8(element->u.object[i]->val->u.data, 0, &pDev->i8uAddress) != 0)
+							pDev->i8uAddress = 0;
 					} else if (strcmp(element->u.object[i]->key, TOKEN_OFFSET) == 0) {
-						pDev->i16uBaseOffset =
-						    simple_strtoul(element->u.object[i]->val->u.data, NULL, 0);
+						if (kstrtou16(element->u.object[i]->val->u.data, 0, &pDev->i16uBaseOffset) != 0)
+							pDev->i16uBaseOffset = 0;
 					} else if (strcmp(element->u.object[i]->key, TOKEN_INPUT) == 0) {
 						ret = find_devices(element->u.object[i]->val, pDev, 200);
 					} else if (strcmp(element->u.object[i]->key, TOKEN_OUTPUT) == 0) {
@@ -573,7 +574,8 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 				find_entries(element->u.object[i]->val, pEnt, pIdxEntry, devAddr, type, 100);
 			} else if (lvl == 101) {	// we found a device, parse elements
 				if (strcmp(element->u.object[i]->key, TOKEN_POSITION) == 0) {
-					devAddr = simple_strtoul(element->u.object[i]->val->u.data, NULL, 0);
+					if (kstrtoint(element->u.object[i]->val->u.data, 0, &devAddr) != 0)
+						devAddr = 0;
 				} else if (strcmp(element->u.object[i]->key, TOKEN_INPUT) == 0) {
 					find_entries(element->u.object[i]->val, pEnt, pIdxEntry, devAddr, 1, 200);
 				} else if (strcmp(element->u.object[i]->key, TOKEN_OUTPUT) == 0) {
@@ -597,15 +599,36 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 					pEnt->ent[*pIdxEntry].i8uAddress = devAddr;
 					pEnt->ent[*pIdxEntry].i8uType = type;
 					pEnt->ent[*pIdxEntry].i16uIndex = i;
-					pEnt->ent[*pIdxEntry].i16uBitLength = simple_strtoul(array[2]->u.data, NULL, 0);
+					if (kstrtou16(array[2]->u.data, 0, &pEnt->ent[*pIdxEntry].i16uBitLength) != 0)
+						pEnt->ent[*pIdxEntry].i16uBitLength = 0;
 					if (pEnt->ent[*pIdxEntry].i16uBitLength == 1) {
-						pEnt->ent[*pIdxEntry].i8uBitPos =
-						    simple_strtoul(array[7]->u.data, NULL, 0);
+						if (kstrtou8(array[7]->u.data, 0, &pEnt->ent[*pIdxEntry].i8uBitPos) != 0)
+							pEnt->ent[*pIdxEntry].i8uBitPos = 0;
 					} else {
 						pEnt->ent[*pIdxEntry].i8uBitPos = 0;	// default for whole bytes
 					}
-					pEnt->ent[*pIdxEntry].i16uOffset = simple_strtoul(array[3]->u.data, NULL, 0);
-					pEnt->ent[*pIdxEntry].i32uDefault = simple_strtoul(array[1]->u.data, NULL, 0);
+					if (kstrtou16(array[3]->u.data, 0, &pEnt->ent[*pIdxEntry].i16uOffset) != 0)
+						pEnt->ent[*pIdxEntry].i16uOffset = 0;
+					if (kstrtou32(array[1]->u.data, 0, &pEnt->ent[*pIdxEntry].i32uDefault) != 0) {
+						// if parsing as unsigned failed, try it as signed number
+						if (kstrtos32(array[1]->u.data, 0, &pEnt->ent[*pIdxEntry].i32uDefault) != 0) {
+							// try binary representation
+							if (array[1]->u.data[0] == '0' && array[1]->u.data[1] == 'b') {
+								if (kstrtou32(array[1]->u.data+2, 2, &pEnt->ent[*pIdxEntry].i32uDefault) != 0) {
+									// failed also, use default value 0
+									pEnt->ent[*pIdxEntry].i32uDefault = 0;
+								}
+							} else if (array[1]->u.data[0] == '-' && array[1]->u.data[1] == '0' && array[1]->u.data[2] == 'b') {
+								if (kstrtou32(array[1]->u.data+3, 2, &pEnt->ent[*pIdxEntry].i32uDefault) != 0) {
+									// failed also, use default value 0
+									pEnt->ent[*pIdxEntry].i32uDefault = 0;
+								}
+							} else {
+								// use default value 0
+								pEnt->ent[*pIdxEntry].i32uDefault = 0;
+							}
+						}
+					}
 					//pr_info_config("export: >%s< t %d l %d\n", array[4]->u.data, array[4]->type, array[4]->length);
 					if (array[4]->type == JSON_TRUE ||
 					    (array[4]->type == JSON_STRING && strcmp(array[4]->u.data, "true") == 0)
