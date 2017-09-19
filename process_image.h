@@ -66,3 +66,11 @@ static inline void cycletimer_destroy(struct cycletimer *ct)
 	hrtimer_cancel(&ct->sleeper.timer);
 	destroy_hrtimer_on_stack(&ct->sleeper.timer);
 }
+
+#define flip_process_image(shadow, offset)				   \
+{									   \
+	rt_mutex_lock(&piDev_g.lockPI);					   \
+	((typeof(shadow))(piDev_g.ai8uPI + (offset)))->drv = shadow->drv;  \
+	shadow->usr = ((typeof(shadow))(piDev_g.ai8uPI + (offset)))->usr;  \
+	rt_mutex_unlock(&piDev_g.lockPI);				   \
+}
