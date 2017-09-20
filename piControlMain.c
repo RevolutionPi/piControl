@@ -846,7 +846,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 
 	if (!waitRunning(3000)) {
 		pr_err("problem at driver initialization\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
