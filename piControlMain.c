@@ -726,7 +726,8 @@ bool isInitialized(void)
 // false: system is not operational
 bool isRunning(void)
 {
-	if (piDev_g.init_step < 17 || piDev_g.eBridgeState != piBridgeRun) {
+	if (piDev_g.init_step < 17 || ((piDev_g.machine_type == REVPI_CORE) &&
+					(piDev_g.eBridgeState != piBridgeRun))) {
 		return false;
 	}
 	return true;
@@ -740,6 +741,9 @@ bool waitRunning(int timeout)	// ms
 		pr_info_drv("waitRunning: init_step=%d\n", piDev_g.init_step);
 		return false;
 	}
+
+	if (piDev_g.machine_type != REVPI_CORE)
+		return true;
 
 	timeout /= 100;
 	timeout++;
