@@ -815,6 +815,7 @@ bool waitRunning(int timeout)	// ms
 
 	while (timeout > 0 && piDev_g.eBridgeState != piBridgeRun) {
 		msleep(100);
+		timeout--;
 	}
 	if (timeout <= 0)
 		return false;
