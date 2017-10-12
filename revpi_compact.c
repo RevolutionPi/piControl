@@ -23,6 +23,7 @@
 #include "PiBridgeMaster.h"
 #include "piControlMain.h"
 #include "process_image.h"
+#include "pt100.h"
 
 #define REVPI_COMPACT_IO_CYCLE 1000 * NSEC_PER_USEC
 #define REVPI_COMPACT_AIN_CYCLE 125 * NSEC_PER_MSEC
@@ -203,10 +204,13 @@ static int revpi_compact_poll_ain(void *data)
 		dev_info(piDev_g.dev, "read ain chan=%u, raw=%d mV\n", chan[i], raw);
 
 		if (rtd[i]) {
+			/* resistance in Ohm = raw value in mV / 25 mA */
+			int resistance = raw / 25;
+			GetPt100Temperature(resistance, &raw);
 			if (pt1k[i])
 				raw /= 10;
-			/* FIXME: RTD conversion */
 		}
+
 		image->drv.ain[chan[i]] = raw;
 
 next_chan:
