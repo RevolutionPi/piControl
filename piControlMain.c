@@ -702,10 +702,13 @@ static void cleanup(void)
 		curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor) + devindex);
 		pr_info("Remove MINOR-No.  : %d\n", MINOR(curdev));
 		device_destroy(piControlClass, curdev);
+		piDev_g.dev = NULL;
 	}
 
-	if (!IS_ERR_OR_NULL(piControlClass))
+	if (!IS_ERR_OR_NULL(piControlClass)) {
 		class_destroy(piControlClass);
+		piControlClass = NULL;
+	}
 	unregister_chrdev_region(piControlMajor, 2);
 }
 
