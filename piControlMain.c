@@ -651,7 +651,16 @@ static int __init piControlInit(void)
 	if (piDev_g.machine_type == REVPI_CORE)
 		res = revpi_core_init();
 	else if (piDev_g.machine_type == REVPI_COMPACT) {
-		struct revpi_compact_config config = { .ain[0] = 1, .ain[1] = BIT(0)|BIT(1)|BIT(2), };
+		struct revpi_compact_config config = {
+			.ain[0] = 0x07,
+			.ain[1] = 0x07,
+			.ain[2] = 0x07,
+			.ain[3] = 0x01,
+			.ain[4] = 0x07,
+			.ain[5] = 0x07,
+			.ain[6] = 0x07,
+			.ain[7] = 0x01,
+		};
 		res = revpi_compact_init(&config);
 	}
 	if (res) {

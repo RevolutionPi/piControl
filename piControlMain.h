@@ -67,8 +67,8 @@ typedef enum piEvent
 } enPiEvent;
 
 enum revpi_machine {
-	REVPI_CORE,
-	REVPI_COMPACT,
+	REVPI_CORE = 1,
+	REVPI_COMPACT = 2,
 };
 
 typedef struct spiControlDev

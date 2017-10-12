@@ -28,7 +28,7 @@ piControl-objs += pt100.o
 ccflags-y := -O2
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
-KDIR    := /home/md/pi/kernelpkg/kbuild7
+KDIR    := /home/md/pi/kernelbakery/kbuild7
 KBUILD_CFLAGS += -g
 
 PWD   	:= $(shell pwd)
@@ -41,7 +41,7 @@ EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__
 .PHONY: compiletime.h
 
 all: compiletime.h
-	$(MAKE) ARCH=arm -C $(KDIR) M=$(PWD) O=../kernelpkg/kbuild modules
+	$(MAKE) ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -C $(KDIR) M=$(PWD)  modules
 
 compiletime.h:
 	echo "#define COMPILETIME \""`date`"\"" > compiletime.h
