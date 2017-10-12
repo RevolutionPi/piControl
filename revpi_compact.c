@@ -30,7 +30,6 @@
 
 struct revpi_compact {
 	struct revpi_compact_image image;
-	unsigned int offset;
 	struct revpi_compact_config config;
 	struct task_struct *io_thread;
 	struct task_struct *ain_thread;
@@ -121,7 +120,7 @@ static int revpi_compact_poll_io(void *data)
 		image->drv.dout_status =
 			!!gpiod_get_value_cansleep(machine->dout_fault) << 5;
 
-		flip_process_image(image, machine->offset);
+		flip_process_image(image, machine->config.offset);
 
 		/* write dout on every cycle to feed watchdog */
 		/* FIXME: GPIO core should return non-void for set() */
