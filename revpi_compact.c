@@ -407,3 +407,33 @@ void revpi_compact_fini(void)
 	gpiod_remove_lookup_table(&revpi_compact_gpios);
 	piDev_g.machine = NULL;
 }
+
+int revpi_compact_reset(struct revpi_compact_config *config)
+{
+	struct revpi_compact *machine = piDev_g.machine;
+	struct sched_param param;
+	int ret;
+
+	if (!IS_ERR_OR_NULL(machine->ain_thread))
+		kthread_stop(machine->ain_thread);
+
+	machine->config = *config;
+
+	machine->ain_thread = kthread_create(&revpi_compact_poll_ain, machine,
+					     "piControl ain");
+	if (IS_ERR(machine->ain_thread)) {
+		dev_err(piDev_g.dev, "cannot create ain thread\n");
+		return PTR_ERR(machine->ain_thread);
+	}
+
+	param.sched_priority = RT_PRIO_BRIDGE;
+	ret = sched_setscheduler(machine->ain_thread, SCHED_FIFO, &param);
+	if (ret) {
+		dev_err(piDev_g.dev, "cannot upgrade ain thread priority\n");
+		return ret;
+	}
+
+	wake_up_process(machine->ain_thread);
+
+	return 0;
+}

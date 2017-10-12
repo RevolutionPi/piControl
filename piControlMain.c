@@ -972,7 +972,16 @@ static int piControlReset(tpiControlInst *priv) {
 		// ignore errors
 	}
 
-	PiBridgeMaster_Reset();
+	if (piDev_g.machine_type == REVPI_CORE)
+		PiBridgeMaster_Reset();
+	else if (piDev_g.machine_type == REVPI_COMPACT) {
+		struct revpi_compact_config config = { };
+		int ret = revpi_compact_reset(&config);
+		if (ret) {
+			cleanup();
+			return ret;
+		}
+	}
 
 	if (!waitRunning(timeout)) {
 		status = -ETIMEDOUT;
