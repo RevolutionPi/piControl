@@ -107,7 +107,7 @@ static int revpi_compact_poll_io(void *data)
 	while (!kthread_should_stop()) {
 		/* poll din */
 		ret = gpiod_get_array_value_cansleep(machine->din->ndescs,
-			  (const struct gpio_desc **)machine->din->desc, val);
+						     machine->din->desc, val);
 		image->drv.din_status = max3191x_get_status(machine->din_dev);
 		image->drv.din = 0;
 		if (ret)
