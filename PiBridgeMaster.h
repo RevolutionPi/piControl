@@ -79,6 +79,7 @@ typedef struct _SRevPiCoreImage {
 
 struct revpi_compact_config {
 	unsigned int offset;
+	u16 din_debounce; /* usec */
 	u8 ain[8];
 #define AIN_ENABLED 0  /* bit number */
 #define AIN_RTD     1

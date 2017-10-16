@@ -267,6 +267,10 @@ int revpi_compact_init(struct revpi_compact_config *config)
 		goto err_put_din;
 	}
 
+	ret = gpiod_set_debounce(machine->din->desc[0], config->din_debounce);
+	if (ret)
+		dev_err(piDev_g.dev, "cannot set din debounce\n");
+
 	machine->din_dev = bus_find_device(&spi_bus_type, NULL, "max31913",
 					   match_name);
 	if (!machine->din_dev) {
@@ -425,6 +429,10 @@ int revpi_compact_reset(struct revpi_compact_config *config)
 		kthread_stop(machine->ain_thread);
 
 	machine->config = *config;
+
+	ret = gpiod_set_debounce(machine->din->desc[0], config->din_debounce);
+	if (ret)
+		dev_err(piDev_g.dev, "cannot set din debounce\n");
 
 	machine->ain_thread = kthread_create(&revpi_compact_poll_ain, machine,
 					     "piControl ain");
