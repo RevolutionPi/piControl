@@ -100,7 +100,7 @@ struct revpi_compact_image {
 		s16 ain[8];
 	} drv;
 	struct {
-		u8 i8uLED;
+		u8 led;
 		u8 dout;
 		u16 aout[2];
 	} usr;

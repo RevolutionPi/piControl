@@ -21,6 +21,7 @@ piControl-objs += PiBridgeMaster.o
 piControl-objs += kbUtilities.o
 piControl-objs += kbAlloc.o
 piControl-objs += systick.o
+piControl-objs += revpi_common.o
 piControl-objs += revpi_compact.o
 piControl-objs += pt100.o
 

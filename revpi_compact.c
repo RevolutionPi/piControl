@@ -24,6 +24,7 @@
 #include "piControlMain.h"
 #include "process_image.h"
 #include "pt100.h"
+#include "revpi_common.h"
 
 #define REVPI_COMPACT_IO_CYCLE 1000 * NSEC_PER_USEC
 #define REVPI_COMPACT_AIN_CYCLE 125 * NSEC_PER_MSEC
@@ -147,6 +148,9 @@ static int revpi_compact_poll_io(void *data)
 					prev.usr.aout[i] = image->usr.aout[i];
 			}
 		assign_bit_in_byte(AOUT_TX_ERR, &image->drv.aout_status, err);
+
+		/* update LEDs if changed by user */
+		revpi_led_trigger_event(&prev.usr.led, image->usr.led);
 
 		cycletimer_sleep(&ct);
 	}

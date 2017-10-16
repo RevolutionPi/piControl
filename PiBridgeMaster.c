@@ -51,6 +51,7 @@
 #include <piIOComm.h>
 #include <piDIOComm.h>
 #include <piAIOComm.h>
+#include "revpi_common.h"
 
 #define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
@@ -303,7 +304,6 @@ int PiBridgeMaster_Run(void)
 	static kbUT_Timer tTimeoutTimer_s;
 	static kbUT_Timer tConfigTimeoutTimer_s;
 	static int error_cnt;
-	INT8U led;
 	static INT8U last_led;
 	int ret = 0;
 	int i;
@@ -809,22 +809,7 @@ int PiBridgeMaster_Run(void)
 
 		RevPiScan.pCoreData->i8uStatus = RevPiScan.i8uStatus;
 
-		led = RevPiScan.pCoreData->i8uLED;
-		if (led != last_led) {
-			led_trigger_event(&piDev_g.a1_green,
-					  (led & PICONTROL_LED_A1_GREEN) ?
-					  LED_FULL : LED_OFF);
-			led_trigger_event(&piDev_g.a1_red,
-					  (led & PICONTROL_LED_A1_RED) ?
-					  LED_FULL : LED_OFF);
-			led_trigger_event(&piDev_g.a2_green,
-					  (led & PICONTROL_LED_A2_GREEN) ?
-					  LED_FULL : LED_OFF);
-			led_trigger_event(&piDev_g.a2_red,
-					  (led & PICONTROL_LED_A2_RED) ?
-					  LED_FULL : LED_OFF);
-			last_led = led;
-		}
+		revpi_led_trigger_event(&last_led, RevPiScan.pCoreData->i8uLED);
 		// update every 1 sec
 		if ((kbUT_getCurrentMs() - last_update) > 1000) {
 			if (piDev_g.thermal_zone != NULL) {
