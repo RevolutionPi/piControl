@@ -30,26 +30,33 @@ static inline void cycletimer_sleep(struct cycletimer *ct)
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
 	u64 now = ktime_to_ns(hrtimer_cb_get_time(timer));
-	u64 prev_wake = ct->next_wake;
+	u64 this_wake = ct->next_wake;
 
 	ct->next_wake += ct->cycletime;
 
 	if (ct->next_wake < now) {
 		ct->next_wake = roundup_u64(now, ct->cycletime);
 		dev_warn(piDev_g.dev, "%s: missed %lld cycles\n",
-			 current->comm, div_u64(ct->next_wake - prev_wake,
+			 current->comm, div_u64(ct->next_wake - this_wake,
 						ct->cycletime) - 1);
 	}
 
+	set_current_state(TASK_UNINTERRUPTIBLE);
 	hrtimer_start(timer, ns_to_ktime(ct->next_wake), HRTIMER_MODE_ABS);
-	if (hrtimer_is_queued(timer)) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule();
-	}
+	schedule();
+}
+
+static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
+{
+	struct hrtimer *timer = &ct->sleeper.timer;
+
+	ct->cycletime = cycletime;
+	ct->next_wake = rounddown_u64(ktime_to_ns(hrtimer_cb_get_time(timer)),
+				      cycletime);
 }
 
 static inline void cycletimer_init_on_stack(struct cycletimer *ct,
-					    const u32 cycletime)
+					    u32 cycletime)
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
 
