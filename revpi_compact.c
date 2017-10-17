@@ -163,9 +163,10 @@ static int revpi_compact_poll_ain(void *data)
 {
 	struct revpi_compact *machine = (struct revpi_compact *)data;
 	struct revpi_compact_image *image = &machine->image;
-	int  chan[ARRAY_SIZE(machine->config.ain)];
 	bool  rtd[ARRAY_SIZE(machine->config.ain)];
 	bool pt1k[ARRAY_SIZE(machine->config.ain)];
+	int   mux[ARRAY_SIZE(machine->config.ain)];
+	int  chan[ARRAY_SIZE(machine->config.ain)];
 	int ret, i, numchans, raw;
 	struct cycletimer ct;
 
@@ -175,7 +176,8 @@ static int revpi_compact_poll_ain(void *data)
 		if (test_bit_in_byte(AIN_ENABLED, config)) {
 			rtd[numchans]  = test_bit_in_byte(AIN_RTD, config);
 			pt1k[numchans] = test_bit_in_byte(AIN_PT1K, config);
-			chan[numchans] = i + ARRAY_SIZE(chan) * rtd[numchans];
+			mux[numchans]  = i + ARRAY_SIZE(chan) * rtd[numchans];
+			chan[numchans] = i;
 			numchans++;
 		}
 	}
@@ -193,8 +195,7 @@ static int revpi_compact_poll_ain(void *data)
 		unsigned long long tmp;
 
 		/* poll ain */
-		ret = iio_read_channel_raw(&machine->ain[chan[i]], &raw);
-		dev_info(piDev_g.dev, "read ain chan=%u (#%lu, %s), raw=%d, ret=%d\n", chan[i], machine->ain[chan[i]].channel->address, machine->ain[chan[i]].channel->datasheet_name, raw, ret);
+		ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
 		assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
 		if (ret < 0) {
 			image->drv.ain[chan[i]] = 0;
@@ -204,7 +205,6 @@ static int revpi_compact_poll_ain(void *data)
 		/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.125V */
 		tmp = shift_right((s64)raw * 12500 * 100000000LL, 21);
 		raw = (int)div_s64(tmp, 100000000LL) + 6125;
-		dev_info(piDev_g.dev, "read ain chan=%u, raw=%d mV\n", chan[i], raw);
 
 		if (rtd[i]) {
 			/* resistance in Ohm = raw value in mV / 25 mA */
