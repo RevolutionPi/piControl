@@ -207,11 +207,14 @@ static int revpi_compact_poll_ain(void *data)
 		raw = (int)div_s64(tmp, 100000000LL) + 6125;
 
 		if (rtd[i]) {
-			/* resistance in Ohm = raw value in mV / 2.5 mA */
-			int resistance = raw * 10 / 25;
+			/*
+			 * resistance in Ohm = raw value in mV / 2.5 mA,
+			 * scaled by 10 for PT1000 or by 100 for PT100
+			 * to match up with values in pt100_table.inc
+			 */
+			int resistance = pt1k[i] ? raw * 100 / 25
+						 : raw * 1000 / 25;
 			GetPt100Temperature(resistance, &raw);
-			if (pt1k[i])
-				raw /= 10;
 		}
 
 		image->drv.ain[chan[i]] = raw;
