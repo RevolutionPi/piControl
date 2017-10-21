@@ -202,9 +202,9 @@ static int revpi_compact_poll_ain(void *data)
 			goto next_chan;
 		}
 
-		/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.125V */
+		/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
 		tmp = shift_right((s64)raw * 12500 * 100000000LL, 21);
-		raw = (int)div_s64(tmp, 100000000LL) + 6125;
+		raw = (int)div_s64(tmp, 100000000LL) + 6250;
 
 		if (rtd[i]) {
 			/*
