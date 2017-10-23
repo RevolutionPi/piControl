@@ -244,7 +244,7 @@ static int match_name(struct device *dev, void *data)
 int revpi_compact_init(struct revpi_compact_config *config)
 {
 	struct revpi_compact *machine;
-	struct sched_param param;
+	struct sched_param param = { .sched_priority = RT_PRIO_BRIDGE };
 	struct device *dev;
 	int ret;
 
@@ -340,7 +340,6 @@ int revpi_compact_init(struct revpi_compact_config *config)
 		goto err_release_aout;
 	}
 
-	param.sched_priority = RT_PRIO_BRIDGE;
 	ret = sched_setscheduler(machine->io_thread, SCHED_FIFO, &param);
 	if (ret) {
 		dev_err(piDev_g.dev, "cannot upgrade i/o thread priority\n");
@@ -425,7 +424,7 @@ void revpi_compact_fini(void)
 int revpi_compact_reset(struct revpi_compact_config *config)
 {
 	struct revpi_compact *machine = piDev_g.machine;
-	struct sched_param param;
+	struct sched_param param = { .sched_priority = RT_PRIO_BRIDGE };
 	int ret;
 
 	if (!IS_ERR_OR_NULL(machine->ain_thread))
@@ -444,7 +443,6 @@ int revpi_compact_reset(struct revpi_compact_config *config)
 		return PTR_ERR(machine->ain_thread);
 	}
 
-	param.sched_priority = RT_PRIO_BRIDGE;
 	ret = sched_setscheduler(machine->ain_thread, SCHED_FIFO, &param);
 	if (ret) {
 		dev_err(piDev_g.dev, "cannot upgrade ain thread priority\n");
