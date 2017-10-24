@@ -538,29 +538,10 @@ static int __init piControlInit(void)
 
 	pr_info("built: %s\n", COMPILETIME);
 
-	// Uart
-#ifdef UART_TEST		// test
-	UART_TConfig suUartConfig_l;
-	suUartConfig_l.enBaudRate = UART_enBAUD_115200;
-	suUartConfig_l.enParity = UART_enPARITY_EVEN;
-	suUartConfig_l.enStopBit = UART_enSTOPBIT_1;
-	suUartConfig_l.enDataLen = UART_enDATA_LEN_8;
-	suUartConfig_l.enFlowControl = UART_enFLOWCTRL_NONE;
-	suUartConfig_l.enRS485 = UART_enRS485_ENABLE;
-	suUartConfig_l.cbReceive = piControlDummyReceive;	//CbReceive;
-	suUartConfig_l.cbTransmit = NULL;	//CbTransmit;
-	suUartConfig_l.cbError = NULL;	//CbError;
-	if (UART_init(0, &suUartConfig_l) != 0) {
-		return -EFAULT;
-	}
-	UART_putChar(0, 'a');
-	msleep(10 * 1000);
-	UART_close(0);
-	return -EFAULT;
-#endif
-
 	if (of_machine_is_compatible("kunbus,revpi-compact"))
 		piDev_g.machine_type = REVPI_COMPACT;
+	else if (of_machine_is_compatible("kunbus,revpi-connect"))
+		piDev_g.machine_type = REVPI_CONNECT;
 	else
 		piDev_g.machine_type = REVPI_CORE;
 
