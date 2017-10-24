@@ -41,6 +41,8 @@ struct revpi_compact {
 	struct iio_dev *ain_dev, *aout_dev;
 	struct iio_channel *ain;
 	struct iio_channel *aout[2];
+	bool ain_should_reset;
+	struct completion ain_reset;
 };
 
 static struct gpiod_lookup_table revpi_compact_gpios = {
@@ -167,32 +169,45 @@ static int revpi_compact_poll_ain(void *data)
 	bool pt1k[ARRAY_SIZE(machine->config.ain)];
 	int   mux[ARRAY_SIZE(machine->config.ain)];
 	int  chan[ARRAY_SIZE(machine->config.ain)];
-	int ret, i, numchans, raw;
+	int i = 0, numchans = 0, ret, raw;
 	struct cycletimer ct;
 
-	/* determine which channels are enabled, cache them in chan[] */
-	for (i = 0, numchans = 0; i < ARRAY_SIZE(chan); i++) {
-		u8 *config = &machine->config.ain[i];
-		if (test_bit_in_byte(AIN_ENABLED, config)) {
-			rtd[numchans]  = test_bit_in_byte(AIN_RTD, config);
-			pt1k[numchans] = test_bit_in_byte(AIN_PT1K, config);
-			mux[numchans]  = i + ARRAY_SIZE(chan) * rtd[numchans];
-			chan[numchans] = i;
-			numchans++;
-		}
-	}
-
-	if (!numchans) {
-		/* no channels enabled, no need to poll */
-		machine->ain_thread = NULL;
-		return 0;
-	}
-
-	i = 0;
 	cycletimer_init_on_stack(&ct, REVPI_COMPACT_AIN_CYCLE);
 
 	while (!kthread_should_stop()) {
 		unsigned long long tmp;
+
+		if (machine->ain_should_reset) {
+			/* determine which channels are enabled */
+			for (i = 0, numchans = 0; i < ARRAY_SIZE(chan); i++) {
+				unsigned long config = machine->config.ain[i];
+
+				if (!test_bit(AIN_ENABLED, &config))
+					continue;
+
+				/* pre-calculate channel parameters */
+				rtd[numchans]  = test_bit(AIN_RTD, &config);
+				pt1k[numchans] = test_bit(AIN_PT1K, &config);
+				mux[numchans]  = i + rtd[numchans] *
+						 ARRAY_SIZE(chan);
+				chan[numchans] = i;
+				numchans++;
+			}
+
+			dev_info(piDev_g.dev, "ain thread reset to %d chans\n",
+				 numchans);
+
+			if (!numchans) {
+				complete(&machine->ain_reset);
+				schedule();
+				continue;
+			}
+
+			i = 0;
+			cycletimer_change(&ct, NSEC_PER_SEC / numchans);
+			WRITE_ONCE(machine->ain_should_reset, false);
+			complete(&machine->ain_reset);
+		}
 
 		/* poll ain */
 		ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
@@ -254,6 +269,8 @@ int revpi_compact_init(struct revpi_compact_config *config)
 
 	piDev_g.machine = machine;
 	machine->config = *config;
+	machine->ain_should_reset = true;
+	init_completion(&machine->ain_reset);
 	gpiod_add_lookup_table(&revpi_compact_gpios);
 
 	machine->din =  gpiod_get_array(piDev_g.dev, "din", GPIOD_ASIS);
@@ -360,10 +377,6 @@ int revpi_compact_init(struct revpi_compact_config *config)
 		goto err_stop_ain_thread;
 	}
 
-	/*
-	 * ain_thread may return immediately if no channels are enabled,
-	 * so upgrade thread priority *before* waking it up.
-	 */
 	wake_up_process(machine->io_thread);
 	wake_up_process(machine->ain_thread);
 
@@ -424,11 +437,7 @@ void revpi_compact_fini(void)
 int revpi_compact_reset(struct revpi_compact_config *config)
 {
 	struct revpi_compact *machine = piDev_g.machine;
-	struct sched_param param = { .sched_priority = RT_PRIO_BRIDGE };
 	int ret;
-
-	if (!IS_ERR_OR_NULL(machine->ain_thread))
-		kthread_stop(machine->ain_thread);
 
 	machine->config = *config;
 
@@ -436,20 +445,10 @@ int revpi_compact_reset(struct revpi_compact_config *config)
 	if (ret)
 		dev_err(piDev_g.dev, "cannot set din debounce\n");
 
-	machine->ain_thread = kthread_create(&revpi_compact_poll_ain, machine,
-					     "piControl ain");
-	if (IS_ERR(machine->ain_thread)) {
-		dev_err(piDev_g.dev, "cannot create ain thread\n");
-		return PTR_ERR(machine->ain_thread);
-	}
-
-	ret = sched_setscheduler(machine->ain_thread, SCHED_FIFO, &param);
-	if (ret) {
-		dev_err(piDev_g.dev, "cannot upgrade ain thread priority\n");
-		return ret;
-	}
-
+	reinit_completion(&machine->ain_reset);
+	WRITE_ONCE(machine->ain_should_reset, true);
 	wake_up_process(machine->ain_thread);
+	wait_for_completion(&machine->ain_reset);
 
 	return 0;
 }
