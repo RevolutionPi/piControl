@@ -88,23 +88,22 @@ struct revpi_compact_config {
 
 struct revpi_compact_image {
 	struct {
-		u8 i8uIOCycle;
 		u8 i8uCPUTemperature;
 		u8 i8uCPUFrequency;
 		u8 din;
+		s16 ain[8];
 		u8 din_status; /* identical layout as SDioModuleStatus */
 		u8 dout_status;
 		u8 ain_status;
 #define AIN_TX_ERR  7 /* bit number */
 		u8 aout_status;
 #define AOUT_TX_ERR 7
-		s16 ain[8];
-	} drv;
+	} __attribute__ ((__packed__)) drv;	// 23 bytes
 	struct {
 		u8 led;
 		u8 dout;
 		u16 aout[2];
-	} usr;
+	} __attribute__ ((__packed__)) usr;	// 6 bytes
 } __packed;
 
 void PiBridgeMaster_Reset(void);
