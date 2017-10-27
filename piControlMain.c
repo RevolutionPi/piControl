@@ -81,9 +81,9 @@
 #include "revpi_compact.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Christof Vogt, Mathias Duckeck");
+MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("1.2.0");
+MODULE_VERSION("1.3.0");
 MODULE_SOFTDEP("bcm2835-thermal");
 
 
@@ -632,17 +632,7 @@ static int __init piControlInit(void)
 	if (piDev_g.machine_type == REVPI_CORE)
 		res = revpi_core_init();
 	else if (piDev_g.machine_type == REVPI_COMPACT) {
-		struct revpi_compact_config config = {
-			.ain[0] = 0x07,
-			.ain[1] = 0x07,
-			.ain[2] = 0x07,
-			.ain[3] = 0x01,
-			.ain[4] = 0x07,
-			.ain[5] = 0x07,
-			.ain[6] = 0x07,
-			.ain[7] = 0x01,
-		};
-		res = revpi_compact_init(&config);
+		res = revpi_compact_init();
 	}
 	if (res) {
 		cleanup();
@@ -968,8 +958,7 @@ static int piControlReset(tpiControlInst *priv) {
 	if (piDev_g.machine_type == REVPI_CORE)
 		PiBridgeMaster_Reset();
 	else if (piDev_g.machine_type == REVPI_COMPACT) {
-		struct revpi_compact_config config = { };
-		int ret = revpi_compact_reset(&config);
+		int ret = revpi_compact_reset();
 		if (ret) {
 			cleanup();
 			return ret;

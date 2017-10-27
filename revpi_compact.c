@@ -25,13 +25,14 @@
 #include "process_image.h"
 #include "pt100.h"
 #include "revpi_common.h"
+#include "revpi_compact.h"
 
-#define REVPI_COMPACT_IO_CYCLE 1000 * NSEC_PER_USEC
-#define REVPI_COMPACT_AIN_CYCLE 125 * NSEC_PER_MSEC
+#define REVPI_COMPACT_IO_CYCLE		(1000 * NSEC_PER_USEC)		//   1 msec
+#define REVPI_COMPACT_AIN_CYCLE		( 125 * NSEC_PER_MSEC)		// 125 msec
 
-struct revpi_compact {
-	struct revpi_compact_image image;
-	struct revpi_compact_config config;
+typedef struct _SRevPiCompact {
+	SRevPiCompactImage image;
+	SRevPiCompactConfig config;
 	struct task_struct *io_thread;
 	struct task_struct *ain_thread;
 	struct device *din_dev;
@@ -43,7 +44,9 @@ struct revpi_compact {
 	struct iio_channel *aout[2];
 	bool ain_should_reset;
 	struct completion ain_reset;
-};
+} SRevPiCompact;
+
+static SRevPiCompactConfig revpi_compact_config_g;
 
 static struct gpiod_lookup_table revpi_compact_gpios = {
 	.dev_id = "piControl0",
@@ -94,9 +97,9 @@ static const struct iio_map revpi_compact_aout[] = {
 
 static int revpi_compact_poll_io(void *data)
 {
-	struct revpi_compact *machine = (struct revpi_compact *)data;
-	struct revpi_compact_image *image = &machine->image;
-	struct revpi_compact_image prev = { };
+	SRevPiCompact *machine = (SRevPiCompact *)data;
+	SRevPiCompactImage *image = &machine->image;
+	SRevPiCompactImage prev = { };
 	struct cycletimer ct;
 	int ret, i, val[8];
 	bool err;
@@ -163,8 +166,8 @@ static int revpi_compact_poll_io(void *data)
 
 static int revpi_compact_poll_ain(void *data)
 {
-	struct revpi_compact *machine = (struct revpi_compact *)data;
-	struct revpi_compact_image *image = &machine->image;
+	SRevPiCompact *machine = (SRevPiCompact *)data;
+	SRevPiCompactImage *image = &machine->image;
 	bool  rtd[ARRAY_SIZE(machine->config.ain)];
 	bool pt1k[ARRAY_SIZE(machine->config.ain)];
 	int   mux[ARRAY_SIZE(machine->config.ain)];
@@ -179,6 +182,10 @@ static int revpi_compact_poll_ain(void *data)
 
 		if (machine->ain_should_reset) {
 			/* determine which channels are enabled */
+//			pr_info("AIn Reset: config %d %d %d %d %d %d %d %d\n",
+//				machine->config.ain[0], machine->config.ain[1], machine->config.ain[2], machine->config.ain[3],
+//				machine->config.ain[4], machine->config.ain[5], machine->config.ain[6], machine->config.ain[7]);
+
 			for (i = 0, numchans = 0; i < ARRAY_SIZE(chan); i++) {
 				unsigned long config = machine->config.ain[i];
 
@@ -207,6 +214,11 @@ static int revpi_compact_poll_ain(void *data)
 			cycletimer_change(&ct, NSEC_PER_SEC / numchans);
 			WRITE_ONCE(machine->ain_should_reset, false);
 			complete(&machine->ain_reset);
+//			pr_info("AIn Reset: ct %dms, %d active: %d %d %d %d %d %d %d %d    %d %d %d %d %d %d %d %d\n",
+//				(1000 / numchans), numchans,
+//				mux[0], mux[1], mux[2], mux[3], mux[4], mux[5], mux[6], mux[7],
+//				chan[0], chan[1], chan[2], chan[3], chan[4], chan[5], chan[6], chan[7]
+//				);
 		}
 
 		/* poll ain */
@@ -256,9 +268,54 @@ static int match_name(struct device *dev, void *data)
 		return sysfs_streq(name, dev_name(dev));
 }
 
-int revpi_compact_init(struct revpi_compact_config *config)
+INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
 {
-	struct revpi_compact *machine;
+	uint16_t i;
+
+	for (i = 0; i < i16uNumEntries; i++) {
+		pr_info_aio("addr %2d  type %d  len %3d  offset %3d  value %d 0x%x\n",
+			    pEnt[i].i8uAddress, pEnt[i].i8uType, pEnt[i].i16uBitLength, pEnt[i].i16uOffset,
+			    pEnt[i].i32uDefault, pEnt[i].i32uDefault);
+
+		switch (pEnt[i].i16uOffset) {
+		case RevPi_Compact_OFFSET_DInDebounce:
+			revpi_compact_config_g.din_debounce = pEnt[i].i32uDefault;
+			break;
+		case RevPi_Compact_OFFSET_AInMode1:
+			revpi_compact_config_g.ain[0] = pEnt[i].i32uDefault;
+			break;
+		case RevPi_Compact_OFFSET_AInMode2:
+			revpi_compact_config_g.ain[1] = pEnt[i].i32uDefault;
+			break;
+		case RevPi_Compact_OFFSET_AInMode3:
+			revpi_compact_config_g.ain[2] = pEnt[i].i32uDefault;
+			break;
+		case RevPi_Compact_OFFSET_AInMode4:
+			revpi_compact_config_g.ain[3] = pEnt[i].i32uDefault;
+			break;
+		case RevPi_Compact_OFFSET_AInMode5:
+			revpi_compact_config_g.ain[4] = pEnt[i].i32uDefault;
+			break;
+		case RevPi_Compact_OFFSET_AInMode6:
+			revpi_compact_config_g.ain[5] = pEnt[i].i32uDefault;
+			break;
+		case RevPi_Compact_OFFSET_AInMode7:
+			revpi_compact_config_g.ain[6] = pEnt[i].i32uDefault;
+			break;
+		case RevPi_Compact_OFFSET_AInMode8:
+			revpi_compact_config_g.ain[7] = pEnt[i].i32uDefault;
+			break;
+		default:
+			// nothing to do
+			break;
+		}
+	}
+	return 0;
+}
+
+int revpi_compact_init(void)
+{
+	SRevPiCompact *machine;
 	struct sched_param param = { .sched_priority = RT_PRIO_BRIDGE };
 	struct device *dev;
 	int ret;
@@ -268,7 +325,7 @@ int revpi_compact_init(struct revpi_compact_config *config)
 		return -ENOMEM;
 
 	piDev_g.machine = machine;
-	machine->config = *config;
+	machine->config = revpi_compact_config_g;
 	machine->ain_should_reset = true;
 	init_completion(&machine->ain_reset);
 	gpiod_add_lookup_table(&revpi_compact_gpios);
@@ -287,7 +344,7 @@ int revpi_compact_init(struct revpi_compact_config *config)
 		goto err_put_din;
 	}
 
-	ret = gpiod_set_debounce(machine->din->desc[0], config->din_debounce);
+	ret = gpiod_set_debounce(machine->din->desc[0], machine->config.din_debounce);
 	if (ret)
 		dev_err(piDev_g.dev, "cannot set din debounce\n");
 
@@ -411,7 +468,7 @@ err_remove_table:
 
 void revpi_compact_fini(void)
 {
-	struct revpi_compact *machine = (struct revpi_compact *)piDev_g.machine;
+	SRevPiCompact *machine = (SRevPiCompact *)piDev_g.machine;
 
 	if (!machine)
 		return;
@@ -434,14 +491,14 @@ void revpi_compact_fini(void)
 	piDev_g.machine = NULL;
 }
 
-int revpi_compact_reset(struct revpi_compact_config *config)
+int revpi_compact_reset()
 {
-	struct revpi_compact *machine = piDev_g.machine;
+	SRevPiCompact *machine = piDev_g.machine;
 	int ret;
 
-	machine->config = *config;
+	machine->config = revpi_compact_config_g;
 
-	ret = gpiod_set_debounce(machine->din->desc[0], config->din_debounce);
+	ret = gpiod_set_debounce(machine->din->desc[0], machine->config.din_debounce);
 	if (ret)
 		dev_err(piDev_g.dev, "cannot set din debounce\n");
 
