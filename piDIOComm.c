@@ -139,11 +139,11 @@ INT32U piDIOComm_Init(INT8U i8uDevice_p)
     INT8U i, len_l;
 
     pr_info_dio("piDIOComm_Init %d of %d  addr %d numCnt %d\n", i8uDevice_p, i8uConfigured_s,
-	      RevPiScan.dev[i8uDevice_p].i8uAddress, i8uNumCounter[RevPiScan.dev[i8uDevice_p].i8uAddress]);
+	      RevPiDevice_getDev(i8uDevice_p)->i8uAddress, i8uNumCounter[RevPiDevice_getDev(i8uDevice_p)->i8uAddress]);
 
     for (i=0; i<i8uConfigured_s; i++)
     {
-	if (dioConfig_s[i].uHeader.sHeaderTyp1.bitAddress == RevPiScan.dev[i8uDevice_p].i8uAddress)
+	if (dioConfig_s[i].uHeader.sHeaderTyp1.bitAddress == RevPiDevice_getDev(i8uDevice_p)->i8uAddress)
 	{
 	    ret = piIoComm_send((INT8U*)&dioConfig_s[i], sizeof(SDioConfig));
 	    if (ret == 0)
@@ -191,16 +191,16 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
     static INT8U last_in[40][2];
 #endif
 
-    if (RevPiScan.dev[i8uDevice_p].sId.i16uFBS_OutputLength != 18)
+    if (RevPiDevice_getDev(i8uDevice_p)->sId.i16uFBS_OutputLength != 18)
     {
 	return 4;
     }
 
     len_l = 18;
-    i8uAddress = RevPiScan.dev[i8uDevice_p].i8uAddress;
+    i8uAddress = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 
     rt_mutex_lock(&piDev_g.lockPI);
-    memcpy(data_out, piDev_g.ai8uPI + RevPiScan.dev[i8uDevice_p].i16uOutputOffset, len_l);
+    memcpy(data_out, piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uOutputOffset, len_l);
     rt_mutex_unlock(&piDev_g.lockPI);
 
     p = 255;
@@ -264,7 +264,7 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
     if (last_out[i8uAddress][0] != sRequest_l.ai8uData[0] || last_out[i8uAddress][1] != sRequest_l.ai8uData[1])
     {
 	pr_info_dio("dev %2d: send cyclic Data addr %d output 0x%02x 0x%02x\n",
-		  i8uAddress, RevPiScan.dev[i8uDevice_p].i16uOutputOffset,
+		  i8uAddress, RevPiDevice_getDev(i8uDevice_p].i16uOutputOffset,
 		  sRequest_l.ai8uData[0], sRequest_l.ai8uData[1]);
     }
 #endif
@@ -296,7 +296,7 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 		}
 
 		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(piDev_g.ai8uPI + RevPiScan.dev[i8uDevice_p].i16uInputOffset, data_in, sizeof(data_in));
+		memcpy(piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uInputOffset, data_in, sizeof(data_in));
 		rt_mutex_unlock(&piDev_g.lockPI);
 
 #ifdef DEBUG_DEVICE_DIO
@@ -305,7 +305,7 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 		    last_in[i8uAddress][0] = sResponse_l.ai8uData[0];
 		    last_in[i8uAddress][1] = sResponse_l.ai8uData[1];
 		    pr_info_dio("dev %2d: recv cyclic Data addr %d input 0x%02x 0x%02x\n\n",
-			      i8uAddress, RevPiScan.dev[i8uDevice_p].i16uInputOffset,
+			      i8uAddress, RevPiDevice_getDev(i8uDevice_p].i16uInputOffset,
 			      sResponse_l.ai8uData[0], sResponse_l.ai8uData[1]);
 		}
 #endif

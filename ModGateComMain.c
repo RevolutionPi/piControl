@@ -413,12 +413,12 @@ INT32U MODGATECOM_init(INT8U * pi8uInData_p, INT16U i16uInDataLen_p,
 
 	// ID response
 #ifdef __KUNBUSPI_KERNEL__
-	MODGATE_OwnID_g.i32uSerialnumber = RevPi_ID_g.i32uSerialnumber;
-	MODGATE_OwnID_g.i16uModulType = RevPi_ID_g.i16uModulType;
-	MODGATE_OwnID_g.i16uHW_Revision = RevPi_ID_g.i16uHW_Revision;
-	MODGATE_OwnID_g.i16uSW_Major = RevPi_ID_g.i16uSW_Major;
-	MODGATE_OwnID_g.i16uSW_Minor = RevPi_ID_g.i16uSW_Minor;
-	MODGATE_OwnID_g.i32uSVN_Revision = RevPi_ID_g.i32uSVN_Revision;
+	MODGATE_OwnID_g.i32uSerialnumber = RevPiDevice_getDev(0)->sId.i32uSerialnumber;
+	MODGATE_OwnID_g.i16uModulType = RevPiDevice_getDev(0)->sId.i16uModulType;
+	MODGATE_OwnID_g.i16uHW_Revision = RevPiDevice_getDev(0)->sId.i16uHW_Revision;
+	MODGATE_OwnID_g.i16uSW_Major = RevPiDevice_getDev(0)->sId.i16uSW_Major;
+	MODGATE_OwnID_g.i16uSW_Minor = RevPiDevice_getDev(0)->sId.i16uSW_Minor;
+	MODGATE_OwnID_g.i32uSVN_Revision = RevPiDevice_getDev(0)->sId.i32uSVN_Revision;
 #elif defined(__KUNBUSPI__)
 	MODGATE_OwnID_g.i32uSerialnumber = 0xffffffff;
 	MODGATE_OwnID_g.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CORE;
@@ -833,8 +833,7 @@ void MODGATECOM_run(void)
 		}
 		pr_info("%d %s", kbUT_getCurrentMs(), string);
 
-		RevPiScan.i8uStatus &= ~clr;
-		RevPiScan.i8uStatus |= set;
+		RevPiDevice_setStatus(clr, set);
 	}
 #endif
 #endif

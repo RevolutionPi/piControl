@@ -65,8 +65,8 @@ typedef struct _SDeviceConfig
     SDevice dev[REV_PI_DEV_CNT_MAX];
 } SDeviceConfig;
 
-extern SDeviceConfig RevPiScan;
-extern const MODGATECOM_IDResp RevPi_ID_g;
+//extern SDeviceConfig RevPiScan;
+//extern const MODGATECOM_IDResp RevPi_ID_g;
 
 TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *pModgateId_p);
 
@@ -79,4 +79,21 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void);
 void RevPiDevice_startDataexchange(void);
 void RevPiDevice_stopDataexchange(void);
 void RevPiDevice_checkFirmwareUpdate(void);
+INT8U RevPiDevice_setStatus(INT8U clr, INT8U set);
+INT8U RevPiDevice_getStatus(void);
+
+void RevPiDevice_resetDevCnt(void);
+void RevPiDevice_incDevCnt(void);
+INT8U RevPiDevice_getDevCnt(void);
+
+INT8U RevPiDevice_getAddrLeft(void);
+INT8U RevPiDevice_getAddrRight(void);
+
+INT16U RevPiDevice_getErrCnt(void);
+SDevice *RevPiDevice_getDev(INT8U idx);
+
+void RevPiDevice_setCoreData(SRevPiCoreImage *ptr);
+SRevPiCoreImage *RevPiDevice_getCoreData(void);
+
+
 
