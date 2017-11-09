@@ -49,12 +49,6 @@
 /******************************************************************************/
 /*********************************  Types  ************************************/
 /******************************************************************************/
-    typedef enum {
-	piBridgeStop = 0,
-	piBridgeInit = 1,	// MGate Protocol
-	piBridgeRun = 2,	// IO Protocol
-} enPiBridgeState;
-
 typedef enum piEvent {
 	piEvReset = 1,
 } enPiEvent;
@@ -74,16 +68,6 @@ typedef struct spiControlDev {
 	struct device *dev;
 	struct thermal_zone_device *thermal_zone;
 
-	// piGate stuff
-	INT8U i8uLeftMGateIdx;	// index of left GateModule in RevPiDevice_asDevice_m
-	INT8U i8uRightMGateIdx;	// index of right GateModule in RevPiDevice_asDevice_m
-	INT8U ai8uInput[KB_PD_LEN * MODGATECOM_MAX_MODULES];
-	INT8U ai8uOutput[KB_PD_LEN * MODGATECOM_MAX_MODULES];
-
-	// piBridge stuff
-	struct rt_mutex lockBridgeState;
-	enPiBridgeState eBridgeState;	// 0=stopped, 1=init, 2=running
-
 	// process image stuff
 	INT8U ai8uPI[KB_PI_LEN];
 	INT8U ai8uPIDefault[KB_PI_LEN];
@@ -98,29 +82,6 @@ typedef struct spiControlDev {
 	u8 PnAppCon;		// counter of open connections
 	struct list_head listCon;
 	struct mutex lockListCon;
-
-	// handle user telegrams
-	struct mutex lockUserTel;
-	struct semaphore semUserTel;
-	bool pendingUserTel;
-	SIOGeneric requestUserTel;
-	SIOGeneric responseUserTel;
-	int statusUserTel;
-
-	// piGate thread
-	struct task_struct *pGateThread;
-	struct hrtimer gateTimer;
-	struct semaphore gateSem;
-
-	// piUart thread
-	struct task_struct *pUartThread;
-	struct hrtimer uartTimer;
-	struct semaphore uartSem;
-
-	// piIO thread
-	struct task_struct *pIoThread;
-	struct hrtimer ioTimer;
-	struct semaphore ioSem;
 
 	struct led_trigger power_red;
 	struct led_trigger a1_green;

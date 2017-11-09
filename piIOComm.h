@@ -34,6 +34,8 @@
 
 #include <common_define.h>
 #include <IoProtocol.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/machine.h>
 
 #define REV_PI_IO_TIMEOUT           100         // msec
 #define REV_PI_RECV_BUFFER_SIZE     100
@@ -69,12 +71,12 @@ void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff2B(EGpioValue eVal_p, EGpioMode eMode_p);
-void piIoComm_writeSniff(int pin, EGpioValue eVal_p, EGpioMode eMode_p);
+void piIoComm_writeSniff(struct gpio_desc *, EGpioValue eVal_p, EGpioMode eMode_p);
 EGpioValue piIoComm_readSniff1A(void);
 EGpioValue piIoComm_readSniff1B(void);
 EGpioValue piIoComm_readSniff2A(void);
 EGpioValue piIoComm_readSniff2B(void);
-EGpioValue piIoComm_readSniff(int pin);
+EGpioValue piIoComm_readSniff(struct gpio_desc *);
 
 INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
     INT8U *pi8uSendData_p, INT8U i8uSendDataLen_p,

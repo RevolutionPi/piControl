@@ -278,8 +278,16 @@ void readData(uint16_t offset, uint16_t length, bool cyclic, char format, bool q
 			pValues[val] & 0x08 ? '1' : '0',
 			pValues[val] & 0x04 ? '1' : '0',
 			pValues[val] & 0x02 ? '1' : '0',
-			pValues[val] & 0x01 ? '1' : '0'
-		    );
+			pValues[val] & 0x01 ? '1' : '0');
+		}
+		else if (format == 's')
+		{
+		    uint16_t ui;
+		    int16_t *psi;
+		    ui = pValues[val] + (pValues[val + 1] << 8);
+		    psi = (int16_t *)&ui;
+		    printf("%6d ", *psi);
+		    val++;
 		}
 		else
 		{
@@ -966,19 +974,19 @@ int main(int argc, char *argv[])
 		piControlIntMsg(IOP_TYP1_CMD_DATA6, &enable, 1);
 	    }
 	    break;
-        case 'c':
-            {
-                int addr, serial;
-                
-                rc = sscanf(optarg, "%d,%d", &addr, &serial);
-                if (rc != 2) {
-                    printf("Wrong arguments for set serial function\n");
-                    return 0;
-                }
-                
-                rc = piControlSetSerial(addr, serial);
-            }
-            break;
+	case 'c':
+	    {
+		int addr, serial;
+		
+		rc = sscanf(optarg, "%d,%d", &addr, &serial);
+		if (rc != 2) {
+		    printf("Wrong arguments for set serial function\n");
+		    return 0;
+		}
+		
+		rc = piControlSetSerial(addr, serial);
+	    }
+	    break;
 #endif
 	case 'h':
 	default:

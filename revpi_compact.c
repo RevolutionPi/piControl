@@ -27,7 +27,8 @@
 #include "revpi_common.h"
 #include "revpi_compact.h"
 
-#define REVPI_COMPACT_IO_CYCLE		(1000 * NSEC_PER_USEC)		//   1 msec
+//#define REVPI_COMPACT_IO_CYCLE	(1000 * NSEC_PER_USEC)		//   1 msec
+#define REVPI_COMPACT_IO_CYCLE		( 250 * NSEC_PER_USEC)		// 250 usec
 #define REVPI_COMPACT_AIN_CYCLE		( 125 * NSEC_PER_MSEC)		// 125 msec
 
 typedef struct _SRevPiCompact {

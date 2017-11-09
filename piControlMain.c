@@ -63,22 +63,10 @@
 #include <linux/of.h>
 #include <asm/div64.h>
 
-#include <bsp/uart/uart.h>
-
-#include <ModGateComMain.h>
-#include <ModGateComError.h>
-#include <bsp/spi/spi.h>
-#include <bsp/ksz8851/ksz8851.h>
-
-#include <kbUtilities.h>
-#include <piControlMain.h>
-#include <piControl.h>
-#include <piConfig.h>
-#include <PiBridgeMaster.h>
-#include <RevPiDevice.h>
-#include <piIOComm.h>
-#include "piFirmwareUpdate.h"
+#include "revpi_core.h"
 #include "revpi_compact.h"
+
+#include "piFirmwareUpdate.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
@@ -123,7 +111,6 @@ tpiControlDev piDev_g = {
 
 static dev_t piControlMajor;
 static struct class *piControlClass;
-static struct module *piSpiModule;
 static char pcErrorMessage[200];
 
 /******************************************************************************/
@@ -133,268 +120,6 @@ static char pcErrorMessage[200];
 /******************************************************************************/
 /***************************** CS Functions  **********************************/
 /******************************************************************************/
-enum hrtimer_restart piControlGateTimer(struct hrtimer *pTimer)
-{
-	up(&piDev_g.gateSem);
-	return HRTIMER_NORESTART;
-}
-
-int piGateThread(void *data)
-{
-	//TODO int value = 0;
-	ktime_t time;
-	INT8U i8uLastState[2];
-	int i;
-	s64 interval;
-#ifdef MEASURE_DURATION
-	INT32U j1, j1_max = 0;
-	INT32U j2, j2_max = 0;
-	INT32U j3, j3_max = 0;
-	INT32U j4, j4_max = 0;
-#endif
-#ifdef VERBOSE
-	INT16U val;
-	val = 0;
-#endif
-
-	hrtimer_init(&piDev_g.gateTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	piDev_g.gateTimer.function = piControlGateTimer;
-	i8uLastState[0] = 0;
-	i8uLastState[1] = 0;
-
-	//TODO down(&piDev.gateSem);
-	pr_info("number of CPUs: %d\n", NR_CPUS);
-	if (NR_CPUS == 1) {
-		// use a longer interval time on CM1
-		interval = INTERVAL_PI_GATE + INTERVAL_PI_GATE;
-	} else {
-		interval = INTERVAL_PI_GATE;
-	}
-
-	time = hrtimer_cb_get_time(&piDev_g.gateTimer);
-
-	/* start after one second */
-	time.tv64 += HZ;
-
-	pr_info("mGate thread started\n");
-
-	while (!kthread_should_stop()) {
-		time.tv64 += interval;
-
-		DURSTART(j4);
-		hrtimer_start(&piDev_g.gateTimer, time, HRTIMER_MODE_ABS);
-		down(&piDev_g.gateSem);
-		DURSTOP(j4);
-
-		if (isRunning()) {
-			DURSTART(j1);
-			rt_mutex_lock(&piDev_g.lockPI);
-			if (piDev_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-				memcpy(piDev_g.ai8uOutput,
-				       piDev_g.ai8uPI +
-				       RevPiDevice_getDev(piDev_g.i8uRightMGateIdx)->i16uOutputOffset,
-				       RevPiDevice_getDev(piDev_g.i8uRightMGateIdx)->sId.i16uFBS_OutputLength);
-			}
-			if (piDev_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-				memcpy(piDev_g.ai8uOutput + KB_PD_LEN,
-				       piDev_g.ai8uPI +
-				       RevPiDevice_getDev(piDev_g.i8uLeftMGateIdx)->i16uOutputOffset,
-				       RevPiDevice_getDev(piDev_g.i8uLeftMGateIdx)->sId.i16uFBS_OutputLength);
-			}
-			rt_mutex_unlock(&piDev_g.lockPI);
-			DURSTOP(j1);
-		}
-
-		DURSTART(j2);
-		MODGATECOM_run();
-		DURSTOP(j2);
-
-		if (MODGATECOM_has_fatal_error()) {
-			// stop the thread if an fatal error occurred
-			pr_err("mGate exit thread because of fatal error\n");
-			return -1;
-		}
-
-		if (piDev_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
-		    && AL_Data_s[0].i8uState >= MODGATE_ST_RUN_NO_DATA && i8uLastState[0] < MODGATE_ST_RUN_NO_DATA) {
-			// das mGate wurde beim Scan nicht erkannt, PiBridgeEth Kommunikation ist aber möglich
-			// suche den Konfigeintrag dazu
-			pr_info("search for right mGate %d\n", AL_Data_s[0].OtherID.i16uModulType);
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (RevPiDevice_getDev(i)->sId.i16uModulType ==
-				    (AL_Data_s[0].OtherID.i16uModulType | PICONTROL_NOT_CONNECTED)
-				    && RevPiDevice_getDev(i)->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
-					pr_info("found mGate %d\n", i);
-					RevPiDevice_getDev(i)->i8uActive = 1;
-					RevPiDevice_getDev(i)->sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
-					piDev_g.i8uRightMGateIdx = i;
-					break;
-				}
-			}
-		}
-		if (piDev_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
-		    && AL_Data_s[1].i8uState >= MODGATE_ST_RUN_NO_DATA && i8uLastState[1] < MODGATE_ST_RUN_NO_DATA) {
-			// das mGate wurde beim Scan nicht erkannt, PiBridgeEth Kommunikation ist aber möglich
-			// suche den Konfigeintrag dazu
-			pr_info("search for left mGate %d\n", AL_Data_s[1].OtherID.i16uModulType);
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-
-				if (RevPiDevice_getDev(i)->sId.i16uModulType ==
-				    (AL_Data_s[1].OtherID.i16uModulType | PICONTROL_NOT_CONNECTED)
-				    && RevPiDevice_getDev(i)->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
-					pr_info("found mGate %d\n", i);
-					RevPiDevice_getDev(i)->i8uActive = 1;
-					RevPiDevice_getDev(i)->sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
-					piDev_g.i8uLeftMGateIdx = i;
-					break;
-				}
-			}
-		}
-
-		i8uLastState[0] = AL_Data_s[0].i8uState;
-		i8uLastState[1] = AL_Data_s[1].i8uState;
-
-		DURSTART(j3);
-		if (isRunning()) {
-			rt_mutex_lock(&piDev_g.lockPI);
-			if (piDev_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-				memcpy(piDev_g.ai8uPI +
-				       RevPiDevice_getDev(piDev_g.i8uRightMGateIdx)->i16uInputOffset, piDev_g.ai8uInput,
-				       RevPiDevice_getDev(piDev_g.i8uRightMGateIdx)->sId.i16uFBS_InputLength);
-			}
-			if (piDev_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-				memcpy(piDev_g.ai8uPI +
-				       RevPiDevice_getDev(piDev_g.i8uLeftMGateIdx)->i16uInputOffset,
-				       piDev_g.ai8uInput + KB_PD_LEN,
-				       RevPiDevice_getDev(piDev_g.i8uLeftMGateIdx)->sId.i16uFBS_InputLength);
-			}
-			rt_mutex_unlock(&piDev_g.lockPI);
-		}
-		DURSTOP(j3);
-
-#ifdef VERBOSE
-		val++;
-		if (val >= 200) {
-			val = 0;
-			if (piDev_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-				pr_info("right  %02x %02x   %d %d\n",
-					*(piDev_g.ai8uPI +
-					  RevPiDevice.dev[piDev_g.i8uRightMGateIdx].i16uInputOffset),
-					*(piDev_g.ai8uPI +
-					  RevPiDevice.dev[piDev_g.i8uRightMGateIdx].i16uOutputOffset),
-					RevPiDevice.dev[piDev_g.i8uRightMGateIdx].i16uInputOffset,
-					RevPiDevice.dev[piDev_g.i8uRightMGateIdx].i16uOutputOffset);
-			} else {
-				pr_info("right  no device\n");
-			}
-
-			if (piDev_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-				pr_info("left %02x %02x   %d %d\n",
-					*(piDev_g.ai8uPI +
-					  RevPiDevice.dev[piDev_g.i8uLeftMGateIdx].i16uInputOffset),
-					*(piDev_g.ai8uPI +
-					  RevPiDevice.dev[piDev_g.i8uLeftMGateIdx].i16uOutputOffset),
-					RevPiDevice.dev[piDev_g.i8uLeftMGateIdx].i16uInputOffset,
-					RevPiDevice.dev[piDev_g.i8uLeftMGateIdx].i16uOutputOffset);
-			} else {
-				pr_info("left   no device\n");
-			}
-		}
-#endif
-	}
-
-	pr_info("mGate exit\n");
-	return 0;
-}
-
-enum hrtimer_restart piIoTimer(struct hrtimer *pTimer)
-{
-	up(&piDev_g.ioSem);
-	return HRTIMER_NORESTART;
-}
-
-int piIoThread(void *data)
-{
-	//TODO int value = 0;
-	ktime_t time;
-	ktime_t now;
-	s64 tDiff;
-
-	hrtimer_init(&piDev_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	piDev_g.ioTimer.function = piIoTimer;
-
-	pr_info("piIO thread started\n");
-
-	now = hrtimer_cb_get_time(&piDev_g.ioTimer);
-
-	PiBridgeMaster_Reset();
-
-	while (!kthread_should_stop()) {
-		if (PiBridgeMaster_Run() < 0)
-			break;
-
-		time = now;
-		now = hrtimer_cb_get_time(&piDev_g.ioTimer);
-
-		if (RevPiDevice_getCoreData() != NULL) {
-			time = ktime_sub(now, time);
-			RevPiDevice_getCoreData()->i8uIOCycle = ktime_to_ms(time);
-		}
-
-		if (piDev_g.tLastOutput1.tv64 != piDev_g.tLastOutput2.tv64) {
-			tDiff = piDev_g.tLastOutput1.tv64 - piDev_g.tLastOutput2.tv64;
-			tDiff = tDiff << 1;	// multiply by 2
-			if ((now.tv64 - piDev_g.tLastOutput1.tv64) > tDiff && isRunning()) {
-				int i;
-				// the outputs were not written by logiCAD for more than twice the normal period
-				// the logiRTS must have been stopped or crashed
-				// -> set all outputs to 0
-				pr_info("logiRTS timeout, set all output to 0\n");
-				rt_mutex_lock(&piDev_g.lockPI);
-				for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
-					uint16_t len = piDev_g.cl->ent[i].i16uLength;
-					uint16_t addr = piDev_g.cl->ent[i].i16uAddr;
-
-					if (len >= 8) {
-						len /= 8;
-						memset(piDev_g.ai8uPI + addr, 0, len);
-					} else {
-						uint8_t val;
-						uint8_t mask = piDev_g.cl->ent[i].i8uBitMask;
-
-						val = piDev_g.ai8uPI[addr];
-						val &= ~mask;
-						piDev_g.ai8uPI[addr] = val;
-					}
-				}
-				rt_mutex_unlock(&piDev_g.lockPI);
-				piDev_g.tLastOutput1.tv64 = 0;
-				piDev_g.tLastOutput2.tv64 = 0;
-			}
-		}
-
-		if (piDev_g.eBridgeState == piBridgeInit) {
-			time.tv64 += INTERVAL_RS485;
-		} else {
-			time.tv64 += INTERVAL_IO_COMM;
-		}
-
-		if ((now.tv64 - time.tv64) > 0) {
-			// the call of PiBridgeMaster_Run() needed more time than the INTERVAL
-			// -> wait an additional ms
-			//pr_info("%d ms too late, state %d\n", (int)((now.tv64 - time.tv64) >> 20), piDev_g.eBridgeState);
-			time.tv64 = now.tv64 + INTERVAL_ADDITIONAL;
-		}
-
-		hrtimer_start(&piDev_g.ioTimer, time, HRTIMER_MODE_ABS);
-		down(&piDev_g.ioSem);	// wait for timer
-	}
-
-	RevPiDevice_finish();
-
-	pr_info("piIO exit\n");
-	return 0;
-}
 
 /*****************************************************************************/
 /*       I N I T                                                             */
@@ -408,115 +133,6 @@ void piControlDummyReceive(INT8U i8uChar_p)
 
 #include "compiletime.h"
 
-static int revpi_core_init(void)
-{
-	struct sched_param param;
-	INT32U i32uRv;
-	int res;
-
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_SPI_BCM2835));
-
-	if (IS_MODULE(CONFIG_SPI_BCM2835)) {
-		request_module(SPI_MODULE);
-
-		mutex_lock(&module_mutex);
-		piSpiModule = find_module(SPI_MODULE);
-		if (piSpiModule && !try_module_get(piSpiModule))
-			piSpiModule = NULL;
-		mutex_unlock(&module_mutex);
-
-		if (!piSpiModule) {
-			pr_err("cannot load %s module", SPI_MODULE);
-			return -ENODEV;
-		}
-	}
-
-	res = devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF1A,
-				    GPIOF_DIR_IN, "Sniff1A") ||
-	    devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF1B,
-				  GPIOF_DIR_IN, "Sniff1B") ||
-	    devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF2A,
-				  GPIOF_DIR_IN, "Sniff2A") ||
-	    devm_gpio_request_one(piDev_g.dev, GPIO_SNIFF2B, GPIOF_DIR_IN, "Sniff2B");
-	if (res) {
-		pr_err("cannot request sniff GPIOs\n");
-		return res;
-	}
-	piDev_g.init_step = 11;
-
-	if (piIoComm_init()) {
-		pr_err("open serial port failed\n");
-		return -EFAULT;
-	}
-	piDev_g.init_step = 12;
-
-	i32uRv = MODGATECOM_init(piDev_g.ai8uInput, KB_PD_LEN, piDev_g.ai8uOutput, KB_PD_LEN, &EthDrvKSZ8851_g);
-	if (i32uRv != MODGATECOM_NO_ERROR) {
-		pr_err("MODGATECOM_init error %08x\n", i32uRv);
-		return -EFAULT;
-	}
-	piDev_g.init_step = 14;
-
-	/* run threads */
-	piDev_g.pGateThread = kthread_run(&piGateThread, NULL, "piGateT");
-	if (IS_ERR(piDev_g.pGateThread)) {
-		pr_err("kthread_run(gate) failed\n");
-		return PTR_ERR(piDev_g.pGateThread);
-	}
-	param.sched_priority = RT_PRIO_GATE;
-	sched_setscheduler(piDev_g.pGateThread, SCHED_FIFO, &param);
-
-	piDev_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
-	if (IS_ERR(piDev_g.pUartThread)) {
-		pr_err("kthread_run(uart) failed\n");
-		return PTR_ERR(piDev_g.pUartThread);
-	}
-	param.sched_priority = RT_PRIO_UART;
-	sched_setscheduler(piDev_g.pUartThread, SCHED_FIFO, &param);
-
-	piDev_g.pIoThread = kthread_run(&piIoThread, NULL, "piIoT");
-	if (IS_ERR(piDev_g.pIoThread)) {
-		pr_err("kthread_run(io) failed\n");
-		return PTR_ERR(piDev_g.pIoThread);
-	}
-	param.sched_priority = RT_PRIO_BRIDGE;
-	sched_setscheduler(piDev_g.pIoThread, SCHED_FIFO, &param);
-
-	return 0;
-}
-
-static void revpi_core_fini(void)
-{
-	// the IoThread cannot be stopped
-	if (!IS_ERR_OR_NULL(piDev_g.pIoThread))
-		kthread_stop(piDev_g.pIoThread);
-	if (!IS_ERR_OR_NULL(piDev_g.pUartThread))
-		kthread_stop(piDev_g.pUartThread);
-	if (!IS_ERR_OR_NULL(piDev_g.pGateThread))
-		kthread_stop(piDev_g.pGateThread);
-
-	if (piDev_g.init_step >= 14) {
-		/* unregister spi */
-		BSP_SPI_RWPERI_deinit(0);
-	}
-
-	if (piDev_g.init_step >= 12) {
-		piIoComm_finish();
-	}
-
-	/* reset GPIO direction */
-	if (piDev_g.init_step >= 11) {
-		piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
-	}
-
-	if (piSpiModule) {
-		module_put(piSpiModule);
-		piSpiModule = NULL;
-	}
-}
 
 static char *piControlClass_devnode(struct device *dev, umode_t * mode)
 {
@@ -534,15 +150,16 @@ static int __init piControlInit(void)
 
 	pr_info("built: %s\n", COMPILETIME);
 
-	if (of_machine_is_compatible("kunbus,revpi-compact"))
+	if (of_machine_is_compatible("kunbus,revpi-compact")) {
 		piDev_g.machine_type = REVPI_COMPACT;
-	else if (of_machine_is_compatible("kunbus,revpi-connect"))
+		pr_info("RevPi Compact\n");
+	} else if (of_machine_is_compatible("kunbus,revpi-connect")) {
 		piDev_g.machine_type = REVPI_CONNECT;
-	else
+		pr_info("RevPi Connect\n");
+	} else {
 		piDev_g.machine_type = REVPI_CORE;
-
-	piDev_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
-	piDev_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
+		pr_info("RevPi Core\n");
+	}
 
 	// alloc_chrdev_region return 0 on success
 	res = alloc_chrdev_region(&piControlMajor, 0, 2, "piControl");
@@ -570,10 +187,6 @@ static int __init piControlInit(void)
 	piDev_g.PnAppCon = 0;
 	INIT_LIST_HEAD(&piDev_g.listCon);
 	mutex_init(&piDev_g.lockListCon);
-
-	mutex_init(&piDev_g.lockUserTel);
-	sema_init(&piDev_g.semUserTel, 0);
-	piDev_g.pendingUserTel = false;
 
 	cdev_init(&piDev_g.cdev, &piControlFops);
 	piDev_g.cdev.owner = THIS_MODULE;
@@ -609,13 +222,9 @@ static int __init piControlInit(void)
 
 	/* init some data */
 	rt_mutex_init(&piDev_g.lockPI);
-	rt_mutex_init(&piDev_g.lockBridgeState);
 
-	piDev_g.tLastOutput1.tv64 = 0;
-	piDev_g.tLastOutput2.tv64 = 0;
-
-	sema_init(&piDev_g.ioSem, 0);
-	sema_init(&piDev_g.gateSem, 0);
+	piDev_g.tLastOutput1 = ktime_set(0, 0);
+	piDev_g.tLastOutput2 = ktime_set(0, 0);
 
 	/* start application */
 	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
@@ -625,9 +234,11 @@ static int __init piControlInit(void)
 	}
 	piDev_g.init_step = 8;
 
-	if (piDev_g.machine_type == REVPI_CORE)
+	if (piDev_g.machine_type == REVPI_CORE) {
 		res = revpi_core_init();
-	else if (piDev_g.machine_type == REVPI_COMPACT) {
+	} else if (piDev_g.machine_type == REVPI_CONNECT) {
+		res = revpi_core_init();
+	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		res = revpi_compact_init();
 	}
 	if (res) {
@@ -652,10 +263,13 @@ static int __init piControlInit(void)
 /*****************************************************************************/
 static void cleanup(void)
 {
-	if (piDev_g.machine_type == REVPI_CORE)
+	if (piDev_g.machine_type == REVPI_CORE) {
 		revpi_core_fini();
-	else if (piDev_g.machine_type == REVPI_COMPACT)
+	} else if (piDev_g.machine_type == REVPI_CONNECT) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_fini();
+	}
 
 	if (piDev_g.init_step >= 8) {
 		if (piDev_g.ent != NULL)
@@ -711,7 +325,7 @@ bool isInitialized(void)
 // false: system is not operational
 bool isRunning(void)
 {
-	if (piDev_g.init_step < 17 || ((piDev_g.machine_type == REVPI_CORE) && (piDev_g.eBridgeState != piBridgeRun))) {
+	if (piDev_g.init_step < 17 || ((piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT) && (piCore_g.eBridgeState != piBridgeRun))) {
 		return false;
 	}
 	return true;
@@ -726,13 +340,13 @@ bool waitRunning(int timeout)	// ms
 		return false;
 	}
 
-	if (piDev_g.machine_type != REVPI_CORE)
+	if (piDev_g.machine_type == REVPI_COMPACT)
 		return true;
 
 	timeout /= 100;
 	timeout++;
 
-	while (timeout > 0 && piDev_g.eBridgeState != piBridgeRun) {
+	while (timeout > 0 && piCore_g.eBridgeState != piBridgeRun) {
 		msleep(100);
 		timeout--;
 	}
@@ -1020,19 +634,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	}
 
 	switch (prg_nr) {
-	case KB_CMD1:
-		// do something, copy_from_user ... copy_to_user
-		//dev_info(priv->dev, "Got IOCTL 1");
-		status = 0;
-		break;
-
-	case KB_CMD2:
-		// do something, copy_from_user ... copy_to_user
-		//dev_info(priv->dev, "Got IOCTL 2");
-		status = 0;
-		break;
-
 	case KB_RESET:
+		pr_info("Reset: BridgeState=%d \n", piCore_g.eBridgeState);
+
 		if (!isInitialized()) {
 			return -EFAULT;
 		}
@@ -1069,11 +673,11 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					pDev->i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
 					pDev->i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
 					pDev->i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-					if (piDev_g.i8uRightMGateIdx == i)
+					if (piCore_g.i8uRightMGateIdx == i)
 						pDev->i8uModuleState = MODGATECOM_GetOtherFieldbusState(0);
-					if (piDev_g.i8uLeftMGateIdx == i)
+					if (piCore_g.i8uLeftMGateIdx == i)
 						pDev->i8uModuleState = MODGATECOM_GetOtherFieldbusState(1);
-					return i;
+					status = i;
 				}
 			}
 		}
@@ -1098,9 +702,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				pDev[i].i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
 				pDev[i].i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
 				pDev[i].i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-				if (piDev_g.i8uRightMGateIdx == i)
+				if (piCore_g.i8uRightMGateIdx == i)
 					pDev[i].i8uModuleState = MODGATECOM_GetOtherFieldbusState(0);
-				if (piDev_g.i8uLeftMGateIdx == i)
+				if (piCore_g.i8uLeftMGateIdx == i)
 					pDev[i].i8uModuleState = MODGATECOM_GetOtherFieldbusState(1);
 			}
 			status = RevPiDevice_getDevCnt();
@@ -1268,8 +872,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			int i;
 			bool found = false;
 
-			if (!isRunning())
+			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+				return -EPERM;
+			}
+
+			if (!isRunning()) {
 				return -EFAULT;
+			}
 
 			for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
 				if (RevPiDevice_getDev(i)->i8uAddress == pPar->i8uAddress
@@ -1280,6 +889,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					break;
 				}
 			}
+
 			if (!found || pPar->i16uBitfield == 0) {
 				pr_info("piControlIoctl: resetCounter failed bitfield 0x%x", pPar->i16uBitfield);
 				return -EINVAL;
@@ -1292,29 +902,24 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
 			tel.i16uChannels = pPar->i16uBitfield;
 
-#if 0
-			mutex_lock(&piDev_g.lockUserTel);
-			if (copy_from_user(&piDev_g.requestUserTel, &tel, sizeof(tel))) {
-				mutex_unlock(&piDev_g.lockUserTel);
-				pr_info("piControlIoctl: resetCounter failed copy");
-				status = -EFAULT;
-				break;
-			}
-#else
-			mutex_lock(&piDev_g.lockUserTel);
-			memcpy(&piDev_g.requestUserTel, &tel, sizeof(tel));
-#endif
-			piDev_g.pendingUserTel = true;
-			down(&piDev_g.semUserTel);
-			status = piDev_g.statusUserTel;
+			rt_mutex_lock(&piCore_g.lockUserTel);
+			memcpy(&piCore_g.requestUserTel, &tel, sizeof(tel));
+
+			piCore_g.pendingUserTel = true;
+			down(&piCore_g.semUserTel);
+			status = piCore_g.statusUserTel;
 			pr_info("piControlIoctl: resetCounter result %d", status);
-			mutex_unlock(&piDev_g.lockUserTel);
+			rt_mutex_unlock(&piCore_g.lockUserTel);
 		}
 		break;
 
 	case KB_INTERN_SET_SERIAL_NUM:
 		{
 			INT32U *pData = (INT32U *) usr_addr;	// pData is an array containing the module address and the serial number
+
+			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+				return -EPERM;
+			}
 
 			if (!isRunning())
 				return -EFAULT;
@@ -1349,6 +954,10 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			int i, ret, cnt;
 			INT32U *pData = (INT32U *) usr_addr;	// pData is null or points to the module address
+
+			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+				return -EPERM;
+			}
 
 			if (!isRunning()) {
 				printUserMsg("piControl is not running");
@@ -1406,24 +1015,28 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			SIOGeneric *tel = (SIOGeneric *) usr_addr;
 
+			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+				return -EPERM;
+			}
+
 			if (!isRunning())
 				return -EFAULT;
 
-			mutex_lock(&piDev_g.lockUserTel);
-			if (copy_from_user(&piDev_g.requestUserTel, tel, sizeof(SIOGeneric))) {
-				mutex_unlock(&piDev_g.lockUserTel);
+			rt_mutex_lock(&piCore_g.lockUserTel);
+			if (copy_from_user(&piCore_g.requestUserTel, tel, sizeof(SIOGeneric))) {
+				rt_mutex_unlock(&piCore_g.lockUserTel);
 				status = -EFAULT;
 				break;
 			}
-			piDev_g.pendingUserTel = true;
-			down(&piDev_g.semUserTel);
-			status = piDev_g.statusUserTel;
-			if (copy_to_user(tel, &piDev_g.responseUserTel, sizeof(SIOGeneric))) {
-				mutex_unlock(&piDev_g.lockUserTel);
+			piCore_g.pendingUserTel = true;
+			down(&piCore_g.semUserTel);
+			status = piCore_g.statusUserTel;
+			if (copy_to_user(tel, &piCore_g.responseUserTel, sizeof(SIOGeneric))) {
+				rt_mutex_unlock(&piCore_g.lockUserTel);
 				status = -EFAULT;
 				break;
 			}
-			mutex_unlock(&piDev_g.lockUserTel);
+			rt_mutex_unlock(&piCore_g.lockUserTel);
 		}
 		break;
 
@@ -1458,6 +1071,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			status = 0;
 		}
 		break;
+
 	default:
 		dev_err(priv->dev, "Invalid Ioctl");
 		return (-EINVAL);

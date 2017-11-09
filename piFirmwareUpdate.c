@@ -41,12 +41,9 @@
 #include <asm/uaccess.h>
 #include <asm/segment.h>
 
+#include "revpi_core.h"
 #include "piFirmwareUpdate.h"
 #include "fwuFlashFileMain.h"
-#include "piConfig.h"
-#include "RevPiDevice.h"
-#include "PiBridgeMaster.h"
-#include "piControlMain.h"
 
 
 // ret < 0: error

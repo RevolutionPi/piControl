@@ -52,7 +52,8 @@
 //+=============================================================================================
 //|     Globale Variablen / global variables
 //+=============================================================================================
-static INT32S i32sFdCS_g[SPI_CHANNEL_NUMBER] = {0};
+//static INT32S i32sFdCS_g[SPI_CHANNEL_NUMBER] = {0};
+static struct gpio_desc *aGpioDesc_s[SPI_CHANNEL_NUMBER];
 static INT8U *pi8uSpiMemTx;
 static INT8U *pi8uSpiMemRx;
 static INT8U i8uCurrentCS_g;
@@ -161,6 +162,27 @@ INT32U spi_init (
 	}
     }
 
+#if 1
+    if (aGpioDesc_s[0] == 0)
+    {
+	    aGpioDesc_s[0] = gpiod_get(piDev_g.dev, "KSZ0", GPIOD_OUT_HIGH);
+	    if (IS_ERR(aGpioDesc_s[0])) {
+		    dev_err(piDev_g.dev, "cannot acquire gpio KSZ0_CS\n");
+		    return SPI_RET_OPEN_ERROR;
+	    }
+    }
+
+    if (piDev_g.machine_type == REVPI_CORE) {
+	    if (aGpioDesc_s[1] == 0)
+	    {
+		    aGpioDesc_s[1] = gpiod_get(piDev_g.dev, "KSZ1", GPIOD_OUT_HIGH);
+		    if (IS_ERR(aGpioDesc_s[1])) {
+			    dev_err(piDev_g.dev, "cannot acquire gpio KSZ1_CS\n");
+			    return SPI_RET_OPEN_ERROR;
+		    }
+	    }
+    }
+#else
     if (i32sFdCS_g[0] == 0)
     {
 	i32sRv_l = gpio_request(GPIO_CS_KSZ0, "KSZ0");
@@ -193,7 +215,7 @@ INT32U spi_init (
 	    gpio_export(GPIO_CS_KSZ1, 0);
 	}
     }
-
+#endif
     return SPI_RET_OK;
 }
 
@@ -210,11 +232,10 @@ void BSP_SPI_RWPERI_deinit (
 	pSpiDev_g = NULL;
     }
 
-    if (i32sFdCS_g[i8uPort_p])
+    if (aGpioDesc_s[i8uPort_p])
     {
-	gpio_unexport(i32sFdCS_g[i8uPort_p]);
-	gpio_free(i32sFdCS_g[i8uPort_p]);
-	i32sFdCS_g[i8uPort_p] = 0;
+	    gpiod_put(aGpioDesc_s[i8uPort_p]);
+		aGpioDesc_s[i8uPort_p] = 0;
     }
 }
 
@@ -429,7 +450,7 @@ void BSP_SPI_RWPERI_chipSelectEnable (
 	else
 	{
 		selectCnt++;
-		gpio_set_value(i32sFdCS_g[i8uCurrentCS_g], 0);
+		gpiod_set_value(aGpioDesc_s[i8uCurrentCS_g], 0);
 		enable = hrtimer_cb_get_time(&ioTimer);
 	}
 }
@@ -462,7 +483,7 @@ void BSP_SPI_RWPERI_chipSelectDisable (
 			selectCnt = 0;
 			//dump_stack();
 		}
-		gpio_set_value(i32sFdCS_g[i8uCurrentCS_g], 1);
+		gpiod_set_value(aGpioDesc_s[i8uCurrentCS_g], 1);
 		disable = hrtimer_cb_get_time(&ioTimer);
 		if (ktime_ms_delta(disable, enable) > 2)
 		{

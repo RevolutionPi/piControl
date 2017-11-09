@@ -35,6 +35,8 @@
 #include <ModGateComMain.h>
 #include <piIOComm.h>
 
+typedef struct _SRevPiCoreImage SRevPiCoreImage;
+
 #define REV_PI_DEV_UNDEF            255
 #define REV_PI_DEV_FIRST_RIGHT      32
 #define REV_PI_DEV_CNT_MAX          64

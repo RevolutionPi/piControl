@@ -40,9 +40,7 @@
 #include <ModGateRS485.h>
 #include <ModGateComMain.h>
 
-#include <PiBridgeMaster.h>
-#include <RevPiDevice.h>
-#include <piControlMain.h>
+#include "revpi_core.h"
 #include <piDIOComm.h>
 #include <piAIOComm.h>
 
@@ -88,8 +86,8 @@ void RevPiDevice_init(void)
 {
 	pr_info("RevPiDevice_init()\n");
 
-	piDev_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
-	piDev_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
+	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
+	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
 	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_RIGHT - 1;	// first address of a left side module
 	RevPiDevice_resetDevCnt();	// counter for detected devices
@@ -109,12 +107,12 @@ void RevPiDevice_init(void)
 		case REVPI_COMPACT:
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiCompact_ID_g;
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiCore_ID_g.i16uFBS_InputLength;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiCompact_ID_g.i16uFBS_InputLength;
 			break;
 		case REVPI_CONNECT:
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiConnect_ID_g;
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiCore_ID_g.i16uFBS_InputLength;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiConnect_ID_g.i16uFBS_InputLength;
 			break;
 	}
 
@@ -193,12 +191,12 @@ int RevPiDevice_run(void)
 			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_RTU:
 			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_TCP:
 			case KUNBUS_FW_DESCR_TYP_MG_DMX:
-				if (piDev_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
+				if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
 				    && RevPiDevice_getDev(i8uDevice)->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
-					piDev_g.i8uRightMGateIdx = i8uDevice;
-				} else if (piDev_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
+					piCore_g.i8uRightMGateIdx = i8uDevice;
+				} else if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
 					   && RevPiDevice_getDev(i8uDevice)->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
-					piDev_g.i8uLeftMGateIdx = i8uDevice;
+					piCore_g.i8uLeftMGateIdx = i8uDevice;
 				}
 				break;
 
@@ -212,10 +210,10 @@ int RevPiDevice_run(void)
 	}
 
 	// if the user-ioctl want to send a telegram, do it now
-	if (piDev_g.pendingUserTel == true) {
-		piDev_g.statusUserTel = piIoComm_sendTelegram(&piDev_g.requestUserTel, &piDev_g.responseUserTel);
-		piDev_g.pendingUserTel = false;
-		up(&piDev_g.semUserTel);
+	if (piCore_g.pendingUserTel == true) {
+		piCore_g.statusUserTel = piIoComm_sendTelegram(&piCore_g.requestUserTel, &piCore_g.responseUserTel);
+		piCore_g.pendingUserTel = false;
+		up(&piCore_g.semUserTel);
 	}
 
 	return retval;
@@ -388,7 +386,7 @@ INT8U RevPiDevice_getStatus(void)
 
 SDevice *RevPiDevice_getDev(INT8U idx)
 {
-	if (idx < RevPiDevices_s.i8uDeviceCount)
+	if (idx <= RevPiDevices_s.i8uDeviceCount)
 		return &RevPiDevices_s.dev[idx];
 	else
 		return &RevPiDevices_s.dev[0];

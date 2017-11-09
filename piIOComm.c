@@ -45,14 +45,9 @@
 
 #include <project.h>
 #include <common_define.h>
-#include <ModGateRS485.h>
 #include <RS485FwuCommand.h>
-
-#include <piIOComm.h>
-#include <IoProtocol.h>
-#include <PiBridgeMaster.h>
-#include <RevPiDevice.h>
-#include <piControlMain.h>
+#include "revpi_core.h"
+#include "piIOComm.h"
 
 struct file *piIoComm_fd_m;
 int piIoComm_timeoutCnt_m;
@@ -398,15 +393,17 @@ void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
 #ifdef DEBUG_GPIO
 	pr_info("sniff1A: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
 #endif
-	piIoComm_writeSniff(GPIO_SNIFF1A, eVal_p, eMode_p);
+	piIoComm_writeSniff(piCore_g.gpio_sniff1a, eVal_p, eMode_p);
 }
 
 void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p)
 {
+	if (piDev_g.machine_type == REVPI_CORE) {
+		piIoComm_writeSniff(piCore_g.gpio_sniff1b, eVal_p, eMode_p);
 #ifdef DEBUG_GPIO
-	pr_info("sniff1B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
+		pr_info("sniff1B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
 #endif
-	piIoComm_writeSniff(GPIO_SNIFF1B, eVal_p, eMode_p);
+	}
 }
 
 void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p)
@@ -414,28 +411,32 @@ void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p)
 #ifdef DEBUG_GPIO
 	pr_info("sniff2A: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
 #endif
-	piIoComm_writeSniff(GPIO_SNIFF2A, eVal_p, eMode_p);
+	piIoComm_writeSniff(piCore_g.gpio_sniff2a, eVal_p, eMode_p);
 }
 
 void piIoComm_writeSniff2B(EGpioValue eVal_p, EGpioMode eMode_p)
 {
+	if (piDev_g.machine_type == REVPI_CORE) {
+		piIoComm_writeSniff(piCore_g.gpio_sniff2b, eVal_p, eMode_p);
 #ifdef DEBUG_GPIO
-	pr_info("sniff2B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
+		pr_info("sniff2B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
 #endif
-	piIoComm_writeSniff(GPIO_SNIFF2B, eVal_p, eMode_p);
+	}
 }
 
-void piIoComm_writeSniff(int pin, EGpioValue eVal_p, EGpioMode eMode_p)
+void piIoComm_writeSniff(struct gpio_desc *pGpio, EGpioValue eVal_p, EGpioMode eMode_p)
 {
-	if (eMode_p == enGpioMode_Input)
-		gpio_direction_input(pin);
-	else
-		gpio_direction_output(pin, eVal_p);
+	if (eMode_p == enGpioMode_Input) {
+		gpiod_direction_input(pGpio);
+	} else {
+		gpiod_direction_output(pGpio, eVal_p);
+		gpiod_set_value(pGpio, eVal_p);
+	}
 }
 
 EGpioValue piIoComm_readSniff1A()
 {
-	EGpioValue v = piIoComm_readSniff(GPIO_SNIFF1A);
+	EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1a);
 #ifdef DEBUG_GPIO
 	pr_info("sniff1A: input value %d\n", (int)v);
 #endif
@@ -444,16 +445,19 @@ EGpioValue piIoComm_readSniff1A()
 
 EGpioValue piIoComm_readSniff1B()
 {
-	EGpioValue v = piIoComm_readSniff(GPIO_SNIFF1B);
+	if (piDev_g.machine_type == REVPI_CORE) {
+		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1b);
 #ifdef DEBUG_GPIO
-	pr_info("sniff1B: input value %d\n", (int)v);
+		pr_info("sniff1B: input value %d\n", (int)v);
 #endif
-	return v;
+		return v;
+	}
+	return enGpioValue_Low;
 }
 
 EGpioValue piIoComm_readSniff2A()
 {
-	EGpioValue v = piIoComm_readSniff(GPIO_SNIFF2A);
+	EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2a);
 #ifdef DEBUG_GPIO
 	pr_info("sniff2A: input value %d\n", (int)v);
 #endif
@@ -462,18 +466,21 @@ EGpioValue piIoComm_readSniff2A()
 
 EGpioValue piIoComm_readSniff2B()
 {
-	EGpioValue v = piIoComm_readSniff(GPIO_SNIFF2B);
+	if (piDev_g.machine_type == REVPI_CORE) {
+		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2b);
 #ifdef DEBUG_GPIO
-	pr_info("sniff2B: input value %d\n", (int)v);
+		pr_info("sniff2B: input value %d\n", (int)v);
 #endif
-	return v;
+		return v;
+	}
+	return enGpioValue_Low;
 }
 
-EGpioValue piIoComm_readSniff(int pin)
+EGpioValue piIoComm_readSniff(struct gpio_desc *pGpio)
 {
 	EGpioValue ret = enGpioValue_Low;
 
-	if (gpio_get_value(pin))
+	if (gpiod_get_value_cansleep(pGpio))
 		ret = enGpioValue_High;
 
 	return ret;

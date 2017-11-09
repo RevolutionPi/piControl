@@ -44,13 +44,8 @@
 
 #include <project.h>
 #include <common_define.h>
-#include <ModGateRS485.h>
 
-#include <piIOComm.h>
-#include <IoProtocol.h>
-#include <PiBridgeMaster.h>
-#include <RevPiDevice.h>
-#include <piControlMain.h>
+#include "revpi_core.h"
 
 
 static INT8U i8uConfigured_s = 0;
