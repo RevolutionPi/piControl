@@ -244,6 +244,7 @@ static int revpi_compact_poll_ain(void *data)
 
 			if (!numchans) {
 				complete(&machine->ain_reset);
+				set_current_state(TASK_IDLE);
 				schedule();
 				continue;
 			}
