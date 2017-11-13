@@ -423,13 +423,23 @@ INT16U RevPiDevice_getErrCnt(void)
 	return RevPiDevices_s.i16uErrorCnt;
 }
 
-SRevPiCoreImage *RevPiDevice_getCoreData(void)
+void RevPiDevice_setCoreOffset(unsigned int offset)
 {
-	return RevPiDevices_s.pCoreData;
+	RevPiDevices_s.offset = offset;
 }
 
-void RevPiDevice_setCoreData(SRevPiCoreImage *ptr)
+unsigned int RevPiDevice_getCoreOffset(void)
 {
-	RevPiDevices_s.pCoreData = ptr;
+	return RevPiDevices_s.offset;
 }
+
+//SRevPiCoreImage *RevPiDevice_getCoreData(void)
+//{
+//	return (SRevPiCoreImage *) &piDev_g.ai8uPI[RevPiDevices_s.offset];
+//}
+
+//void RevPiDevice_setCoreData(SRevPiCoreImage *ptr)
+//{
+//	RevPiDevices_s.pCoreData = ptr;
+//}
 

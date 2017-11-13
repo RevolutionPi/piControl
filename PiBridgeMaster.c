@@ -47,6 +47,7 @@
 #include <piDIOComm.h>
 #include <piAIOComm.h>
 #include "revpi_common.h"
+#include "process_image.h"
 
 #define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
@@ -189,7 +190,8 @@ int PiBridgeMaster_Adjust(void)
 				RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
 				RevPiDevice_getDev(j)->i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
 				if (j == 0) {
-					RevPiDevice_setCoreData((SRevPiCoreImage *) & piDev_g.ai8uPI[RevPiDevice_getDev(0)->i16uInputOffset]);
+					//RevPiDevice_setCoreData((SRevPiCoreImage *) & piDev_g.ai8uPI[RevPiDevice_getDev(0)->i16uInputOffset]);
+					RevPiDevice_setCoreOffset(RevPiDevice_getDev(0)->i16uInputOffset);
 				}
 
 				state[i] = 1;	// dieser Konfigeintrag wurde übernommen
@@ -299,9 +301,9 @@ int PiBridgeMaster_Run(void)
 	static kbUT_Timer tConfigTimeoutTimer_s;
 	static int error_cnt;
 	static INT8U last_led;
+	static unsigned long last_update;
 	int ret = 0;
 	int i;
-	SRevPiCoreImage *pCoreData;
 
 	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piCore_g.eBridgeState != piBridgeStop) {
@@ -654,29 +656,23 @@ int PiBridgeMaster_Run(void)
 
 			if (RevPiDevice_run()) {
 				// an error occured, check error limits
-				SRevPiCoreImage *pCoreData = RevPiDevice_getCoreData();
-				if (pCoreData != NULL) {
-					if (pCoreData->i16uRS485ErrorLimit2 > 0
-					    && pCoreData->i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
-						pr_err("too many communication errors -> set BridgeState to stopped\n");
-						piCore_g.eBridgeState = piBridgeStop;
-					} else if (pCoreData->i16uRS485ErrorLimit1 > 0
-						   && pCoreData->i16uRS485ErrorLimit1 <
-						   RevPiDevice_getErrCnt()) {
-						// bad communication with inputs -> set inputs to default values
-						pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
-							RevPiDevice_getDev(0)->i16uErrorCnt, RevPiDevice_getDev(1)->i16uErrorCnt,
-							RevPiDevice_getDev(2)->i16uErrorCnt, RevPiDevice_getDev(3)->i16uErrorCnt,
-							RevPiDevice_getDev(4)->i16uErrorCnt, RevPiDevice_getDev(5)->i16uErrorCnt,
-							RevPiDevice_getDev(6)->i16uErrorCnt, RevPiDevice_getDev(7)->i16uErrorCnt);
-					}
+				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
+				    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
+					pr_err("too many communication errors -> set BridgeState to stopped\n");
+					piCore_g.eBridgeState = piBridgeStop;
+				} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
+					   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
+					// bad communication with inputs -> set inputs to default values
+					pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
+						RevPiDevice_getDev(0)->i16uErrorCnt, RevPiDevice_getDev(1)->i16uErrorCnt,
+						RevPiDevice_getDev(2)->i16uErrorCnt, RevPiDevice_getDev(3)->i16uErrorCnt,
+						RevPiDevice_getDev(4)->i16uErrorCnt, RevPiDevice_getDev(5)->i16uErrorCnt,
+						RevPiDevice_getDev(6)->i16uErrorCnt, RevPiDevice_getDev(7)->i16uErrorCnt);
 				}
 			} else {
 				ret = 1;
 			}
-			if (RevPiDevice_getCoreData() != NULL) {
-				RevPiDevice_getCoreData()->i16uRS485ErrorCnt = RevPiDevice_getErrCnt();
-			}
+			piCore_g.image.drv.i16uRS485ErrorCnt = RevPiDevice_getErrCnt();
 			break;
 			// *****************************************************************************************
 
@@ -802,31 +798,31 @@ int PiBridgeMaster_Run(void)
 		}
 		eBridgeStateLast_s = piCore_g.eBridgeState;
 	}
+
 	// set LED and status
-	pCoreData = RevPiDevice_getCoreData();
-	if (pCoreData != NULL) {
-		static unsigned long last_update;
+	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();
+	revpi_led_trigger_event(&last_led, piCore_g.image.usr.i8uLED);
 
-		pCoreData->i8uStatus = RevPiDevice_getStatus();
+	// update every 1 sec
+	if ((kbUT_getCurrentMs() - last_update) > 1000) {
+		if (piDev_g.thermal_zone != NULL) {
+			int temp, ret;
 
-		revpi_led_trigger_event(&last_led, pCoreData->i8uLED);
-		// update every 1 sec
-		if ((kbUT_getCurrentMs() - last_update) > 1000) {
-			if (piDev_g.thermal_zone != NULL) {
-				int temp, ret;
-
-				ret = thermal_zone_get_temp(piDev_g.thermal_zone, &temp);
-				if (ret) {
-					pr_err("could not read cpu temperature");
-				} else {
-					pCoreData->i8uCPUTemperature = temp / 1000;
-				}
+			ret = thermal_zone_get_temp(piDev_g.thermal_zone, &temp);
+			if (ret) {
+				pr_err("could not read cpu temperature");
+			} else {
+				piCore_g.image.drv.i8uCPUTemperature = temp / 1000;
 			}
-
-			pCoreData->i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
-
-			last_update = kbUT_getCurrentMs();
 		}
+
+		piCore_g.image.drv.i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
+
+		last_update = kbUT_getCurrentMs();
+	}
+
+	if (piCore_g.eBridgeState == piBridgeRun) {
+		flip_process_image(&piCore_g.image, RevPiDevice_getCoreOffset());
 	}
 
 	return ret;

@@ -54,7 +54,7 @@ static struct gpiod_lookup_table revpi_core_gpios = {
 	},
 };
 
-// im Schaltplan heißen die Pins 1B und 2B, da sie links sind müssten sie aber A heißen.
+// im Schaltplan heißen die Pins 1B und 2B, da sie links sind, müssten sie aber 1A und 1B heißen.
 // hier in der Software werden sie mit A benannt
 static struct gpiod_lookup_table revpi_connect_gpios = {
 	.dev_id = "piControl0",
@@ -259,7 +259,6 @@ static int piIoThread(void *data)
 	ktime_t time;
 	ktime_t now;
 	s64 tDiff;
-	int x;
 
 	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	piCore_g.ioTimer.function = piIoTimer;
@@ -271,17 +270,14 @@ static int piIoThread(void *data)
 	PiBridgeMaster_Reset();
 
 	while (!kthread_should_stop()) {
-#if 1
 		if (PiBridgeMaster_Run() < 0)
 			break;
 
 		time = now;
 		now = hrtimer_cb_get_time(&piCore_g.ioTimer);
 
-		if (RevPiDevice_getCoreData() != NULL) {
-			time = ktime_sub(now, time);
-			RevPiDevice_getCoreData()->i8uIOCycle = ktime_to_ms(time);
-		}
+		time = ktime_sub(now, time);
+		piCore_g.image.drv.i8uIOCycle = ktime_to_ms(time);
 
 		if (!ktime_equal(piDev_g.tLastOutput1, piDev_g.tLastOutput2)) {
 			tDiff = ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
@@ -320,18 +316,7 @@ static int piIoThread(void *data)
 		} else {
 			time.tv64 += INTERVAL_IO_COMM;
 		}
-#else
-		time.tv64 += INTERVAL_RS485*1000;
-		if (x) {
-			piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Output);
-			piIoComm_writeSniff2A(enGpioValue_High, enGpioMode_Output);
-			x = 0;
-		} else {
-			piIoComm_writeSniff1A(enGpioValue_High, enGpioMode_Output);
-			piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Output);
-			x = 1;
-		}
-#endif
+
 		if ((now.tv64 - time.tv64) > 0) {
 			// the call of PiBridgeMaster_Run() needed more time than the INTERVAL
 			// -> wait an additional ms
@@ -354,6 +339,7 @@ int revpi_core_init(void)
 {
 	struct sched_param param;
 	INT32U i32uRv;
+	int ret = 0;
 
 	BUILD_BUG_ON(!IS_ENABLED(CONFIG_SPI_BCM2835));
 
@@ -434,31 +420,55 @@ int revpi_core_init(void)
 
 	/* run threads */
 	sema_init(&piCore_g.gateSem, 0);
-	piCore_g.pGateThread = kthread_run(&piGateThread, NULL, "piGateT");
+	piCore_g.pGateThread = kthread_run(&piGateThread, NULL, "piControl Gate");
 	if (IS_ERR(piCore_g.pGateThread)) {
 		pr_err("kthread_run(gate) failed\n");
-		return PTR_ERR(piCore_g.pGateThread);
+		ret = PTR_ERR(piCore_g.pGateThread);
+		return ret;
 	}
 	param.sched_priority = RT_PRIO_GATE;
-	sched_setscheduler(piCore_g.pGateThread, SCHED_FIFO, &param);
+	ret = sched_setscheduler(piCore_g.pGateThread, SCHED_FIFO, &param);
+	if (ret) {
+		pr_err("cannot set rt prio of gate thread\n");
+		goto err_stop_gate_thread;
+	}
 
-	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
+	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piControl uart");
 	if (IS_ERR(piCore_g.pUartThread)) {
 		pr_err("kthread_run(uart) failed\n");
-		return PTR_ERR(piCore_g.pUartThread);
+		ret = PTR_ERR(piCore_g.pUartThread);
+		goto err_stop_gate_thread;
 	}
 	param.sched_priority = RT_PRIO_UART;
 	sched_setscheduler(piCore_g.pUartThread, SCHED_FIFO, &param);
+	if (ret) {
+		pr_err("cannot set rt prio of uart thread\n");
+		goto err_stop_uart_thread;
+	}
 
-	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piIoT");
+	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piControl I/O");
 	if (IS_ERR(piCore_g.pIoThread)) {
 		pr_err("kthread_run(io) failed\n");
-		return PTR_ERR(piCore_g.pIoThread);
+		ret = PTR_ERR(piCore_g.pIoThread);
+		goto err_stop_uart_thread;
 	}
 	param.sched_priority = RT_PRIO_BRIDGE;
-	sched_setscheduler(piCore_g.pIoThread, SCHED_FIFO, &param);
+	ret = sched_setscheduler(piCore_g.pIoThread, SCHED_FIFO, &param);
+	if (ret) {
+		pr_err("cannot set rt prio of io thread\n");
+		goto err_stop_io_thread;
+	}
 
-	return 0;
+	return ret;
+
+err_stop_io_thread:
+	kthread_stop(piCore_g.pIoThread);
+err_stop_uart_thread:
+	kthread_stop(piCore_g.pUartThread);
+err_stop_gate_thread:
+	kthread_stop(piCore_g.pGateThread);
+
+	return ret;
 }
 
 void revpi_core_fini(void)
@@ -482,10 +492,22 @@ void revpi_core_fini(void)
 
 	/* reset GPIO direction */
 	if (piDev_g.init_step >= 11) {
-		piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-		piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff1a)) {
+			piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+			gpiod_put(piCore_g.gpio_sniff1a);
+		}
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff1b)) {
+			piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+			gpiod_put(piCore_g.gpio_sniff1b);
+		};
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff2a)) {
+			piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
+			gpiod_put(piCore_g.gpio_sniff2a);
+		};
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff2b)) {
+			piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
+			gpiod_put(piCore_g.gpio_sniff2b);
+		}
 	}
 
 	if (piSpiModule) {

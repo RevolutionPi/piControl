@@ -124,12 +124,6 @@ extern int __debug_show_msg;
 #define KB_PI_LEN       4096
 
 #define GPIO_RESET		40
-#define GPIO_CS_KSZ0		35
-#define GPIO_CS_KSZ1		36
-#define GPIO_SNIFF1A		42
-#define GPIO_SNIFF1B		43
-#define GPIO_SNIFF2A		28
-#define GPIO_SNIFF2B		29
 #define KSZ8851_SPI_PORT	 0      // we use SPI port 0 for both sides
 
 

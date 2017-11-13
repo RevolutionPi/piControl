@@ -30,25 +30,41 @@ typedef enum {
 	piBridgeRun = 2,	// IO Protocol
 } enPiBridgeState;
 
-
 typedef struct _SRevPiCoreImage {
-	// input data, 6 Byte: set by driver
-	INT8U i8uStatus;
-	INT8U i8uIOCycle;
-	INT16U i16uRS485ErrorCnt;
-	INT8U i8uCPUTemperature;
-	INT8U i8uCPUFrequency;
-
-	// output data, 5 Byte: set by application
-	INT8U i8uLED;
-	//INT8U i8uMode;		// for debugging
-	//INT8U i16uRS485ErrorLimit1;	// for debugging
-	INT16U i16uRS485ErrorLimit1;
-	INT16U i16uRS485ErrorLimit2;
-
+	struct {
+		u8 i8uStatus;
+		u8 i8uIOCycle;
+		u16 i16uRS485ErrorCnt;
+		u8 i8uCPUTemperature;
+		u8 i8uCPUFrequency;
+	} __attribute__ ((__packed__)) drv;	// 6 bytes
+	struct {
+		u8 i8uLED;
+		u16 i16uRS485ErrorLimit1;
+		u16 i16uRS485ErrorLimit2;
+	} __attribute__ ((__packed__)) usr;	// 5 bytes
 } __attribute__ ((__packed__)) SRevPiCoreImage;
 
+//typedef struct _SRevPiCoreImage {
+//	// input data, 6 Byte: set by driver
+//	INT8U i8uStatus;
+//	INT8U i8uIOCycle;
+//	INT16U i16uRS485ErrorCnt;
+//	INT8U i8uCPUTemperature;
+//	INT8U i8uCPUFrequency;
+
+//	// output data, 5 Byte: set by application
+//	INT8U i8uLED;
+//	//INT8U i8uMode;		// for debugging
+//	//INT8U i16uRS485ErrorLimit1;	// for debugging
+//	INT16U i16uRS485ErrorLimit1;
+//	INT16U i16uRS485ErrorLimit2;
+
+//} __attribute__ ((__packed__)) SRevPiCoreImage;
+
 typedef struct _SRevPiCore {
+	SRevPiCoreImage image;
+
 	// piGate stuff
 	INT8U i8uLeftMGateIdx;	// index of left GateModule in RevPiDevice_asDevice_m
 	INT8U i8uRightMGateIdx;	// index of right GateModule in RevPiDevice_asDevice_m
@@ -85,20 +101,6 @@ typedef struct _SRevPiCore {
 	struct task_struct *pIoThread;
 	struct hrtimer ioTimer;
 	struct semaphore ioSem;
-
-//	SRevPiCompactImage image;
-//	SRevPiCompactConfig config;
-//	struct task_struct *io_thread;
-//	struct task_struct *ain_thread;
-//	struct device *din_dev;
-//	struct gpio_desc *dout_fault;
-//	struct gpio_descs *din;
-//	struct gpio_descs *dout;
-//	struct iio_dev *ain_dev, *aout_dev;
-//	struct iio_channel *ain;
-//	struct iio_channel *aout[2];
-//	bool ain_should_reset;
-//	struct completion ain_reset;
 } SRevPiCore;
 
 extern SRevPiCore piCore_g;

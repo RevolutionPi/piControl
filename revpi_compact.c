@@ -17,6 +17,8 @@
 #include <linux/kthread.h>
 #include <linux/spi/max3191x.h>
 #include <linux/spi/spi.h>
+#include <linux/ktime.h>
+
 #include "project.h"
 #include "common_define.h"
 #include "ModGateComMain.h"
@@ -96,6 +98,8 @@ static const struct iio_map revpi_compact_aout[] = {
 	{ }
 };
 
+//#define BENCH
+
 static int revpi_compact_poll_io(void *data)
 {
 	SRevPiCompact *machine = (SRevPiCompact *)data;
@@ -104,7 +108,16 @@ static int revpi_compact_poll_io(void *data)
 	struct cycletimer ct;
 	int ret, i, val[8];
 	bool err;
-
+#ifdef BENCH
+	ktime_t t[7];
+	s64 d[7];
+	s64 m[7];
+	int loop = 0;
+	memset(m, 0, sizeof(m));
+#define MEASSURE(i)   t[i] = ktime_get()
+#else
+#define MEASSURE(i)
+#endif
 	/* force write of aout channels on first cycle */
 	for (i = 0; i < ARRAY_SIZE(prev.usr.aout); i++)
 		prev.usr.aout[i] = -1;
@@ -112,6 +125,7 @@ static int revpi_compact_poll_io(void *data)
 	cycletimer_init_on_stack(&ct, REVPI_COMPACT_IO_CYCLE);
 
 	while (!kthread_should_stop()) {
+		MEASSURE(0);
 		/* poll din */
 		ret = gpiod_get_array_value_cansleep(machine->din->ndescs,
 						     machine->din->desc, val);
@@ -123,12 +137,15 @@ static int revpi_compact_poll_io(void *data)
 			for (i = 0; i < ARRAY_SIZE(val); i++)
 				image->drv.din |= val[i] << i;
 
+		MEASSURE(1);
 		/* poll dout fault pin */
 		image->drv.dout_status =
 			!!gpiod_get_value_cansleep(machine->dout_fault) << 5;
 
+		MEASSURE(2);
 		flip_process_image(image, machine->config.offset);
 
+		MEASSURE(3);
 		/* write dout on every cycle to feed watchdog */
 		/* FIXME: GPIO core should return non-void for set() */
 		for (i = 0; i < ARRAY_SIZE(val); i++)
@@ -136,6 +153,7 @@ static int revpi_compact_poll_io(void *data)
 		gpiod_set_array_value_cansleep(machine->dout->ndescs,
 					       machine->dout->desc, val);
 
+		MEASSURE(4);
 		/* write aout channels only if changed by user */
 		err = false;
 		for (i = 0; i < ARRAY_SIZE(image->usr.aout); i++)
@@ -155,9 +173,28 @@ static int revpi_compact_poll_io(void *data)
 			}
 		assign_bit_in_byte(AOUT_TX_ERR, &image->drv.aout_status, err);
 
+		MEASSURE(5);
 		/* update LEDs if changed by user */
 		revpi_led_trigger_event(&prev.usr.led, image->usr.led);
+		MEASSURE(6);
+#ifdef BENCH
+		for (i=0; i<6; i++) {
+			d[i] = ktime_to_us(ktime_sub(t[i+1], t[i]));
+			if (m[i] < d[i])
+				m[i] = d[i];
+		}
+		d[6] = ktime_to_us(ktime_sub(t[6], t[0]));
+		if (m[6] < d[6])
+			m[6] = d[6];
 
+		if ((loop % 4000) == 0) {
+			pr_info("ioThread: d %3d %3d %3d %3d %3d %3d s %3d\n",
+				(int)d[0], (int)d[1], (int)d[2], (int)d[3], (int)d[4], (int)d[5], (int)d[6]);
+			pr_info("ioThread: m %3d %3d %3d %3d %3d %3d s %3d\n",
+				(int)m[0], (int)m[1], (int)m[2], (int)m[3], (int)m[4], (int)m[5], (int)m[6]);
+		}
+		loop++;
+#endif
 		cycletimer_sleep(&ct);
 	}
 
@@ -183,9 +220,9 @@ static int revpi_compact_poll_ain(void *data)
 
 		if (machine->ain_should_reset) {
 			/* determine which channels are enabled */
-//			pr_info("AIn Reset: config %d %d %d %d %d %d %d %d\n",
-//				machine->config.ain[0], machine->config.ain[1], machine->config.ain[2], machine->config.ain[3],
-//				machine->config.ain[4], machine->config.ain[5], machine->config.ain[6], machine->config.ain[7]);
+			pr_info_aio("AIn Reset: config %d %d %d %d %d %d %d %d\n",
+				machine->config.ain[0], machine->config.ain[1], machine->config.ain[2], machine->config.ain[3],
+				machine->config.ain[4], machine->config.ain[5], machine->config.ain[6], machine->config.ain[7]);
 
 			for (i = 0, numchans = 0; i < ARRAY_SIZE(chan); i++) {
 				unsigned long config = machine->config.ain[i];
@@ -215,11 +252,11 @@ static int revpi_compact_poll_ain(void *data)
 			cycletimer_change(&ct, NSEC_PER_SEC / numchans);
 			WRITE_ONCE(machine->ain_should_reset, false);
 			complete(&machine->ain_reset);
-//			pr_info("AIn Reset: ct %dms, %d active: %d %d %d %d %d %d %d %d    %d %d %d %d %d %d %d %d\n",
-//				(1000 / numchans), numchans,
-//				mux[0], mux[1], mux[2], mux[3], mux[4], mux[5], mux[6], mux[7],
-//				chan[0], chan[1], chan[2], chan[3], chan[4], chan[5], chan[6], chan[7]
-//				);
+			pr_info_aio("AIn Reset: ct %dms, %d active: %d %d %d %d %d %d %d %d    %d %d %d %d %d %d %d %d\n",
+				(1000 / numchans), numchans,
+				mux[0], mux[1], mux[2], mux[3], mux[4], mux[5], mux[6], mux[7],
+				chan[0], chan[1], chan[2], chan[3], chan[4], chan[5], chan[6], chan[7]
+				);
 		}
 
 		/* poll ain */

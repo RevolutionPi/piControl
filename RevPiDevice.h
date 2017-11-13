@@ -63,7 +63,8 @@ typedef struct _SDeviceConfig
     INT16U i16uErrorCnt;
 
     INT8U  i8uStatus;               // status bitfield of RevPi
-    SRevPiCoreImage *pCoreData;     // Pointer to process image, may point to NULL
+    unsigned int offset;		// Offset in RevPi in process image
+    //SRevPiCoreImage *pCoreData;     // Pointer to process image, may point to NULL
     SDevice dev[REV_PI_DEV_CNT_MAX];
 } SDeviceConfig;
 
@@ -94,8 +95,10 @@ INT8U RevPiDevice_getAddrRight(void);
 INT16U RevPiDevice_getErrCnt(void);
 SDevice *RevPiDevice_getDev(INT8U idx);
 
-void RevPiDevice_setCoreData(SRevPiCoreImage *ptr);
-SRevPiCoreImage *RevPiDevice_getCoreData(void);
+//void RevPiDevice_setCoreData(SRevPiCoreImage *ptr);
+void RevPiDevice_setCoreOffset(unsigned int offset);
+unsigned int RevPiDevice_getCoreOffset(void);
+//SRevPiCoreImage *RevPiDevice_getCoreData(void);
 
 
 
