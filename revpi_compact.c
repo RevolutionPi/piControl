@@ -218,6 +218,7 @@ static int revpi_compact_poll_ain(void *data)
 	while (!kthread_should_stop()) {
 		unsigned long long tmp;
 
+		smp_read_barrier_depends();
 		if (machine->ain_should_reset) {
 			/* determine which channels are enabled */
 			pr_info_aio("AIn Reset: config %d %d %d %d %d %d %d %d\n",
@@ -251,7 +252,7 @@ static int revpi_compact_poll_ain(void *data)
 
 			i = 0;
 			cycletimer_change(&ct, NSEC_PER_SEC / numchans);
-			WRITE_ONCE(machine->ain_should_reset, false);
+			smp_store_release(&machine->ain_should_reset, false);
 			complete(&machine->ain_reset);
 			pr_info_aio("AIn Reset: ct %dms, %d active: %d %d %d %d %d %d %d %d    %d %d %d %d %d %d %d %d\n",
 				(1000 / numchans), numchans,
@@ -542,7 +543,7 @@ int revpi_compact_reset()
 		dev_err(piDev_g.dev, "cannot set din debounce\n");
 
 	reinit_completion(&machine->ain_reset);
-	WRITE_ONCE(machine->ain_should_reset, true);
+	smp_store_release(&machine->ain_should_reset, true);
 	wake_up_process(machine->ain_thread);
 	wait_for_completion(&machine->ain_reset);
 
