@@ -68,6 +68,7 @@ int piControlFindVariable(const char *name);
 int piControlResetCounter(int address, int bitfield);
 int piControlWaitForEvent(void);
 int piControlUpdateFirmware(uint32_t addr_p);
+int piControlStopIO(int stop);
 #ifdef KUNBUS_TEST
 int piControlIntMsg(int msg, unsigned char *data, int size);
 int piControlSetSerial(int addr, int serial);

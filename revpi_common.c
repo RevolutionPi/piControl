@@ -9,12 +9,15 @@
  */
 
 #include <linux/leds.h>
+#include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include "common_define.h"
 #include "project.h"
 #include "ModGateComMain.h"
 #include "piControlMain.h"
 #include "piControl.h"
+
+#define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 
 void revpi_led_trigger_event(u8 *led_prev, u8 led)
 {
@@ -32,3 +35,40 @@ void revpi_led_trigger_event(u8 *led_prev, u8 led)
 
 	*led_prev = led;
 }
+
+int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val)
+{
+	struct rpi_firmware *fw = rpi_firmware_get(NULL);
+	struct {
+		u32 id;
+		u32 val;
+	} packet;
+	int ret;
+
+	packet.id = id;
+	packet.val = *val;
+	ret = rpi_firmware_property(fw, tag, &packet, sizeof(packet));
+	if (ret)
+		return ret;
+
+	*val = packet.val;
+
+	return 0;
+}
+
+uint32_t bcm2835_cpufreq_get_clock(void)
+{
+	u32 rate;
+	int ret;
+
+	ret = bcm2835_cpufreq_clock_property(RPI_FIRMWARE_GET_CLOCK_RATE, VCMSG_ID_ARM_CLOCK, &rate);
+	if (ret) {
+		pr_err("Failed to get clock (%d)\n", ret);
+		return 0;
+	}
+
+	rate /= 1000 * 1000;	//convert to MHz
+
+	return rate;
+}
+

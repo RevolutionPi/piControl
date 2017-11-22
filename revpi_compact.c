@@ -18,6 +18,8 @@
 #include <linux/spi/max3191x.h>
 #include <linux/spi/spi.h>
 #include <linux/ktime.h>
+#include <linux/thermal.h>
+#include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include "project.h"
 #include "common_define.h"
@@ -212,6 +214,7 @@ static int revpi_compact_poll_ain(void *data)
 	int  chan[ARRAY_SIZE(machine->config.ain)];
 	int i = 0, numchans = 0, ret, raw;
 	struct cycletimer ct;
+	unsigned long last_update;
 
 	cycletimer_init_on_stack(&ct, REVPI_COMPACT_AIN_CYCLE);
 
@@ -289,6 +292,25 @@ static int revpi_compact_poll_ain(void *data)
 next_chan:
 		if (++i == numchans)
 			i = 0;
+
+		// update every 1 sec
+		if ((kbUT_getCurrentMs() - last_update) > 1000) {
+			if (piDev_g.thermal_zone != NULL) {
+				int temp, ret;
+
+				ret = thermal_zone_get_temp(piDev_g.thermal_zone, &temp);
+				if (ret) {
+					pr_err("could not read cpu temperature");
+				} else {
+					image->drv.i8uCPUTemperature = temp / 1000;
+				}
+			}
+
+			image->drv.i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
+
+			last_update = kbUT_getCurrentMs();
+		}
+
 		cycletimer_sleep(&ct);
 	}
 

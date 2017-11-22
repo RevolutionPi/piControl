@@ -124,22 +124,24 @@ static int piGateThread(void *data)
 
 		if (isRunning()) {
 			DURSTART(j1);
-			rt_mutex_lock(&piDev_g.lockPI);
-			if (piDev_g.machine_type == REVPI_CORE) {
-				if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-					memcpy(piCore_g.ai8uOutput,
-					       piDev_g.ai8uPI +
-					       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i16uOutputOffset,
-					       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->sId.i16uFBS_OutputLength);
+			if (piDev_g.stopIO == false) {
+				rt_mutex_lock(&piDev_g.lockPI);
+				if (piDev_g.machine_type == REVPI_CORE) {
+					if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
+						memcpy(piCore_g.ai8uOutput,
+						       piDev_g.ai8uPI +
+						       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i16uOutputOffset,
+						       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->sId.i16uFBS_OutputLength);
+					}
 				}
+				if (piCore_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
+					memcpy(piCore_g.ai8uOutput + KB_PD_LEN,
+					       piDev_g.ai8uPI +
+					       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i16uOutputOffset,
+					       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->sId.i16uFBS_OutputLength);
+				}
+				rt_mutex_unlock(&piDev_g.lockPI);
 			}
-			if (piCore_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-				memcpy(piCore_g.ai8uOutput + KB_PD_LEN,
-				       piDev_g.ai8uPI +
-				       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i16uOutputOffset,
-				       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->sId.i16uFBS_OutputLength);
-			}
-			rt_mutex_unlock(&piDev_g.lockPI);
 			DURSTOP(j1);
 		}
 
@@ -194,21 +196,23 @@ static int piGateThread(void *data)
 
 		DURSTART(j3);
 		if (isRunning()) {
-			rt_mutex_lock(&piDev_g.lockPI);
-			if (piDev_g.machine_type == REVPI_CORE) {
-				if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-					memcpy(piDev_g.ai8uPI +
-					       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i16uInputOffset, piCore_g.ai8uInput,
-					       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->sId.i16uFBS_InputLength);
+			if (piDev_g.stopIO == false) {
+				rt_mutex_lock(&piDev_g.lockPI);
+				if (piDev_g.machine_type == REVPI_CORE) {
+					if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
+						memcpy(piDev_g.ai8uPI +
+						       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i16uInputOffset, piCore_g.ai8uInput,
+						       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->sId.i16uFBS_InputLength);
+					}
 				}
+				if (piCore_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
+					memcpy(piDev_g.ai8uPI +
+					       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i16uInputOffset,
+					       piCore_g.ai8uInput + KB_PD_LEN,
+					       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->sId.i16uFBS_InputLength);
+				}
+				rt_mutex_unlock(&piDev_g.lockPI);
 			}
-			if (piCore_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-				memcpy(piDev_g.ai8uPI +
-				       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i16uInputOffset,
-				       piCore_g.ai8uInput + KB_PD_LEN,
-				       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->sId.i16uFBS_InputLength);
-			}
-			rt_mutex_unlock(&piDev_g.lockPI);
 		}
 		DURSTOP(j3);
 
@@ -288,24 +292,26 @@ static int piIoThread(void *data)
 				// the logiRTS must have been stopped or crashed
 				// -> set all outputs to 0
 				pr_info("logiRTS timeout, set all output to 0\n");
-				rt_mutex_lock(&piDev_g.lockPI);
-				for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
-					uint16_t len = piDev_g.cl->ent[i].i16uLength;
-					uint16_t addr = piDev_g.cl->ent[i].i16uAddr;
+				if (piDev_g.stopIO == false) {
+					rt_mutex_lock(&piDev_g.lockPI);
+					for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
+						uint16_t len = piDev_g.cl->ent[i].i16uLength;
+						uint16_t addr = piDev_g.cl->ent[i].i16uAddr;
 
-					if (len >= 8) {
-						len /= 8;
-						memset(piDev_g.ai8uPI + addr, 0, len);
-					} else {
-						uint8_t val;
-						uint8_t mask = piDev_g.cl->ent[i].i8uBitMask;
+						if (len >= 8) {
+							len /= 8;
+							memset(piDev_g.ai8uPI + addr, 0, len);
+						} else {
+							uint8_t val;
+							uint8_t mask = piDev_g.cl->ent[i].i8uBitMask;
 
-						val = piDev_g.ai8uPI[addr];
-						val &= ~mask;
-						piDev_g.ai8uPI[addr] = val;
+							val = piDev_g.ai8uPI[addr];
+							val &= ~mask;
+							piDev_g.ai8uPI[addr] = val;
+						}
 					}
+					rt_mutex_unlock(&piDev_g.lockPI);
 				}
-				rt_mutex_unlock(&piDev_g.lockPI);
 				piDev_g.tLastOutput1 = ktime_set(0, 0);
 				piDev_g.tLastOutput2 = ktime_set(0, 0);
 			}

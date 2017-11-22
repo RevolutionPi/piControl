@@ -19,8 +19,7 @@ struct cycletimer {
 
 static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 {
-	struct hrtimer_sleeper *sleeper =
-		container_of(timer, struct hrtimer_sleeper, timer);
+	struct hrtimer_sleeper *sleeper = container_of(timer, struct hrtimer_sleeper, timer);
 
 	wake_up_process(sleeper->task);
 	return HRTIMER_NORESTART;
@@ -37,8 +36,7 @@ static inline void cycletimer_sleep(struct cycletimer *ct)
 	if (ct->next_wake < now) {
 		ct->next_wake = roundup_u64(now, ct->cycletime);
 		dev_warn(piDev_g.dev, "%s: missed %lld cycles\n",
-			 current->comm, div_u64(ct->next_wake - this_wake,
-						ct->cycletime) - 1);
+			 current->comm, div_u64(ct->next_wake - this_wake, ct->cycletime) - 1);
 	}
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -51,12 +49,10 @@ static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
 	struct hrtimer *timer = &ct->sleeper.timer;
 
 	ct->cycletime = cycletime;
-	ct->next_wake = rounddown_u64(ktime_to_ns(hrtimer_cb_get_time(timer)),
-				      cycletime);
+	ct->next_wake = rounddown_u64(ktime_to_ns(hrtimer_cb_get_time(timer)), cycletime);
 }
 
-static inline void cycletimer_init_on_stack(struct cycletimer *ct,
-					    u32 cycletime)
+static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime)
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
 
@@ -64,8 +60,7 @@ static inline void cycletimer_init_on_stack(struct cycletimer *ct,
 	timer->function = wake_up_sleeper;
 	ct->sleeper.task = current;
 	ct->cycletime = cycletime;
-	ct->next_wake = rounddown_u64(ktime_to_ns(hrtimer_cb_get_time(timer)),
-				      cycletime);
+	ct->next_wake = rounddown_u64(ktime_to_ns(hrtimer_cb_get_time(timer)), cycletime);
 }
 
 static inline void cycletimer_destroy(struct cycletimer *ct)
@@ -74,7 +69,7 @@ static inline void cycletimer_destroy(struct cycletimer *ct)
 	destroy_hrtimer_on_stack(&ct->sleeper.timer);
 }
 
-static __always_inline void assign_bit_in_byte(u8 nr, u8 *addr, bool value)
+static __always_inline void assign_bit_in_byte(u8 nr, u8 * addr, bool value)
 {
 	if (value)
 		*addr |= BIT(nr);
@@ -82,15 +77,17 @@ static __always_inline void assign_bit_in_byte(u8 nr, u8 *addr, bool value)
 		*addr &= ~BIT(nr);
 }
 
-static __always_inline int test_bit_in_byte(u8 nr, u8 *addr)
+static __always_inline int test_bit_in_byte(u8 nr, u8 * addr)
 {
 	return (*addr >> nr) & 1;
 }
 
-#define flip_process_image(shadow, offset)				   \
-{									   \
-	rt_mutex_lock(&piDev_g.lockPI);					   \
-	((typeof(shadow))(piDev_g.ai8uPI + (offset)))->drv = (shadow)->drv;  \
-	(shadow)->usr = ((typeof(shadow))(piDev_g.ai8uPI + (offset)))->usr;  \
-	rt_mutex_unlock(&piDev_g.lockPI);				   \
+#define flip_process_image(shadow, offset)						\
+{											\
+	if (piDev_g.stopIO == false) {							\
+		rt_mutex_lock(&piDev_g.lockPI);						\
+		((typeof(shadow))(piDev_g.ai8uPI + (offset)))->drv = (shadow)->drv;	\
+		(shadow)->usr = ((typeof(shadow))(piDev_g.ai8uPI + (offset)))->usr;	\
+		rt_mutex_unlock(&piDev_g.lockPI);					\
+	}										\
 }

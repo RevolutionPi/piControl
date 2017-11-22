@@ -222,6 +222,7 @@ static int __init piControlInit(void)
 
 	/* init some data */
 	rt_mutex_init(&piDev_g.lockPI);
+	piDev_g.stopIO = false;
 
 	piDev_g.tLastOutput1 = ktime_set(0, 0);
 	piDev_g.tLastOutput2 = ktime_set(0, 0);
@@ -527,6 +528,44 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 	return nwrite;		// length written
 }
 
+/*****************************************************************************/
+/*    S E E K                                                           */
+/*****************************************************************************/
+static loff_t piControlSeek(struct file *file, loff_t off, int whence)
+{
+	tpiControlInst *priv;
+	loff_t newpos;
+
+	if (!isRunning())
+		return -EAGAIN;
+
+	priv = (tpiControlInst *) file->private_data;
+
+	switch (whence) {
+	case 0:		/* SEEK_SET */
+		newpos = off;
+		break;
+
+	case 1:		/* SEEK_CUR */
+		newpos = file->f_pos + off;
+		break;
+
+	case 2:		/* SEEK_END */
+		newpos = KB_PI_LEN + off;
+		break;
+
+	default:		/* can't happen */
+		return -EINVAL;
+	}
+
+	if (newpos < 0 || newpos >= KB_PI_LEN)
+		return -EINVAL;
+
+	file->f_pos = newpos;
+	return newpos;
+}
+
+/*****************************************************************************/
 static int piControlReset(tpiControlInst * priv)
 {
 	int status = -EFAULT;
@@ -1072,6 +1111,25 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		}
 		break;
 
+	case KB_STOP_IO:
+		{
+			// parameter = 0: stop I/Os
+			// parameter = 1: start I/Os
+			// parameter = 2: toggle I/Os
+			int *pData = (int *)usr_addr;
+
+			if (!isRunning())
+				return -EFAULT;
+
+			if (*pData == 2) {
+				piDev_g.stopIO = !piDev_g.stopIO;
+			} else {
+				piDev_g.stopIO = (*pData) ? true : false;
+			}
+			status = piDev_g.stopIO;
+		}
+		break;
+
 	default:
 		dev_err(priv->dev, "Invalid Ioctl");
 		return (-EINVAL);
@@ -1080,43 +1138,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	}
 
 	return status;
-}
-
-/*****************************************************************************/
-/*    S E E K                                                           */
-/*****************************************************************************/
-static loff_t piControlSeek(struct file *file, loff_t off, int whence)
-{
-	tpiControlInst *priv;
-	loff_t newpos;
-
-	if (!isRunning())
-		return -EAGAIN;
-
-	priv = (tpiControlInst *) file->private_data;
-
-	switch (whence) {
-	case 0:		/* SEEK_SET */
-		newpos = off;
-		break;
-
-	case 1:		/* SEEK_CUR */
-		newpos = file->f_pos + off;
-		break;
-
-	case 2:		/* SEEK_END */
-		newpos = KB_PI_LEN + off;
-		break;
-
-	default:		/* can't happen */
-		return -EINVAL;
-	}
-
-	if (newpos < 0 || newpos >= KB_PI_LEN)
-		return -EINVAL;
-
-	file->f_pos = newpos;
-	return newpos;
 }
 
 module_init(piControlInit);

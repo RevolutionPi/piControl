@@ -370,9 +370,13 @@ INT32U piAIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 	len_l = sizeof(data_out);
 	i8uAddress = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(data_out, piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uOutputOffset, len_l);
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (piDev_g.stopIO == false) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(data_out, piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uOutputOffset, len_l);
+		rt_mutex_unlock(&piDev_g.lockPI);
+	} else {
+		memset(data_out, 0, len_l);
+	}
 
 	sRequest_l.uHeader.sHeaderTyp1.bitAddress = i8uAddress;
 	sRequest_l.uHeader.sHeaderTyp1.bitIoHeaderType = 0;
@@ -404,10 +408,12 @@ INT32U piAIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 			    piIoComm_Crc8((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l)) {
 				memcpy(data_in, sResponse_l.ai8uData, len_l);
 
-				rt_mutex_lock(&piDev_g.lockPI);
-				memcpy(piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uInputOffset, data_in,
-				       sizeof(data_in));
-				rt_mutex_unlock(&piDev_g.lockPI);
+				if (piDev_g.stopIO == false) {
+					rt_mutex_lock(&piDev_g.lockPI);
+					memcpy(piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uInputOffset, data_in,
+					       sizeof(data_in));
+					rt_mutex_unlock(&piDev_g.lockPI);
+				}
 
 #ifdef DEBUG_DEVICE_AIO
 				if (last_in[i8uAddress][0] != sResponse_l.ai8uData[0]

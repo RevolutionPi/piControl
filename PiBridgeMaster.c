@@ -40,7 +40,6 @@
 #include <linux/gpio.h>
 #include <linux/jiffies.h>
 #include <linux/thermal.h>
-#include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include "revpi_core.h"
 #include <ModGateRS485.h>
@@ -49,7 +48,6 @@
 #include "revpi_common.h"
 #include "process_image.h"
 
-#define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
@@ -62,42 +60,6 @@ static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
 static INT32U i32uFWUAddress, i32uFWUSerialNum, i32uFWUFlashAddr, i32uFWUlength, i8uFWUScanned;
 static INT32S i32sRetVal;
 static char *pcFWUdata;
-
-static int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val)
-{
-	struct rpi_firmware *fw = rpi_firmware_get(NULL);
-	struct {
-		u32 id;
-		u32 val;
-	} packet;
-	int ret;
-
-	packet.id = id;
-	packet.val = *val;
-	ret = rpi_firmware_property(fw, tag, &packet, sizeof(packet));
-	if (ret)
-		return ret;
-
-	*val = packet.val;
-
-	return 0;
-}
-
-static uint32_t bcm2835_cpufreq_get_clock(void)
-{
-	u32 rate;
-	int ret;
-
-	ret = bcm2835_cpufreq_clock_property(RPI_FIRMWARE_GET_CLOCK_RATE, VCMSG_ID_ARM_CLOCK, &rate);
-	if (ret) {
-		pr_err("Failed to get clock (%d)\n", ret);
-		return 0;
-	}
-
-	rate /= 1000 * 1000;	//convert to MHz
-
-	return rate;
-}
 
 void PiBridgeMaster_Stop(void)
 {
@@ -338,6 +300,7 @@ int PiBridgeMaster_Run(void)
 				kbUT_TimerStart(&tTimeoutTimer_s, 30);
 			}
 			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
 				if (piDev_g.machine_type == REVPI_CONNECT) {
 					// the RevPi Connect has I/O modules only on the left side
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
@@ -356,7 +319,6 @@ int PiBridgeMaster_Run(void)
 				bEntering_s = bFALSE;
 				piIoComm_readSniff1A();
 				piIoComm_readSniff1B();
-				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
 			}
 			if (piIoComm_readSniff2B() == enGpioValue_High) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigRightStart;

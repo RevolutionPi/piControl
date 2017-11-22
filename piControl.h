@@ -73,6 +73,7 @@
 #define PICONTROL_SW_PROFINET_CONTROLLER    0x6005      // 24581
 #define PICONTROL_SW_PROFINET_DEVICE        0x6006      // 24582
 #define PICONTROL_SW_REVPI_SEVEN	    0x6007      // 24583
+#define PICONTROL_SW_REVPI_CLOUD	    0x6008      // 24584
 
 #define PICONTROL_NOT_CONNECTED             0x8000
 #define PICONTROL_NOT_CONNECTED_MASK        0x7fff
@@ -93,6 +94,7 @@
 #define  KB_UPDATE_DEVICE_FIRMWARE	_IO(KB_IOC_MAGIC, 19 )  // try to update the firmware of connected devices
 #define  KB_DIO_RESET_COUNTER		_IO(KB_IOC_MAGIC, 20 )  // set a counter or endocder to 0
 #define  KB_GET_LAST_MESSAGE		_IO(KB_IOC_MAGIC, 21 )  // copy the last error message
+#define  KB_STOP_IO			_IO(KB_IOC_MAGIC, 22 )  // stop/start IO communication, can be used for I/O simulation
 
 #define  KB_WAIT_FOR_EVENT		_IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET			1		// piControl was reset, reload configuration

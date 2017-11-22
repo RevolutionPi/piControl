@@ -72,6 +72,7 @@ typedef struct spiControlDev {
 	INT8U ai8uPI[KB_PI_LEN];
 	INT8U ai8uPIDefault[KB_PI_LEN];
 	struct rt_mutex lockPI;
+	bool stopIO;
 	piDevices *devs;
 	piEntries *ent;
 	piCopylist *cl;

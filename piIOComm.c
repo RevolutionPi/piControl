@@ -219,14 +219,6 @@ int piIoComm_open_serial(void)
 	sema_init(&recvLenSem, 1);
 	clear();
 
-//    hRecvThread_s = kthread_run(&UartThreadProc, (void *)NULL, "piUartThread");
-//    if (hRecvThread_s == NULL)
-//    {
-//        pr_info("kthread_run failed\n");
-//    }
-//    param.sched_priority = RT_PRIO_UART;
-//    sched_setscheduler(hRecvThread_s, SCHED_FIFO, &param);
-
 	return 0;
 }
 
