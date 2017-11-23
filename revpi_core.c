@@ -388,23 +388,23 @@ int revpi_core_init(void)
 
 	piCore_g.gpio_sniff1a = gpiod_get(piDev_g.dev, "Sniff1A", GPIOD_IN);
 	if (IS_ERR(piCore_g.gpio_sniff1a)) {
-		dev_err(piDev_g.dev, "cannot acquire gpio sniff 1a\n");
+		pr_err("cannot acquire gpio sniff 1a\n");
 		return PTR_ERR(piCore_g.gpio_sniff1a);
 	}
 	piCore_g.gpio_sniff2a = gpiod_get(piDev_g.dev, "Sniff2A", GPIOD_IN);
 	if (IS_ERR(piCore_g.gpio_sniff2a)) {
-		dev_err(piDev_g.dev, "cannot acquire gpio sniff 2a\n");
+		pr_err("cannot acquire gpio sniff 2a\n");
 		return PTR_ERR(piCore_g.gpio_sniff2a);
 	}
 	if (piDev_g.machine_type == REVPI_CORE) {
 		piCore_g.gpio_sniff1b = gpiod_get(piDev_g.dev, "Sniff1B", GPIOD_IN);
 		if (IS_ERR(piCore_g.gpio_sniff1b)) {
-			dev_err(piDev_g.dev, "cannot acquire gpio sniff 1b\n");
+			pr_err("cannot acquire gpio sniff 1b\n");
 			return PTR_ERR(piCore_g.gpio_sniff1b);
 		}
 		piCore_g.gpio_sniff2b = gpiod_get(piDev_g.dev, "Sniff2B", GPIOD_IN);
 		if (IS_ERR(piCore_g.gpio_sniff2b)) {
-			dev_err(piDev_g.dev, "cannot acquire gpio sniff 2b\n");
+			pr_err("cannot acquire gpio sniff 2b\n");
 			return PTR_ERR(piCore_g.gpio_sniff2b);
 		}
 	}

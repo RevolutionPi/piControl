@@ -385,7 +385,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	file->private_data = priv;
 
 	if (priv == NULL) {
-		dev_err(piDev_g.dev, "Private Allocation failed");
+		pr_err("Private Allocation failed");
 		return -EINVAL;
 	}
 
@@ -396,7 +396,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 
 	init_waitqueue_head(&priv->wq);
 
-	//dev_info(priv->dev, "piControlOpen");
+	//pr_info("piControlOpen");
 
 	piDev_g.PnAppCon++;
 	priv->instNum = piDev_g.PnAppCon;
@@ -420,7 +420,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 
 	priv = (tpiControlInst *) file->private_data;
 
-	//dev_info(priv->dev, "piControlRelease");
+	//pr_info("piControlRelease");
 
 	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
 	piDev_g.PnAppCon--;
@@ -477,7 +477,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 	rt_mutex_lock(&piDev_g.lockPI);
 	if (copy_to_user(pBuf, pPd, nread) != 0) {
 		rt_mutex_unlock(&piDev_g.lockPI);
-		dev_err(priv->dev, "piControlRead: copy_to_user failed");
+		pr_err("piControlRead: copy_to_user failed");
 		return -EFAULT;
 	}
 	rt_mutex_unlock(&piDev_g.lockPI);
@@ -516,7 +516,7 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 	rt_mutex_lock(&piDev_g.lockPI);
 	if (copy_from_user(pPd, pBuf, nwrite) != 0) {
 		rt_mutex_unlock(&piDev_g.lockPI);
-		dev_err(priv->dev, "piControlWrite: copy_from_user failed");
+		pr_err("piControlWrite: copy_from_user failed");
 		return -EFAULT;
 	}
 	rt_mutex_unlock(&piDev_g.lockPI);
@@ -1104,7 +1104,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_GET_LAST_MESSAGE:
 		{
 			if (copy_to_user((void *)usr_addr, pcErrorMessage, sizeof(pcErrorMessage))) {
-				dev_err(priv->dev, "piControlIoctl: copy_to_user failed");
+				pr_err("piControlIoctl: copy_to_user failed");
 				return -EFAULT;
 			}
 			status = 0;
@@ -1131,7 +1131,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	default:
-		dev_err(priv->dev, "Invalid Ioctl");
+		pr_err("Invalid Ioctl");
 		return (-EINVAL);
 		break;
 

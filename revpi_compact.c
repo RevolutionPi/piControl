@@ -26,6 +26,7 @@
 #include "ModGateComMain.h"
 #include "PiBridgeMaster.h"
 #include "piControlMain.h"
+#include "RevPiDevice.h"
 #include "process_image.h"
 #include "pt100.h"
 #include "revpi_common.h"
@@ -243,7 +244,7 @@ static int revpi_compact_poll_ain(void *data)
 				numchans++;
 			}
 
-			dev_info(piDev_g.dev, "ain thread reset to %d chans\n",
+			pr_info("ain thread reset to %d chans\n",
 				 numchans);
 
 			if (!numchans) {
@@ -375,6 +376,125 @@ INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryI
 	return 0;
 }
 
+void revpi_compact_adjust_config(void)
+{
+	int i, j, done;
+	int result = 0, found;
+	uint8_t *state;
+
+	// do not allow accesses to process image while the offset are changed
+	rt_mutex_lock(&piDev_g.lockPI);
+
+	RevPiDevice_init();
+
+	if (piDev_g.devs == NULL) {
+		// config file could not be read, do nothing
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
+
+	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
+
+	// Schleife über alle Module die automatisch erkannt wurden
+	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
+		// Suche diese Module in der Konfigurationsdatei
+		for (i = 0, found = 0, done = 0; found == 0 && i < piDev_g.devs->i16uNumDevices && !done; i++) {
+			// Grundvoraussetzung ist, dass die Adresse gleich ist.
+			if (RevPiDevice_getDev(j)->i8uAddress == piDev_g.devs->dev[i].i8uAddress) {
+				// Außerdem muss ModuleType, InputLength und OutputLength gleich sein.
+				if (RevPiDevice_getDev(j)->sId.i16uModulType != piDev_g.devs->dev[i].i16uModuleType) {
+					pr_info("## address %d: incorrect module type %d != %d\n",
+						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uModulType,
+						piDev_g.devs->dev[i].i16uModuleType);
+					result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
+					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
+					done = 1;
+					break;
+				}
+				if (RevPiDevice_getDev(j)->sId.i16uFBS_InputLength != piDev_g.devs->dev[i].i16uInputLength) {
+					pr_info("## address %d: incorrect input length %d != %d\n",
+						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uFBS_InputLength,
+						piDev_g.devs->dev[i].i16uInputLength);
+					result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
+					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
+					done = 1;
+					break;
+				}
+				if (RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength != piDev_g.devs->dev[i].i16uOutputLength) {
+					pr_info("## address %d: incorrect output length %d != %d\n",
+						RevPiDevice_getDev(j)->i8uAddress,
+						RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength,
+						piDev_g.devs->dev[i].i16uOutputLength);
+					result = PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH;
+					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
+					done = 1;
+					break;
+				}
+				// we found the device in the configuration file
+				// -> adjust offsets
+				pr_info_master("Adjust: base %d in %d out %d conf %d\n",
+					       piDev_g.devs->dev[i].i16uBaseOffset,
+					       piDev_g.devs->dev[i].i16uInputOffset,
+					       piDev_g.devs->dev[i].i16uOutputOffset,
+					       piDev_g.devs->dev[i].i16uConfigOffset);
+
+				RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
+				RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
+				RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
+				RevPiDevice_getDev(j)->i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
+				if (j == 0) {
+					SRevPiCompact *machine = (SRevPiCompact *)piDev_g.machine;
+					machine->config.offset = RevPiDevice_getDev(0)->i16uInputOffset;
+				}
+
+				state[i] = 1;	// dieser Konfigeintrag wurde übernommen
+				found = 1;	// innere For-Schrleife verlassen
+			}
+		}
+		if (found == 0) {
+			// Falls ein autom. erkanntes Modul in der Konfiguration nicht vorkommt, wird es deakiviert
+			RevPiDevice_getDev(j)->i8uActive = 0;
+			RevPiDevice_setStatus(0, PICONTROL_STATUS_EXTRA_MODULE);
+		}
+	}
+
+	// nun wird die Liste der automatisch erkannten Module um die ergänzt, die nur in der Konfiguration vorkommen.
+	for (i = 0; i < piDev_g.devs->i16uNumDevices; i++) {
+		if (state[i] == 0) {
+			j = RevPiDevice_getDevCnt();
+			if (piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET) {
+				// if a module is already defined as software module in the RAP file,
+				// it is handled by user space software and therefore always active
+				RevPiDevice_getDev(j)->i8uActive = 1;
+				RevPiDevice_getDev(j)->sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
+			} else {
+				pr_err("module type %d is not allowed on a RevPi Compact. Only sw modules are allowed.\n", piDev_g.devs->dev[i].i16uModuleType);
+				RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
+				RevPiDevice_getDev(j)->i8uActive = 0;
+				RevPiDevice_getDev(j)->sId.i16uModulType =
+				    piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;
+			}
+			RevPiDevice_getDev(j)->i8uAddress = piDev_g.devs->dev[i].i8uAddress;
+			RevPiDevice_getDev(j)->i8uScan = 0;
+			RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
+			RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
+			RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
+			RevPiDevice_getDev(j)->i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
+			RevPiDevice_getDev(j)->sId.i32uSerialnumber = piDev_g.devs->dev[i].i32uSerialnumber;
+			RevPiDevice_getDev(j)->sId.i16uHW_Revision = piDev_g.devs->dev[i].i16uHW_Revision;
+			RevPiDevice_getDev(j)->sId.i16uSW_Major = piDev_g.devs->dev[i].i16uSW_Major;
+			RevPiDevice_getDev(j)->sId.i16uSW_Minor = piDev_g.devs->dev[i].i16uSW_Minor;
+			RevPiDevice_getDev(j)->sId.i32uSVN_Revision = piDev_g.devs->dev[i].i32uSVN_Revision;
+			RevPiDevice_getDev(j)->sId.i16uFBS_InputLength = piDev_g.devs->dev[i].i16uInputLength;
+			RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength = piDev_g.devs->dev[i].i16uOutputLength;
+			RevPiDevice_getDev(j)->sId.i16uFeatureDescriptor = 0;	// not used
+			RevPiDevice_incDevCnt();
+		}
+	}
+
+	rt_mutex_unlock(&piDev_g.lockPI);						\
+
+}
+
 int revpi_compact_init(void)
 {
 	SRevPiCompact *machine;
@@ -394,26 +514,26 @@ int revpi_compact_init(void)
 
 	machine->din =  gpiod_get_array(piDev_g.dev, "din", GPIOD_ASIS);
 	if (IS_ERR(machine->din)) {
-		dev_err(piDev_g.dev, "cannot acquire digital input pins\n");
+		pr_err("cannot acquire digital input pins\n");
 		ret = PTR_ERR(machine->din);
 		goto err_remove_table;
 	}
 
 	machine->dout = gpiod_get_array(piDev_g.dev, "dout", GPIOD_ASIS);
 	if (IS_ERR(machine->dout)) {
-		dev_err(piDev_g.dev, "cannot acquire digital output pins\n");
+		pr_err("cannot acquire digital output pins\n");
 		ret = PTR_ERR(machine->dout);
 		goto err_put_din;
 	}
 
 	ret = gpiod_set_debounce(machine->din->desc[0], machine->config.din_debounce);
 	if (ret)
-		dev_err(piDev_g.dev, "cannot set din debounce\n");
+		pr_err("cannot set din debounce\n");
 
 	machine->din_dev = bus_find_device(&spi_bus_type, NULL, "max31913",
 					   match_name);
 	if (!machine->din_dev) {
-		dev_err(piDev_g.dev, "cannot find digital input device\n");
+		pr_err("cannot find digital input device\n");
 		ret = -ENODEV;
 		goto err_put_dout;
 	}
@@ -422,14 +542,14 @@ int revpi_compact_init(void)
 	machine->dout_fault = gpiod_get(dev, "kunbus,fault", GPIOD_IN);
 	put_device(dev);
 	if (IS_ERR(machine->dout_fault)) {
-		dev_err(piDev_g.dev, "cannot acquire digital output fault pin\n");
+		pr_err("cannot acquire digital output fault pin\n");
 		ret = PTR_ERR(machine->dout_fault);
 		goto err_put_din_dev;
 	}
 
 	dev = bus_find_device(&iio_bus_type, NULL, "ain_muxed", match_name);
 	if (!dev) {
-		dev_err(piDev_g.dev, "cannot find analog input device\n");
+		pr_err("cannot find analog input device\n");
 		ret = -ENODEV;
 		goto err_put_dout_fault;
 	}
@@ -442,14 +562,14 @@ int revpi_compact_init(void)
 
 	machine->ain = iio_channel_get_all(piDev_g.dev);
 	if (IS_ERR(machine->ain)) {
-		dev_err(piDev_g.dev, "cannot acquire analog input chans\n");
+		pr_err("cannot acquire analog input chans\n");
 		ret = PTR_ERR(machine->ain);
 		goto err_unregister_ain;
 	}
 
 	dev = bus_find_device(&iio_bus_type, NULL, "dac082s085", match_name);
 	if (!dev) {
-		dev_err(piDev_g.dev, "cannot find analog output device\n");
+		pr_err("cannot find analog output device\n");
 		ret = -ENODEV;
 		goto err_release_ain;
 	}
@@ -463,7 +583,7 @@ int revpi_compact_init(void)
 	machine->aout[0] = iio_channel_get(piDev_g.dev, "aout0");
 	machine->aout[1] = iio_channel_get(piDev_g.dev, "aout1");
 	if (IS_ERR(machine->aout[0]) || IS_ERR(machine->aout[1])) {
-		dev_err(piDev_g.dev, "cannot acquire analog output chans\n");
+		pr_err("cannot acquire analog output chans\n");
 		ret = PTR_ERR(machine->aout[0]) | PTR_ERR(machine->aout[1]);
 		goto err_unregister_aout;
 	}
@@ -471,30 +591,32 @@ int revpi_compact_init(void)
 	machine->io_thread = kthread_create(&revpi_compact_poll_io, machine,
 					    "piControl i/o");
 	if (IS_ERR(machine->io_thread)) {
-		dev_err(piDev_g.dev, "cannot create i/o thread\n");
+		pr_err("cannot create i/o thread\n");
 		ret = PTR_ERR(machine->io_thread);
 		goto err_release_aout;
 	}
 
 	ret = sched_setscheduler(machine->io_thread, SCHED_FIFO, &param);
 	if (ret) {
-		dev_err(piDev_g.dev, "cannot upgrade i/o thread priority\n");
+		pr_err("cannot upgrade i/o thread priority\n");
 		goto err_stop_io_thread;
 	}
 
 	machine->ain_thread = kthread_create(&revpi_compact_poll_ain, machine,
 					     "piControl ain");
 	if (IS_ERR(machine->ain_thread)) {
-		dev_err(piDev_g.dev, "cannot create ain thread\n");
+		pr_err("cannot create ain thread\n");
 		ret = PTR_ERR(machine->ain_thread);
 		goto err_stop_io_thread;
 	}
 
 	ret = sched_setscheduler(machine->ain_thread, SCHED_FIFO, &param);
 	if (ret) {
-		dev_err(piDev_g.dev, "cannot upgrade ain thread priority\n");
+		pr_err("cannot upgrade ain thread priority\n");
 		goto err_stop_ain_thread;
 	}
+
+	revpi_compact_adjust_config();
 
 	wake_up_process(machine->io_thread);
 	wake_up_process(machine->ain_thread);
@@ -558,11 +680,13 @@ int revpi_compact_reset()
 	SRevPiCompact *machine = piDev_g.machine;
 	int ret;
 
+	revpi_compact_adjust_config();
+
 	machine->config = revpi_compact_config_g;
 
 	ret = gpiod_set_debounce(machine->din->desc[0], machine->config.din_debounce);
 	if (ret)
-		dev_err(piDev_g.dev, "cannot set din debounce\n");
+		pr_err("cannot set din debounce\n");
 
 	reinit_completion(&machine->ain_reset);
 	smp_store_release(&machine->ain_should_reset, true);

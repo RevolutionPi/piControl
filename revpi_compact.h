@@ -62,3 +62,4 @@ INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryI
 int revpi_compact_init(void);
 int revpi_compact_reset(void);
 void revpi_compact_fini(void);
+void revpi_compact_adjust_config(void);

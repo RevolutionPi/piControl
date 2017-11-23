@@ -152,7 +152,6 @@ int PiBridgeMaster_Adjust(void)
 				RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
 				RevPiDevice_getDev(j)->i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
 				if (j == 0) {
-					//RevPiDevice_setCoreData((SRevPiCoreImage *) & piDev_g.ai8uPI[RevPiDevice_getDev(0)->i16uInputOffset]);
 					RevPiDevice_setCoreOffset(RevPiDevice_getDev(0)->i16uInputOffset);
 				}
 

@@ -386,6 +386,7 @@ INT8U RevPiDevice_getStatus(void)
 
 SDevice *RevPiDevice_getDev(INT8U idx)
 {
+	// idx==i8uDeviceCount is allowed. This enables to add data to the next entry before RevPiDevice_incDevCnt is called.
 	if (idx <= RevPiDevices_s.i8uDeviceCount)
 		return &RevPiDevices_s.dev[idx];
 	else
@@ -399,7 +400,9 @@ void RevPiDevice_resetDevCnt(void)
 
 void RevPiDevice_incDevCnt(void)
 {
-	RevPiDevices_s.i8uDeviceCount++;
+	if (RevPiDevices_s.i8uDeviceCount < REV_PI_DEV_CNT_MAX-1) {
+		RevPiDevices_s.i8uDeviceCount++;
+	}
 }
 
 INT8U RevPiDevice_getDevCnt(void)
@@ -432,14 +435,3 @@ unsigned int RevPiDevice_getCoreOffset(void)
 {
 	return RevPiDevices_s.offset;
 }
-
-//SRevPiCoreImage *RevPiDevice_getCoreData(void)
-//{
-//	return (SRevPiCoreImage *) &piDev_g.ai8uPI[RevPiDevices_s.offset];
-//}
-
-//void RevPiDevice_setCoreData(SRevPiCoreImage *ptr)
-//{
-//	RevPiDevices_s.pCoreData = ptr;
-//}
-

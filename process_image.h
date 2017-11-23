@@ -35,7 +35,7 @@ static inline void cycletimer_sleep(struct cycletimer *ct)
 
 	if (ct->next_wake < now) {
 		ct->next_wake = roundup_u64(now, ct->cycletime);
-		dev_warn(piDev_g.dev, "%s: missed %lld cycles\n",
+		pr_warn("%s: missed %lld cycles\n",
 			 current->comm, div_u64(ct->next_wake - this_wake, ct->cycletime) - 1);
 	}
 

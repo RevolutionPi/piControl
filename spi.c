@@ -167,7 +167,7 @@ INT32U spi_init (
     {
 	    aGpioDesc_s[0] = gpiod_get(piDev_g.dev, "KSZ0", GPIOD_OUT_HIGH);
 	    if (IS_ERR(aGpioDesc_s[0])) {
-		    dev_err(piDev_g.dev, "cannot acquire gpio KSZ0_CS\n");
+		    pr_err("cannot acquire gpio KSZ0_CS\n");
 		    return SPI_RET_OPEN_ERROR;
 	    }
     }
@@ -177,7 +177,7 @@ INT32U spi_init (
 	    {
 		    aGpioDesc_s[1] = gpiod_get(piDev_g.dev, "KSZ1", GPIOD_OUT_HIGH);
 		    if (IS_ERR(aGpioDesc_s[1])) {
-			    dev_err(piDev_g.dev, "cannot acquire gpio KSZ1_CS\n");
+			    pr_err("cannot acquire gpio KSZ1_CS\n");
 			    return SPI_RET_OPEN_ERROR;
 		    }
 	    }
