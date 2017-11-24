@@ -13,8 +13,7 @@
 
 struct cycletimer {
 	struct hrtimer_sleeper sleeper;
-	u32 cycletime;
-	u64 next_wake;
+	ktime_t cycletime;
 };
 
 static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
@@ -28,28 +27,30 @@ static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 static inline void cycletimer_sleep(struct cycletimer *ct)
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
-	u64 now = ktime_to_ns(hrtimer_cb_get_time(timer));
-	u64 this_wake = ct->next_wake;
+	ktime_t now = hrtimer_cb_get_time(timer);
+	u64 missed_cycles = hrtimer_forward(timer, now, ct->cycletime) - 1;
 
-	ct->next_wake += ct->cycletime;
-
-	if (ct->next_wake < now) {
-		ct->next_wake = roundup_u64(now, ct->cycletime);
+	if (missed_cycles)
 		pr_warn("%s: missed %lld cycles\n",
-			 current->comm, div_u64(ct->next_wake - this_wake, ct->cycletime) - 1);
-	}
+			current->comm, missed_cycles);
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
-	hrtimer_start(timer, ns_to_ktime(ct->next_wake), HRTIMER_MODE_ABS);
+	hrtimer_restart(timer);
 	schedule();
 }
 
 static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
+	u64 zeroth_cycle;
+	ktime_t now;
 
-	ct->cycletime = cycletime;
-	ct->next_wake = rounddown_u64(ktime_to_ns(hrtimer_cb_get_time(timer)), cycletime);
+	ct->cycletime = ns_to_ktime(cycletime);
+
+	now = hrtimer_cb_get_time(timer);
+	zeroth_cycle = ktime_divns(now, cycletime) * cycletime;
+
+	hrtimer_set_expires(timer, ns_to_ktime(zeroth_cycle));
 }
 
 static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime)
@@ -59,8 +60,7 @@ static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime
 	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	timer->function = wake_up_sleeper;
 	ct->sleeper.task = current;
-	ct->cycletime = cycletime;
-	ct->next_wake = rounddown_u64(ktime_to_ns(hrtimer_cb_get_time(timer)), cycletime);
+	cycletimer_change(ct, cycletime);
 }
 
 static inline void cycletimer_destroy(struct cycletimer *ct)
