@@ -291,13 +291,14 @@ void readData(uint16_t offset, uint16_t length, bool cyclic, char format, bool q
 					printf("%02x ", pValues[val]);
 				} else if (format == 'b') {
 					printf("%c%c%c%c%c%c%c%c ",
-					       pValues[val] & 0x80 ? '1' : '0',
-					       pValues[val] & 0x40 ? '1' : '0',
-					       pValues[val] & 0x20 ? '1' : '0',
-					       pValues[val] & 0x10 ? '1' : '0',
-					       pValues[val] & 0x08 ? '1' : '0',
-					       pValues[val] & 0x04 ? '1' : '0',
-					       pValues[val] & 0x02 ? '1' : '0', pValues[val] & 0x01 ? '1' : '0');
+					       	pValues[val] & 0x80 ? '1' : '0',
+					       	pValues[val] & 0x40 ? '1' : '0',
+					       	pValues[val] & 0x20 ? '1' : '0',
+					       	pValues[val] & 0x10 ? '1' : '0',
+					       	pValues[val] & 0x08 ? '1' : '0',
+					       	pValues[val] & 0x04 ? '1' : '0',
+					 	pValues[val] & 0x02 ? '1' : '0',
+						pValues[val] & 0x01 ? '1' : '0');
 				} else if (format == 's') {
 					uint16_t ui;
 					int16_t *psi;
@@ -377,13 +378,14 @@ void readVariableValue(char *pszVariableName, bool cyclic, char format, bool qui
 						printf("1 Byte-Value of %s: ", pszVariableName);
 
 					printf("%c%c%c%c%c%c%c%c\n",
-					       i8uValue & 0x80 ? '1' : '0',
-					       i8uValue & 0x40 ? '1' : '0',
-					       i8uValue & 0x20 ? '1' : '0',
-					       i8uValue & 0x10 ? '1' : '0',
-					       i8uValue & 0x08 ? '1' : '0',
-					       i8uValue & 0x04 ? '1' : '0',
-					       i8uValue & 0x02 ? '1' : '0', i8uValue & 0x01 ? '1' : '0');
+					       	i8uValue & 0x80 ? '1' : '0',
+					       	i8uValue & 0x40 ? '1' : '0',
+					       	i8uValue & 0x20 ? '1' : '0',
+					       	i8uValue & 0x10 ? '1' : '0',
+					       	i8uValue & 0x08 ? '1' : '0',
+					       	i8uValue & 0x04 ? '1' : '0',
+					       	i8uValue & 0x02 ? '1' : '0',
+						i8uValue & 0x01 ? '1' : '0');
 				} else {
 					if (!quiet)
 						printf("1 Byte-Value of %s: %d dez (=%02x hex)\n", pszVariableName,
@@ -418,7 +420,8 @@ void readVariableValue(char *pszVariableName, bool cyclic, char format, bool qui
 					       i16uValue & 0x1000 ? '1' : '0',
 					       i16uValue & 0x0800 ? '1' : '0',
 					       i16uValue & 0x0400 ? '1' : '0',
-					       i16uValue & 0x0200 ? '1' : '0', i16uValue & 0x0100 ? '1' : '0');
+					       i16uValue & 0x0200 ? '1' : '0',
+					       i16uValue & 0x0100 ? '1' : '0');
 
 					printf("%c%c%c%c%c%c%c%c\n",
 					       i16uValue & 0x0080 ? '1' : '0',
@@ -427,7 +430,8 @@ void readVariableValue(char *pszVariableName, bool cyclic, char format, bool qui
 					       i16uValue & 0x0010 ? '1' : '0',
 					       i16uValue & 0x0008 ? '1' : '0',
 					       i16uValue & 0x0004 ? '1' : '0',
-					       i16uValue & 0x0002 ? '1' : '0', i16uValue & 0x0001 ? '1' : '0');
+					       i16uValue & 0x0002 ? '1' : '0',
+					       i16uValue & 0x0001 ? '1' : '0');
 				} else {
 					if (!quiet)
 						printf("2 Byte-Value of %s: %d dez (=%04x hex)\n", pszVariableName,
@@ -456,22 +460,24 @@ void readVariableValue(char *pszVariableName, bool cyclic, char format, bool qui
 						printf("4 Byte-Value of %s: ", pszVariableName);
 
 					printf("%c%c%c%c%c%c%c%c ",
-					       i32uValue & 0x80000000 ? '1' : '0',
-					       i32uValue & 0x40000000 ? '1' : '0',
-					       i32uValue & 0x20000000 ? '1' : '0',
-					       i32uValue & 0x10000000 ? '1' : '0',
-					       i32uValue & 0x08000000 ? '1' : '0',
-					       i32uValue & 0x04000000 ? '1' : '0',
-					       i32uValue & 0x02000000 ? '1' : '0', i32uValue & 0x01000000 ? '1' : '0');
+						i32uValue & 0x80000000 ? '1' : '0',
+						i32uValue & 0x40000000 ? '1' : '0',
+						i32uValue & 0x20000000 ? '1' : '0',
+						i32uValue & 0x10000000 ? '1' : '0',
+						i32uValue & 0x08000000 ? '1' : '0',
+						i32uValue & 0x04000000 ? '1' : '0',
+						i32uValue & 0x02000000 ? '1' : '0',
+						i32uValue & 0x01000000 ? '1' : '0');
 
 					printf("%c%c%c%c%c%c%c%c ",
-					       i32uValue & 0x00800000 ? '1' : '0',
-					       i32uValue & 0x00400000 ? '1' : '0',
-					       i32uValue & 0x00200000 ? '1' : '0',
-					       i32uValue & 0x00100000 ? '1' : '0',
-					       i32uValue & 0x00080000 ? '1' : '0',
-					       i32uValue & 0x00040000 ? '1' : '0',
-					       i32uValue & 0x00020000 ? '1' : '0', i32uValue & 0x00010000 ? '1' : '0');
+						i32uValue & 0x00800000 ? '1' : '0',
+						i32uValue & 0x00400000 ? '1' : '0',
+						i32uValue & 0x00200000 ? '1' : '0',
+						i32uValue & 0x00100000 ? '1' : '0',
+						i32uValue & 0x00080000 ? '1' : '0',
+						i32uValue & 0x00040000 ? '1' : '0',
+						i32uValue & 0x00020000 ? '1' : '0',
+						i32uValue & 0x00010000 ? '1' : '0');
 
 					printf("%c%c%c%c%c%c%c%c ",
 					       i32uValue & 0x00008000 ? '1' : '0',
@@ -480,7 +486,8 @@ void readVariableValue(char *pszVariableName, bool cyclic, char format, bool qui
 					       i32uValue & 0x00001000 ? '1' : '0',
 					       i32uValue & 0x00000800 ? '1' : '0',
 					       i32uValue & 0x00000400 ? '1' : '0',
-					       i32uValue & 0x00000200 ? '1' : '0', i32uValue & 0x00000100 ? '1' : '0');
+					       i32uValue & 0x00000200 ? '1' : '0',
+						i32uValue & 0x00000100 ? '1' : '0');
 
 					printf("%c%c%c%c%c%c%c%c\n",
 					       i32uValue & 0x00000080 ? '1' : '0',
@@ -489,7 +496,8 @@ void readVariableValue(char *pszVariableName, bool cyclic, char format, bool qui
 					       i32uValue & 0x00000010 ? '1' : '0',
 					       i32uValue & 0x00000008 ? '1' : '0',
 					       i32uValue & 0x00000004 ? '1' : '0',
-					       i32uValue & 0x00000002 ? '1' : '0', i32uValue & 0x00000001 ? '1' : '0');
+					       i32uValue & 0x00000002 ? '1' : '0',
+						i32uValue & 0x00000001 ? '1' : '0');
 				} else {
 					if (!quiet)
 						printf("4 Byte-Value of %s: %d dez (=%08x hex)\n", pszVariableName,
@@ -751,6 +759,8 @@ void printHelp(char *programname)
 	printf("                     E.g.: -R 32,0x0014:\n");
 	printf("                     Reset the counters on input pin I_3 and I_5.\n");
 	printf("\n");
+	printf("                 -S: Stop/Restart I/O update.\n");
+	printf("\n");
 	printf("                 -x: Reset piControl process.\n");
 	printf("\n");
 	printf("                 -l: Wait for reset of piControl process.\n");
@@ -945,9 +955,9 @@ int main(int argc, char *argv[])
 			if (rc < 0) {
 				printf("error in setting I/O update mode: %d\n", rc);
 			} else if (rc == 0) {
-				printf("I/O value are updated in the process image\n");
+				printf("I/Os and process image are updated\n");
 			} else {
-				printf("update of process image is stopped\n");
+				printf("update of I/Os and process image is stopped\n");
 			}
 			break;
 

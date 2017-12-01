@@ -370,6 +370,25 @@ int piControlFindVariable(const char *name)
 	return ret;
 }
 
+/***********************************************************************************/
+/*!
+ * @brief Reset a counter or encoder in a RevPi DI or DIO module
+ *
+ * The DIO and DI modules some of the inputs can be configured as counter or encoder.
+ * When the module is turned on, both start with the value 0. They are implemented as
+ * signed 32-bit integer variable. This means they count upwards to (2^15)-1 and
+ * the flip to -(2^15). All counters/encoders can the reset to 0 at thw same time
+ * with this command. The argument is a bitfield. If bit n is set to 1, the
+ * counter/encoder on input n+1 will be reset. A value of 0xffff will reset all
+ * counters/encoders.
+ *
+ * @param[in]   address		address of the module as displayed ba PiCtory or 'piTest -d'
+ *		bitfield	bitfield defining the counters/endcoders to reset.
+ *
+ * @return      == 0    no error
+ *		< 0     in case of error, errno will be set
+ *
+ ************************************************************************************/
 int piControlResetCounter(int address, int bitfield)
 {
 	SDIOResetCounter tel;
@@ -390,6 +409,24 @@ int piControlResetCounter(int address, int bitfield)
 	return ret;
 }
 
+/***********************************************************************************/
+/*!
+ * @brief Update firmware
+ *
+ * KUNBUS provides "*.fwu" files with new firmware for RevPi I/O and RevPi Gate modules.
+ * These are provided in the debian paket revpi-firmware. Use 'sudo apt-get install revpi-firmware'
+ * to get the latest firmware files. Afterwards you can update the firmware with this ioctl call.
+ * Unforunatelly old modules hang or block the piBridge communication if a modules is updated.
+ * Therefore the update is only possible when only one module is connected to the RevPi.
+ * The module must be on the right side of the RevPi Core and on the left side of the RevPi Connect.
+ * This ioctl reads the version number from the module and compares it to the lastet available
+ * firmware file. If a new firmware is available, is flashed to the module.
+ *
+ * @param[in]   addr fo module to update. Not used yet.
+ *
+ * @return 0 or error if negative
+ *
+ ************************************************************************************/
 int piControlUpdateFirmware(uint32_t addr_p)
 {
 	int ret;
@@ -413,6 +450,28 @@ int piControlUpdateFirmware(uint32_t addr_p)
 	return ret;
 }
 
+/***********************************************************************************/
+/*!
+ * @brief Stop/Start I/O update
+ *
+ * This ioctl stops, starts or toggles the update of I/Os. If the I/O updates are stopped,
+ * piControls writes 0 to the outputs instead of the values from the process image.
+ * The input values are not written to the process images. The I/O communication is
+ * runnging as normal. On the update of DIO, DI, DO, AIO, Gate modules and the RevPi
+ * itself is stopped. There is no change in the handling of virtual modules.
+ * The function can used for simulation of I/Os. A simulation application can be started
+ * additionally to the other control and application processes. It stops the I/O update
+ * and simulates the hardware by setting and reading the values in the process image.
+ * The application does not notice this.
+ *
+ * @param[in]   stop==0	Start the I/O update
+ *		stop==1	Stop the I/O update
+ *		stop==2 Toggle the mode of I/O update
+ *
+ * @return 	0/1 the new state
+ *		<0 in case of an error
+ *
+ ************************************************************************************/
 int piControlStopIO(int stop)
 {
 	int ret;
@@ -429,7 +488,12 @@ int piControlStopIO(int stop)
 	return ret;
 }
 
+
+
 #ifdef KUNBUS_TEST
+/***********************************************************************************/
+/* for internal use by KUNBUS only.
+ ************************************************************************************/
 int piControlIntMsg(int msg, unsigned char *data, int size)
 {
 	int ret;
@@ -462,6 +526,9 @@ int piControlIntMsg(int msg, unsigned char *data, int size)
 	return ret;
 }
 
+/***********************************************************************************/
+/* for internal use by KUNBUS only.
+ ************************************************************************************/
 int piControlSetSerial(int addr, int serial)
 {
 	int ret;
@@ -479,3 +546,4 @@ int piControlSetSerial(int addr, int serial)
 }
 
 #endif
+
