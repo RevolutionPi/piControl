@@ -41,6 +41,7 @@
 #include <bsp/ksz8851/ksz8851.h>
 #include <bsp/spi/spi.h>
 
+#include "revpi_common.h"
 #include "revpi_core.h"
 
 static struct gpiod_lookup_table revpi_core_gpios = {
@@ -382,6 +383,10 @@ int revpi_core_init(void)
 	rt_mutex_init(&piCore_g.lockUserTel);
 	sema_init(&piCore_g.semUserTel, 0);
 	piCore_g.pendingUserTel = false;
+
+	rt_mutex_init(&piCore_g.lockGateTel);
+	sema_init(&piCore_g.semGateTel, 0);
+	piCore_g.pendingGateTel = false;
 
 	rt_mutex_init(&piCore_g.lockBridgeState);
 	sema_init(&piCore_g.ioSem, 0);

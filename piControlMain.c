@@ -63,6 +63,7 @@
 #include <linux/of.h>
 #include <asm/div64.h>
 
+#include "revpi_common.h"
 #include "revpi_core.h"
 #include "revpi_compact.h"
 
@@ -117,6 +118,8 @@ static char pcErrorMessage[200];
 /*******************************  Functions  **********************************/
 /******************************************************************************/
 
+bool waitRunning(int timeout);	// ms
+
 /******************************************************************************/
 /***************************** CS Functions  **********************************/
 /******************************************************************************/
@@ -132,7 +135,6 @@ void piControlDummyReceive(INT8U i8uChar_p)
 #endif
 
 #include "compiletime.h"
-
 
 static char *piControlClass_devnode(struct device *dev, umode_t * mode)
 {
@@ -302,6 +304,94 @@ static void cleanup(void)
 	unregister_chrdev_region(piControlMajor, 2);
 }
 
+/*****************************************************************************/
+static int piControlReset(tpiControlInst * priv)
+{
+	int status = -EFAULT;
+	void *vptr;
+	int timeout = 10000;	// ms
+
+	if (piDev_g.ent != NULL) {
+		vptr = piDev_g.ent;
+		piDev_g.ent = NULL;
+		kfree(vptr);
+	}
+	if (piDev_g.devs != NULL) {
+		vptr = piDev_g.devs;
+		piDev_g.devs = NULL;
+		kfree(vptr);
+	}
+	if (piDev_g.cl != NULL) {
+		vptr = piDev_g.cl;
+		piDev_g.cl = NULL;
+		kfree(vptr);
+	}
+
+	/* start application */
+	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
+		// file not found, try old location
+		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
+		// ignore errors
+	}
+
+	if (piDev_g.machine_type == REVPI_CORE) {
+		PiBridgeMaster_Reset();
+	} else if (piDev_g.machine_type == REVPI_CONNECT) {
+		PiBridgeMaster_Reset();
+	} else if (piDev_g.machine_type == REVPI_COMPACT) {
+		int ret = revpi_compact_reset();
+		if (ret) {
+			cleanup();
+			return ret;
+		}
+	}
+
+	if (!waitRunning(timeout)) {
+		status = -ETIMEDOUT;
+	} else {
+		struct list_head *pCon;
+
+		mutex_lock(&piDev_g.lockListCon);
+		list_for_each(pCon, &piDev_g.listCon) {
+			tpiControlInst *pos_inst;
+			pos_inst = list_entry(pCon, tpiControlInst, list);
+			if (pos_inst != priv) {
+				struct list_head *pEv;
+				tpiEventEntry *pEntry;
+				bool found = false;
+
+				// add the event to the list only, if it not already there
+				mutex_lock(&pos_inst->lockEventList);
+				list_for_each(pEv, &pos_inst->piEventList) {
+					pEntry = list_entry(pEv, tpiEventEntry, list);
+					if (pEntry->event == piEvReset) {
+						found = true;
+						break;
+					}
+				}
+
+				if (!found) {
+					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
+					pEntry->event = piEvReset;
+					pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum,
+						    (unsigned int)pEntry);
+					list_add_tail(&pEntry->list, &pos_inst->piEventList);
+					mutex_unlock(&pos_inst->lockEventList);
+					pr_info_drv("reset(%d): inform instance %d\n", priv->instNum,
+						    pos_inst->instNum);
+					wake_up(&pos_inst->wq);
+				} else {
+					mutex_unlock(&pos_inst->lockEventList);
+				}
+			}
+		}
+		mutex_unlock(&piDev_g.lockListCon);
+
+		status = 0;
+	}
+	return status;
+}
+
 static void __exit piControlCleanup(void)
 {
 	pr_info_drv("piControlCleanup\n");
@@ -326,7 +416,9 @@ bool isInitialized(void)
 // false: system is not operational
 bool isRunning(void)
 {
-	if (piDev_g.init_step < 17 || ((piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT) && (piCore_g.eBridgeState != piBridgeRun))) {
+	if (piDev_g.init_step < 17
+	    || ((piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT)
+		&& (piCore_g.eBridgeState != piBridgeRun))) {
 		return false;
 	}
 	return true;
@@ -376,11 +468,6 @@ static int piControlOpen(struct inode *inode, struct file *file)
 {
 	tpiControlInst *priv;
 
-	if (!waitRunning(3000)) {
-		pr_err("problem at driver initialization\n");
-		return -EINVAL;
-	}
-
 	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
 	file->private_data = priv;
 
@@ -397,6 +484,17 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	init_waitqueue_head(&priv->wq);
 
 	//pr_info("piControlOpen");
+	if (!waitRunning(3000)) {
+		int status;
+		pr_err("problem at driver initialization\n");
+		status = piControlReset(priv);
+		if (status) {
+			kfree(priv);
+			return status;
+		}
+		//return -EINVAL;
+	}
+
 
 	piDev_g.PnAppCon++;
 	priv->instNum = piDev_g.PnAppCon;
@@ -566,94 +664,6 @@ static loff_t piControlSeek(struct file *file, loff_t off, int whence)
 }
 
 /*****************************************************************************/
-static int piControlReset(tpiControlInst * priv)
-{
-	int status = -EFAULT;
-	void *vptr;
-	int timeout = 10000;	// ms
-
-	if (piDev_g.ent != NULL) {
-		vptr = piDev_g.ent;
-		piDev_g.ent = NULL;
-		kfree(vptr);
-	}
-	if (piDev_g.devs != NULL) {
-		vptr = piDev_g.devs;
-		piDev_g.devs = NULL;
-		kfree(vptr);
-	}
-	if (piDev_g.cl != NULL) {
-		vptr = piDev_g.cl;
-		piDev_g.cl = NULL;
-		kfree(vptr);
-	}
-
-	/* start application */
-	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
-		// file not found, try old location
-		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
-		// ignore errors
-	}
-
-	if (piDev_g.machine_type == REVPI_CORE) {
-		PiBridgeMaster_Reset();
-	} else if (piDev_g.machine_type == REVPI_CONNECT) {
-		PiBridgeMaster_Reset();
-	} else if (piDev_g.machine_type == REVPI_COMPACT) {
-		int ret = revpi_compact_reset();
-		if (ret) {
-			cleanup();
-			return ret;
-		}
-	}
-
-	if (!waitRunning(timeout)) {
-		status = -ETIMEDOUT;
-	} else {
-		struct list_head *pCon;
-
-		mutex_lock(&piDev_g.lockListCon);
-		list_for_each(pCon, &piDev_g.listCon) {
-			tpiControlInst *pos_inst;
-			pos_inst = list_entry(pCon, tpiControlInst, list);
-			if (pos_inst != priv) {
-				struct list_head *pEv;
-				tpiEventEntry *pEntry;
-				bool found = false;
-
-				// add the event to the list only, if it not already there
-				mutex_lock(&pos_inst->lockEventList);
-				list_for_each(pEv, &pos_inst->piEventList) {
-					pEntry = list_entry(pEv, tpiEventEntry, list);
-					if (pEntry->event == piEvReset) {
-						found = true;
-						break;
-					}
-				}
-
-				if (!found) {
-					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
-					pEntry->event = piEvReset;
-					pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum,
-						    (unsigned int)pEntry);
-					list_add_tail(&pEntry->list, &pos_inst->piEventList);
-					mutex_unlock(&pos_inst->lockEventList);
-					pr_info_drv("reset(%d): inform instance %d\n", priv->instNum,
-						    pos_inst->instNum);
-					wake_up(&pos_inst->wq);
-				} else {
-					mutex_unlock(&pos_inst->lockEventList);
-				}
-			}
-		}
-		mutex_unlock(&piDev_g.lockListCon);
-
-		status = 0;
-	}
-	return status;
-}
-
-/*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
 static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long usr_addr)
@@ -662,8 +672,11 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	tpiControlInst *priv;
 	int timeout = 10000;	// ms
 
-	if (!isRunning())
+	if (prg_nr != KB_CONFIG_SEND
+	    && prg_nr != KB_CONFIG_START
+	    && !isRunning()) {
 		return -EAGAIN;
+	}
 
 	priv = (tpiControlInst *) file->private_data;
 
@@ -1076,6 +1089,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				break;
 			}
 			rt_mutex_unlock(&piCore_g.lockUserTel);
+			status = 0;
 		}
 		break;
 
@@ -1127,6 +1141,84 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				piDev_g.stopIO = (*pData) ? true : false;
 			}
 			status = piDev_g.stopIO;
+		}
+		break;
+
+	case KB_CONFIG_STOP:	// for download of configuration to Master Gateway: stop IO communication completely
+		{
+			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+				return -EPERM;
+			}
+
+			if (!isRunning()) {
+				printUserMsg("piControl is not running");
+				return -EFAULT;
+			}
+			PiBridgeMaster_Stop();
+			msleep(50);
+			status = 0;
+		}
+		break;
+
+	case KB_CONFIG_SEND:	// for download of configuration to Master Gateway: download config data
+		{
+				SConfigData *pData = (SConfigData *)usr_addr;
+
+				if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+					return -EPERM;
+				}
+				if (!isInitialized()) {
+					return -EFAULT;
+				}
+				if (isRunning()) {
+					return -ECANCELED;
+				}
+
+				rt_mutex_lock(&piCore_g.lockGateTel);
+				if (copy_from_user(piCore_g.ai8uSendDataGateTel, pData->acData, pData->i16uLen)) {
+					rt_mutex_unlock(&piCore_g.lockGateTel);
+					status = -EFAULT;
+					break;
+				}
+				piCore_g.i8uSendDataLenGateTel = pData->i16uLen;
+
+				if (pData->bLeft) {
+					piCore_g.i8uAddressGateTel = RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
+				} else {
+					piCore_g.i8uAddressGateTel = RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
+				}
+				piCore_g.i16uCmdGateTel = eCmdRAPIMessage;
+
+				piCore_g.pendingGateTel = true;
+				down(&piCore_g.semGateTel);
+				status = piCore_g.statusGateTel;
+
+				pData->i16uLen = piCore_g.i16uRecvDataLenGateTel;
+				if (copy_to_user(pData->acData, &piCore_g.ai8uRecvDataGateTel, pData->i16uLen)) {
+					rt_mutex_unlock(&piCore_g.lockGateTel);
+					status = -EFAULT;
+					break;
+				}
+				rt_mutex_unlock(&piCore_g.lockGateTel);
+				status = 0;
+		}
+		break;
+
+	case KB_CONFIG_START:	// for download of configuration to Master Gateway: restart IO communication
+		{
+				if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+					return -EPERM;
+				}
+			if (!isInitialized()) {
+				return -EFAULT;
+			}
+
+			if (isRunning()) {
+				return -ECANCELED;
+			}
+
+			PiBridgeMaster_Continue();
+			status = 0;
 		}
 		break;
 

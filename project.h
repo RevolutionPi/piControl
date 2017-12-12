@@ -96,7 +96,13 @@ extern int __debug_show_msg;
 #define pr_info_spi2(fmt, ...)
 #endif
 
-//#define DEBUG_SERIALCOMM
+#if 0
+#define DEBUG_SERIALCOMM
+#define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#else
+#define pr_info_serial(fmt, ...)
+#endif
+
 #define DEBUG_GPIO
 #define DEBUG_DEVICE
 #define DEBUG_DEVICE_IO
@@ -113,7 +119,7 @@ extern int __debug_show_msg;
 // use longer intervals to reduce the number of messages
 #define INTERVAL_RS485      ( 1*1000*1000)     //  100 ms    piRs485
 #define INTERVAL_IO_COMM    ( 5*1000*1000)     //  500 ms    piIoComm
-#define INTERVAL_ADDITIONAL ( 500*1000)     //  500 ms    piIoComm
+#define INTERVAL_ADDITIONAL (    500*1000)     //  500 ms    piIoComm
 #else
 #define INTERVAL_RS485      ( 1*1000*1000)     //  1   ms    piRs485
 #define INTERVAL_IO_COMM    ( 5*1000*1000)     //  5   ms    piIoComm

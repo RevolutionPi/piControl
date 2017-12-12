@@ -41,6 +41,7 @@
 #include <asm/uaccess.h>
 #include <asm/segment.h>
 
+#include "revpi_common.h"
 #include "revpi_core.h"
 #include "piFirmwareUpdate.h"
 #include "fwuFlashFileMain.h"

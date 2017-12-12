@@ -95,6 +95,9 @@
 #define  KB_DIO_RESET_COUNTER		_IO(KB_IOC_MAGIC, 20 )  // set a counter or endocder to 0
 #define  KB_GET_LAST_MESSAGE		_IO(KB_IOC_MAGIC, 21 )  // copy the last error message
 #define  KB_STOP_IO			_IO(KB_IOC_MAGIC, 22 )  // stop/start IO communication, can be used for I/O simulation
+#define  KB_CONFIG_STOP			_IO(KB_IOC_MAGIC, 23 )  // for download of configuration to Master Gateway: stop IO communication completely
+#define  KB_CONFIG_SEND			_IO(KB_IOC_MAGIC, 24 )  // for download of configuration to Master Gateway: download config data
+#define  KB_CONFIG_START		_IO(KB_IOC_MAGIC, 25 )  // for download of configuration to Master Gateway: restart IO communication
 
 #define  KB_WAIT_FOR_EVENT		_IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET			1		// piControl was reset, reload configuration
@@ -161,6 +164,15 @@ typedef struct SDIOResetCounterStr
 	uint8_t     i8uAddress;             // Address of module in current configuration
 	uint16_t    i16uBitfield;           // bitfield, if bit n is 1, reset counter/encoder on input n
 } SDIOResetCounter;
+
+#define CONFIG_DATA_SIZE 256
+
+typedef struct SConfigDataStr
+{
+    uint8_t     bLeft;
+    uint16_t    i16uLen;
+    char        acData[CONFIG_DATA_SIZE];
+} SConfigData;
 
 #define PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE         -10
 #define PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH        -11

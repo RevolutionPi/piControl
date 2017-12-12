@@ -41,11 +41,11 @@
 #include <linux/jiffies.h>
 #include <linux/thermal.h>
 
+#include "revpi_common.h"
 #include "revpi_core.h"
 #include <ModGateRS485.h>
 #include <piDIOComm.h>
 #include <piAIOComm.h>
-#include "revpi_common.h"
 #include "process_image.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
@@ -745,20 +745,34 @@ int PiBridgeMaster_Run(void)
 				bEntering_s = bFALSE;
 			}
 		}
+		// if the user-ioctl want to send a telegram, do it now
+		if (piCore_g.pendingGateTel == true) {
+			piCore_g.statusGateTel = piIoComm_sendRS485Tel(piCore_g.i16uCmdGateTel, piCore_g.i8uAddressGateTel,
+								       piCore_g.ai8uSendDataGateTel, piCore_g.i8uSendDataLenGateTel,
+								       piCore_g.ai8uRecvDataGateTel, &piCore_g.i16uRecvDataLenGateTel);
+			piCore_g.pendingGateTel = false;
+			up(&piCore_g.semGateTel);
+		}
 	}
 
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 
-	if (eBridgeStateLast_s != piCore_g.eBridgeState) {
+	if (piDev_g.stopIO) {
+		revpi_power_led_red_set(REVPI_POWER_LED_FLICKR);
+	} else  {
 		if (piCore_g.eBridgeState == piBridgeRun) {
-			RevPiDevice_setStatus(0, PICONTROL_STATUS_RUNNING);
-			led_trigger_event(&piDev_g.power_red, LED_OFF);
+			if (RevPiDevice_getErrCnt() == 0) {
+				revpi_power_led_red_set(REVPI_POWER_LED_OFF);	// green on
+			} else {
+				revpi_power_led_red_set(REVPI_POWER_LED_ON_1000MS);	// red for 1s, then green
+			}
 		} else {
-			RevPiDevice_setStatus(PICONTROL_STATUS_RUNNING, 0);
-			led_trigger_event(&piDev_g.power_red, LED_FULL);
+			revpi_power_led_red_set(REVPI_POWER_LED_ON);	// red on
 		}
 		eBridgeStateLast_s = piCore_g.eBridgeState;
 	}
+
+	revpi_power_led_red_run();
 
 	// set LED and status
 	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();

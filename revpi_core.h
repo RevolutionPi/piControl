@@ -16,6 +16,7 @@
 #include "IoProtocol.h"
 #include "ModGateComMain.h"
 #include "ModGateComError.h"
+#include "ModGateRS485.h"
 #include "PiBridgeMaster.h"
 #include "RevPiDevice.h"
 
@@ -28,6 +29,7 @@ typedef enum {
 	piBridgeStop = 0,
 	piBridgeInit = 1,	// MGate Protocol
 	piBridgeRun = 2,	// IO Protocol
+	piBridgeDummy = 99	// dummy value to force update of led state
 } enPiBridgeState;
 
 typedef struct _SRevPiCoreImage {
@@ -87,6 +89,18 @@ typedef struct _SRevPiCore {
 	SIOGeneric requestUserTel;
 	SIOGeneric responseUserTel;
 	int statusUserTel;
+
+	// handle mGate telegrams
+	struct rt_mutex lockGateTel;
+	struct semaphore semGateTel;
+	bool pendingGateTel;
+	INT16U i16uCmdGateTel;
+	INT8U i8uAddressGateTel;
+	INT8U ai8uSendDataGateTel[MAX_TELEGRAM_DATA_SIZE];
+	INT8U i8uSendDataLenGateTel;
+	INT8U ai8uRecvDataGateTel[MAX_TELEGRAM_DATA_SIZE];
+	INT16U i16uRecvDataLenGateTel;
+	int statusGateTel;
 
 	// piGate thread
 	struct task_struct *pGateThread;

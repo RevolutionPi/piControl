@@ -45,6 +45,7 @@
 #include <project.h>
 #include <common_define.h>
 
+#include "revpi_common.h"
 #include "revpi_core.h"
 
 static INT8U i8uConfigured_s = 0;

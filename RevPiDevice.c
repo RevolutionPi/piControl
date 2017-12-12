@@ -40,6 +40,7 @@
 #include <ModGateRS485.h>
 #include <ModGateComMain.h>
 
+#include "revpi_common.h"
 #include "revpi_core.h"
 #include <piDIOComm.h>
 #include <piAIOComm.h>
@@ -222,9 +223,10 @@ int RevPiDevice_run(void)
 TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp * pModgateId_p)
 {
 	INT32U ret_l;
+	INT16U i16uLen_l = sizeof(MODGATECOM_IDResp);
 	//
 	ret_l =
-	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (INT8U *) pModgateId_p, sizeof(MODGATECOM_IDResp));
+	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (INT8U *) pModgateId_p, &i16uLen_l);
 	msleep(3);		// wait a while
 	if (ret_l) {
 #ifdef DEBUG_DEVICE

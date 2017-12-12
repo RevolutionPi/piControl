@@ -42,6 +42,8 @@
 #include <bsp/spi/spi.h>
 #include <project.h>
 
+#include "revpi_common.h"
+
 #include <ModGateComMain.h>
 #include <piIOComm.h>
 #include <piControlMain.h>

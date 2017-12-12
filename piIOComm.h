@@ -80,7 +80,7 @@ EGpioValue piIoComm_readSniff(struct gpio_desc *);
 
 INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
     INT8U *pi8uSendData_p, INT8U i8uSendDataLen_p,
-    INT8U *pi8uRecvData_p, INT8U i8uRecvDataLen_p);
+    INT8U *pi8uRecvData_p, INT16U *pi16uRecvDataLen_p);
 
 INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p);
 INT32S piIoComm_gotoGateProtocol(void);

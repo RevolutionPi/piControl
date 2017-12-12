@@ -23,16 +23,15 @@
 
 #include "project.h"
 #include "common_define.h"
+#include "revpi_common.h"
 #include "ModGateComMain.h"
 #include "PiBridgeMaster.h"
 #include "piControlMain.h"
 #include "RevPiDevice.h"
 #include "process_image.h"
 #include "pt100.h"
-#include "revpi_common.h"
 #include "revpi_compact.h"
 
-//#define REVPI_COMPACT_IO_CYCLE	(1000 * NSEC_PER_USEC)		//   1 msec
 #define REVPI_COMPACT_IO_CYCLE		( 250 * NSEC_PER_USEC)		// 250 usec
 #define REVPI_COMPACT_AIN_CYCLE		( 125 * NSEC_PER_MSEC)		// 125 msec
 
@@ -390,6 +389,7 @@ void revpi_compact_adjust_config(void)
 	if (piDev_g.devs == NULL) {
 		// config file could not be read, do nothing
 		rt_mutex_unlock(&piDev_g.lockPI);
+		return;
 	}
 
 	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
