@@ -318,6 +318,8 @@ static int piIoThread(void *data)
 			}
 		}
 
+		revpi_check_timeout();
+
 		if (piCore_g.eBridgeState == piBridgeInit) {
 			time.tv64 += INTERVAL_RS485;
 		} else {

@@ -103,6 +103,8 @@ typedef struct spiControlInst {
 	struct list_head piEventList;	// head of the event list for this instance
 	struct mutex lockEventList;
 	struct list_head list;	// list of all instances
+	ktime_t tTimeoutTS;	// time stamp when the output must be set to 0
+	unsigned long tTimeoutDurationMs;	// length of the timeout in ms, 0 if not active
 } tpiControlInst;
 
 extern tpiControlDev piDev_g;

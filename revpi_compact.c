@@ -146,6 +146,7 @@ static int revpi_compact_poll_io(void *data)
 
 		MEASSURE(2);
 		flip_process_image(image, machine->config.offset);
+		revpi_check_timeout();
 
 		MEASSURE(3);
 		/* write dout on every cycle to feed watchdog */

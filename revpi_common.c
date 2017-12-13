@@ -15,6 +15,7 @@
 #include "common_define.h"
 #include "project.h"
 #include "ModGateComMain.h"
+#include "RevPiDevice.h"
 #include "piControlMain.h"
 #include "piControl.h"
 
@@ -73,6 +74,39 @@ void revpi_power_led_red_set(enum revpi_power_led_mode mode)
 		break;
 	}
 	power_led_mode_s = mode;
+}
+
+
+void revpi_check_timeout(void)
+{
+	ktime_t now = ktime_get();
+	struct list_head *pCon;
+
+	mutex_lock(&piDev_g.lockListCon);
+	list_for_each(pCon, &piDev_g.listCon) {
+		tpiControlInst *pos_inst;
+		pos_inst = list_entry(pCon, tpiControlInst, list);
+
+		if (pos_inst->tTimeoutDurationMs != 0) {
+			if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
+				// set all outputs to 0
+				int i;
+				rt_mutex_lock(&piDev_g.lockPI);
+				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+					if (RevPiDevice_getDev(i)->i8uActive) {
+						memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
+					}
+				}
+				rt_mutex_unlock(&piDev_g.lockPI);
+				pos_inst->tTimeoutTS = ktime_add_ms(ktime_get(), pos_inst->tTimeoutDurationMs);
+
+				// this must only be done for one connection
+				mutex_unlock(&piDev_g.lockListCon);
+				return;
+			}
+		}
+	}
+	mutex_unlock(&piDev_g.lockListCon);
 }
 
 void revpi_power_led_red_run(void)

@@ -213,8 +213,7 @@ static int __init piControlInit(void)
 	res = devm_led_trigger_register(piDev_g.dev, &piDev_g.power_red) ||
 	    devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_green) ||
 	    devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_red) ||
-	    devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_green) ||
-	    devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_red);
+	    devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_green) || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_red);
 	if (res) {
 		pr_err("cannot register LED triggers\n");
 		cleanup();
@@ -373,12 +372,10 @@ static int piControlReset(tpiControlInst * priv)
 				if (!found) {
 					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
 					pEntry->event = piEvReset;
-					pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum,
-						    (unsigned int)pEntry);
+					pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum, (unsigned int)pEntry);
 					list_add_tail(&pEntry->list, &pos_inst->piEventList);
 					mutex_unlock(&pos_inst->lockEventList);
-					pr_info_drv("reset(%d): inform instance %d\n", priv->instNum,
-						    pos_inst->instNum);
+					pr_info_drv("reset(%d): inform instance %d\n", priv->instNum, pos_inst->instNum);
 					wake_up(&pos_inst->wq);
 				} else {
 					mutex_unlock(&pos_inst->lockEventList);
@@ -416,9 +413,8 @@ bool isInitialized(void)
 // false: system is not operational
 bool isRunning(void)
 {
-	if (piDev_g.init_step < 17
-	    || ((piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT)
-		&& (piCore_g.eBridgeState != piBridgeRun))) {
+	if (piDev_g.init_step < 17 || ((piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT)
+				       && (piCore_g.eBridgeState != piBridgeRun))) {
 		return false;
 	}
 	return true;
@@ -495,7 +491,6 @@ static int piControlOpen(struct inode *inode, struct file *file)
 		//return -EINVAL;
 	}
 
-
 	piDev_g.PnAppCon++;
 	priv->instNum = piDev_g.PnAppCon;
 
@@ -518,7 +513,17 @@ static int piControlRelease(struct inode *inode, struct file *file)
 
 	priv = (tpiControlInst *) file->private_data;
 
-	//pr_info("piControlRelease");
+	if (priv->tTimeoutDurationMs > 0) {
+		// if the watchdog is active, set all outputs to 0
+		int i;
+		rt_mutex_lock(&piDev_g.lockPI);
+		for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+			if (RevPiDevice_getDev(i)->i8uActive) {
+				memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
+			}
+		}
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
 	piDev_g.PnAppCon--;
@@ -623,6 +628,10 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 #endif
 	*ppos += nwrite;
 
+	if (priv->tTimeoutDurationMs > 0) {
+		priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
+	}
+
 	return nwrite;		// length written
 }
 
@@ -672,9 +681,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	tpiControlInst *priv;
 	int timeout = 10000;	// ms
 
-	if (prg_nr != KB_CONFIG_SEND
-	    && prg_nr != KB_CONFIG_START
-	    && !isRunning()) {
+	if (prg_nr != KB_CONFIG_SEND && prg_nr != KB_CONFIG_START && !isRunning()) {
 		return -EAGAIN;
 	}
 
@@ -706,8 +713,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				if (pDev->i8uAddress != 0 && pDev->i8uAddress == RevPiDevice_getDev(i)->i8uAddress) {
 					found = 1;
 				}
-				if (pDev->i16uModuleType != 0
-				    && pDev->i16uModuleType == RevPiDevice_getDev(i)->sId.i16uModulType) {
+				if (pDev->i16uModuleType != 0 && pDev->i16uModuleType == RevPiDevice_getDev(i)->sId.i16uModulType) {
 					found = 1;
 				}
 				if (found) {
@@ -817,8 +823,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				rt_mutex_unlock(&piDev_g.lockPI);
 
 #ifdef VERBOSE
-				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n",
-					pValue->i16uAddress, pValue->i8uBit, pValue->i8uValue, i8uValue_l);
+				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n", pValue->i16uAddress, pValue->i8uBit, pValue->i8uValue, i8uValue_l);
 #endif
 
 				status = 0;
@@ -891,8 +896,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 						pr_info("piControlIoctl copy %d bytes at offset %d: %x %x %x %x\n", len,
 							addr, ((unsigned char *)(usr_addr + addr))[0],
 							((unsigned char *)(usr_addr + addr))[1],
-							((unsigned char *)(usr_addr + addr))[2],
-							((unsigned char *)(usr_addr + addr))[3]);
+							((unsigned char *)(usr_addr + addr))[2], ((unsigned char *)(usr_addr + addr))[3]);
 #endif
 					if (copy_from_user(piDev_g.ai8uPI + addr, (void *)(usr_addr + addr), len) != 0) {
 						status = -EFAULT;
@@ -982,8 +986,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (PiBridgeMaster_FWUModeEnter(pData[0], 1) == 0) {
 
 				if (PiBridgeMaster_FWUsetSerNum(pData[1]) == 0) {
-					pr_info("piControlIoctl: set serial number to %u in module %u",
-						pData[1], pData[0]);
+					pr_info("piControlIoctl: set serial number to %u in module %u", pData[1], pData[0]);
 				}
 
 				PiBridgeMaster_FWUReset();
@@ -1025,8 +1028,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 #endif
 			if (RevPiDevice_getDevCnt() < 2
-			    || RevPiDevice_getDev(1)->i8uActive == 0
-			    || RevPiDevice_getDev(1)->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
+			    || RevPiDevice_getDev(1)->i8uActive == 0 || RevPiDevice_getDev(1)->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
 				printUserMsg
 				    ("No module to update! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
 				return -EFAULT;
@@ -1162,53 +1164,53 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_CONFIG_SEND:	// for download of configuration to Master Gateway: download config data
 		{
-				SConfigData *pData = (SConfigData *)usr_addr;
+			SConfigData *pData = (SConfigData *) usr_addr;
 
-				if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
-					return -EPERM;
-				}
-				if (!isInitialized()) {
-					return -EFAULT;
-				}
-				if (isRunning()) {
-					return -ECANCELED;
-				}
+			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+				return -EPERM;
+			}
+			if (!isInitialized()) {
+				return -EFAULT;
+			}
+			if (isRunning()) {
+				return -ECANCELED;
+			}
 
-				rt_mutex_lock(&piCore_g.lockGateTel);
-				if (copy_from_user(piCore_g.ai8uSendDataGateTel, pData->acData, pData->i16uLen)) {
-					rt_mutex_unlock(&piCore_g.lockGateTel);
-					status = -EFAULT;
-					break;
-				}
-				piCore_g.i8uSendDataLenGateTel = pData->i16uLen;
-
-				if (pData->bLeft) {
-					piCore_g.i8uAddressGateTel = RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
-				} else {
-					piCore_g.i8uAddressGateTel = RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
-				}
-				piCore_g.i16uCmdGateTel = eCmdRAPIMessage;
-
-				piCore_g.pendingGateTel = true;
-				down(&piCore_g.semGateTel);
-				status = piCore_g.statusGateTel;
-
-				pData->i16uLen = piCore_g.i16uRecvDataLenGateTel;
-				if (copy_to_user(pData->acData, &piCore_g.ai8uRecvDataGateTel, pData->i16uLen)) {
-					rt_mutex_unlock(&piCore_g.lockGateTel);
-					status = -EFAULT;
-					break;
-				}
+			rt_mutex_lock(&piCore_g.lockGateTel);
+			if (copy_from_user(piCore_g.ai8uSendDataGateTel, pData->acData, pData->i16uLen)) {
 				rt_mutex_unlock(&piCore_g.lockGateTel);
-				status = 0;
+				status = -EFAULT;
+				break;
+			}
+			piCore_g.i8uSendDataLenGateTel = pData->i16uLen;
+
+			if (pData->bLeft) {
+				piCore_g.i8uAddressGateTel = RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
+			} else {
+				piCore_g.i8uAddressGateTel = RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
+			}
+			piCore_g.i16uCmdGateTel = eCmdRAPIMessage;
+
+			piCore_g.pendingGateTel = true;
+			down(&piCore_g.semGateTel);
+			status = piCore_g.statusGateTel;
+
+			pData->i16uLen = piCore_g.i16uRecvDataLenGateTel;
+			if (copy_to_user(pData->acData, &piCore_g.ai8uRecvDataGateTel, pData->i16uLen)) {
+				rt_mutex_unlock(&piCore_g.lockGateTel);
+				status = -EFAULT;
+				break;
+			}
+			rt_mutex_unlock(&piCore_g.lockGateTel);
+			status = 0;
 		}
 		break;
 
 	case KB_CONFIG_START:	// for download of configuration to Master Gateway: restart IO communication
 		{
-				if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
-					return -EPERM;
-				}
+			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
+				return -EPERM;
+			}
 			if (!isInitialized()) {
 				return -EFAULT;
 			}
@@ -1219,6 +1221,14 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			PiBridgeMaster_Continue();
 			status = 0;
+		}
+		break;
+
+	case KB_SET_OUTPUT_WATCHDOG:
+		{
+			unsigned int *pData = (unsigned int *)usr_addr;
+			priv->tTimeoutDurationMs = *pData;
+			priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
 		}
 		break;
 
