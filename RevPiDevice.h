@@ -35,6 +35,8 @@
 #include <ModGateComMain.h>
 #include <piIOComm.h>
 
+typedef struct _SRevPiCoreImage SRevPiCoreImage;
+
 #define REV_PI_DEV_UNDEF            255
 #define REV_PI_DEV_FIRST_RIGHT      32
 #define REV_PI_DEV_CNT_MAX          64
@@ -61,12 +63,11 @@ typedef struct _SDeviceConfig
     INT16U i16uErrorCnt;
 
     INT8U  i8uStatus;               // status bitfield of RevPi
-    SRevPiCoreImage *pCoreData;     // Pointer to process image, may point to NULL
-    SDevice dev[REV_PI_DEV_CNT_MAX];
+    unsigned int offset;		// Offset in RevPi in process image
+    SDevice dev[REV_PI_DEV_CNT_MAX+1];
 } SDeviceConfig;
 
-extern SDeviceConfig RevPiScan;
-extern const MODGATECOM_IDResp RevPi_ID_g;
+//-------------------------------------------------------------------------------------------------
 
 TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *pModgateId_p);
 
@@ -79,4 +80,21 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void);
 void RevPiDevice_startDataexchange(void);
 void RevPiDevice_stopDataexchange(void);
 void RevPiDevice_checkFirmwareUpdate(void);
+INT8U RevPiDevice_setStatus(INT8U clr, INT8U set);
+INT8U RevPiDevice_getStatus(void);
+
+void RevPiDevice_resetDevCnt(void);
+void RevPiDevice_incDevCnt(void);
+INT8U RevPiDevice_getDevCnt(void);
+
+INT8U RevPiDevice_getAddrLeft(void);
+INT8U RevPiDevice_getAddrRight(void);
+
+INT16U RevPiDevice_getErrCnt(void);
+SDevice *RevPiDevice_getDev(INT8U idx);
+
+void RevPiDevice_setCoreOffset(unsigned int offset);
+unsigned int RevPiDevice_getCoreOffset(void);
+
+
 

@@ -40,15 +40,14 @@
 #include <ModGateRS485.h>
 #include <ModGateComMain.h>
 
-#include <PiBridgeMaster.h>
-#include <RevPiDevice.h>
-#include <piControlMain.h>
+#include "revpi_common.h"
+#include "revpi_core.h"
 #include <piDIOComm.h>
 #include <piAIOComm.h>
 
-SDeviceConfig RevPiScan;
+static SDeviceConfig RevPiDevices_s;
 
-const MODGATECOM_IDResp RevPi_ID_g = {
+const MODGATECOM_IDResp RevPiCore_ID_g = {
 	.i32uSerialnumber = 1,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CORE,
 	.i16uHW_Revision = 1,
@@ -60,24 +59,65 @@ const MODGATECOM_IDResp RevPi_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
+const MODGATECOM_IDResp RevPiCompact_ID_g = {
+	.i32uSerialnumber = 1,
+	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_COMPACT,
+	.i16uHW_Revision = 1,
+	.i16uSW_Major = 1,
+	.i16uSW_Minor = 0,
+	.i32uSVN_Revision = 0,
+	.i16uFBS_InputLength = 23,
+	.i16uFBS_OutputLength = 6,
+	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
+};
+
+const MODGATECOM_IDResp RevPiConnect_ID_g = {
+	.i32uSerialnumber = 1,
+	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT,
+	.i16uHW_Revision = 1,
+	.i16uSW_Major = 1,
+	.i16uSW_Minor = 0,
+	.i32uSVN_Revision = 0,
+	.i16uFBS_InputLength = 6,
+	.i16uFBS_OutputLength = 5,
+	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
+};
+
 void RevPiDevice_init(void)
 {
 	pr_info("RevPiDevice_init()\n");
-	piDev_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
-	piDev_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
-	RevPiScan.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
-	RevPiScan.i8uAddressLeft = REV_PI_DEV_FIRST_RIGHT - 1;	// first address of a left side module
-	RevPiScan.i8uDeviceCount = 0;	// counter for detected devices
-	RevPiScan.i16uErrorCnt = 0;
+
+	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
+	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
+	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
+	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_RIGHT - 1;	// first address of a left side module
+	RevPiDevice_resetDevCnt();	// counter for detected devices
+	RevPiDevices_s.i16uErrorCnt = 0;
 
 	// RevPi as first entry to device list
-	RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uAddress = 0;
-	RevPiScan.dev[RevPiScan.i8uDeviceCount].sId = RevPi_ID_g;
-	RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset = 0;
-	RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset = (INT16U) ((int)&((SRevPiCoreImage *) 0)->i8uLED);
-	RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uActive = 1;
-	RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uScan = 1;
-	RevPiScan.i8uDeviceCount++;
+	RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = 0;
+	RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
+	RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
+
+	switch (piDev_g.machine_type) {
+		case REVPI_CORE:
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiCore_ID_g;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiCore_ID_g.i16uFBS_InputLength;
+			break;
+		case REVPI_COMPACT:
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiCompact_ID_g;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiCompact_ID_g.i16uFBS_InputLength;
+			break;
+		case REVPI_CONNECT:
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiConnect_ID_g;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiConnect_ID_g.i16uFBS_InputLength;
+			break;
+	}
+
+	RevPiDevice_incDevCnt();
 }
 
 void RevPiDevice_finish(void)
@@ -103,34 +143,34 @@ int RevPiDevice_run(void)
 	INT32U r;
 	int retval = 0;
 
-	RevPiScan.i16uErrorCnt = 0;
+	RevPiDevices_s.i16uErrorCnt = 0;
 
-	for (i8uDevice = 0; i8uDevice < RevPiScan.i8uDeviceCount; i8uDevice++) {
-		if (RevPiScan.dev[i8uDevice].i8uActive) {
-			switch (RevPiScan.dev[i8uDevice].sId.i16uModulType) {
+	for (i8uDevice = 0; i8uDevice < RevPiDevice_getDevCnt(); i8uDevice++) {
+		if (RevPiDevice_getDev(i8uDevice)->i8uActive) {
+			switch (RevPiDevice_getDev(i8uDevice)->sId.i16uModulType) {
 			case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
 			case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 			case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 				r = piDIOComm_sendCyclicTelegram(i8uDevice);
 				if (r) {
-					if (RevPiScan.dev[i8uDevice].i16uErrorCnt < 255) {
-						RevPiScan.dev[i8uDevice].i16uErrorCnt++;
+					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
+						RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
 					}
 					retval -= 1;	// tell calling function that an error occured
 				} else {
-					RevPiScan.dev[i8uDevice].i16uErrorCnt = 0;
+					RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
 				}
 				break;
 
 			case KUNBUS_FW_DESCR_TYP_PI_AIO:
 				r = piAIOComm_sendCyclicTelegram(i8uDevice);
 				if (r) {
-					if (RevPiScan.dev[i8uDevice].i16uErrorCnt < 255) {
-						RevPiScan.dev[i8uDevice].i16uErrorCnt++;
+					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
+						RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
 					}
 					retval -= 1;	// tell calling function that an error occured
 				} else {
-					RevPiScan.dev[i8uDevice].i16uErrorCnt = 0;
+					RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
 				}
 				break;
 
@@ -146,18 +186,18 @@ int RevPiDevice_run(void)
 			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN_MASTER:
 			case KUNBUS_FW_DESCR_TYP_MG_SERCOS3:
 			case KUNBUS_FW_DESCR_TYP_MG_SERIAL:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_RT_MASTER:
+			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_SITARA:
 			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_IRT_MASTER:
 			case KUNBUS_FW_DESCR_TYP_MG_ETHERCAT_MASTER:
 			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_RTU:
 			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_TCP:
 			case KUNBUS_FW_DESCR_TYP_MG_DMX:
-				if (piDev_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
-				    && RevPiScan.dev[i8uDevice].i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
-					piDev_g.i8uRightMGateIdx = i8uDevice;
-				} else if (piDev_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
-					   && RevPiScan.dev[i8uDevice].i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
-					piDev_g.i8uLeftMGateIdx = i8uDevice;
+				if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
+				    && RevPiDevice_getDev(i8uDevice)->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
+					piCore_g.i8uRightMGateIdx = i8uDevice;
+				} else if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
+					   && RevPiDevice_getDev(i8uDevice)->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
+					piCore_g.i8uLeftMGateIdx = i8uDevice;
 				}
 				break;
 
@@ -166,15 +206,15 @@ int RevPiDevice_run(void)
 				// user devices are ignored here
 				break;
 			}
-			RevPiScan.i16uErrorCnt += RevPiScan.dev[i8uDevice].i16uErrorCnt;
+			RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
 		}
 	}
 
 	// if the user-ioctl want to send a telegram, do it now
-	if (piDev_g.pendingUserTel == true) {
-		piDev_g.statusUserTel = piIoComm_sendTelegram(&piDev_g.requestUserTel, &piDev_g.responseUserTel);
-		piDev_g.pendingUserTel = false;
-		up(&piDev_g.semUserTel);
+	if (piCore_g.pendingUserTel == true) {
+		piCore_g.statusUserTel = piIoComm_sendTelegram(&piCore_g.requestUserTel, &piCore_g.responseUserTel);
+		piCore_g.pendingUserTel = false;
+		up(&piCore_g.semUserTel);
 	}
 
 	return retval;
@@ -183,9 +223,10 @@ int RevPiDevice_run(void)
 TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp * pModgateId_p)
 {
 	INT32U ret_l;
+	INT16U i16uLen_l = sizeof(MODGATECOM_IDResp);
 	//
 	ret_l =
-	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (INT8U *) pModgateId_p, sizeof(MODGATECOM_IDResp));
+	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (INT8U *) pModgateId_p, &i16uLen_l);
 	msleep(3);		// wait a while
 	if (ret_l) {
 #ifdef DEBUG_DEVICE
@@ -228,33 +269,33 @@ TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *
 
 TBOOL RevPiDevice_writeNextConfigurationRight(void)
 {
-	if (RevPiDevice_writeNextConfiguration(RevPiScan.i8uAddressRight, &RevPiScan.dev[RevPiScan.i8uDeviceCount].sId)) {
-		RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uAddress = RevPiScan.i8uAddressRight;
-		if (RevPiScan.i8uDeviceCount == 0) {
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset = 0;
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset =
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength;
+	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressRight, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
+		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressRight;
+		if (RevPiDevice_getDevCnt() == 0) {
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
 		} else {
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset =
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount - 1].i16uOutputOffset +
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount - 1].sId.i16uFBS_OutputLength;
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset =
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset +
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset =
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->i16uOutputOffset +
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->sId.i16uFBS_OutputLength;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset +
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
 		}
 #ifdef DEBUG_DEVICE
 		pr_info("found %d. device on right side. Moduletype %d. Designated address %d\n",
-			RevPiScan.i8uDeviceCount + 1, RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uModulType,
-			RevPiScan.i8uAddressRight);
-		pr_info("input offset  %5d  len %3d\n", RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset,
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength);
-		pr_info("output offset %5d  len %3d\n", RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset,
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_OutputLength);
+			RevPiDevice_getDevCnt() + 1, RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType,
+			RevPiDevices_s.i8uAddressRight);
+		pr_info("input offset  %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
+		pr_info("output offset %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
 #endif
-		RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uActive = 1;
-		RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uScan = 1;
-		RevPiScan.i8uDeviceCount++;
-		RevPiScan.i8uAddressRight++;
+		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
+		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
+		RevPiDevice_incDevCnt();
+		RevPiDevices_s.i8uAddressRight++;
 		return bTRUE;
 	} else {
 		//TODO restart with reset
@@ -264,35 +305,35 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 
 TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 {
-	if (RevPiDevice_writeNextConfiguration(RevPiScan.i8uAddressLeft, &RevPiScan.dev[RevPiScan.i8uDeviceCount].sId)) {
-		RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uAddress = RevPiScan.i8uAddressLeft;
-		if (RevPiScan.i8uDeviceCount == 0) {
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset = 0;
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset =
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength;
+	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressLeft, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
+		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressLeft;
+		if (RevPiDevice_getDevCnt() == 0) {
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
 		} else {
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset =
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount - 1].i16uOutputOffset +
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount - 1].sId.i16uFBS_OutputLength;
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset =
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset +
-			    RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset =
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->i16uOutputOffset +
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->sId.i16uFBS_OutputLength;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset +
+			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
 		}
 #ifdef DEBUG_DEVICE
 		pr_info("found %d. device on left side. Moduletype %d. Designated address %d\n",
-			RevPiScan.i8uDeviceCount + 1,
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uModulType, RevPiScan.i8uAddressLeft);
+			RevPiDevice_getDevCnt() + 1,
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType, RevPiDevices_s.i8uAddressLeft);
 		pr_info("input offset  %5d  len %3d\n",
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uInputOffset,
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_InputLength);
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
 		pr_info("output offset %5d  len %3d\n",
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].i16uOutputOffset,
-			RevPiScan.dev[RevPiScan.i8uDeviceCount].sId.i16uFBS_OutputLength);
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
 #endif
-		RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uActive = 1;
-		RevPiScan.dev[RevPiScan.i8uDeviceCount].i8uScan = 1;
-		RevPiScan.i8uDeviceCount++;
-		RevPiScan.i8uAddressLeft--;
+		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
+		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
+		RevPiDevice_incDevCnt();
+		RevPiDevices_s.i8uAddressLeft--;
 		return bTRUE;
 	} else {
 		//TODO restart with reset
@@ -326,9 +367,73 @@ void RevPiDevice_checkFirmwareUpdate(void)
 {
 	int j;
 	// Schleife über alle Module die automatisch erkannt wurden
-	for (j = 0; j < RevPiScan.i8uDeviceCount; j++) {
-		if (RevPiScan.dev[j].i8uAddress != 0 && RevPiScan.dev[j].sId.i16uModulType < PICONTROL_SW_OFFSET) {
+	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
+		if (RevPiDevice_getDev(j)->i8uAddress != 0 && RevPiDevice_getDev(j)->sId.i16uModulType < PICONTROL_SW_OFFSET) {
 
 		}
 	}
+}
+
+INT8U RevPiDevice_setStatus(INT8U clr, INT8U set)
+{
+	RevPiDevices_s.i8uStatus &= ~clr;
+	RevPiDevices_s.i8uStatus |= set;
+	return RevPiDevices_s.i8uStatus;
+}
+
+INT8U RevPiDevice_getStatus(void)
+{
+	return RevPiDevices_s.i8uStatus;
+}
+
+SDevice *RevPiDevice_getDev(INT8U idx)
+{
+	// idx==i8uDeviceCount is allowed. This enables to add data to the next entry before RevPiDevice_incDevCnt is called.
+	if (idx <= RevPiDevices_s.i8uDeviceCount)
+		return &RevPiDevices_s.dev[idx];
+	else
+		return &RevPiDevices_s.dev[0];
+}
+
+void RevPiDevice_resetDevCnt(void)
+{
+	RevPiDevices_s.i8uDeviceCount = 0;
+}
+
+void RevPiDevice_incDevCnt(void)
+{
+	if (RevPiDevices_s.i8uDeviceCount < REV_PI_DEV_CNT_MAX-1) {
+		RevPiDevices_s.i8uDeviceCount++;
+	}
+}
+
+INT8U RevPiDevice_getDevCnt(void)
+{
+	return RevPiDevices_s.i8uDeviceCount;
+}
+
+INT8U RevPiDevice_getAddrLeft(void)
+{
+	return RevPiDevices_s.i8uAddressLeft;
+}
+
+INT8U RevPiDevice_getAddrRight(void)
+{
+	return RevPiDevices_s.i8uAddressRight;
+}
+
+
+INT16U RevPiDevice_getErrCnt(void)
+{
+	return RevPiDevices_s.i16uErrorCnt;
+}
+
+void RevPiDevice_setCoreOffset(unsigned int offset)
+{
+	RevPiDevices_s.offset = offset;
+}
+
+unsigned int RevPiDevice_getCoreOffset(void)
+{
+	return RevPiDevices_s.offset;
 }

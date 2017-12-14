@@ -81,6 +81,8 @@
 #define PICONTROL_SW_MODBUS_RTU_MASTER      0x6004      // 24580
 #define PICONTROL_SW_PROFINET_CONTROLLER    0x6005      // 24581
 #define PICONTROL_SW_PROFINET_DEVICE        0x6006      // 24582
+#define PICONTROL_SW_REVPI_SEVEN	    0x6007      // 24583
+#define PICONTROL_SW_REVPI_CLOUD	    0x6008      // 24584
 
 #define PICONTROL_NOT_CONNECTED             0x8000
 #define PICONTROL_NOT_CONNECTED_MASK        0x7fff
@@ -101,6 +103,11 @@
 #define  KB_UPDATE_DEVICE_FIRMWARE	_IO(KB_IOC_MAGIC, 19 )  // try to update the firmware of connected devices
 #define  KB_DIO_RESET_COUNTER		_IO(KB_IOC_MAGIC, 20 )  // set a counter or endocder to 0
 #define  KB_GET_LAST_MESSAGE		_IO(KB_IOC_MAGIC, 21 )  // copy the last error message
+#define  KB_STOP_IO			_IO(KB_IOC_MAGIC, 22 )  // stop/start IO communication, can be used for I/O simulation
+#define  KB_CONFIG_STOP			_IO(KB_IOC_MAGIC, 23 )  // for download of configuration to Master Gateway: stop IO communication completely
+#define  KB_CONFIG_SEND			_IO(KB_IOC_MAGIC, 24 )  // for download of configuration to Master Gateway: download config data
+#define  KB_CONFIG_START		_IO(KB_IOC_MAGIC, 25 )  // for download of configuration to Master Gateway: restart IO communication
+#define  KB_SET_OUTPUT_WATCHDOG		_IO(KB_IOC_MAGIC, 26 )  // activate a watchdog for this handle. If wriet is not called for a given period all outputs are set to 0
 
 #define  KB_WAIT_FOR_EVENT		_IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET			1		// piControl was reset, reload configuration
@@ -167,6 +174,15 @@ typedef struct SDIOResetCounterStr
 	uint8_t     i8uAddress;             // Address of module in current configuration
 	uint16_t    i16uBitfield;           // bitfield, if bit n is 1, reset counter/encoder on input n
 } SDIOResetCounter;
+
+#define CONFIG_DATA_SIZE 256
+
+typedef struct SConfigDataStr
+{
+    uint8_t     bLeft;
+    uint16_t    i16uLen;
+    char        acData[CONFIG_DATA_SIZE];
+} SConfigData;
 
 #define PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE         -10
 #define PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH        -11

@@ -40,19 +40,14 @@
 #include <linux/gpio.h>
 #include <linux/jiffies.h>
 #include <linux/thermal.h>
-#include <soc/bcm2835/raspberrypi-firmware.h>
 
-#include <kbUtilities.h>
+#include "revpi_common.h"
+#include "revpi_core.h"
 #include <ModGateRS485.h>
-#include <PiBridgeMaster.h>
-#include <RevPiDevice.h>
-#include <piControlMain.h>
-#include <piControl.h>
-#include <piIOComm.h>
 #include <piDIOComm.h>
 #include <piAIOComm.h>
+#include "process_image.h"
 
-#define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
@@ -66,70 +61,34 @@ static INT32U i32uFWUAddress, i32uFWUSerialNum, i32uFWUFlashAddr, i32uFWUlength,
 static INT32S i32sRetVal;
 static char *pcFWUdata;
 
-static int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val)
-{
-	struct rpi_firmware *fw = rpi_firmware_get(NULL);
-	struct {
-		u32 id;
-		u32 val;
-	} packet;
-	int ret;
-
-	packet.id = id;
-	packet.val = *val;
-	ret = rpi_firmware_property(fw, tag, &packet, sizeof(packet));
-	if (ret)
-		return ret;
-
-	*val = packet.val;
-
-	return 0;
-}
-
-static uint32_t bcm2835_cpufreq_get_clock(void)
-{
-	u32 rate;
-	int ret;
-
-	ret = bcm2835_cpufreq_clock_property(RPI_FIRMWARE_GET_CLOCK_RATE, VCMSG_ID_ARM_CLOCK, &rate);
-	if (ret) {
-		pr_err("Failed to get clock (%d)\n", ret);
-		return 0;
-	}
-
-	rate /= 1000 * 1000;	//convert to MHz
-
-	return rate;
-}
-
 void PiBridgeMaster_Stop(void)
 {
-	rt_mutex_lock(&piDev_g.lockBridgeState);
-	piDev_g.eBridgeState = piBridgeStop;
-	rt_mutex_unlock(&piDev_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
+	piCore_g.eBridgeState = piBridgeStop;
+	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
 void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
-	rt_mutex_lock(&piDev_g.lockBridgeState);
-	piDev_g.eBridgeState = piBridgeRun;
+	rt_mutex_lock(&piCore_g.lockBridgeState);
+	piCore_g.eBridgeState = piBridgeRun;
 	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
 	bEntering_s = bFALSE;
-	rt_mutex_unlock(&piDev_g.lockBridgeState);
+	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
 void PiBridgeMaster_Reset(void)
 {
-	rt_mutex_lock(&piDev_g.lockBridgeState);
-	piDev_g.eBridgeState = piBridgeInit;
+	rt_mutex_lock(&piCore_g.lockBridgeState);
+	piCore_g.eBridgeState = piBridgeInit;
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
 	bEntering_s = bTRUE;
-	RevPiScan.i8uStatus = 0;
+	RevPiDevice_setStatus(0xff, 0);
 	init_retry = MAX_INIT_RETRIES;
 
 	RevPiDevice_init();
-	rt_mutex_unlock(&piDev_g.lockBridgeState);
+	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
 int PiBridgeMaster_Adjust(void)
@@ -146,37 +105,37 @@ int PiBridgeMaster_Adjust(void)
 	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
 
 	// Schleife über alle Module die automatisch erkannt wurden
-	for (j = 0; j < RevPiScan.i8uDeviceCount; j++) {
+	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
 		// Suche diese Module in der Konfigurationsdatei
 		for (i = 0, found = 0, done = 0; found == 0 && i < piDev_g.devs->i16uNumDevices && !done; i++) {
 			// Grundvoraussetzung ist, dass die Adresse gleich ist.
-			if (RevPiScan.dev[j].i8uAddress == piDev_g.devs->dev[i].i8uAddress) {
+			if (RevPiDevice_getDev(j)->i8uAddress == piDev_g.devs->dev[i].i8uAddress) {
 				// Außerdem muss ModuleType, InputLength und OutputLength gleich sein.
-				if (RevPiScan.dev[j].sId.i16uModulType != piDev_g.devs->dev[i].i16uModuleType) {
+				if (RevPiDevice_getDev(j)->sId.i16uModulType != piDev_g.devs->dev[i].i16uModuleType) {
 					pr_info("## address %d: incorrect module type %d != %d\n",
-						RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uModulType,
+						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uModulType,
 						piDev_g.devs->dev[i].i16uModuleType);
 					result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
-					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
+					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					done = 1;
 					break;
 				}
-				if (RevPiScan.dev[j].sId.i16uFBS_InputLength != piDev_g.devs->dev[i].i16uInputLength) {
+				if (RevPiDevice_getDev(j)->sId.i16uFBS_InputLength != piDev_g.devs->dev[i].i16uInputLength) {
 					pr_info("## address %d: incorrect input length %d != %d\n",
-						RevPiScan.dev[j].i8uAddress, RevPiScan.dev[j].sId.i16uFBS_InputLength,
+						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uFBS_InputLength,
 						piDev_g.devs->dev[i].i16uInputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
-					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
+					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					done = 1;
 					break;
 				}
-				if (RevPiScan.dev[j].sId.i16uFBS_OutputLength != piDev_g.devs->dev[i].i16uOutputLength) {
+				if (RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength != piDev_g.devs->dev[i].i16uOutputLength) {
 					pr_info("## address %d: incorrect output length %d != %d\n",
-						RevPiScan.dev[j].i8uAddress,
-						RevPiScan.dev[j].sId.i16uFBS_OutputLength,
+						RevPiDevice_getDev(j)->i8uAddress,
+						RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength,
 						piDev_g.devs->dev[i].i16uOutputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH;
-					RevPiScan.i8uStatus |= PICONTROL_STATUS_SIZE_MISMATCH;
+					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					done = 1;
 					break;
 				}
@@ -188,13 +147,12 @@ int PiBridgeMaster_Adjust(void)
 					       piDev_g.devs->dev[i].i16uOutputOffset,
 					       piDev_g.devs->dev[i].i16uConfigOffset);
 
-				RevPiScan.dev[j].i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
-				RevPiScan.dev[j].i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
-				RevPiScan.dev[j].i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
-				RevPiScan.dev[j].i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
+				RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
+				RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
+				RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
+				RevPiDevice_getDev(j)->i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
 				if (j == 0) {
-					RevPiScan.pCoreData =
-					    (SRevPiCoreImage *) & piDev_g.ai8uPI[RevPiScan.dev[0].i16uInputOffset];
+					RevPiDevice_setCoreOffset(RevPiDevice_getDev(0)->i16uInputOffset);
 				}
 
 				state[i] = 1;	// dieser Konfigeintrag wurde übernommen
@@ -203,41 +161,41 @@ int PiBridgeMaster_Adjust(void)
 		}
 		if (found == 0) {
 			// Falls ein autom. erkanntes Modul in der Konfiguration nicht vorkommt, wird es deakiviert
-			RevPiScan.dev[j].i8uActive = 0;
-			RevPiScan.i8uStatus |= PICONTROL_STATUS_EXTRA_MODULE;
+			RevPiDevice_getDev(j)->i8uActive = 0;
+			RevPiDevice_setStatus(0, PICONTROL_STATUS_EXTRA_MODULE);
 		}
 	}
 
 	// nun wird die Liste der automatisch erkannten Module um die ergänzt, die nur in der Konfiguration vorkommen.
 	for (i = 0; i < piDev_g.devs->i16uNumDevices; i++) {
 		if (state[i] == 0) {
-			j = RevPiScan.i8uDeviceCount;
+			j = RevPiDevice_getDevCnt();
 			if (piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET) {
 				// if a module is already defined as software module in the RAP file,
 				// it is handled by user space software and therefore always active
-				RevPiScan.dev[j].i8uActive = 1;
-				RevPiScan.dev[j].sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
+				RevPiDevice_getDev(j)->i8uActive = 1;
+				RevPiDevice_getDev(j)->sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
 			} else {
-				RevPiScan.i8uStatus |= PICONTROL_STATUS_MISSING_MODULE;
-				RevPiScan.dev[j].i8uActive = 0;
-				RevPiScan.dev[j].sId.i16uModulType =
+				RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
+				RevPiDevice_getDev(j)->i8uActive = 0;
+				RevPiDevice_getDev(j)->sId.i16uModulType =
 				    piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;
 			}
-			RevPiScan.dev[j].i8uAddress = piDev_g.devs->dev[i].i8uAddress;
-			RevPiScan.dev[j].i8uScan = 0;
-			RevPiScan.dev[j].i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
-			RevPiScan.dev[j].i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
-			RevPiScan.dev[j].i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
-			RevPiScan.dev[j].i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
-			RevPiScan.dev[j].sId.i32uSerialnumber = piDev_g.devs->dev[i].i32uSerialnumber;
-			RevPiScan.dev[j].sId.i16uHW_Revision = piDev_g.devs->dev[i].i16uHW_Revision;
-			RevPiScan.dev[j].sId.i16uSW_Major = piDev_g.devs->dev[i].i16uSW_Major;
-			RevPiScan.dev[j].sId.i16uSW_Minor = piDev_g.devs->dev[i].i16uSW_Minor;
-			RevPiScan.dev[j].sId.i32uSVN_Revision = piDev_g.devs->dev[i].i32uSVN_Revision;
-			RevPiScan.dev[j].sId.i16uFBS_InputLength = piDev_g.devs->dev[i].i16uInputLength;
-			RevPiScan.dev[j].sId.i16uFBS_OutputLength = piDev_g.devs->dev[i].i16uOutputLength;
-			RevPiScan.dev[j].sId.i16uFeatureDescriptor = 0;	// not used
-			RevPiScan.i8uDeviceCount++;
+			RevPiDevice_getDev(j)->i8uAddress = piDev_g.devs->dev[i].i8uAddress;
+			RevPiDevice_getDev(j)->i8uScan = 0;
+			RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
+			RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
+			RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
+			RevPiDevice_getDev(j)->i16uConfigLength = piDev_g.devs->dev[i].i16uConfigLength;
+			RevPiDevice_getDev(j)->sId.i32uSerialnumber = piDev_g.devs->dev[i].i32uSerialnumber;
+			RevPiDevice_getDev(j)->sId.i16uHW_Revision = piDev_g.devs->dev[i].i16uHW_Revision;
+			RevPiDevice_getDev(j)->sId.i16uSW_Major = piDev_g.devs->dev[i].i16uSW_Major;
+			RevPiDevice_getDev(j)->sId.i16uSW_Minor = piDev_g.devs->dev[i].i16uSW_Minor;
+			RevPiDevice_getDev(j)->sId.i32uSVN_Revision = piDev_g.devs->dev[i].i32uSVN_Revision;
+			RevPiDevice_getDev(j)->sId.i16uFBS_InputLength = piDev_g.devs->dev[i].i16uInputLength;
+			RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength = piDev_g.devs->dev[i].i16uOutputLength;
+			RevPiDevice_getDev(j)->sId.i16uFeatureDescriptor = 0;	// not used
+			RevPiDevice_incDevCnt();
 		}
 	}
 
@@ -303,13 +261,13 @@ int PiBridgeMaster_Run(void)
 	static kbUT_Timer tTimeoutTimer_s;
 	static kbUT_Timer tConfigTimeoutTimer_s;
 	static int error_cnt;
-	INT8U led;
 	static INT8U last_led;
+	static unsigned long last_update;
 	int ret = 0;
 	int i;
 
-	rt_mutex_lock(&piDev_g.lockBridgeState);
-	if (piDev_g.eBridgeState != piBridgeStop) {
+	rt_mutex_lock(&piCore_g.lockBridgeState);
+	if (piCore_g.eBridgeState != piBridgeStop) {
 		switch (eRunStatus_s) {
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
 			if (bEntering_s) {
@@ -341,7 +299,14 @@ int PiBridgeMaster_Run(void)
 				kbUT_TimerStart(&tTimeoutTimer_s, 30);
 			}
 			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
-				eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionRight;
+				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
+				if (piDev_g.machine_type == REVPI_CONNECT) {
+					// the RevPi Connect has I/O modules only on the left side
+					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
+				} else {
+					// start serching for I/O modules on the right side
+					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionRight;
+				}
 				bEntering_s = bTRUE;
 			}
 			break;
@@ -353,7 +318,6 @@ int PiBridgeMaster_Run(void)
 				bEntering_s = bFALSE;
 				piIoComm_readSniff1A();
 				piIoComm_readSniff1B();
-				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
 			}
 			if (piIoComm_readSniff2B() == enGpioValue_High) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigRightStart;
@@ -500,39 +464,39 @@ int PiBridgeMaster_Run(void)
 			msleep(110);	// wait a while
 
 			// send config messages
-			for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
-				if (RevPiScan.dev[i].i8uActive) {
-					switch (RevPiScan.dev[i].sId.i16uModulType) {
+			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+				if (RevPiDevice_getDev(i)->i8uActive) {
+					switch (RevPiDevice_getDev(i)->sId.i16uModulType) {
 					case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
 					case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 					case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 						ret = piDIOComm_Init(i);
-						pr_info("piDIOComm_Init(%d) done %d\n", RevPiScan.dev[i].i8uAddress, ret);
+						pr_info("piDIOComm_Init(%d) done %d\n", RevPiDevice_getDev(i)->i8uAddress, ret);
 						if (ret != 0) {
 							// init failed -> deactive module
 							if (ret == 4) {
 								pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
-									RevPiScan.dev[i].i8uAddress);
+									RevPiDevice_getDev(i)->i8uAddress);
 							} else {
 								pr_err("piDIOComm_Init(%d) failed, error %d\n",
-									RevPiScan.dev[i].i8uAddress, ret);
+									RevPiDevice_getDev(i)->i8uAddress, ret);
 							}
-							RevPiScan.dev[i].i8uActive = 0;
+							RevPiDevice_getDev(i)->i8uActive = 0;
 						}
 						break;
 					case KUNBUS_FW_DESCR_TYP_PI_AIO:
 						ret = piAIOComm_Init(i);
-						pr_info("piAIOComm_Init(%d) done %d\n", RevPiScan.dev[i].i8uAddress, ret);
+						pr_info("piAIOComm_Init(%d) done %d\n", RevPiDevice_getDev(i)->i8uAddress, ret);
 						if (ret != 0) {
 							// init failed -> deactive module
 							if (ret == 4) {
 								pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
-									RevPiScan.dev[i].i8uAddress);
+									RevPiDevice_getDev(i)->i8uAddress);
 							} else {
 								pr_err("piAIOComm_Init(%d) failed, error %d\n",
-									RevPiScan.dev[i].i8uAddress, ret);
+									RevPiDevice_getDev(i)->i8uAddress, ret);
 							}
-							RevPiScan.dev[i].i8uActive = 0;
+							RevPiDevice_getDev(i)->i8uActive = 0;
 						}
 						break;
 					}
@@ -548,24 +512,24 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 #ifdef DEBUG_MASTER_STATE
 				pr_info_master("Enter EndOfConfig State\n\n");
-				for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
-					pr_info_master("Device %2d: Addr %d Type %x  Act %d  In %d Out %d\n",
+				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+					pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
 						       i,
-						       RevPiScan.dev[i].i8uAddress,
-						       RevPiScan.dev[i].sId.i16uModulType,
-						       RevPiScan.dev[i].i8uActive,
-						       RevPiScan.dev[i].sId.i16uFBS_InputLength,
-						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
+						       RevPiDevice_getDev(i)->i8uAddress,
+						       RevPiDevice_getDev(i)->sId.i16uModulType,
+						       RevPiDevice_getDev(i)->i8uActive,
+						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength,
+						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
 					pr_info_master("           input offset  %5d  len %3d\n",
-						       RevPiScan.dev[i].i16uInputOffset,
-						       RevPiScan.dev[i].sId.i16uFBS_InputLength);
+						       RevPiDevice_getDev(i)->i16uInputOffset,
+						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength);
 					pr_info_master("           output offset %5d  len %3d\n",
-						       RevPiScan.dev[i].i16uOutputOffset,
-						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
+						       RevPiDevice_getDev(i)->i16uOutputOffset,
+						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
 					pr_info_master("           serial number %d  version %d.%d\n",
-						       RevPiScan.dev[i].sId.i32uSerialnumber,
-						       RevPiScan.dev[i].sId.i16uSW_Major,
-						       RevPiScan.dev[i].sId.i16uSW_Minor);
+						       RevPiDevice_getDev(i)->sId.i32uSerialnumber,
+						       RevPiDevice_getDev(i)->sId.i16uSW_Major,
+						       RevPiDevice_getDev(i)->sId.i16uSW_Minor);
 				}
 
 				pr_info_master("\n");
@@ -577,20 +541,20 @@ int PiBridgeMaster_Run(void)
 
 #ifdef DEBUG_MASTER_STATE
 				pr_info_master("After Adjustment\n");
-				for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
-					pr_info_master("Device %2d: Addr %d Type %x  Act %d  In %d Out %d\n",
+				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+					pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
 						       i,
-						       RevPiScan.dev[i].i8uAddress,
-						       RevPiScan.dev[i].sId.i16uModulType,
-						       RevPiScan.dev[i].i8uActive,
-						       RevPiScan.dev[i].sId.i16uFBS_InputLength,
-						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
+						       RevPiDevice_getDev(i)->i8uAddress,
+						       RevPiDevice_getDev(i)->sId.i16uModulType,
+						       RevPiDevice_getDev(i)->i8uActive,
+						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength,
+						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
 					pr_info_master("           input offset  %5d  len %3d\n",
-						       RevPiScan.dev[i].i16uInputOffset,
-						       RevPiScan.dev[i].sId.i16uFBS_InputLength);
+						       RevPiDevice_getDev(i)->i16uInputOffset,
+						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength);
 					pr_info_master("           output offset %5d  len %3d\n",
-						       RevPiScan.dev[i].i16uOutputOffset,
-						       RevPiScan.dev[i].sId.i16uFBS_OutputLength);
+						       RevPiDevice_getDev(i)->i16uOutputOffset,
+						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
 				}
 				pr_info_master("\n");
 #endif
@@ -609,9 +573,9 @@ int PiBridgeMaster_Run(void)
 				msleep(110);	// wait a while
 
 				// send config messages
-				for (i = 0; i < RevPiScan.i8uDeviceCount; i++) {
-					if (RevPiScan.dev[i].i8uActive) {
-						switch (RevPiScan.dev[i].sId.i16uModulType) {
+				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+					if (RevPiDevice_getDev(i)->i8uActive) {
+						switch (RevPiDevice_getDev(i)->sId.i16uModulType) {
 						case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
 						case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 						case KUNBUS_FW_DESCR_TYP_PI_DO_16:
@@ -621,12 +585,12 @@ int PiBridgeMaster_Run(void)
 								// init failed -> deactive module
 								if (ret == 4) {
 									pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
-										RevPiScan.dev[i].i8uAddress);
+										RevPiDevice_getDev(i)->i8uAddress);
 								} else {
 									pr_err("piDIOComm_Init(%d) failed, error %d\n",
-										RevPiScan.dev[i].i8uAddress, ret);
+										RevPiDevice_getDev(i)->i8uAddress, ret);
 								}
-								RevPiScan.dev[i].i8uActive = 0;
+								RevPiDevice_getDev(i)->i8uActive = 0;
 							}
 							break;
 						case KUNBUS_FW_DESCR_TYP_PI_AIO:
@@ -636,12 +600,12 @@ int PiBridgeMaster_Run(void)
 								// init failed -> deactive module
 								if (ret == 4) {
 									pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
-										RevPiScan.dev[i].i8uAddress);
+										RevPiDevice_getDev(i)->i8uAddress);
 								} else {
 									pr_err("piAIOComm_Init(%d) failed, error %d\n",
-										RevPiScan.dev[i].i8uAddress, ret);
+										RevPiDevice_getDev(i)->i8uAddress, ret);
 								}
-								RevPiScan.dev[i].i8uActive = 0;
+								RevPiDevice_getDev(i)->i8uActive = 0;
 							}
 							break;
 						}
@@ -653,28 +617,23 @@ int PiBridgeMaster_Run(void)
 
 			if (RevPiDevice_run()) {
 				// an error occured, check error limits
-				if (RevPiScan.pCoreData != NULL) {
-					if (RevPiScan.pCoreData->i16uRS485ErrorLimit2 > 0
-					    && RevPiScan.pCoreData->i16uRS485ErrorLimit2 < RevPiScan.i16uErrorCnt) {
-						pr_err("too many communication errors -> set BridgeState to stopped\n");
-						piDev_g.eBridgeState = piBridgeStop;
-					} else if (RevPiScan.pCoreData->i16uRS485ErrorLimit1 > 0
-						   && RevPiScan.pCoreData->i16uRS485ErrorLimit1 <
-						   RevPiScan.i16uErrorCnt) {
-						// bad communication with inputs -> set inputs to default values
-						pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
-							RevPiScan.dev[0].i16uErrorCnt, RevPiScan.dev[1].i16uErrorCnt,
-							RevPiScan.dev[2].i16uErrorCnt, RevPiScan.dev[3].i16uErrorCnt,
-							RevPiScan.dev[4].i16uErrorCnt, RevPiScan.dev[5].i16uErrorCnt,
-							RevPiScan.dev[6].i16uErrorCnt, RevPiScan.dev[7].i16uErrorCnt);
-					}
+				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
+				    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
+					pr_err("too many communication errors -> set BridgeState to stopped\n");
+					piCore_g.eBridgeState = piBridgeStop;
+				} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
+					   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
+					// bad communication with inputs -> set inputs to default values
+					pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
+						RevPiDevice_getDev(0)->i16uErrorCnt, RevPiDevice_getDev(1)->i16uErrorCnt,
+						RevPiDevice_getDev(2)->i16uErrorCnt, RevPiDevice_getDev(3)->i16uErrorCnt,
+						RevPiDevice_getDev(4)->i16uErrorCnt, RevPiDevice_getDev(5)->i16uErrorCnt,
+						RevPiDevice_getDev(6)->i16uErrorCnt, RevPiDevice_getDev(7)->i16uErrorCnt);
 				}
 			} else {
 				ret = 1;
 			}
-			if (RevPiScan.pCoreData != NULL) {
-				RevPiScan.pCoreData->i16uRS485ErrorCnt = RevPiScan.i16uErrorCnt;
-			}
+			piCore_g.image.drv.i16uRS485ErrorCnt = RevPiDevice_getErrCnt();
 			break;
 			// *****************************************************************************************
 
@@ -684,10 +643,10 @@ int PiBridgeMaster_Run(void)
 				bEntering_s = bFALSE;
 			}
 			if (kbUT_TimerExpired(&tConfigTimeoutTimer_s)) {
-				piDev_g.eBridgeState = piBridgeInit;
+				piCore_g.eBridgeState = piBridgeInit;
 				eRunStatus_s = enPiBridgeMasterStatus_Init;
 				bEntering_s = bTRUE;
-				RevPiScan.i8uStatus = 0;
+				RevPiDevice_setStatus(0xff, 0);
 
 				RevPiDevice_init();
 			}
@@ -698,24 +657,23 @@ int PiBridgeMaster_Run(void)
 
 		}
 
-		if (ret && piDev_g.eBridgeState != piBridgeRun) {
+		if (ret && piCore_g.eBridgeState != piBridgeRun) {
 			if (init_retry > 0
 			    && (piIoComm_readSniff2A() || piIoComm_readSniff2B()
-				|| (RevPiScan.i8uStatus & PICONTROL_STATUS_MISSING_MODULE))) {
+				|| (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE))) {
 				// at least one IO module did not complete the initialization process
 				// wait for the timeout in the module
-				pr_info("initialization of module not finished (%d,%d,%d) -> retry\n", piIoComm_readSniff2A(), piIoComm_readSniff2B(), (RevPiScan.i8uStatus & PICONTROL_STATUS_MISSING_MODULE));
+				pr_info("initialization of module not finished (%d,%d,%d) -> retry\n", piIoComm_readSniff2A(), piIoComm_readSniff2B(), (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE));
 				eRunStatus_s = enPiBridgeMasterStatus_InitRetry;
 				bEntering_s = bTRUE;
-				piDev_g.eBridgeState = piBridgeInit;
+				piCore_g.eBridgeState = piBridgeInit;
 				init_retry--;
 			} else {
 				pr_info("set BridgeState to running\n");
-				piDev_g.eBridgeState = piBridgeRun;
+				piCore_g.eBridgeState = piBridgeRun;
 			}
 		}
-	} else			// piDev_g.eBridgeState == piBridgeStop
-	{
+	} else	{		// piCore_g.eBridgeState == piBridgeStop
 		if (eRunStatus_s == enPiBridgeMasterStatus_EndOfConfig) {
 			pr_info("stop data exchange\n");
 			ret = piIoComm_gotoGateProtocol();
@@ -731,7 +689,7 @@ int PiBridgeMaster_Run(void)
 				i32sRetVal = piIoComm_gotoFWUMode(i32uFWUAddress);
 				pr_info("piIoComm_gotoFWUMode returned %d\n", i32sRetVal);
 
-				if (i32uFWUAddress == RevPiScan.i8uAddressRight - 1)
+				if (i32uFWUAddress == RevPiDevice_getAddrRight() - 1)
 					i32uFWUAddress = 2;	// address must be 2 in the following calls
 				else
 					i32uFWUAddress = 1;	// address must be 1 in the following calls
@@ -787,54 +745,59 @@ int PiBridgeMaster_Run(void)
 				bEntering_s = bFALSE;
 			}
 		}
-	}
-
-	rt_mutex_unlock(&piDev_g.lockBridgeState);
-	if (RevPiScan.pCoreData != NULL) {
-	}
-
-	if (eBridgeStateLast_s != piDev_g.eBridgeState) {
-		if (piDev_g.eBridgeState == piBridgeRun) {
-			RevPiScan.i8uStatus |= PICONTROL_STATUS_RUNNING;
-			gpio_set_value_cansleep(GPIO_LED_PWRRED, 0);
-		} else {
-			RevPiScan.i8uStatus &= ~PICONTROL_STATUS_RUNNING;
-			gpio_set_value_cansleep(GPIO_LED_PWRRED, 1);
+		// if the user-ioctl want to send a telegram, do it now
+		if (piCore_g.pendingGateTel == true) {
+			piCore_g.statusGateTel = piIoComm_sendRS485Tel(piCore_g.i16uCmdGateTel, piCore_g.i8uAddressGateTel,
+								       piCore_g.ai8uSendDataGateTel, piCore_g.i8uSendDataLenGateTel,
+								       piCore_g.ai8uRecvDataGateTel, &piCore_g.i16uRecvDataLenGateTel);
+			piCore_g.pendingGateTel = false;
+			up(&piCore_g.semGateTel);
 		}
-		eBridgeStateLast_s = piDev_g.eBridgeState;
 	}
-	// set LED and status
-	if (RevPiScan.pCoreData != NULL) {
-		static unsigned long last_update;
 
-		RevPiScan.pCoreData->i8uStatus = RevPiScan.i8uStatus;
+	rt_mutex_unlock(&piCore_g.lockBridgeState);
 
-		led = RevPiScan.pCoreData->i8uLED;
-		if (led != last_led) {
-			gpio_set_value_cansleep(GPIO_LED_AGRN, (led & PICONTROL_LED_A1_GREEN) ? 1 : 0);
-			gpio_set_value_cansleep(GPIO_LED_ARED, (led & PICONTROL_LED_A1_RED) ? 1 : 0);
-			gpio_set_value_cansleep(GPIO_LED_BGRN, (led & PICONTROL_LED_A2_GREEN) ? 1 : 0);
-			gpio_set_value_cansleep(GPIO_LED_BRED, (led & PICONTROL_LED_A2_RED) ? 1 : 0);
-
-			last_led = led;
-		}
-		// update every 1 sec
-		if ((kbUT_getCurrentMs() - last_update) > 1000) {
-			if (piDev_g.thermal_zone != NULL) {
-				int temp, ret;
-
-				ret = thermal_zone_get_temp(piDev_g.thermal_zone, &temp);
-				if (ret) {
-					pr_err("could not read cpu temperature");
-				} else {
-					RevPiScan.pCoreData->i8uCPUTemperature = temp / 1000;
-				}
+	if (piDev_g.stopIO) {
+		revpi_power_led_red_set(REVPI_POWER_LED_FLICKR);
+	} else  {
+		if (piCore_g.eBridgeState == piBridgeRun) {
+			if (RevPiDevice_getErrCnt() == 0) {
+				revpi_power_led_red_set(REVPI_POWER_LED_OFF);	// green on
+			} else {
+				revpi_power_led_red_set(REVPI_POWER_LED_ON_1000MS);	// red for 1s, then green
 			}
-
-			RevPiScan.pCoreData->i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
-
-			last_update = kbUT_getCurrentMs();
+		} else {
+			revpi_power_led_red_set(REVPI_POWER_LED_ON);	// red on
 		}
+		eBridgeStateLast_s = piCore_g.eBridgeState;
+	}
+
+	revpi_power_led_red_run();
+
+	// set LED and status
+	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();
+	revpi_led_trigger_event(&last_led, piCore_g.image.usr.i8uLED);
+
+	// update every 1 sec
+	if ((kbUT_getCurrentMs() - last_update) > 1000) {
+		if (piDev_g.thermal_zone != NULL) {
+			int temp, ret;
+
+			ret = thermal_zone_get_temp(piDev_g.thermal_zone, &temp);
+			if (ret) {
+				pr_err("could not read cpu temperature");
+			} else {
+				piCore_g.image.drv.i8uCPUTemperature = temp / 1000;
+			}
+		}
+
+		piCore_g.image.drv.i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
+
+		last_update = kbUT_getCurrentMs();
+	}
+
+	if (piCore_g.eBridgeState == piBridgeRun) {
+		flip_process_image(&piCore_g.image, RevPiDevice_getCoreOffset());
 	}
 
 	return ret;
@@ -846,7 +809,7 @@ int PiBridgeMaster_Run(void)
 
 INT32S PiBridgeMaster_FWUModeEnter(INT32U address, INT8U i8uScanned)
 {
-	if (piDev_g.eBridgeState == piBridgeStop) {
+	if (piCore_g.eBridgeState == piBridgeStop) {
 		i32uFWUAddress = address;
 		i8uFWUScanned = i8uScanned;
 		eRunStatus_s = enPiBridgeMasterStatus_FWUMode;
@@ -861,7 +824,7 @@ INT32S PiBridgeMaster_FWUModeEnter(INT32U address, INT8U i8uScanned)
 
 INT32S PiBridgeMaster_FWUsetSerNum(INT32U serNum)
 {
-	if (piDev_g.eBridgeState == piBridgeStop) {
+	if (piCore_g.eBridgeState == piBridgeStop) {
 		i32uFWUSerialNum = serNum;
 		eRunStatus_s = enPiBridgeMasterStatus_ProgramSerialNum;
 		bEntering_s = bTRUE;
@@ -875,7 +838,7 @@ INT32S PiBridgeMaster_FWUsetSerNum(INT32U serNum)
 
 INT32S PiBridgeMaster_FWUflashErase(void)
 {
-	if (piDev_g.eBridgeState == piBridgeStop) {
+	if (piCore_g.eBridgeState == piBridgeStop) {
 		eRunStatus_s = enPiBridgeMasterStatus_FWUFlashErase;
 		bEntering_s = bTRUE;
 		do {
@@ -888,7 +851,7 @@ INT32S PiBridgeMaster_FWUflashErase(void)
 
 INT32S PiBridgeMaster_FWUflashWrite(INT32U flashAddr, char *data, INT32U length)
 {
-	if (piDev_g.eBridgeState == piBridgeStop) {
+	if (piCore_g.eBridgeState == piBridgeStop) {
 		i32uFWUFlashAddr = flashAddr;
 		pcFWUdata = data;
 		i32uFWUlength = length;
@@ -904,7 +867,7 @@ INT32S PiBridgeMaster_FWUflashWrite(INT32U flashAddr, char *data, INT32U length)
 
 INT32S PiBridgeMaster_FWUReset(void)
 {
-	if (piDev_g.eBridgeState == piBridgeStop) {
+	if (piCore_g.eBridgeState == piBridgeStop) {
 		eRunStatus_s = enPiBridgeMasterStatus_FWUReset;
 		bEntering_s = bTRUE;
 		do {

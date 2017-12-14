@@ -96,7 +96,13 @@ extern int __debug_show_msg;
 #define pr_info_spi2(fmt, ...)
 #endif
 
-//#define DEBUG_SERIALCOMM
+#if 0
+#define DEBUG_SERIALCOMM
+#define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#else
+#define pr_info_serial(fmt, ...)
+#endif
+
 #define DEBUG_GPIO
 #define DEBUG_DEVICE
 #define DEBUG_DEVICE_IO
@@ -113,7 +119,7 @@ extern int __debug_show_msg;
 // use longer intervals to reduce the number of messages
 #define INTERVAL_RS485      ( 1*1000*1000)     //  100 ms    piRs485
 #define INTERVAL_IO_COMM    ( 5*1000*1000)     //  500 ms    piIoComm
-#define INTERVAL_ADDITIONAL ( 500*1000)     //  500 ms    piIoComm
+#define INTERVAL_ADDITIONAL (    500*1000)     //  500 ms    piIoComm
 #else
 #define INTERVAL_RS485      ( 1*1000*1000)     //  1   ms    piRs485
 #define INTERVAL_IO_COMM    ( 5*1000*1000)     //  5   ms    piIoComm
@@ -123,19 +129,7 @@ extern int __debug_show_msg;
 #define KB_PD_LEN       512
 #define KB_PI_LEN       4096
 
-#define GPIO_LED_PWRRED		16
-#define GPIO_LED_AGRN		30
-#define GPIO_LED_ARED		 6
-#define GPIO_LED_BGRN		32
-#define GPIO_LED_BRED		33
-
 #define GPIO_RESET		40
-#define GPIO_CS_KSZ0		35
-#define GPIO_CS_KSZ1		36
-#define GPIO_SNIFF1A		42
-#define GPIO_SNIFF1B		43
-#define GPIO_SNIFF2A		28
-#define GPIO_SNIFF2B		29
 #define KSZ8851_SPI_PORT	 0      // we use SPI port 0 for both sides
 
 

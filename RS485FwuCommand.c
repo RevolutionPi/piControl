@@ -44,44 +44,6 @@
 
 #define TEL_MAX_BUF_LEN  300
 
-//*************************************************************************************************
-//CRs485FwuCommand::CRs485FwuCommand (
-//    void)
-
-//{
-//    CArgs ^ptArgs_l = CArgs::getSingleton ();
-
-//    if (ptArgs_l->p_pstrCom)
-//    {
-//        CComSerialUart ^ptUart_l = gcnew CComSerialUart;
-//        ptUart_l->init (ptArgs_l->p_pstrCom);
-//        pcoCom_m = ptUart_l;
-//    }
-//    else if (ptArgs_l->p_ptIpAddr)
-//    {
-//        m_ptDrvModGate = gcnew CModGateTestCommand (ptArgs_l->p_ptIpAddr);
-//        m_ptDrvModGate->ping ();
-//    }
-
-//    i8uDstAdr_m = (ptArgs_l->p_enFamily == CArgs::EFamily::enKUNBUS_MGATE_LEFT) ? 1 : 2;
-//}
-
-////*************************************************************************************************
-//CRs485FwuCommand::~CRs485FwuCommand (
-//    void)
-
-//{
-
-//}
-
-////*************************************************************************************************
-//void CRs485FwuCommand::fwuInitDrv (
-//    void)
-
-//{
-
-//}
-
 ////*************************************************************************************************
 INT32S fwuEnterFwuMode (INT8U address)
 {
