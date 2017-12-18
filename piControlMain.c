@@ -73,7 +73,15 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
 MODULE_VERSION("1.3.0");
-MODULE_SOFTDEP("bcm2835-thermal");
+MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
+	       "spi-bcm2835 "		/* core spi0 gateways */
+	       "spi-bcm2835aux "	/* compact spi2 i/o */
+	       "gpio-74x164 "		/* compact dout */
+	       "fixed "			/* compact ain/aout vref */
+	       "mux_gpio "		/* compact ain mux */
+	       "iio_mux "		/* compact ain mux */
+	       "mcp320x "		/* compact ain */
+	       "ti-dac082s085");	/* compact aout */
 
 /******************************************************************************/
 /******************************  Prototypes  **********************************/

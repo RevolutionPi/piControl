@@ -350,23 +350,6 @@ int revpi_core_init(void)
 	INT32U i32uRv;
 	int ret = 0;
 
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_SPI_BCM2835));
-
-	if (IS_MODULE(CONFIG_SPI_BCM2835)) {
-		request_module(SPI_MODULE);
-
-		mutex_lock(&module_mutex);
-		piSpiModule = find_module(SPI_MODULE);
-		if (piSpiModule && !try_module_get(piSpiModule))
-			piSpiModule = NULL;
-		mutex_unlock(&module_mutex);
-
-		if (!piSpiModule) {
-			pr_err("cannot load %s module", SPI_MODULE);
-			return -ENODEV;
-		}
-	}
-
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 
