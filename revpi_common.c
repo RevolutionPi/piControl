@@ -37,6 +37,8 @@ void revpi_led_trigger_event(u8 * led_prev, u8 led)
 static enum revpi_power_led_mode power_led_mode_s = 255;
 static unsigned long power_led_timer_s;
 static bool power_led_red_state_s;
+char *lock_file;
+int lock_line;
 
 void revpi_power_led_red_set(enum revpi_power_led_mode mode)
 {
@@ -82,7 +84,7 @@ void revpi_check_timeout(void)
 	ktime_t now = ktime_get();
 	struct list_head *pCon;
 
-	mutex_lock(&piDev_g.lockListCon);
+	rt_mutex_lock(&piDev_g.lockListCon);
 	list_for_each(pCon, &piDev_g.listCon) {
 		tpiControlInst *pos_inst;
 		pos_inst = list_entry(pCon, tpiControlInst, list);
@@ -101,12 +103,12 @@ void revpi_check_timeout(void)
 				pos_inst->tTimeoutTS = ktime_add_ms(ktime_get(), pos_inst->tTimeoutDurationMs);
 
 				// this must only be done for one connection
-				mutex_unlock(&piDev_g.lockListCon);
+				rt_mutex_unlock(&piDev_g.lockListCon);
 				return;
 			}
 		}
 	}
-	mutex_unlock(&piDev_g.lockListCon);
+	rt_mutex_unlock(&piDev_g.lockListCon);
 }
 
 void revpi_power_led_red_run(void)

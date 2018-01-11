@@ -196,7 +196,7 @@ static int __init piControlInit(void)
 
 	piDev_g.PnAppCon = 0;
 	INIT_LIST_HEAD(&piDev_g.listCon);
-	mutex_init(&piDev_g.lockListCon);
+	rt_mutex_init(&piDev_g.lockListCon);
 
 	cdev_init(&piDev_g.cdev, &piControlFops);
 	piDev_g.cdev.owner = THIS_MODULE;
@@ -358,7 +358,7 @@ static int piControlReset(tpiControlInst * priv)
 	} else {
 		struct list_head *pCon;
 
-		mutex_lock(&piDev_g.lockListCon);
+		rt_mutex_lock(&piDev_g.lockListCon);
 		list_for_each(pCon, &piDev_g.listCon) {
 			tpiControlInst *pos_inst;
 			pos_inst = list_entry(pCon, tpiControlInst, list);
@@ -368,7 +368,7 @@ static int piControlReset(tpiControlInst * priv)
 				bool found = false;
 
 				// add the event to the list only, if it not already there
-				mutex_lock(&pos_inst->lockEventList);
+				rt_mutex_lock(&pos_inst->lockEventList);
 				list_for_each(pEv, &pos_inst->piEventList) {
 					pEntry = list_entry(pEv, tpiEventEntry, list);
 					if (pEntry->event == piEvReset) {
@@ -382,15 +382,15 @@ static int piControlReset(tpiControlInst * priv)
 					pEntry->event = piEvReset;
 					pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum, (unsigned int)pEntry);
 					list_add_tail(&pEntry->list, &pos_inst->piEventList);
-					mutex_unlock(&pos_inst->lockEventList);
+					rt_mutex_unlock(&pos_inst->lockEventList);
 					pr_info_drv("reset(%d): inform instance %d\n", priv->instNum, pos_inst->instNum);
 					wake_up(&pos_inst->wq);
 				} else {
-					mutex_unlock(&pos_inst->lockEventList);
+					rt_mutex_unlock(&pos_inst->lockEventList);
 				}
 			}
 		}
-		mutex_unlock(&piDev_g.lockListCon);
+		rt_mutex_unlock(&piDev_g.lockListCon);
 
 		status = 0;
 	}
@@ -483,7 +483,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	/* initalize instance variables */
 	priv->dev = piDev_g.dev;
 	INIT_LIST_HEAD(&priv->piEventList);
-	mutex_init(&priv->lockEventList);
+	rt_mutex_init(&priv->lockEventList);
 
 	init_waitqueue_head(&priv->wq);
 
@@ -502,9 +502,9 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	piDev_g.PnAppCon++;
 	priv->instNum = piDev_g.PnAppCon;
 
-	mutex_lock(&piDev_g.lockListCon);
+	rt_mutex_lock(&piDev_g.lockListCon);
 	list_add(&priv->list, &piDev_g.listCon);
-	mutex_unlock(&piDev_g.lockListCon);
+	rt_mutex_unlock(&piDev_g.lockListCon);
 
 	pr_info_drv("opened instance %d\n", piDev_g.PnAppCon);
 
@@ -536,9 +536,9 @@ static int piControlRelease(struct inode *inode, struct file *file)
 	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
 	piDev_g.PnAppCon--;
 
-	mutex_lock(&piDev_g.lockListCon);
+	rt_mutex_lock(&piDev_g.lockListCon);
 	list_del(&priv->list);
-	mutex_unlock(&piDev_g.lockListCon);
+	rt_mutex_unlock(&piDev_g.lockListCon);
 
 	list_for_each_safe(pos, n, &priv->piEventList) {
 		tpiEventEntry *pos_inst;
@@ -1110,14 +1110,14 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			pr_info_drv("wait(%d)\n", priv->instNum);
 			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
-				mutex_lock(&priv->lockEventList);
+				rt_mutex_lock(&priv->lockEventList);
 				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
 
 				pr_info_drv("wait(%d): got event %d\n", priv->instNum, pEntry->event);
 				*pData = pEntry->event;
 
 				list_del(&pEntry->list);
-				mutex_unlock(&priv->lockEventList);
+				rt_mutex_unlock(&priv->lockEventList);
 				kfree(pEntry);
 
 				status = 0;

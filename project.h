@@ -109,9 +109,9 @@ extern int __debug_show_msg;
 
 #define SPI_MODULE	"spi_bcm2835"
 #define SPI_BUS         0
-#define RT_PRIO_UART    59
-#define RT_PRIO_BRIDGE  58
-#define RT_PRIO_GATE    60
+#define RT_PRIO_UART    39
+#define RT_PRIO_BRIDGE  38
+#define RT_PRIO_GATE    37
 
 #define INTERVAL_PI_GATE    ( 5*1000*1000)     //  5   ms    piGateCommunication
 

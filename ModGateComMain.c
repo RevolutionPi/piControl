@@ -861,17 +861,17 @@ void MODGATECOM_run(void)
 	MODGATECOM_managePowerLedRun();
 }
 
-    //*************************************************************************************************
-    //| Function: MODGATECOM_managePowerLedRun
-    //|
-    //! \brief
-    //!
-    //! \detailed
-    //!
-    //!
-    //!
-    //! \ingroup
-    //-------------------------------------------------------------------------------------------------
+//*************************************************************************************************
+//| Function: MODGATECOM_managePowerLedRun
+//|
+//! \brief
+//!
+//! \detailed
+//!
+//!
+//!
+//! \ingroup
+//-------------------------------------------------------------------------------------------------
 void MODGATECOM_managePowerLedRun(void)
 {
 #if defined(__KUNBUSPI_KERNEL__) || defined(__KUNBUSPI__)

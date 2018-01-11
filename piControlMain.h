@@ -82,7 +82,7 @@ typedef struct spiControlDev {
 	// handle open connections and notification
 	u8 PnAppCon;		// counter of open connections
 	struct list_head listCon;
-	struct mutex lockListCon;
+	struct rt_mutex lockListCon;
 
 	struct led_trigger power_red;
 	struct led_trigger a1_green;
@@ -101,7 +101,7 @@ typedef struct spiControlInst {
 	struct device *dev;
 	wait_queue_head_t wq;
 	struct list_head piEventList;	// head of the event list for this instance
-	struct mutex lockEventList;
+	struct rt_mutex lockEventList;
 	struct list_head list;	// list of all instances
 	ktime_t tTimeoutTS;	// time stamp when the output must be set to 0
 	unsigned long tTimeoutDurationMs;	// length of the timeout in ms, 0 if not active

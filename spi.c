@@ -54,7 +54,6 @@
 //+=============================================================================================
 //|     Globale Variablen / global variables
 //+=============================================================================================
-//static INT32S i32sFdCS_g[SPI_CHANNEL_NUMBER] = {0};
 static struct gpio_desc *aGpioDesc_s[SPI_CHANNEL_NUMBER];
 static INT8U *pi8uSpiMemTx;
 static INT8U *pi8uSpiMemRx;
@@ -114,8 +113,8 @@ INT32U spi_init (
     /* add spi device */
     if (pSpiDev_g == NULL)
     {
-
-	sSpiDevInfo.chip_select = 0;
+	/* We always use chip-select 1 here. It is not used, because the chip-select is operated by the piControl driver */
+	sSpiDevInfo.chip_select = 1;
 	sSpiDevInfo.max_speed_hz = tHwConf_l->bitrate;
 	sSpiDevInfo.bus_num = SPI_BUS;
 	sprintf(sSpiDevInfo.modalias, "piControl%d", 0);
@@ -164,7 +163,6 @@ INT32U spi_init (
 	}
     }
 
-#if 1
     if (aGpioDesc_s[0] == 0)
     {
 	    aGpioDesc_s[0] = gpiod_get(piDev_g.dev, "KSZ0", GPIOD_OUT_HIGH);
@@ -184,40 +182,7 @@ INT32U spi_init (
 		    }
 	    }
     }
-#else
-    if (i32sFdCS_g[0] == 0)
-    {
-	i32sRv_l = gpio_request(GPIO_CS_KSZ0, "KSZ0");
-	if (i32sRv_l < 0)
-	{
-	    BSP_SPI_RWPERI_deinit(0);
-	    pr_err("cannot open CS gpio KSZ0\n");
-	    return SPI_RET_OPEN_ERROR;
-	}
-	else
-	{
-	    i32sFdCS_g[0] = GPIO_CS_KSZ0;
-	    gpio_direction_output(GPIO_CS_KSZ0, 1);
-	    gpio_export(GPIO_CS_KSZ0, 0);
-	}
-    }
 
-    if (i32sFdCS_g[1] == 0)
-    {
-	i32sRv_l = gpio_request(GPIO_CS_KSZ1, "KSZ1");
-	if (i32sRv_l < 0)
-	{
-	    pr_err("cannot open CS gpio KSZ1\n");
-	    return SPI_RET_OPEN_ERROR;
-	}
-	else
-	{
-	    i32sFdCS_g[1] = GPIO_CS_KSZ1;
-	    gpio_direction_output(GPIO_CS_KSZ1, 1);
-	    gpio_export(GPIO_CS_KSZ1, 0);
-	}
-    }
-#endif
     return SPI_RET_OK;
 }
 

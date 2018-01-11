@@ -63,7 +63,7 @@ static char *pcFWUdata;
 
 void PiBridgeMaster_Stop(void)
 {
-	rt_mutex_lock(&piCore_g.lockBridgeState);
+	my_rt_mutex_lock(&piCore_g.lockBridgeState);
 	piCore_g.eBridgeState = piBridgeStop;
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
@@ -71,7 +71,7 @@ void PiBridgeMaster_Stop(void)
 void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
-	rt_mutex_lock(&piCore_g.lockBridgeState);
+	my_rt_mutex_lock(&piCore_g.lockBridgeState);
 	piCore_g.eBridgeState = piBridgeRun;
 	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
 	bEntering_s = bFALSE;
@@ -80,7 +80,7 @@ void PiBridgeMaster_Continue(void)
 
 void PiBridgeMaster_Reset(void)
 {
-	rt_mutex_lock(&piCore_g.lockBridgeState);
+	my_rt_mutex_lock(&piCore_g.lockBridgeState);
 	piCore_g.eBridgeState = piBridgeInit;
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
 	bEntering_s = bTRUE;
@@ -266,7 +266,7 @@ int PiBridgeMaster_Run(void)
 	int ret = 0;
 	int i;
 
-	rt_mutex_lock(&piCore_g.lockBridgeState);
+	my_rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piCore_g.eBridgeState != piBridgeStop) {
 		switch (eRunStatus_s) {
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
@@ -561,7 +561,7 @@ int PiBridgeMaster_Run(void)
 				PiBridgeMaster_setDefaults();
 
 #ifndef ENDTEST_DIO
-				rt_mutex_lock(&piDev_g.lockPI);
+				my_rt_mutex_lock(&piDev_g.lockPI);
 				memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
 				rt_mutex_unlock(&piDev_g.lockPI);
 #else
@@ -785,7 +785,7 @@ int PiBridgeMaster_Run(void)
 
 			ret = thermal_zone_get_temp(piDev_g.thermal_zone, &temp);
 			if (ret) {
-				pr_err("could not read cpu temperature");
+				pr_err("could not read cpu temperature\n");
 			} else {
 				piCore_g.image.drv.i8uCPUTemperature = temp / 1000;
 			}
@@ -797,7 +797,19 @@ int PiBridgeMaster_Run(void)
 	}
 
 	if (piCore_g.eBridgeState == piBridgeRun) {
-		flip_process_image(&piCore_g.image, RevPiDevice_getCoreOffset());
+		//flip_process_image(&piCore_g.image, RevPiDevice_getCoreOffset());
+		if (piDev_g.stopIO == false) {
+			INT8U *p1, *p2;
+			SRevPiCoreImage *pI1, *pI2;
+			p1 = piDev_g.ai8uPI + RevPiDevice_getCoreOffset();
+			p2 = (INT8U *)&piCore_g.image;
+			pI1 = (SRevPiCoreImage *)p1;
+			pI2 = (SRevPiCoreImage *)p2;
+			my_rt_mutex_lock(&piDev_g.lockPI);
+			pI1->drv = pI2->drv;
+			pI2->usr = pI1->usr;
+			rt_mutex_unlock(&piDev_g.lockPI);
+		}
 	}
 
 	return ret;

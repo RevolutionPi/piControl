@@ -76,6 +76,13 @@ static enum hrtimer_restart piControlGateTimer(struct hrtimer *pTimer)
 	return HRTIMER_NORESTART;
 }
 
+/*
+led_trigger_event(&piDev_g.a1_green, (led & PICONTROL_LED_A1_GREEN) ? LED_FULL : LED_OFF);
+led_trigger_event(&piDev_g.a1_red, (led & PICONTROL_LED_A1_RED) ? LED_FULL : LED_OFF);
+led_trigger_event(&piDev_g.a2_green, (led & PICONTROL_LED_A2_GREEN) ? LED_FULL : LED_OFF);
+led_trigger_event(&piDev_g.a2_red, (led & PICONTROL_LED_A2_RED) ? LED_FULL : LED_OFF);
+*/
+
 static int piGateThread(void *data)
 {
 	//TODO int value = 0;
@@ -126,7 +133,7 @@ static int piGateThread(void *data)
 		if (isRunning()) {
 			DURSTART(j1);
 			if (piDev_g.stopIO == false) {
-				rt_mutex_lock(&piDev_g.lockPI);
+				my_rt_mutex_lock(&piDev_g.lockPI);
 				if (piDev_g.machine_type == REVPI_CORE) {
 					if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
 						memcpy(piCore_g.ai8uOutput,
@@ -152,7 +159,7 @@ static int piGateThread(void *data)
 
 		if (MODGATECOM_has_fatal_error()) {
 			// stop the thread if an fatal error occurred
-			pr_err("mGate exit thread because of fatal error\n");
+			pr_err("mGate exit thread because of fatal error 0x%08x\n", MODGATECOM_has_fatal_error());
 			return -1;
 		}
 
@@ -198,7 +205,7 @@ static int piGateThread(void *data)
 		DURSTART(j3);
 		if (isRunning()) {
 			if (piDev_g.stopIO == false) {
-				rt_mutex_lock(&piDev_g.lockPI);
+				my_rt_mutex_lock(&piDev_g.lockPI);
 				if (piDev_g.machine_type == REVPI_CORE) {
 					if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
 						memcpy(piDev_g.ai8uPI +
@@ -294,7 +301,7 @@ static int piIoThread(void *data)
 				// -> set all outputs to 0
 				pr_info("logiRTS timeout, set all output to 0\n");
 				if (piDev_g.stopIO == false) {
-					rt_mutex_lock(&piDev_g.lockPI);
+					my_rt_mutex_lock(&piDev_g.lockPI);
 					for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
 						uint16_t len = piDev_g.cl->ent[i].i16uLength;
 						uint16_t addr = piDev_g.cl->ent[i].i16uAddr;
@@ -429,7 +436,7 @@ int revpi_core_init(void)
 		goto err_stop_gate_thread;
 	}
 
-	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piControl uart");
+	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piControl Uart");
 	if (IS_ERR(piCore_g.pUartThread)) {
 		pr_err("kthread_run(uart) failed\n");
 		ret = PTR_ERR(piCore_g.pUartThread);
