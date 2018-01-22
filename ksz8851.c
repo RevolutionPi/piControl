@@ -41,6 +41,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
+#include "revpi_core.h"
 
 // the following define must be equal to the define in drivers/spi/spi-bcm2835.c
 #define BCM2835_SPI_DMA_MIN_LENGTH	96
@@ -106,17 +107,17 @@ static void ksz8851InitSpi(void)
 #if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
     const HW_SPI_CONFIGURATION TFS_spi_configuration_s =
     {
-    0, //.receive_cb		= 0,
-    0, //.transmit_cb	= 0,
-    0, //.error_cb		= 0,
-    0, //.finish_cb		= 0,
-    HW_SPI_MODE_MASTER, //.mode			= ,
-    HW_SPI_CLOCK_POL_LOW, //.polarity		= ,
-    HW_SPI_CLOCK_PHASE_LEAD, //.phase			= ,
-    HW_SPI_DATA_DIR_MSB, //.direction		= ,
-    20000000, //.bitrate		= ,			// 20 MHz
-    HW_SPI_NSS_None, //.nss			= 0,				// is set by software
-    HW_SPI_PRIO0 // isrprio
+	0, //.receive_cb		= 0,
+	0, //.transmit_cb	= 0,
+	0, //.error_cb		= 0,
+	0, //.finish_cb		= 0,
+	HW_SPI_MODE_MASTER, //.mode			= ,
+	HW_SPI_CLOCK_POL_LOW, //.polarity		= ,
+	HW_SPI_CLOCK_PHASE_LEAD, //.phase			= ,
+	HW_SPI_DATA_DIR_MSB, //.direction		= ,
+	revpi_core_get_spi_speed(),	//.bitrate		= ,			// 20 MHz
+	HW_SPI_NSS_None, //.nss			= 0,				// is set by software
+	HW_SPI_PRIO0 // isrprio
     };
 #else
     const HW_SPI_CONFIGURATION TFS_spi_configuration_s =

@@ -351,6 +351,16 @@ static int piIoThread(void *data)
 }
 
 
+int revpi_core_get_spi_speed(void)
+{
+	// return the speed in MHz of the SPI bus to the KSZ8851
+	if (piDev_g.machine_type == REVPI_CORE) {
+		return 20000000;	// 20 MHz on Core
+	} else {
+		return 10000000;	// 10 MHz on Connect
+	}
+}
+
 int revpi_core_init(void)
 {
 	struct sched_param param;

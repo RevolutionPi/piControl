@@ -47,23 +47,6 @@ typedef struct _SRevPiCoreImage {
 	} __attribute__ ((__packed__)) usr;	// 5 bytes
 } __attribute__ ((__packed__)) SRevPiCoreImage;
 
-//typedef struct _SRevPiCoreImage {
-//	// input data, 6 Byte: set by driver
-//	INT8U i8uStatus;
-//	INT8U i8uIOCycle;
-//	INT16U i16uRS485ErrorCnt;
-//	INT8U i8uCPUTemperature;
-//	INT8U i8uCPUFrequency;
-
-//	// output data, 5 Byte: set by application
-//	INT8U i8uLED;
-//	//INT8U i8uMode;		// for debugging
-//	//INT8U i16uRS485ErrorLimit1;	// for debugging
-//	INT16U i16uRS485ErrorLimit1;
-//	INT16U i16uRS485ErrorLimit2;
-
-//} __attribute__ ((__packed__)) SRevPiCoreImage;
-
 typedef struct _SRevPiCore {
 	SRevPiCoreImage image;
 
@@ -121,5 +104,6 @@ extern SRevPiCore piCore_g;
 
 int revpi_core_init(void);
 void revpi_core_fini(void);
+int revpi_core_get_spi_speed(void);
 
 
