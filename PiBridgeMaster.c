@@ -774,6 +774,12 @@ int PiBridgeMaster_Run(void)
 
 	revpi_power_led_red_run();
 
+	if (isRunning()) {
+		RevPiDevice_setStatus(0, PICONTROL_STATUS_RUNNING);
+	} else {
+		RevPiDevice_setStatus(PICONTROL_STATUS_RUNNING, 0);
+	}
+
 	// set LED and status
 	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();
 	revpi_led_trigger_event(&last_led, piCore_g.image.usr.i8uLED);
