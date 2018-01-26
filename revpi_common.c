@@ -8,7 +8,9 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/kthread.h>
 #include <linux/leds.h>
+#include <linux/sched.h>
 #include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include "revpi_common.h"
@@ -178,4 +180,55 @@ uint32_t bcm2835_cpufreq_get_clock(void)
 	rate /= 1000 * 1000;	//convert to MHz
 
 	return rate;
+}
+
+/**
+ * set_kthread_prios - assign realtime priority to specific kthreads
+ * @ktprios: null-terminated array of kthread/priority tuples
+ *
+ * Walk the children of kthreadd and compare the command name to the ones
+ * specified in @ktprios.  Upon finding a match, assign the given priority
+ * with SCHED_FIFO policy.
+ *
+ * Return 0 on success or a negative errno on failure.
+ * Normally failure only occurs because an invalid priority was specified.
+ */
+int set_kthread_prios(const struct kthread_prio *ktprios)
+{
+	const struct kthread_prio *ktprio;
+	struct sched_param param = { };
+	struct task_struct *child;
+	int ret = 0;
+
+	read_lock(&tasklist_lock);
+	for (ktprio = ktprios; ktprio->comm[0]; ktprio++) {
+		bool found = false;
+
+		list_for_each_entry(child, &kthreadd_task->children, sibling)
+			if (!strncmp(child->comm, ktprio->comm,
+				     TASK_COMM_LEN)) {
+				found = true;
+				param.sched_priority = ktprio->prio;
+				ret = sched_setscheduler(child, SCHED_FIFO,
+							 &param);
+				if (ret) {
+					pr_err("cannot set priority of %s\n",
+					       ktprio->comm);
+					goto out;
+				} else {
+					pr_info("set priority of %s to %d\n",
+						ktprio->comm, ktprio->prio);
+				}
+				break;
+			}
+
+		if (!found) {
+			pr_err("cannot find kthread %s\n", ktprio->comm);
+			ret = -ENOENT;
+			goto out;
+		}
+	}
+out:
+	read_unlock(&tasklist_lock);
+	return ret;
 }

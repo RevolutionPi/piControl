@@ -1,3 +1,4 @@
+#include <linux/sched.h>
 
 enum revpi_power_led_mode {
 	REVPI_POWER_LED_OFF = 0,
@@ -27,3 +28,10 @@ extern int lock_line;
 #else
 #define my_rt_mutex_lock(P)	rt_mutex_lock(P)
 #endif
+
+struct kthread_prio {
+	const char comm[TASK_COMM_LEN];
+	int prio;
+};
+
+int set_kthread_prios(const struct kthread_prio *ktprios);

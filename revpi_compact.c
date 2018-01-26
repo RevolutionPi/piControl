@@ -35,6 +35,20 @@
 #define REVPI_COMPACT_IO_CYCLE		( 250 * NSEC_PER_USEC)		// 250 usec
 #define REVPI_COMPACT_AIN_CYCLE		( 125 * NSEC_PER_MSEC)		// 125 msec
 
+#define IO_THREAD_PRIO	MAX_USER_RT_PRIO/2 + 8
+#define AIN_THREAD_PRIO MAX_USER_RT_PRIO/2 + 6
+
+static const struct kthread_prio revpi_compact_kthread_prios[] = {
+	/* spi pump to I/O chips */
+	{ .comm = "spi2",		.prio = MAX_USER_RT_PRIO/2 + 10 },
+	/* softirq daemons handling hrtimers */
+	{ .comm = "ktimersoftd/0",	.prio = MAX_USER_RT_PRIO/2 + 10 },
+	{ .comm = "ktimersoftd/1",	.prio = MAX_USER_RT_PRIO/2 + 10 },
+	{ .comm = "ktimersoftd/2",	.prio = MAX_USER_RT_PRIO/2 + 10 },
+	{ .comm = "ktimersoftd/3",	.prio = MAX_USER_RT_PRIO/2 + 10 },
+	{ }
+};
+
 typedef struct _SRevPiCompact {
 	SRevPiCompactImage image;
 	SRevPiCompactConfig config;
@@ -499,7 +513,7 @@ void revpi_compact_adjust_config(void)
 int revpi_compact_init(void)
 {
 	SRevPiCompact *machine;
-	struct sched_param param = { .sched_priority = RT_PRIO_BRIDGE };
+	struct sched_param param = { };
 	struct device *dev;
 	int ret;
 
@@ -597,6 +611,7 @@ int revpi_compact_init(void)
 		goto err_release_aout;
 	}
 
+	param.sched_priority = IO_THREAD_PRIO;
 	ret = sched_setscheduler(machine->io_thread, SCHED_FIFO, &param);
 	if (ret) {
 		pr_err("cannot upgrade i/o thread priority\n");
@@ -611,11 +626,16 @@ int revpi_compact_init(void)
 		goto err_stop_io_thread;
 	}
 
+	param.sched_priority = AIN_THREAD_PRIO;
 	ret = sched_setscheduler(machine->ain_thread, SCHED_FIFO, &param);
 	if (ret) {
 		pr_err("cannot upgrade ain thread priority\n");
 		goto err_stop_ain_thread;
 	}
+
+	ret = set_kthread_prios(revpi_compact_kthread_prios);
+	if (ret)
+		goto err_stop_ain_thread;
 
 	revpi_compact_adjust_config();
 

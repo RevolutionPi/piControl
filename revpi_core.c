@@ -44,6 +44,12 @@
 #include "revpi_common.h"
 #include "revpi_core.h"
 
+static const struct kthread_prio revpi_core_kthread_prios[] = {
+	/* spi pump to RevPi Gateways */
+	{ .comm = "spi0",		.prio = MAX_USER_RT_PRIO/2 + 4 },
+	{ }
+};
+
 static struct gpiod_lookup_table revpi_core_gpios = {
 	.dev_id = "piControl0",
 	.table  = { GPIO_LOOKUP_IDX("pinctrl-bcm2835", 42, "Sniff1A", 0, GPIO_ACTIVE_HIGH),	// 1 links
@@ -471,6 +477,10 @@ int revpi_core_init(void)
 		pr_err("cannot set rt prio of io thread\n");
 		goto err_stop_io_thread;
 	}
+
+	ret = set_kthread_prios(revpi_core_kthread_prios);
+	if (ret)
+		goto err_stop_io_thread;
 
 	return ret;
 
