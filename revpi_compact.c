@@ -229,7 +229,6 @@ static int revpi_compact_poll_ain(void *data)
 	int  chan[ARRAY_SIZE(machine->config.ain)];
 	int i = 0, numchans = 0, ret, raw;
 	struct cycletimer ct;
-	unsigned long last_update;
 
 	cycletimer_init_on_stack(&ct, REVPI_COMPACT_AIN_CYCLE);
 
@@ -305,11 +304,10 @@ static int revpi_compact_poll_ain(void *data)
 		image->drv.ain[chan[i]] = raw;
 
 next_chan:
-		if (++i == numchans)
+		if (++i == numchans) {
 			i = 0;
 
-		// update every 1 sec
-		if ((kbUT_getCurrentMs() - last_update) > 1000) {
+			// update every 1 sec
 			if (piDev_g.thermal_zone != NULL) {
 				int temp, ret;
 
@@ -322,8 +320,6 @@ next_chan:
 			}
 
 			image->drv.i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
-
-			last_update = kbUT_getCurrentMs();
 		}
 
 		cycletimer_sleep(&ct);
