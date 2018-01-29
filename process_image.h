@@ -27,8 +27,7 @@ static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 static inline void cycletimer_sleep(struct cycletimer *ct)
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
-	ktime_t now = hrtimer_cb_get_time(timer);
-	u64 missed_cycles = hrtimer_forward(timer, now, ct->cycletime) - 1;
+	u64 missed_cycles = hrtimer_forward_now(timer, ct->cycletime) - 1;
 
 	if (missed_cycles)
 		pr_warn("%s: missed %lld cycles\n",
