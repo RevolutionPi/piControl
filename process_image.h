@@ -27,11 +27,13 @@ static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 static inline void cycletimer_sleep(struct cycletimer *ct)
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
-	u64 missed_cycles = hrtimer_forward_now(timer, ct->cycletime) - 1;
+	u64 missed_cycles = hrtimer_forward_now(timer, ct->cycletime);
 
-	if (missed_cycles)
-		pr_warn("%s: missed %lld cycles\n",
-			current->comm, missed_cycles);
+	if (missed_cycles == 0)
+		pr_warn("%s: premature cycle\n", current->comm);
+	else if (missed_cycles > 1)
+		pr_warn("%s: missed %lld cycles\n", current->comm,
+			missed_cycles - 1);
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	hrtimer_restart(timer);
