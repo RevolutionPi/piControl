@@ -96,7 +96,7 @@ extern int __debug_show_msg;
 #define pr_info_spi2(fmt, ...)
 #endif
 
-#if 0
+#if 1
 #define DEBUG_SERIALCOMM
 #define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #else

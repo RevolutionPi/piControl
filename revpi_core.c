@@ -82,13 +82,6 @@ static enum hrtimer_restart piControlGateTimer(struct hrtimer *pTimer)
 	return HRTIMER_NORESTART;
 }
 
-/*
-led_trigger_event(&piDev_g.a1_green, (led & PICONTROL_LED_A1_GREEN) ? LED_FULL : LED_OFF);
-led_trigger_event(&piDev_g.a1_red, (led & PICONTROL_LED_A1_RED) ? LED_FULL : LED_OFF);
-led_trigger_event(&piDev_g.a2_green, (led & PICONTROL_LED_A2_GREEN) ? LED_FULL : LED_OFF);
-led_trigger_event(&piDev_g.a2_red, (led & PICONTROL_LED_A2_RED) ? LED_FULL : LED_OFF);
-*/
-
 static int piGateThread(void *data)
 {
 	//TODO int value = 0;

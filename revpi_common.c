@@ -33,6 +33,10 @@ void revpi_led_trigger_event(u8 * led_prev, u8 led)
 	led_trigger_event(&piDev_g.a2_green, (led & PICONTROL_LED_A2_GREEN) ? LED_FULL : LED_OFF);
 	led_trigger_event(&piDev_g.a2_red, (led & PICONTROL_LED_A2_RED) ? LED_FULL : LED_OFF);
 
+	if (piDev_g.machine_type == REVPI_CONNECT) {
+		led_trigger_event(&piDev_g.a3_green, (led & PICONTROL_LED_A3_GREEN) ? LED_FULL : LED_OFF);
+		led_trigger_event(&piDev_g.a3_red, (led & PICONTROL_LED_A3_RED) ? LED_FULL : LED_OFF);
+	}
 	*led_prev = led;
 }
 

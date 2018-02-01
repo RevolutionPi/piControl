@@ -116,6 +116,8 @@ tpiControlDev piDev_g = {
 	.a1_red.name = "a1_red",
 	.a2_green.name = "a2_green",
 	.a2_red.name = "a2_red",
+	.a3_green.name = "a3_green",
+	.a3_red.name = "a3_red",
 };
 
 static dev_t piControlMajor;
@@ -218,10 +220,18 @@ static int __init piControlInit(void)
 	}
 	piDev_g.init_step = 2;
 
-	res = devm_led_trigger_register(piDev_g.dev, &piDev_g.power_red) ||
-	    devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_green) ||
-	    devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_red) ||
-	    devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_green) || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_red);
+	res = devm_led_trigger_register(piDev_g.dev, &piDev_g.power_red)
+	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_green)
+	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_red)
+	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_green)
+	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_red);
+
+	if (piDev_g.machine_type == REVPI_CONNECT) {
+		res = res
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a3_green)
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a3_red);
+	}
+
 	if (res) {
 		pr_err("cannot register LED triggers\n");
 		cleanup();
