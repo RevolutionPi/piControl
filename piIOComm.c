@@ -112,13 +112,10 @@ int UartThreadProc(void *pArg)
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
 
-	//pr_info("vfs_read(%d, ....)\n", (int)piIoComm_fd_m);
-
 	while (!kthread_should_stop()) {
 		//TODO optimize
 		int r = vfs_read(piIoComm_fd_m, acBuf_l, MAX_READ_BUF, &piIoComm_fd_m->f_pos);
 		if (r != MAX_READ_BUF) {	// not finished yet
-			//pr_info("vfs_read(%d, ....) == %d\n", (int)piIoComm_fd_m, r);
 			clear();
 			set_fs(oldfs);
 			return -1;
@@ -167,13 +164,11 @@ int piIoComm_open_serial(void)
 	 * 115200 bps, 8 Datenbits, 1 Stoppbit, even parity, no handshake
 	 */
 
-//    struct sched_param param;
 	struct file *fd;	/* Filedeskriptor */
 	struct termios newtio;	/* Schnittstellenoptionen */
 
 	/* Port oeffnen - read/write, kein "controlling tty", Status von DCD ignorieren */
-	//fd = filp_open("/dev/ttyAMA0", O_RDWR | O_NOCTTY | O_NDELAY, 0);
-	fd = filp_open("/dev/ttyAMA0", O_RDWR | O_NOCTTY, 0);
+	fd = filp_open(REV_PI_TTY_DEVICE, O_RDWR | O_NOCTTY, 0);
 	if (fd != 0) {
 		int r;
 		mm_segment_t oldfs;
@@ -207,6 +202,9 @@ int piIoComm_open_serial(void)
 			return -1;
 		}
 		set_fs(oldfs);
+	} else {
+		pr_err("could not open device %s", REV_PI_TTY_DEVICE);
+		return -1;
 	}
 	piIoComm_fd_m = fd;
 
