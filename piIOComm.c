@@ -169,7 +169,7 @@ int piIoComm_open_serial(void)
 
 	/* Port oeffnen - read/write, kein "controlling tty", Status von DCD ignorieren */
 	fd = filp_open(REV_PI_TTY_DEVICE, O_RDWR | O_NOCTTY, 0);
-	if (fd != 0) {
+	if (!IS_ERR_OR_NULL(fd)) {
 		int r;
 		mm_segment_t oldfs;
 
