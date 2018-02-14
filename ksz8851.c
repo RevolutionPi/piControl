@@ -76,7 +76,6 @@ ETHERNET_INTERFACE EthDrvKSZ8851_g =
 };
 
 
-static void ksz8851InitSpi(void);
 static INT16U ksz8851_regrd(INT16U reg);
 static void ksz8851_regwr(INT16U reg, INT16U wrdata);
 static void ksz8851ReInit(void);
@@ -102,8 +101,10 @@ static INT32U   i32uLastIRQPoll[SPI_CHANNEL_NUMBER];
 //+---------------------------------------------------------------------------------------------
 //!		ksz8851InitSpi() initialize SPI.
 //+=============================================================================================
-static void ksz8851InitSpi(void)
+static int ksz8851InitSpi(void)
 {
+	int ret;
+
 #if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
     const HW_SPI_CONFIGURATION TFS_spi_configuration_s =
     {
@@ -141,9 +142,15 @@ static void ksz8851InitSpi(void)
 
     if (spi_selected_chip() == 0)
     {
-	BSP_SPI_RWPERI_init(KSZ8851_SPI_PORT, &TFS_spi_configuration_s, &BSP_KSZ8851_tRwPeriData_g);
+	ret = BSP_SPI_RWPERI_init(KSZ8851_SPI_PORT, &TFS_spi_configuration_s,
+				  &BSP_KSZ8851_tRwPeriData_g);
+	if (ret)
+		return ret;
+
 	pr_info("ksz8851InitSpi done\n");
     }
+
+    return 0;
 }
 
 //+=============================================================================================
@@ -272,7 +279,8 @@ TBOOL ksz8851Init(void)
 
     ksz8851HardwareReset();
 
-    ksz8851InitSpi();
+    if (ksz8851InitSpi())
+	    return false;
 
     /* Perform Global Soft Reset */
     spi_setbits(KSZ8851_GRR, KSZ8851_GRR_GLOBAL_SOFTWARE_RESET);

@@ -425,7 +425,7 @@ int revpi_core_init(void)
 
 	i32uRv = MODGATECOM_init(piCore_g.ai8uInput, KB_PD_LEN, piCore_g.ai8uOutput, KB_PD_LEN, &EthDrvKSZ8851_g);
 	if (i32uRv != MODGATECOM_NO_ERROR) {
-		pr_err("MODGATECOM_init error %08x\n", i32uRv);
+		pr_err("MODGATECOM_init error %#08x\n", i32uRv);
 		return -EFAULT;
 	}
 	piDev_g.init_step = 14;

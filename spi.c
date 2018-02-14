@@ -370,17 +370,19 @@ void reset_spi_slave( INT8U spi )
 
 struct hrtimer ioTimer;
 
-void BSP_SPI_RWPERI_init (
+int BSP_SPI_RWPERI_init (
     INT8U i8uPort_p,
     const HW_SPI_CONFIGURATION *ptHwConf_p,
     BSP_SPI_TRwPeriData *ptRwPeriData_p)
 
 {
-    spi_init (i8uPort_p, ptHwConf_p);
-    ptRwPeriData_p->i16uCsPin = i8uPort_p;
+    if (spi_init(i8uPort_p, ptHwConf_p) != SPI_RET_OK)
+	    return -ENODEV;
 
+    ptRwPeriData_p->i16uCsPin = i8uPort_p;
     hrtimer_init(&ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 
+    return 0;
 }
 //*************************************************************************************************
 //| Function: BSP_SPI_RWPERI_chipSelectEnable

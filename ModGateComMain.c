@@ -151,7 +151,7 @@ INT32U MG_LL_init(LLHandle llHdl)
 
 	if (!EthDrv_s->init()) {
 		MODGATECOM_error(BSPE_KSZ8851_RESET, bTRUE, 0);
-		// returns never
+		return BSPE_KSZ8851_RESET;
 	}
 
 	return MODGATECOM_NO_ERROR;

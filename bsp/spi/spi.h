@@ -299,8 +299,8 @@ extern "C" {
 
 	void spi_transceive_irq(INT8U i8uPort_p);
 
-	void BSP_SPI_RWPERI_init(INT8U i8uPort_p, const HW_SPI_CONFIGURATION * ptHwConf_p,
-				 BSP_SPI_TRwPeriData * ptRwPeriData_p);
+	int BSP_SPI_RWPERI_init(INT8U i8uPort_p, const HW_SPI_CONFIGURATION * ptHwConf_p,
+				BSP_SPI_TRwPeriData * ptRwPeriData_p);
 	void BSP_SPI_RWPERI_deinit(INT8U i8uPort_p);
 	void BSP_SPI_RWPERI_chipSelectEnable(BSP_SPI_TRwPeriData * ptRwPeriData_p);
 	void BSP_SPI_RWPERI_chipSelectDisable(BSP_SPI_TRwPeriData * ptRwPeriData_p);
