@@ -157,6 +157,10 @@ int RevPiDevice_run(void)
 						RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
 					}
 					retval -= 1;	// tell calling function that an error occured
+					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
+						// the first error is ignored
+						RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
+					}
 				} else {
 					RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
 				}
@@ -169,6 +173,10 @@ int RevPiDevice_run(void)
 						RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
 					}
 					retval -= 1;	// tell calling function that an error occured
+					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
+						// the first error is ignored
+						RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
+					}
 				} else {
 					RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
 				}
@@ -206,7 +214,6 @@ int RevPiDevice_run(void)
 				// user devices are ignored here
 				break;
 			}
-			RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
 		}
 	}
 

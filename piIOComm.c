@@ -284,10 +284,7 @@ int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
 	while (i < i16uLen_p && recv(&buf_p[i])) {
 		i++;
 	}
-//      if (i > 0)
-//      {
-//              pr_info("recv old data %d/%d\n", i, i16uLen_p);
-//      }
+
 	if (i == i16uLen_p) {
 		// alle Daten wurden schon empfangen
 		up(&recvLenSem);

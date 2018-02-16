@@ -167,6 +167,9 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 	INT8U i8uAddress;
 	int ret;
 	static INT8U last_out[40][18];
+#ifdef DEBUG_DEVICE_IO
+	static INT32U good, bad;
+#endif
 #ifdef DEBUG_DEVICE_DIO
 	static INT8U last_in[40][2];
 #endif
@@ -240,9 +243,6 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 
 		ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
 		if (ret > 0) {
-//            pr_info("dev %2d: cmd %d  len %d\n",
-//                      i8uAddress, sResponse_l.uHeader.sHeaderTyp1.bitCommand, sResponse_l.uHeader.sHeaderTyp1.bitLength);
-
 			if (sResponse_l.ai8uData[len_l] ==
 			    piIoComm_Crc8((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l)) {
 				memcpy(&data_in[0], sResponse_l.ai8uData, 3 * sizeof(INT16U));
@@ -272,9 +272,15 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 						    sResponse_l.ai8uData[0], sResponse_l.ai8uData[1]);
 				}
 #endif
+#ifdef DEBUG_DEVICE_IO
+				good++;
+#endif
 			} else {
+#ifdef DEBUG_DEVICE_IO
+				bad++;
+				pr_info("dev %2d: recv ioprotocol crc error %u/%u\n", i8uAddress, bad, good);
+#endif
 				i32uRv_l = 1;
-				pr_info_dio("dev %2d: recv ioprotocol crc error\n", i8uAddress);
 			}
 		} else {
 			i32uRv_l = 2;

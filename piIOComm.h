@@ -37,7 +37,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 
-#define REV_PI_IO_TIMEOUT           100         // msec
+#define REV_PI_IO_TIMEOUT           10         // msec
 #define REV_PI_RECV_BUFFER_SIZE     100
 
 #define REV_PI_RECV_IO_HEADER_LEN	65530

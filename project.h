@@ -96,14 +96,14 @@ extern int __debug_show_msg;
 #define pr_info_spi2(fmt, ...)
 #endif
 
-#if 1
+#if 0
 #define DEBUG_SERIALCOMM
 #define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #else
 #define pr_info_serial(fmt, ...)
 #endif
 
-#define DEBUG_GPIO
+//#define DEBUG_GPIO
 #define DEBUG_DEVICE
 #define DEBUG_DEVICE_IO
 
@@ -132,9 +132,7 @@ extern int __debug_show_msg;
 #define GPIO_RESET		40
 #define KSZ8851_SPI_PORT	 0      // we use SPI port 0 for both sides
 
-
 //#define VERBOSE
-//#define DF_PRINTK(...)      printk(KBUILD_MODNAME ": " __VA_ARGS__)
 
 #undef pr_fmt
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt

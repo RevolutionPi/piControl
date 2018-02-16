@@ -72,7 +72,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("1.3.0");
+MODULE_VERSION("1.4.0");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "spi-bcm2835 "		/* core spi0 gateways */
 	       "spi-bcm2835aux "	/* compact spi2 i/o */
@@ -1247,6 +1247,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			unsigned int *pData = (unsigned int *)usr_addr;
 			priv->tTimeoutDurationMs = *pData;
 			priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
+			status = 0;
 		}
 		break;
 
