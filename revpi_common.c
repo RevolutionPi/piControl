@@ -23,21 +23,32 @@
 
 #define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 
-void revpi_led_trigger_event(u8 * led_prev, u8 led)
+void revpi_led_trigger_event(u8 led_prev, u8 led)
 {
-	if (*led_prev == led)
+	u8 changed = led_prev ^ led;
+	if (changed == 0)
 		return;
 
-	led_trigger_event(&piDev_g.a1_green, (led & PICONTROL_LED_A1_GREEN) ? LED_FULL : LED_OFF);
-	led_trigger_event(&piDev_g.a1_red, (led & PICONTROL_LED_A1_RED) ? LED_FULL : LED_OFF);
-	led_trigger_event(&piDev_g.a2_green, (led & PICONTROL_LED_A2_GREEN) ? LED_FULL : LED_OFF);
-	led_trigger_event(&piDev_g.a2_red, (led & PICONTROL_LED_A2_RED) ? LED_FULL : LED_OFF);
-
-	if (piDev_g.machine_type == REVPI_CONNECT) {
-		led_trigger_event(&piDev_g.a3_green, (led & PICONTROL_LED_A3_GREEN) ? LED_FULL : LED_OFF);
-		led_trigger_event(&piDev_g.a3_red, (led & PICONTROL_LED_A3_RED) ? LED_FULL : LED_OFF);
+	if (changed & PICONTROL_LED_A1_GREEN) {
+		led_trigger_event(&piDev_g.a1_green, (led & PICONTROL_LED_A1_GREEN) ? LED_FULL : LED_OFF);
 	}
-	*led_prev = led;
+	if (changed & PICONTROL_LED_A1_RED) {
+		led_trigger_event(&piDev_g.a1_red, (led & PICONTROL_LED_A1_RED) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_A2_GREEN) {
+		led_trigger_event(&piDev_g.a2_green, (led & PICONTROL_LED_A2_GREEN) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_A2_RED) {
+		led_trigger_event(&piDev_g.a2_red, (led & PICONTROL_LED_A2_RED) ? LED_FULL : LED_OFF);
+	}
+	if (piDev_g.machine_type == REVPI_CONNECT) {
+		if (changed & PICONTROL_LED_A3_GREEN) {
+			led_trigger_event(&piDev_g.a3_green, (led & PICONTROL_LED_A3_GREEN) ? LED_FULL : LED_OFF);
+		}
+		if (changed & PICONTROL_LED_A3_RED) {
+			led_trigger_event(&piDev_g.a3_red, (led & PICONTROL_LED_A3_RED) ? LED_FULL : LED_OFF);
+		}
+	}
 }
 
 static enum revpi_power_led_mode power_led_mode_s = 255;
@@ -90,7 +101,7 @@ void revpi_check_timeout(void)
 	ktime_t now = ktime_get();
 	struct list_head *pCon;
 
-	rt_mutex_lock(&piDev_g.lockListCon);
+	my_rt_mutex_lock(&piDev_g.lockListCon);
 	list_for_each(pCon, &piDev_g.listCon) {
 		tpiControlInst *pos_inst;
 		pos_inst = list_entry(pCon, tpiControlInst, list);
@@ -99,7 +110,7 @@ void revpi_check_timeout(void)
 			if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
 				// set all outputs to 0
 				int i;
-				rt_mutex_lock(&piDev_g.lockPI);
+				my_rt_mutex_lock(&piDev_g.lockPI);
 				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 					if (RevPiDevice_getDev(i)->i8uActive) {
 						memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);

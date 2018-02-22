@@ -65,9 +65,12 @@ static struct gpiod_lookup_table revpi_core_gpios = {
 // hier in der Software werden sie mit A benannt
 static struct gpiod_lookup_table revpi_connect_gpios = {
 	.dev_id = "piControl0",
-	.table  = { GPIO_LOOKUP_IDX("pinctrl-bcm2835", 43, "Sniff1A", 0, GPIO_ACTIVE_HIGH),	// 1 links
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 29, "Sniff2A", 0, GPIO_ACTIVE_HIGH),	// 2 links
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 35, "KSZ0",    0, GPIO_ACTIVE_HIGH),	// KSZ CS links
+	.table  = { GPIO_LOOKUP_IDX("pinctrl-bcm2835", 43, "Sniff1A",	0, GPIO_ACTIVE_HIGH),	// 1 links
+		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 29, "Sniff2A",	0, GPIO_ACTIVE_HIGH),	// 2 links
+		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 35, "KSZ0",	0, GPIO_ACTIVE_HIGH),	// KSZ CS links
+		    GPIO_LOOKUP_IDX("pinctrl-bcm2835",  0, "X2_DI",	0, GPIO_ACTIVE_HIGH),	// Digital In auf X2 Stecker
+		    GPIO_LOOKUP_IDX("pinctrl-bcm2835",  1, "X2_DO",	0, GPIO_ACTIVE_HIGH),	// Digital Out (Relais) auf X2 Stecker
+		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 42, "WDTrigger", 0, GPIO_ACTIVE_HIGH),	// Watchdog trigger
 	},
 };
 
@@ -412,6 +415,23 @@ int revpi_core_init(void)
 		if (IS_ERR(piCore_g.gpio_sniff2b)) {
 			pr_err("cannot acquire gpio sniff 2b\n");
 			return PTR_ERR(piCore_g.gpio_sniff2b);
+		}
+	}
+	if (piDev_g.machine_type == REVPI_CONNECT) {
+		piCore_g.gpio_x2di = gpiod_get(piDev_g.dev, "X2_DI", GPIOD_IN);
+		if (IS_ERR(piCore_g.gpio_x2di)) {
+			pr_err("cannot acquire gpio x2 di\n");
+			return PTR_ERR(piCore_g.gpio_x2di);
+		}
+		piCore_g.gpio_x2do = gpiod_get(piDev_g.dev, "X2_DO", GPIOD_OUT_LOW);
+		if (IS_ERR(piCore_g.gpio_x2do)) {
+			pr_err("cannot acquire gpio x2 do\n");
+			return PTR_ERR(piCore_g.gpio_x2do);
+		}
+		piCore_g.gpio_wdtrigger = gpiod_get(piDev_g.dev, "WDTrigger", GPIOD_OUT_LOW);
+		if (IS_ERR(piCore_g.gpio_wdtrigger)) {
+			pr_err("cannot acquire gpio watchdog trigger\n");
+			return PTR_ERR(piCore_g.gpio_wdtrigger);
 		}
 	}
 

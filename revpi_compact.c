@@ -192,7 +192,8 @@ static int revpi_compact_poll_io(void *data)
 
 		MEASSURE(5);
 		/* update LEDs if changed by user */
-		revpi_led_trigger_event(&prev.usr.led, image->usr.led);
+		revpi_led_trigger_event(prev.usr.led, image->usr.led);
+		prev.usr.led = image->usr.led;
 		MEASSURE(6);
 #ifdef BENCH
 		for (i=0; i<6; i++) {
@@ -393,7 +394,7 @@ void revpi_compact_adjust_config(void)
 	uint8_t *state;
 
 	// do not allow accesses to process image while the offset are changed
-	rt_mutex_lock(&piDev_g.lockPI);
+	my_rt_mutex_lock(&piDev_g.lockPI);
 
 	RevPiDevice_init();
 

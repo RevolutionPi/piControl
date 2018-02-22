@@ -42,6 +42,6 @@
 #define FIRMWARE_PATH		"/lib/firmware/revpi"
 
 
-int FWU_update(SDevice *pDev_p);
+int FWU_update(tpiControlInst *priv, SDevice *pDev_p);
 
 #endif // PIFIRMWAREUPDATE_H

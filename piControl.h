@@ -65,6 +65,7 @@
 
 #define REV_PI_DEV_FIRST_RIGHT      32		// address of first module on the right side of the RevPi Core
 #define REV_PI_DEV_CNT_MAX          64		// max. number of
+#define REV_PI_ERROR_MSG_LEN        256         // max. length of error message
 
 // Module Id
 // 0x0001 - 0x3000      KUNBUS Modules (e.g. DIO, Gateways, ...)
@@ -112,8 +113,7 @@
 #define  KB_WAIT_FOR_EVENT		_IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET			1		// piControl was reset, reload configuration
 
-// the following call are for KUNBUS internal use only. uncomment the following define to activate them.
-// #define KUNBUS_TEST
+// the following call are for KUNBUS internal use only.
 #define  KB_INTERN_SET_SERIAL_NUM	_IO(KB_IOC_MAGIC, 100 )  // set serial num in piDIO, piDI or piDO (can be made only once)
 #define  KB_INTERN_IO_MSG		_IO(KB_IOC_MAGIC, 101 )  // send an I/O-Protocol message and return response
 
@@ -198,16 +198,17 @@ typedef struct SConfigDataStr
 #define PICONTROL_STATUS_SIZE_MISMATCH                  0x08
 #define PICONTROL_STATUS_LEFT_GATEWAY                   0x10
 #define PICONTROL_STATUS_RIGHT_GATEWAY                  0x20
+#define PICONTROL_STATUS_X2_DIN				0x40	// RevPi Connect only
 
 #define PICONTROL_LED_A1_GREEN                          0x01
 #define PICONTROL_LED_A1_RED                            0x02
 #define PICONTROL_LED_A2_GREEN                          0x04
 #define PICONTROL_LED_A2_RED                            0x08
 
-// RevPi Connect only
-#define PICONTROL_LED_A3_GREEN                          0x10
-#define PICONTROL_LED_A3_RED                            0x20
-
+#define PICONTROL_LED_A3_GREEN                          0x10	// RevPi Connect only
+#define PICONTROL_LED_A3_RED                            0x20	// RevPi Connect only
+#define PICONTROL_X2_DOUT				0x40	// RevPi Connect only
+#define PICONTROL_WD_TRIGGER                            0x80	// RevPi Connect only
 
 
 /******************************************************************************/

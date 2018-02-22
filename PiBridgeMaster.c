@@ -689,10 +689,14 @@ int PiBridgeMaster_Run(void)
 				i32sRetVal = piIoComm_gotoFWUMode(i32uFWUAddress);
 				pr_info("piIoComm_gotoFWUMode returned %d\n", i32sRetVal);
 
-				if (i32uFWUAddress == RevPiDevice_getAddrRight() - 1)
-					i32uFWUAddress = 2;	// address must be 2 in the following calls
-				else
+				if (i32uFWUAddress < REV_PI_DEV_FIRST_RIGHT) {
 					i32uFWUAddress = 1;	// address must be 1 in the following calls
+				} else {
+					if (i32uFWUAddress == RevPiDevice_getAddrRight() - 1)
+						i32uFWUAddress = 2;	// address must be 2 in the following calls
+					else
+						i32uFWUAddress = 1;	// address must be 1 in the following calls
+				}
 				pr_info("using address %d\n", i32uFWUAddress);
 
 				ret = 0;	// do not return errors here
@@ -780,9 +784,26 @@ int PiBridgeMaster_Run(void)
 		RevPiDevice_setStatus(PICONTROL_STATUS_RUNNING, 0);
 	}
 
-	// set LED and status
+	// set LEDs, Status and GPIOs
+	if (piDev_g.machine_type == REVPI_CONNECT) {
+		if (gpiod_get_value_cansleep(piCore_g.gpio_x2di)) {
+			RevPiDevice_setStatus(0, PICONTROL_STATUS_X2_DIN);
+		} else {
+			RevPiDevice_setStatus(PICONTROL_STATUS_X2_DIN, 0);
+		}
+	}
 	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();
-	revpi_led_trigger_event(&last_led, piCore_g.image.usr.i8uLED);
+
+	revpi_led_trigger_event(last_led, piCore_g.image.usr.i8uLED);
+	if (piDev_g.machine_type == REVPI_CONNECT) {
+		if ((last_led ^ piCore_g.image.usr.i8uLED) & PICONTROL_X2_DOUT) {
+			gpiod_set_value(piCore_g.gpio_x2do, (piCore_g.image.usr.i8uLED & PICONTROL_X2_DOUT) ? 1 : 0);
+		}
+		if ((last_led ^ piCore_g.image.usr.i8uLED) & PICONTROL_WD_TRIGGER) {
+			gpiod_set_value(piCore_g.gpio_wdtrigger, (piCore_g.image.usr.i8uLED & PICONTROL_WD_TRIGGER) ? 1 : 0);
+		}
+	}
+	last_led = piCore_g.image.usr.i8uLED;
 
 	// update every 1 sec
 	if ((kbUT_getCurrentMs() - last_update) > 1000) {

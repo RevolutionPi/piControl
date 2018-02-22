@@ -96,7 +96,7 @@ static int enqueue(INT8U data)
 
 static void clear(void)
 {
-	pr_info_serial("clear recv buffer\n");
+	pr_info_serial2("clear recv buffer\n");
 
 	i16uHead_s = i16uTail_s;
 	i16uRecvLen_s = 0;
@@ -255,7 +255,7 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 		}
 		i16uSent_l += write_l;
 		if (i16uSent_l <= i16uLen_p) {
-			pr_info_serial("send: %d/%d bytes sent\n", i16uSent_l, i16uLen_p);
+			pr_info_serial2("send: %d/%d bytes sent\n", i16uSent_l, i16uLen_p);
 		} else {
 			pr_info_serial("fatal write error %d\n", (int)write_l);
 			return -2;
@@ -472,7 +472,7 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 
 	if (piIoComm_send((INT8U *) & suSendTelegram_l, RS485_HDRLEN + i8uSendDataLen_p + 1) == 0) {
 		uint16_t timeout_l;
-		pr_info_serial("send gateprotocol addr %d cmd 0x%04x\n", suSendTelegram_l.i8uDstAddr, suSendTelegram_l.i16uCmd);
+		pr_info_serial2("send gateprotocol addr %d cmd 0x%04x\n", suSendTelegram_l.i8uDstAddr, suSendTelegram_l.i16uCmd);
 
 		if (i8uAddress_p == 255)	// address 255 is for broadcasts without reply
 			return 0;

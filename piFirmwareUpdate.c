@@ -50,7 +50,7 @@
 // ret < 0: error
 // ret == 0: no update needed
 // ret > 0: updated
-int FWU_update(SDevice *pDev_p)
+int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 {
 	struct file *input;
 	char *filename;
@@ -129,14 +129,14 @@ int FWU_update(SDevice *pDev_p)
 	if ((pApplDesc->i8uSwMajor < pDev_p->sId.i16uSW_Major)
 	    || (pApplDesc->i8uSwMajor == pDev_p->sId.i16uSW_Major && pApplDesc->i16uSwMinor <= pDev_p->sId.i16uSW_Minor)) {
 		// firmware file is older or equal than firmware in module -> nothing to do
-		printUserMsg("firmware is up to date: %d.%d >= %d.%d",
+		printUserMsg(priv, "firmware is up to date: %d.%d >= %d.%d",
 			pDev_p->sId.i16uSW_Major, pDev_p->sId.i16uSW_Minor,
 			pApplDesc->i8uSwMajor, pApplDesc->i16uSwMinor);
 		ret = 0;
 		goto laError;
 	}
 
-	printUserMsg("update firmware: %d.%d --> %d.%d",
+	printUserMsg(priv, "update firmware: %d.%d --> %d.%d",
 		pDev_p->sId.i16uSW_Major, pDev_p->sId.i16uSW_Minor,
 		pApplDesc->i8uSwMajor, pApplDesc->i16uSwMinor);
 

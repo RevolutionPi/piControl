@@ -122,7 +122,6 @@ tpiControlDev piDev_g = {
 
 static dev_t piControlMajor;
 static struct class *piControlClass;
-static char pcErrorMessage[200];
 
 /******************************************************************************/
 /*******************************  Functions  **********************************/
@@ -133,6 +132,31 @@ bool waitRunning(int timeout);	// ms
 /******************************************************************************/
 /***************************** CS Functions  **********************************/
 /******************************************************************************/
+
+static void showPADS(void)
+{
+	void __iomem *base;
+
+	base = devm_ioremap(piDev_g.dev, 0x3f10002c, 12);
+	if (IS_ERR(base)) {
+		pr_err("cannot map PADS");
+	} else {
+		u32 v;
+		int i;
+
+		for (i=0; i<3; i++)
+		{
+			v = readl(base + 4*i);
+			pr_info("PADS %d = %#x   slew=%d  hyst=%d  drive=%d",
+			       i,
+			       v,
+			       (v & 0x10) ? 1 : 0,
+			       (v & 0x08) ? 1 : 0,
+			       (v & 0x07));
+		}
+		devm_iounmap(piDev_g.dev, base);
+	}
+}
 
 /*****************************************************************************/
 /*       I N I T                                                             */
@@ -265,6 +289,7 @@ static int __init piControlInit(void)
 		cleanup();
 		return res;
 	}
+	showPADS();
 
 	piDev_g.init_step = 17;
 
@@ -362,13 +387,14 @@ static int piControlReset(tpiControlInst * priv)
 			return ret;
 		}
 	}
+	showPADS();
 
 	if (!waitRunning(timeout)) {
 		status = -ETIMEDOUT;
 	} else {
 		struct list_head *pCon;
 
-		rt_mutex_lock(&piDev_g.lockListCon);
+		my_rt_mutex_lock(&piDev_g.lockListCon);
 		list_for_each(pCon, &piDev_g.listCon) {
 			tpiControlInst *pos_inst;
 			pos_inst = list_entry(pCon, tpiControlInst, list);
@@ -378,7 +404,7 @@ static int piControlReset(tpiControlInst * priv)
 				bool found = false;
 
 				// add the event to the list only, if it not already there
-				rt_mutex_lock(&pos_inst->lockEventList);
+				my_rt_mutex_lock(&pos_inst->lockEventList);
 				list_for_each(pEv, &pos_inst->piEventList) {
 					pEntry = list_entry(pEv, tpiEventEntry, list);
 					if (pEntry->event == piEvReset) {
@@ -463,16 +489,15 @@ bool waitRunning(int timeout)	// ms
 	return true;
 }
 
-void printUserMsg(const char *s, ...)
+void printUserMsg(tpiControlInst *priv, const char *s, ...)
 {
 	va_list argp;
 
 	va_start(argp, s);
 
-	vsnprintf(pcErrorMessage, sizeof(pcErrorMessage), s, argp);
-	pcErrorMessage[sizeof(pcErrorMessage) - 1] = 0;	// always add a terminating 0
+	vsnprintf(priv->pcErrorMessage, sizeof(priv->pcErrorMessage), s, argp);
 
-	pr_info("%s", pcErrorMessage);
+	pr_info("%s", priv->pcErrorMessage);
 }
 
 /*****************************************************************************/
@@ -512,7 +537,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	piDev_g.PnAppCon++;
 	priv->instNum = piDev_g.PnAppCon;
 
-	rt_mutex_lock(&piDev_g.lockListCon);
+	my_rt_mutex_lock(&piDev_g.lockListCon);
 	list_add(&priv->list, &piDev_g.listCon);
 	rt_mutex_unlock(&piDev_g.lockListCon);
 
@@ -534,7 +559,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 	if (priv->tTimeoutDurationMs > 0) {
 		// if the watchdog is active, set all outputs to 0
 		int i;
-		rt_mutex_lock(&piDev_g.lockPI);
+		my_rt_mutex_lock(&piDev_g.lockPI);
 		for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 			if (RevPiDevice_getDev(i)->i8uActive) {
 				memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
@@ -546,7 +571,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
 	piDev_g.PnAppCon--;
 
-	rt_mutex_lock(&piDev_g.lockListCon);
+	my_rt_mutex_lock(&piDev_g.lockListCon);
 	list_del(&priv->list);
 	rt_mutex_unlock(&piDev_g.lockListCon);
 
@@ -595,7 +620,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 	pr_info("piControlRead Count=%u, Pos=%llu: %02x %02x\n", count, *ppos, pPd[0], pPd[1]);
 #endif
 
-	rt_mutex_lock(&piDev_g.lockPI);
+	my_rt_mutex_lock(&piDev_g.lockPI);
 	if (copy_to_user(pBuf, pPd, nread) != 0) {
 		rt_mutex_unlock(&piDev_g.lockPI);
 		pr_err("piControlRead: copy_to_user failed");
@@ -634,7 +659,7 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 
 	pPd = piDev_g.ai8uPI + *ppos;
 
-	rt_mutex_lock(&piDev_g.lockPI);
+	my_rt_mutex_lock(&piDev_g.lockPI);
 	if (copy_from_user(pPd, pBuf, nwrite) != 0) {
 		rt_mutex_unlock(&piDev_g.lockPI);
 		pr_err("piControlWrite: copy_from_user failed");
@@ -707,7 +732,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	if (prg_nr != KB_GET_LAST_MESSAGE) {
 		// clear old message
-		pcErrorMessage[0] = 0;
+		priv->pcErrorMessage[0] = 0;
 	}
 
 	switch (prg_nr) {
@@ -762,6 +787,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_GET_DEVICE_INFO_LIST:
 		{
 			SDeviceInfo *pDev = (SDeviceInfo *) usr_addr;
+			bool firmware_update = false;
 			int i;
 			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 				pDev[i].i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
@@ -782,6 +808,27 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					pDev[i].i8uModuleState = MODGATECOM_GetOtherFieldbusState(0);
 				if (piCore_g.i8uLeftMGateIdx == i)
 					pDev[i].i8uModuleState = MODGATECOM_GetOtherFieldbusState(1);
+
+				if (	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
+				||	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16
+				||	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DI_16) {
+					// DIO with firmware older than 1.4 should be updated
+					if (	pDev[i].i16uSW_Major < 1
+					    || (pDev[i].i16uSW_Major == 1 && pDev[i].i16uSW_Minor < 4)) {
+						firmware_update = true;
+					}
+				}
+				if (	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
+					// AIO with firmware older than 1.3 should be updated
+					if (	pDev[i].i16uSW_Major < 1
+					    || (pDev[i].i16uSW_Major == 1 && pDev[i].i16uSW_Minor < 3)) {
+						firmware_update = true;
+					}
+				}
+			}
+			if (firmware_update) {
+				printUserMsg(priv, "The firmware of some I/O modules should be updated.\n"
+					     "Please call 'piTest -f'");
 			}
 			status = RevPiDevice_getDevCnt();
 		}
@@ -825,7 +872,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				status = -EFAULT;
 			} else {
 				INT8U i8uValue_l;
-				rt_mutex_lock(&piDev_g.lockPI);
+				my_rt_mutex_lock(&piDev_g.lockPI);
 				i8uValue_l = piDev_g.ai8uPI[pValue->i16uAddress];
 
 				if (pValue->i8uBit >= 8) {
@@ -899,7 +946,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			status = 0;
 			now = ktime_get();
 
-			rt_mutex_lock(&piDev_g.lockPI);
+			my_rt_mutex_lock(&piDev_g.lockPI);
 			piDev_g.tLastOutput2 = piDev_g.tLastOutput1;
 			piDev_g.tLastOutput1 = now;
 
@@ -976,7 +1023,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
 			tel.i16uChannels = pPar->i16uBitfield;
 
-			rt_mutex_lock(&piCore_g.lockUserTel);
+			my_rt_mutex_lock(&piCore_g.lockUserTel);
 			memcpy(&piCore_g.requestUserTel, &tel, sizeof(tel));
 
 			piCore_g.pendingUserTel = true;
@@ -1033,25 +1080,24 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			if (!isRunning()) {
-				printUserMsg("piControl is not running");
+				printUserMsg(priv, "piControl is not running");
 				return -EFAULT;
 			}
 			// at the moment the update works only, if there is only one module connected on the right
+#if 0
 #ifndef ENDTEST_DIO
 			if (RevPiDevice_getDevCnt() > 2)	// RevPi + Module to update
 			{
-				printUserMsg
-				    ("Too many modules! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
+				printUserMsg(priv, "Too many modules! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
 				return -EFAULT;
 			}
 #endif
 			if (RevPiDevice_getDevCnt() < 2
 			    || RevPiDevice_getDev(1)->i8uActive == 0 || RevPiDevice_getDev(1)->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
-				printUserMsg
-				    ("No module to update! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
+				printUserMsg(priv, "No module to update! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
 				return -EFAULT;
 			}
-
+#endif
 			PiBridgeMaster_Stop();
 			msleep(50);
 
@@ -1062,14 +1108,16 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					// -> update all others
 					pr_info("skip %d addr %d\n", i, RevPiDevice_getDev(i)->i8uAddress);
 				} else {
-					ret = FWU_update(RevPiDevice_getDev(i));
-					pr_info("update %d addr %d ret %d\n", i, RevPiDevice_getDev(i)->i8uAddress, ret);
-					if (ret > 0) {
-						cnt++;
-						// update only one device per call
-						break;
-					} else {
-						status = cnt;
+					if (RevPiDevice_getDev(i)->i8uActive) {
+						ret = FWU_update(priv, RevPiDevice_getDev(i));
+						pr_info("update %d addr %d ret %d\n", i, RevPiDevice_getDev(i)->i8uAddress, ret);
+						if (ret > 0) {
+							cnt++;
+							// update only one device per call
+							break;
+						} else {
+							status = cnt;
+						}
 					}
 				}
 			}
@@ -1094,7 +1142,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (!isRunning())
 				return -EFAULT;
 
-			rt_mutex_lock(&piCore_g.lockUserTel);
+			my_rt_mutex_lock(&piCore_g.lockUserTel);
 			if (copy_from_user(&piCore_g.requestUserTel, tel, sizeof(SIOGeneric))) {
 				rt_mutex_unlock(&piCore_g.lockUserTel);
 				status = -EFAULT;
@@ -1120,7 +1168,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			pr_info_drv("wait(%d)\n", priv->instNum);
 			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
-				rt_mutex_lock(&priv->lockEventList);
+				my_rt_mutex_lock(&priv->lockEventList);
 				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
 
 				pr_info_drv("wait(%d): got event %d\n", priv->instNum, pEntry->event);
@@ -1137,7 +1185,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_LAST_MESSAGE:
 		{
-			if (copy_to_user((void *)usr_addr, pcErrorMessage, sizeof(pcErrorMessage))) {
+			if (copy_to_user((void *)usr_addr, priv->pcErrorMessage, sizeof(priv->pcErrorMessage))) {
 				pr_err("piControlIoctl: copy_to_user failed");
 				return -EFAULT;
 			}
@@ -1171,7 +1219,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			if (!isRunning()) {
-				printUserMsg("piControl is not running");
+				printUserMsg(priv, "piControl is not running");
 				return -EFAULT;
 			}
 			PiBridgeMaster_Stop();
@@ -1194,7 +1242,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -ECANCELED;
 			}
 
-			rt_mutex_lock(&piCore_g.lockGateTel);
+			my_rt_mutex_lock(&piCore_g.lockGateTel);
 			if (copy_from_user(piCore_g.ai8uSendDataGateTel, pData->acData, pData->i16uLen)) {
 				rt_mutex_unlock(&piCore_g.lockGateTel);
 				status = -EFAULT;

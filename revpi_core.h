@@ -65,6 +65,11 @@ typedef struct _SRevPiCore {
 	struct gpio_desc *gpio_sniff2a;
 	struct gpio_desc *gpio_sniff2b;
 
+	// watchdog stuff, Connect only
+	struct gpio_desc *gpio_x2di;
+	struct gpio_desc *gpio_x2do;
+	struct gpio_desc *gpio_wdtrigger;
+
 	// handle user telegrams
 	struct rt_mutex lockUserTel;
 	struct semaphore semUserTel;
