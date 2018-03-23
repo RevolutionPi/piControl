@@ -43,9 +43,6 @@
 
 #include "piControlIf.h"
 #include "piControl.h"
-#ifdef KUNBUS_TEST
-#include <IoProtocol.h>
-#endif
 
 /***********************************************************************************/
 /*!
@@ -212,7 +209,7 @@ void showDeviceList(void)
 {
 	int devcount;
 	int dev;
-	SDeviceInfo asDevList[255];
+	SDeviceInfo asDevList[REV_PI_DEV_CNT_MAX];
 
 	// Get device info
 	devcount = piControlGetDeviceInfoList(asDevList);
@@ -249,6 +246,8 @@ void showDeviceList(void)
 		       asDevList[dev].i16uOutputLength);
 		printf("\n");
 	}
+    
+	piShowLastMessage();
 }
 
 /***********************************************************************************/
@@ -291,13 +290,13 @@ void readData(uint16_t offset, uint16_t length, bool cyclic, char format, bool q
 					printf("%02x ", pValues[val]);
 				} else if (format == 'b') {
 					printf("%c%c%c%c%c%c%c%c ",
-					       	pValues[val] & 0x80 ? '1' : '0',
-					       	pValues[val] & 0x40 ? '1' : '0',
-					       	pValues[val] & 0x20 ? '1' : '0',
-					       	pValues[val] & 0x10 ? '1' : '0',
-					       	pValues[val] & 0x08 ? '1' : '0',
-					       	pValues[val] & 0x04 ? '1' : '0',
-					 	pValues[val] & 0x02 ? '1' : '0',
+						pValues[val] & 0x80 ? '1' : '0',
+						pValues[val] & 0x40 ? '1' : '0',
+						pValues[val] & 0x20 ? '1' : '0',
+						pValues[val] & 0x10 ? '1' : '0',
+						pValues[val] & 0x08 ? '1' : '0',
+						pValues[val] & 0x04 ? '1' : '0',
+						pValues[val] & 0x02 ? '1' : '0',
 						pValues[val] & 0x01 ? '1' : '0');
 				} else if (format == 's') {
 					uint16_t ui;
@@ -378,13 +377,13 @@ void readVariableValue(char *pszVariableName, bool cyclic, char format, bool qui
 						printf("1 Byte-Value of %s: ", pszVariableName);
 
 					printf("%c%c%c%c%c%c%c%c\n",
-					       	i8uValue & 0x80 ? '1' : '0',
-					       	i8uValue & 0x40 ? '1' : '0',
-					       	i8uValue & 0x20 ? '1' : '0',
-					       	i8uValue & 0x10 ? '1' : '0',
-					       	i8uValue & 0x08 ? '1' : '0',
-					       	i8uValue & 0x04 ? '1' : '0',
-					       	i8uValue & 0x02 ? '1' : '0',
+						i8uValue & 0x80 ? '1' : '0',
+						i8uValue & 0x40 ? '1' : '0',
+						i8uValue & 0x20 ? '1' : '0',
+						i8uValue & 0x10 ? '1' : '0',
+						i8uValue & 0x08 ? '1' : '0',
+						i8uValue & 0x04 ? '1' : '0',
+						i8uValue & 0x02 ? '1' : '0',
 						i8uValue & 0x01 ? '1' : '0');
 				} else {
 					if (!quiet)
@@ -811,11 +810,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	// Scan argument
-#ifdef KUNBUS_TEST
-	while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlfab:c:S")) != -1) {
-#else
 	while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlfS")) != -1) {
-#endif
 		switch (c) {
 		case 'd':
 			showDeviceList();
@@ -943,7 +938,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'f':
-			rc = piControlUpdateFirmware(32);
+			rc = piControlUpdateFirmware(0);
 			if (rc) {
 				printf("piControlUpdateFirmware returned: %d (%s)\n", rc, strerror(-rc));
 				return rc;
@@ -961,37 +956,6 @@ int main(int argc, char *argv[])
 			}
 			break;
 
-#ifdef KUNBUS_TEST
-		case 'a':
-			// Get raw values
-			piControlIntMsg(IOP_TYP1_CMD_DATA4, NULL, 0);
-			break;
-		case 'b':
-			{
-				unsigned char enable;
-
-				// Enable/disable outputs
-				if (*optarg == '0')
-					enable = 0;
-				else
-					enable = 1;
-				piControlIntMsg(IOP_TYP1_CMD_DATA6, &enable, 1);
-			}
-			break;
-		case 'c':
-			{
-				int addr, serial;
-
-				rc = sscanf(optarg, "%d,%d", &addr, &serial);
-				if (rc != 2) {
-					printf("Wrong arguments for set serial function\n");
-					return 0;
-				}
-
-				rc = piControlSetSerial(addr, serial);
-			}
-			break;
-#endif
 		case 'h':
 		default:
 			printHelp(progname);

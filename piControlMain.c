@@ -789,6 +789,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			SDeviceInfo *pDev = (SDeviceInfo *) usr_addr;
 			bool firmware_update = false;
 			int i;
+
 			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 				pDev[i].i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
 				pDev[i].i8uActive = RevPiDevice_getDev(i)->i8uActive;
@@ -827,8 +828,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				}
 			}
 			if (firmware_update) {
-				printUserMsg(priv, "The firmware of some I/O modules should be updated.\n"
-					     "Please call 'piTest -f'");
+				printUserMsg(priv, "The firmware of some I/O modules must be updated.\n"
+					     "Please connect only one module to the RevPi and call 'piTest -f'");
 			}
 			status = RevPiDevice_getDevCnt();
 		}
@@ -1108,7 +1109,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					// -> update all others
 					pr_info("skip %d addr %d\n", i, RevPiDevice_getDev(i)->i8uAddress);
 				} else {
-					if (RevPiDevice_getDev(i)->i8uActive) {
+					if (RevPiDevice_getDev(i)->sId.i16uModulType < PICONTROL_SW_OFFSET) {
 						ret = FWU_update(priv, RevPiDevice_getDev(i));
 						pr_info("update %d addr %d ret %d\n", i, RevPiDevice_getDev(i)->i8uAddress, ret);
 						if (ret > 0) {
