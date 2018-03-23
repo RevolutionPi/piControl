@@ -1,3 +1,10 @@
+picontrol (1.2.0-1) stable; urgency=medium
+
+  * Some new ioctl calls
+  * new manual page
+
+ -- Kunbus <admin@kunbus.de>  Fri, 23 Mar 2018 13:50:00 +0200
+
 picontrol (1.1.1-1) stable; urgency=medium
 
   * Bugfix in piControlIf
