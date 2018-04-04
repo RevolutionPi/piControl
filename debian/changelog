@@ -1,3 +1,9 @@
+picontrol (1.2.0-2) stable; urgency=medium
+
+  * Install ioctl manual page
+
+ -- Kunbus <admin@kunbus.de>  Wed, 04 Apr 2018 13:15:00 +0200
+
 picontrol (1.2.0-1) stable; urgency=medium
 
   * Some new ioctl calls

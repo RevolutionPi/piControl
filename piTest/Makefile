@@ -27,7 +27,11 @@ install:
 	ln -sf piTest		$(DESTDIR)/usr/bin/piControlReset
 	install -m 755 -d	$(DESTDIR)/usr/share/man/man1
 	install -m 644 piTest.1	$(DESTDIR)/usr/share/man/man1
-	gzip -9 $(DESTDIR)/usr/share/man/man1/piTest.1
+	if [ -e ../picontrol_ioctl.4 ] ; then				\
+		install -m 755 -d $(DESTDIR)/usr/share/man/man4	;	\
+		install -m 644 ../picontrol_ioctl.4			\
+			$(DESTDIR)/usr/share/man/man4 ;			\
+	fi
 
 clean:
 	rm -f $(ODIR)/*.o piTest
