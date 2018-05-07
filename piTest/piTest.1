@@ -1,10 +1,10 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.\" (C) Copyright 2016-2017 Kunbus GmbH
+.\" (C) Copyright 2016-2018 Kunbus GmbH
 .\"
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH piTest 1 "May 11 2017"
+.TH piTest 1 "May 7 2018"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -24,8 +24,8 @@ piTest \- interact with in-kernel piControl process
 .RI [ options ]
 .SH DESCRIPTION
 .B piTest
-allows listing the I/O devices and gateway devices attached to a RevPi
-Core, reading and writing values in the process image and resetting the
+allows listing the I/O and gateway modules attached to a RevPi Core or
+Connect, reading and writing values in the process image and resetting the
 in-kernel piControl process.  Revolution Pi is a set of IoT products
 based on the Raspberry Pi and geared towards industrial usage.
 .SH OPTIONS
@@ -90,6 +90,16 @@ The DIO must be the first module on the right of the RevPi.
 .TP
 .B \-f
 Starts the firmware update process.
+.TP
+.B \-l
+Listen for events such as a piControl reset initiated by another process.
+.TP
+.B \-S
+Stop cyclic synchronization of the process image with attached I/O and
+gateway modules. It is then possible to manually set values in the process
+image using the \fI-w\fP option and thereby simulate that these values were
+received from the attached modules. To restart synchronization with attached
+modules, invoke the program with \fI-S\fP once more.
 .TP
 .B \-x
 Reset control process.
