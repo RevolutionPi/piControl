@@ -90,7 +90,7 @@
 #define DEBUG_DEVICE_SPI
 extern int __debug_show_msg;
 #define pr_info_spi(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-#define pr_info_spi2(fmt, ...)	if (__debug_show_msg) pr_info(fmt, ##__VA_ARGS__)
+#define pr_info_spi2(fmt, ...)	if (__debug_show_msg) { pr_info(fmt, ##__VA_ARGS__); __debug_show_msg--; }
 #else
 #define pr_info_spi(fmt, ...)
 #define pr_info_spi2(fmt, ...)

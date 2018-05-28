@@ -34,6 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #else
 #error this file can only by used in kernel context
 #endif
@@ -278,6 +279,8 @@ INT32U spi_transceive (
 
     if (tx_p)
 	memcpy(pi8uSpiMemTx, tx_p, len_p);
+    else
+	memset(pi8uSpiMemTx, 0, len_p);
 
     memset(&tTransfer_l, 0, sizeof(tTransfer_l));
     tTransfer_l.tx_buf = pi8uSpiMemTx;

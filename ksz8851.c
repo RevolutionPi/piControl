@@ -185,6 +185,8 @@ static INT16U ksz8851_regrd(INT16U reg)
 
     read_cmd[0] = (INT8U)(cmd >> 8);
     read_cmd[1] = (INT8U)cmd;
+    read_cmd[2] = 0;
+    read_cmd[3] = 0;
 
     BSP_SPI_RWPERI_chipSelectEnable(&BSP_KSZ8851_tRwPeriData_g);
 
@@ -277,7 +279,15 @@ TBOOL ksz8851Init(void)
 {
     INT16U	dev_id;
 
-    ksz8851HardwareReset();
+    if (spi_selected_chip() == 0)
+    {
+	// perform a hardware reset only for the first device because it is performed on all devices
+	ksz8851HardwareReset();
+    }
+
+#ifdef DEBUG_DEVICE_SPI
+    __debug_show_msg = 1000;
+#endif
 
     if (ksz8851InitSpi())
 	    return false;
@@ -401,7 +411,7 @@ void ksz8851_show(void)
 	    pp[(idx + pi) % PLL], pt[(idx + pi) % PLL], pl[(idx + pi) % PLL],
 	    ppr[(idx + pir) % PLL], ptr[(idx + pir) % PLL], plr[(idx + pir) % PLL]);
     }
-    dump_stack();
+    //dump_stack();
 }
 
 //+=============================================================================================
@@ -643,7 +653,9 @@ static INT16U ksz8851BeginPacketRetrieve(void)
 	{
 	    // this should not happen, ISR signals packet but frame count is 0
 	    // -> clear ISR
-	    pr_info_spi2("ksz8851BeginPacketRetrieve abort2 %d\n", spi_selected_chip());
+	    pr_info_spi2("ksz8851BeginPacketRetrieve abort2 %d\nMIB: %d %d %d %d %d %d %d %d %d\n", spi_selected_chip(),
+			 ksz8851readMIB(2), ksz8851readMIB(3), ksz8851readMIB(4), ksz8851readMIB(5), ksz8851readMIB(6),
+			 ksz8851readMIB(7), ksz8851readMIB(8), ksz8851readMIB(12), ksz8851readMIB(13));
 
 	    return 0;
 	}
@@ -796,6 +808,7 @@ TBOOL ksz8851PacketRead(
 {
     static INT16U recvIntStatus;
     INT16U i16uLength;
+    //INT16U *pi16uData;
     TBOOL bRet = bFALSE;
 
     recvIntStatus = ksz8851ProcessInterrupt();
@@ -803,7 +816,7 @@ TBOOL ksz8851PacketRead(
     {
 	// No packets available
 	pr_info_spi2("ksz8851BeginPacketRetrieve abort1 %d\n", spi_selected_chip());
-	//return bFALSE;
+	return bFALSE;
     }
 
     // clear RX interrupt, chip sets the frame count register
@@ -835,6 +848,8 @@ TBOOL ksz8851PacketRead(
 	ksz8851RetrievePacketData(ptRXbuffer, i16uLength);
 	*pi16uLength_p = i16uLength;
 	ksz8851EndPacketRetrieve();
+	//pi16uData = (INT16U *)ptRXbuffer;
+	//pr_info_spi("ksz8851PacketRead(%d) received paket with %d bytes, cmd 0x%x\n", spi_selected_chip(), i16uLength, pi16uData[8]);
 
 	bRet = bTRUE;
     }
@@ -909,7 +924,7 @@ TBOOL ksz8851PacketSend(
 void ksz8851HardwareReset(void)
 {
 #ifdef __KUNBUSPI_KERNEL__
-    pr_info_spi("ksz8851HardwareReset\n");
+    pr_info_spi("ksz8851HardwareReset(%d)\n", spi_selected_chip());
     if (gpio_request(GPIO_RESET, "KSZReset") < 0)
     {
 	pr_err("kzs8851Reset: Cannot request gpio GPIO_RESET\n");

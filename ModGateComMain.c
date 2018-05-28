@@ -188,7 +188,7 @@ TBOOL MG_LL_timed_out(LLHandle llHdl)
 INT32U MG_LL_send(LLHandle llHdl, MODGATECOM_Packet * pData_p)
 {
 	if (llHdl->state >= 2) {
-		pr_info_modgate("%d: should no send %x, ack missing. cmd %x\n", spi_selected_chip(),
+		pr_info_modgate("%d: should not send %x, ack missing. cmd %x\n", spi_selected_chip(),
 				llHdl->Header.i8uCounter, pData_p->strTransportLayer.i16uCmd);
 		llHdl->state = 1;
 	}
@@ -326,7 +326,7 @@ check_again:
 //                                          || llHdl->pLastData->strTransportLayer.i16uCmd == 1) {
 					if (1) {
 						pr_info_modgate
-						    ("%d: EthDrv_s->PacketSend: abort %d  tick %u  now %u  cmd %d len %d\n",
+						    ("%d: EthDrv_s->PacketSend: abort %d  tick %u  now %u  cmd %x len %d\n",
 						     spi_selected_chip(), llHdl->send_retry, llHdl->send_tick,
 						     kbUT_getCurrentMs(), llHdl->pLastData->strTransportLayer.i16uCmd,
 						     MODGATE_TL_HEADER_LEN +
@@ -334,6 +334,7 @@ check_again:
 						// ignore missing ACK an go back to idle state
 						MG_LL_abort(llHdl);
 						llHdl->timed_out = bTRUE;
+						//dump_stack();
 					} else {
 						// resend
 						pr_info_modgate
@@ -437,6 +438,7 @@ INT32U MODGATECOM_init(INT8U * pi8uInData_p, INT16U i16uInDataLen_p,
 	MODGATE_OwnID_g.i16uFBS_OutputLength = i16uOutDataLen_p;
 	MODGATE_OwnID_g.i16uFeatureDescriptor = MODGATE_feature_IODataExchange;
 
+	spi_select_chip(0);
 	EthDrv_s->hardwareReset();
 
 	for (inst = 0; inst < MODGATECOM_MAX_MODULES; inst++) {
@@ -549,7 +551,7 @@ void MODGATECOM_run(void)
 #endif
 				DURSTART(l3);
 				if (pPacket_l) {
-					//pr_info_modgate("%d: MG_LL_recv: packet 0x%x\n", inst, pPacket_l->strTransportLayer.i16uCmd);
+					pr_info_modgate("%d: MG_LL_recv: packet 0x%x\n", inst, pPacket_l->strTransportLayer.i16uCmd);
 					switch (pPacket_l->strTransportLayer.i16uCmd) {
 					case MODGATE_AL_CMD_ID_Req:
 						// send response in all states
@@ -590,6 +592,7 @@ void MODGATECOM_run(void)
 							AL_Data_s[inst].enLedStateAct = MODGATECOM_enPLS_RUN;
 							AL_Data_s[inst].i8uState = MODGATE_ST_RUN;
 							bSend = bTRUE;
+
 #if 0				//MD Testcode:
 							// this code was implemented for the EtherNet/IP Module because the LED 1 is not used there
 							// the LED 1 will become red, when the time between two packets with cyclic process data

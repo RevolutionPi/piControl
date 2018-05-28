@@ -62,6 +62,7 @@
 #include <linux/thermal.h>
 #include <linux/of.h>
 #include <asm/div64.h>
+#include <linux/syscalls.h>
 
 #include "revpi_common.h"
 #include "revpi_core.h"
@@ -617,7 +618,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 	pPd = piDev_g.ai8uPI + *ppos;
 
 #ifdef VERBOSE
-	pr_info("piControlRead Count=%u, Pos=%llu: %02x %02x\n", count, *ppos, pPd[0], pPd[1]);
+	pr_info("piControlRead inst %d Count=%u, Pos=%llu: %02x %02x\n", priv->instNum, count, *ppos, pPd[0], pPd[1]);
 #endif
 
 	my_rt_mutex_lock(&piDev_g.lockPI);
@@ -888,6 +889,10 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				piDev_g.ai8uPI[pValue->i16uAddress] = i8uValue_l;
 				rt_mutex_unlock(&piDev_g.lockPI);
 
+				if (priv->tTimeoutDurationMs > 0) {
+					priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
+				}
+
 #ifdef VERBOSE
 				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n", pValue->i16uAddress, pValue->i8uBit, pValue->i8uValue, i8uValue_l);
 #endif
@@ -957,13 +962,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 				if (len >= 8) {
 					len /= 8;
-#if 0
-					if (memcmp(piDev_g.ai8uPI + addr, (void *)(usr_addr + addr), len))
-						pr_info("piControlIoctl copy %d bytes at offset %d: %x %x %x %x\n", len,
-							addr, ((unsigned char *)(usr_addr + addr))[0],
-							((unsigned char *)(usr_addr + addr))[1],
-							((unsigned char *)(usr_addr + addr))[2], ((unsigned char *)(usr_addr + addr))[3]);
-#endif
 					if (copy_from_user(piDev_g.ai8uPI + addr, (void *)(usr_addr + addr), len) != 0) {
 						status = -EFAULT;
 						break;
@@ -982,8 +980,22 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 					//pr_info("piControlIoctl copy mask %02x at offset %d\n", mask, addr);
 				}
+#if 0
+				pr_info("piControlIoctl inst %d time %5d: copy %d bits at offset %d: %x %x %x %x\n",
+					priv->instNum,
+					(int)(ktime_to_ms(now)) % 10000,
+					len, addr,
+					((unsigned char *)(usr_addr + addr))[0],
+					((unsigned char *)(usr_addr + addr))[1],
+					((unsigned char *)(usr_addr + addr))[2],
+					((unsigned char *)(usr_addr + addr))[3]);
+#endif
 			}
 			rt_mutex_unlock(&piDev_g.lockPI);
+
+			if (priv->tTimeoutDurationMs > 0) {
+				priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
+			}
 		}
 		break;
 
