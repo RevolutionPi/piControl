@@ -1,3 +1,9 @@
+picontrol (1.2.1-1) stable; urgency=medium
+
+  * Show names of the new Connect modules
+
+ -- Kunbus <admin@kunbus.de>  Tue, 29 May 2018 09:15:00 +0200
+
 picontrol (1.2.0-2) stable; urgency=medium
 
   * Install ioctl manual page
