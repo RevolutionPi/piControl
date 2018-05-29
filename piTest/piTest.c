@@ -141,6 +141,12 @@ char *getModuleName(uint16_t moduletype)
 		return "RevPi Compact";
 	case 105:
 		return "RevPi Connect";
+	case 109:
+		return "RevPi CON CAN";
+	case 110:
+		return "RevPi CON M-Bus";
+	case 111:
+		return "RevPi CON BT";
 
 	case PICONTROL_SW_MODBUS_TCP_SLAVE:
 		return "ModbusTCP Slave Adapter";
@@ -246,7 +252,7 @@ void showDeviceList(void)
 		       asDevList[dev].i16uOutputLength);
 		printf("\n");
 	}
-    
+
 	piShowLastMessage();
 }
 

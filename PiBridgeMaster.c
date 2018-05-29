@@ -170,7 +170,10 @@ int PiBridgeMaster_Adjust(void)
 	for (i = 0; i < piDev_g.devs->i16uNumDevices; i++) {
 		if (state[i] == 0) {
 			j = RevPiDevice_getDevCnt();
-			if (piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET) {
+			if ( piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET
+			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_CAN
+			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_BT
+			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_MBUS) {
 				// if a module is already defined as software module in the RAP file,
 				// it is handled by user space software and therefore always active
 				RevPiDevice_getDev(j)->i8uActive = 1;
