@@ -1,4 +1,9 @@
 #include <linux/sched.h>
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+#include <linux/sched/task.h>
+#include <uapi/linux/sched/types.h>
+#endif
 
 enum revpi_power_led_mode {
 	REVPI_POWER_LED_OFF = 0,
