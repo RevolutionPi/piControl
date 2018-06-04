@@ -43,6 +43,7 @@
 
 #include "revpi_common.h"
 #include "revpi_core.h"
+#include "compat.h"
 
 static const struct kthread_prio revpi_core_kthread_prios[] = {
 	/* spi pump to RevPi Gateways */
@@ -114,12 +115,12 @@ static int piGateThread(void *data)
 	time = hrtimer_cb_get_time(&piCore_g.gateTimer);
 
 	/* start after one second */
-	time.tv64 += HZ;
+	time = ktime_add_ms(time, MSEC_PER_SEC);
 
 	pr_info("mGate thread started\n");
 
 	while (!kthread_should_stop()) {
-		time.tv64 += interval;
+		time = ktime_add_ns(time, interval);
 
 		hrtimer_start(&piCore_g.gateTimer, time, HRTIMER_MODE_ABS);
 		down(&piCore_g.gateSem);
@@ -316,16 +317,16 @@ static int piIoThread(void *data)
 		revpi_check_timeout();
 
 		if (piCore_g.eBridgeState == piBridgeInit) {
-			time.tv64 += INTERVAL_RS485;
+			time = ktime_add_ns(time, INTERVAL_RS485);
 		} else {
-			time.tv64 += INTERVAL_IO_COMM;
+			time = ktime_add_ns(time, INTERVAL_IO_COMM);
 		}
 
-		if ((now.tv64 - time.tv64) > 0) {
+		if (ktime_after(now, time)) {
 			// the call of PiBridgeMaster_Run() needed more time than the INTERVAL
 			// -> wait an additional ms
 			//pr_info("%d ms too late, state %d\n", (int)((now.tv64 - time.tv64) >> 20), piCore_g.eBridgeState);
-			time.tv64 = now.tv64 + INTERVAL_ADDITIONAL;
+			time = ktime_add_ns(now, INTERVAL_ADDITIONAL);
 		}
 
 		hrtimer_start(&piCore_g.ioTimer, time, HRTIMER_MODE_ABS);
