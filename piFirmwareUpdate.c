@@ -41,6 +41,7 @@
 #include <asm/uaccess.h>
 #include <asm/segment.h>
 
+#include "compat.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "piFirmwareUpdate.h"
@@ -60,7 +61,6 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	TFileHead header;
 	T_KUNBUS_APPL_DESCR *pApplDesc;
 	int read;
-	mm_segment_t oldfs;
 
 	filename = kmalloc(PATH_MAX, GFP_KERNEL);
 
@@ -73,12 +73,9 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 		return -ENOENT;
 	}
 
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-
-	read = vfs_read(input, (char *)&header, sizeof(header), &input->f_pos);
+	read = kernel_read(input, (char *)&header, sizeof(header), &input->f_pos);
 	if (read <= 0) {
-		pr_err("vfs_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
+		pr_err("kernel_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
 		ret = -EINVAL;
 		goto laError;
 	}
@@ -118,9 +115,9 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	vfs_llseek(input, header.ulLength + 6, SEEK_SET);
 
 	// read the whole file
-	read = vfs_read(input, data, length, &input->f_pos);
+	read = kernel_read(input, data, length, &input->f_pos);
 	if (read < length) {
-		pr_err("vfs_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
+		pr_err("kernel_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
 		goto laError;
 	}
 
@@ -161,7 +158,6 @@ laError:
 	if (data)
 		kfree(data);
 	kfree(filename);
-	set_fs(oldfs);
 	close_filename(input);
 
 	return ret;

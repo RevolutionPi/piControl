@@ -46,6 +46,7 @@
 #include <project.h>
 #include <common_define.h>
 #include <RS485FwuCommand.h>
+#include "compat.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "piIOComm.h"
@@ -107,17 +108,12 @@ int UartThreadProc(void *pArg)
 #define MAX_READ_BUF 1
 	char acBuf_l[MAX_READ_BUF];
 	UIoProtocolHeader ioHeader_l;
-	mm_segment_t oldfs;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
 
 	while (!kthread_should_stop()) {
 		//TODO optimize
-		int r = vfs_read(piIoComm_fd_m, acBuf_l, MAX_READ_BUF, &piIoComm_fd_m->f_pos);
+		int r = kernel_read(piIoComm_fd_m, acBuf_l, MAX_READ_BUF, &piIoComm_fd_m->f_pos);
 		if (r != MAX_READ_BUF) {	// not finished yet
 			clear();
-			set_fs(oldfs);
 			return -1;
 		} else {
 			down(&recvLenSem);
@@ -146,8 +142,6 @@ int UartThreadProc(void *pArg)
 			up(&recvLenSem);
 		}
 	}
-
-	set_fs(oldfs);
 
 	pr_info("UART Thread Exit\n");
 
@@ -248,7 +242,7 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 #endif
 
 	while (i16uSent_l < i16uLen_p) {
-		write_l = vfs_write(piIoComm_fd_m, buf_p + i16uSent_l, i16uLen_p - i16uSent_l, &piIoComm_fd_m->f_pos);
+		write_l = kernel_write(piIoComm_fd_m, buf_p + i16uSent_l, i16uLen_p - i16uSent_l, &piIoComm_fd_m->f_pos);
 		if (write_l < 0) {
 			pr_info_serial("write error %d\n", (int)write_l);
 			return -1;

@@ -40,6 +40,7 @@
 #include <asm/uaccess.h>
 #include <asm/segment.h>
 
+#include "compat.h"
 #include "json.h"
 #include <piControl.h>
 #include <piConfig.h>
@@ -120,7 +121,6 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 	int32_t read;
 	uint32_t lines, col, i, len;
 	char *buffer;
-	mm_segment_t oldfs;
 	uint32_t processed;
 
 	buffer = kmalloc(BUFFLEN, GFP_KERNEL);
@@ -129,18 +129,15 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 		return -1;
 	}
 
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-
 	lines = 1;
 	col = 0;
 	processed = 0;
 	len = BUFFLEN;
 
 	while (1) {
-		read = vfs_read(input, buffer + (BUFFLEN - len), len, &input->f_pos);
+		read = kernel_read(input, buffer + (BUFFLEN - len), len, &input->f_pos);
 		if (read <= 0) {
-			pr_err("vfs_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
+			pr_err("kernel_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
 			break;
 		}
 		ret = json_parser_string(parser, buffer, read, &processed);
@@ -166,7 +163,6 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 		*retlines = lines;
 	if (retcols)
 		*retcols = col;
-	set_fs(oldfs);
 	kfree(buffer);
 	return ret;
 }
