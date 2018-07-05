@@ -287,15 +287,8 @@ extern "C" {
 	INT32U spi_transceive(INT8U i8uPort_p, INT8U * tx, INT8U * rx, INT32U len, TBOOL bWaitTr_p);
 	TBOOL spi_transceive_done(INT8U i8uPort_p);
 
-#if defined (STM32F103ZD) || defined (STM32F2XX) || defined (STM32F30X) || defined (STM32F40_41xxx) || defined (STM32F427_437xx) || defined (STM32F429_439xx) || defined (STM32F401xx)
-	void reset_spi_slave(INT8U spi);
-	void spi_slave_transceive_init(INT8U i8uPort_p, INT8U * tx, INT8U * rx, INT32U len);
-	TBOOL spi_slave_transceive_done(INT8U i8uPort_p, TBOOL bStopWaiting_p);
-#endif
-#if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
 	void spi_select_chip(INT8U i8uChip_p);
 	INT8U spi_selected_chip(void);
-#endif
 
 	void spi_transceive_irq(INT8U i8uPort_p);
 

@@ -43,11 +43,7 @@
 #endif
 
 #include <kbAlloc.h>
-#ifdef __KUNBUSPI_KERNEL__
 #include <linux/string.h>
-#else
-#include <string.h>
-#endif
 #include <bsp/globalIntCtrl/bspGlobalIntCtrl.h>
 
 

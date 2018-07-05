@@ -32,19 +32,9 @@
 
 #include <project.h>
 
-#ifdef __KUNBUSPI_KERNEL__
 #include <linux/kernel.h>
-#elif defined(__KUNBUSPI__)
-#include <stdio.h>
-#include <stdlib.h>
-#define pr_err(...)      printf(__VA_ARGS__)
-#endif // __KUNBUSPI__
 
 #include <common_define.h>
-
-#ifdef __STM32GENERIC__
-#include <bsp\setjmp\BspSetJmp.h>
-#endif // __STM32GENERIC__
 
 #include <stdarg.h>
 
@@ -95,39 +85,12 @@ void MODGATECOM_error(INT32U i32uErrCode_p,	//!< [in] common error code, defined
 		      INT8U i8uParaCnt_p,	//!< [in] number of parameters in bytes
 		      ...)	//!< [in] variable list of INT8U parameters
 {
-#ifdef __KUNBUSPI_KERNEL__
 	if (bFatal_p) {
 		i32uFatalError_s = i32uErrCode_p;
 		pr_err("MODGATECOM_error fatal 0x%08x\n", i32uErrCode_p);
 	} else {
 		pr_err("MODGATECOM_error 0x%08x\n", i32uErrCode_p);
 	}
-#elif defined(__KUNBUSPI__)
-	if (bFatal_p) {
-		pr_err("MODGATECOM_error fatal 0x%08x\n", i32uErrCode_p);
-		exit(i32uErrCode_p);
-	} else {
-		pr_err("MODGATECOM_error 0x%08x\n", i32uErrCode_p);
-	}
-#else
-	va_list argptr_l;
-
-	if (MODGATECOM_cbErrHandler_s) {
-		va_start(argptr_l, i8uParaCnt_p);
-		MODGATECOM_cbErrHandler_s(i32uErrCode_p, bFatal_p, i8uParaCnt_p, argptr_l);
-	}
-
-	if (bFatal_p == bTRUE) {
-//        kbBSP_LED_setFatalError (kbBSP_LED_RED_ON);
-
-		if (MODGATECOM_ptJumpBuf_s) {
-			bspLongJmp(*MODGATECOM_ptJumpBuf_s, 1);
-		}
-
-		for (;;) {
-		}
-	}
-#endif // __KUNBUSPI__
 }
 
 //*************************************************************************************************

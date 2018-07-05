@@ -30,14 +30,10 @@
  *=======================================================================================
  */
 
-#ifdef __KUNBUSPI_KERNEL__
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
-#else
-#error this file can only by used in kernel context
-#endif
 
 #include <common_define.h>
 #include <bsp/spi/spi.h>

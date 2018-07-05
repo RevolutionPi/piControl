@@ -30,12 +30,7 @@
  *=======================================================================================
  */
 
-#ifdef __KUNBUSPI_KERNEL__
 #include <linux/string.h>
-#else
-#include <string.h>
-#endif
-
 #include "common_define.h"
 #include <bsp/systick/systick.h>
 

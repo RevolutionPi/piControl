@@ -295,7 +295,7 @@ extern ETHERNET_INTERFACE EthDrvKSZ8851_g;
 #define   KSZ8851_IER_RX_WOL_LINKUP           0x0008    /* Enable WOL on link up detect interrupt */
 #define   KSZ8851_IER_RX_WOL_ENERGY           0x0004    /* Enable WOL on energy detect interrupt */
 #define   KSZ8851_IER_RX_SPI_ERROR            0x0002    /* Enable receive SPI bus error interrupt */
-#define   KSZ8851_IER_WOL_DELAY_ENERGY         0x0001    /* Enable delay generate WOL on energy detect */
+#define   KSZ8851_IER_WOL_DELAY_ENERGY        0x0001    /* Enable delay generate WOL on energy detect */
 #define   KSZ8851_IER_MASK                    ( KSZ8851_IER_RX  ) //| KSZ8851_IER_TX | KSZ8851_IER_PHY | KSZ8851_IER_TX_SPACE
 
 #define KSZ8851_ISR             0x92       /* ISR */

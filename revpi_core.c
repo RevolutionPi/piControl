@@ -92,12 +92,6 @@ static int piGateThread(void *data)
 	INT8U i8uLastState[2];
 	int i;
 	s64 interval;
-#ifdef MEASURE_DURATION
-	INT32U j1, j1_max = 0;
-	INT32U j2, j2_max = 0;
-	INT32U j3, j3_max = 0;
-	INT32U j4, j4_max = 0;
-#endif
 #ifdef VERBOSE
 	INT16U val;
 	val = 0;
@@ -127,13 +121,10 @@ static int piGateThread(void *data)
 	while (!kthread_should_stop()) {
 		time.tv64 += interval;
 
-		DURSTART(j4);
 		hrtimer_start(&piCore_g.gateTimer, time, HRTIMER_MODE_ABS);
 		down(&piCore_g.gateSem);
-		DURSTOP(j4);
 
 		if (isRunning()) {
-			DURSTART(j1);
 			if (piDev_g.stopIO == false) {
 				my_rt_mutex_lock(&piDev_g.lockPI);
 				if (piDev_g.machine_type == REVPI_CORE) {
@@ -152,12 +143,9 @@ static int piGateThread(void *data)
 				}
 				rt_mutex_unlock(&piDev_g.lockPI);
 			}
-			DURSTOP(j1);
 		}
 
-		DURSTART(j2);
 		MODGATECOM_run();
-		DURSTOP(j2);
 
 		if (MODGATECOM_has_fatal_error()) {
 			// stop the thread if an fatal error occurred
@@ -204,7 +192,6 @@ static int piGateThread(void *data)
 		i8uLastState[0] = AL_Data_s[0].i8uState;
 		i8uLastState[1] = AL_Data_s[1].i8uState;
 
-		DURSTART(j3);
 		if (isRunning()) {
 			if (piDev_g.stopIO == false) {
 				my_rt_mutex_lock(&piDev_g.lockPI);
@@ -224,7 +211,6 @@ static int piGateThread(void *data)
 				rt_mutex_unlock(&piDev_g.lockPI);
 			}
 		}
-		DURSTOP(j3);
 
 #ifdef VERBOSE
 		val++;

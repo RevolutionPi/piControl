@@ -33,24 +33,10 @@
 #ifndef MODGATECOMMAIN_H_INC
 #define MODGATECOMMAIN_H_INC
 
-#if defined(__KUNBUSPI__) || defined(__KUNBUSPI_KERNEL__)
 #define MODGATECOM_MAX_MODULES      2
-#else
-#define MODGATECOM_MAX_MODULES      1
-#endif
 
 #if defined (_MSC_VER)
 #pragma warning (disable: 4200)
-#endif
-
-#if defined(MEASURE_DURATION)
-#define DURSTART(x)             x = kbUT_getCurrentMs()
-#define DURSTOP(x)              x = (kbUT_getCurrentMs() - x); \
-				if (x##_max < x)    x##_max = x
-#endif
-#ifndef DURSTART
-#define DURSTART(x)
-#define DURSTOP(x)
 #endif
 
 #include <kbUtilities.h>

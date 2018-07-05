@@ -37,6 +37,7 @@
 
 #define PRINT_MODGATE_COM_STATE
 #if 0
+#define DEBUG_MODGATE
 #define pr_info_modgate(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #else
 #define pr_info_modgate(fmt, ...)
@@ -139,17 +140,4 @@ extern int __debug_show_msg;
 #undef pr_fmt
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
 
-//#define MEASURE_DURATION
-#ifdef MEASURE_DURATION
-#define DURSTART(x)	x = kbUT_getCurrentMs()
-#define DURSTOP(x)	x = (kbUT_getCurrentMs() - x); \
-			if (x < 0x80000000 && x##_max < x) \
-			{ \
-				x##_max = x; \
-				pr_info("max " #x " %u\n", x##_max); \
-			}
-#endif
-
 #endif // BSPCONFIG_H_INC
-
-
