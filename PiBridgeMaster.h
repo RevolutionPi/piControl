@@ -66,7 +66,6 @@ void PiBridgeMaster_setDefaults(void);
 int PiBridgeMaster_Run(void);
 void PiBridgeMaster_Stop(void);
 void PiBridgeMaster_Continue(void);
-int PiBridgeMaster_gotoMGateComMode(void);
 INT32S PiBridgeMaster_FWUModeEnter(INT32U address, INT8U i8uScanned);
 INT32S PiBridgeMaster_FWUsetSerNum(INT32U serNum);
 INT32S PiBridgeMaster_FWUflashErase(void);

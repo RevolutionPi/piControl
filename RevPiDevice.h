@@ -52,6 +52,7 @@ typedef struct _SDevice
     INT16U i16uConfigOffset;
     INT16U i16uErrorCnt;
     MODGATECOM_IDResp sId;
+    INT8U i8uModuleState;
 } SDevice;
 
 
@@ -80,6 +81,7 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void);
 void RevPiDevice_startDataexchange(void);
 void RevPiDevice_stopDataexchange(void);
 void RevPiDevice_checkFirmwareUpdate(void);
+u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type);
 INT8U RevPiDevice_setStatus(INT8U clr, INT8U set);
 INT8U RevPiDevice_getStatus(void);
 

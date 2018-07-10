@@ -3,7 +3,6 @@
 #include <linux/semaphore.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/spi/spi.h>
 #include <linux/kthread.h>
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
@@ -12,6 +11,7 @@
 #include <linux/gpio.h>
 #include <linux/wait.h>
 #include <linux/list.h>
+#include <linux/netdevice.h>
 
 #include "IoProtocol.h"
 #include "ModGateComMain.h"
@@ -53,7 +53,6 @@ typedef struct _SRevPiCore {
 	// piGate stuff
 	INT8U i8uLeftMGateIdx;	// index of left GateModule in RevPiDevice_asDevice_m
 	INT8U i8uRightMGateIdx;	// index of right GateModule in RevPiDevice_asDevice_m
-	bool abMGateActive[MODGATECOM_MAX_MODULES];
 	INT8U ai8uInput[KB_PD_LEN * MODGATECOM_MAX_MODULES];
 	INT8U ai8uOutput[KB_PD_LEN * MODGATECOM_MAX_MODULES];
 
@@ -90,11 +89,6 @@ typedef struct _SRevPiCore {
 	INT16U i16uRecvDataLenGateTel;
 	int statusGateTel;
 
-	// piGate thread
-	struct task_struct *pGateThread;
-	struct hrtimer gateTimer;
-	struct semaphore gateSem;
-
 	// piUart thread
 	struct task_struct *pUartThread;
 	struct semaphore uartSem;
@@ -107,8 +101,7 @@ typedef struct _SRevPiCore {
 
 extern SRevPiCore piCore_g;
 
+u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type);
+void revpi_core_gate_connected(SDevice *revpi_dev, bool connected);
 int revpi_core_init(void);
 void revpi_core_fini(void);
-int revpi_core_get_spi_speed(void);
-
-

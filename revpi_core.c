@@ -19,7 +19,6 @@
 #include <linux/semaphore.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/spi/spi.h>
 #include <linux/kthread.h>
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
@@ -38,9 +37,6 @@
 #include "common_define.h"
 #include "project.h"
 
-#include <bsp/ksz8851/ksz8851.h>
-#include <bsp/spi/spi.h>
-
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "compat.h"
@@ -57,8 +53,6 @@ static struct gpiod_lookup_table revpi_core_gpios = {
 		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 43, "Sniff1B", 0, GPIO_ACTIVE_HIGH),	// 1 rechts
 		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 28, "Sniff2A", 0, GPIO_ACTIVE_HIGH),	// 2 links
 		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 29, "Sniff2B", 0, GPIO_ACTIVE_HIGH),	// 2 rechts
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 35, "KSZ0",    0, GPIO_ACTIVE_HIGH),	// KSZ CS rechts
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 36, "KSZ1",    0, GPIO_ACTIVE_HIGH),	// KSZ CS links
 	},
 };
 
@@ -68,184 +62,88 @@ static struct gpiod_lookup_table revpi_connect_gpios = {
 	.dev_id = "piControl0",
 	.table  = { GPIO_LOOKUP_IDX("pinctrl-bcm2835", 43, "Sniff1A",	0, GPIO_ACTIVE_HIGH),	// 1 links
 		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 29, "Sniff2A",	0, GPIO_ACTIVE_HIGH),	// 2 links
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 35, "KSZ0",	0, GPIO_ACTIVE_HIGH),	// KSZ CS links
 		    GPIO_LOOKUP_IDX("pinctrl-bcm2835",  0, "X2_DI",	0, GPIO_ACTIVE_HIGH),	// Digital In auf X2 Stecker
 		    GPIO_LOOKUP_IDX("pinctrl-bcm2835",  1, "X2_DO",	0, GPIO_ACTIVE_HIGH),	// Digital Out (Relais) auf X2 Stecker
 		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 42, "WDTrigger", 0, GPIO_ACTIVE_HIGH),	// Watchdog trigger
 	},
 };
 
-static struct module *piSpiModule;
-
 SRevPiCore piCore_g;
 
-
-static enum hrtimer_restart piControlGateTimer(struct hrtimer *pTimer)
+/**
+ * revpi_core_find_gate() - find RevPiDevice for given netdev
+ * @netdev: network device used to communicate with a RevPi Gate
+ * @module_type: module type of the RevPi Gate
+ */
+u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 {
-	up(&piCore_g.gateSem);
-	return HRTIMER_NORESTART;
+	int i;
+
+	if (piDev_g.machine_type == REVPI_CORE &&
+	    !strcmp(dev_name(netdev->dev.parent), "spi0.1")) {
+		if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF) {
+			/*
+			 * The gateway was not discoverable via RS-485,
+			 * but the PiBridge Ethernet communication is up.
+			 * Search for the gateway's config entry.
+			 */
+			pr_info("search for right mGate %d\n", module_type);
+			i = RevPiDevice_find_by_side_and_type(true,
+				     module_type | PICONTROL_NOT_CONNECTED);
+			if (i != REV_PI_DEV_UNDEF) {
+				pr_info("found mGate %d\n", i);
+				piCore_g.i8uRightMGateIdx = i;
+				RevPiDevice_getDev(i)->i8uActive = 1;
+				RevPiDevice_getDev(i)->sId.i16uModulType &=
+					       PICONTROL_NOT_CONNECTED_MASK;
+			}
+		}
+		return piCore_g.i8uRightMGateIdx;
+	}
+
+	if ((piDev_g.machine_type == REVPI_CORE &&
+	     !strcmp(dev_name(netdev->dev.parent), "spi0.0")) ||
+	    (piDev_g.machine_type == REVPI_CONNECT &&
+	     !strcmp(dev_name(netdev->dev.parent), "spi0.1"))) {
+		if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF) {
+			pr_info("search for left mGate %d\n", module_type);
+			i = RevPiDevice_find_by_side_and_type(false,
+				    module_type | PICONTROL_NOT_CONNECTED);
+			if (i != REV_PI_DEV_UNDEF) {
+				pr_info("found mGate %d\n", i);
+				piCore_g.i8uLeftMGateIdx = i;
+				RevPiDevice_getDev(i)->i8uActive = 1;
+				RevPiDevice_getDev(i)->sId.i16uModulType &=
+					      PICONTROL_NOT_CONNECTED_MASK;
+			}
+		}
+		return piCore_g.i8uLeftMGateIdx;
+	}
+
+	return REV_PI_DEV_UNDEF;
 }
 
-static int piGateThread(void *data)
+/**
+ * revpi_core_gate_connected() - react to state change of gateway connection
+ * @idx: RevPiDevice index of gateway
+ * @connected: new state of gateway connection
+ */
+void revpi_core_gate_connected(SDevice *revpi_dev, bool connected)
 {
-	//TODO int value = 0;
-	ktime_t time;
-	INT8U i8uLastState[2];
-	int i;
-	s64 interval;
-#ifdef VERBOSE
-	INT16U val;
-	val = 0;
-#endif
+	u8 status = 0;
 
-	hrtimer_init(&piCore_g.gateTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	piCore_g.gateTimer.function = piControlGateTimer;
-	i8uLastState[0] = 0;
-	i8uLastState[1] = 0;
+	if (!revpi_dev)
+		return;
 
-	//TODO down(&piDev.gateSem);
-	pr_info("number of CPUs: %d\n", NR_CPUS);
-	if (NR_CPUS == 1) {
-		// use a longer interval time on CM1
-		interval = INTERVAL_PI_GATE + INTERVAL_PI_GATE;
-	} else {
-		interval = INTERVAL_PI_GATE;
-	}
+	if (revpi_dev == RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx))
+		status = PICONTROL_STATUS_LEFT_GATEWAY;
+	else if (revpi_dev == RevPiDevice_getDev(piCore_g.i8uRightMGateIdx))
+		status = PICONTROL_STATUS_RIGHT_GATEWAY;
 
-	time = hrtimer_cb_get_time(&piCore_g.gateTimer);
-
-	/* start after one second */
-	time = ktime_add_ms(time, MSEC_PER_SEC);
-
-	pr_info("mGate thread started\n");
-
-	while (!kthread_should_stop()) {
-		time = ktime_add_ns(time, interval);
-
-		hrtimer_start(&piCore_g.gateTimer, time, HRTIMER_MODE_ABS);
-		down(&piCore_g.gateSem);
-
-		if (isRunning()) {
-			if (piDev_g.stopIO == false) {
-				my_rt_mutex_lock(&piDev_g.lockPI);
-				if (piDev_g.machine_type == REVPI_CORE) {
-					if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-						memcpy(piCore_g.ai8uOutput,
-						       piDev_g.ai8uPI +
-						       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i16uOutputOffset,
-						       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->sId.i16uFBS_OutputLength);
-					}
-				}
-				if (piCore_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-					memcpy(piCore_g.ai8uOutput + KB_PD_LEN,
-					       piDev_g.ai8uPI +
-					       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i16uOutputOffset,
-					       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->sId.i16uFBS_OutputLength);
-				}
-				rt_mutex_unlock(&piDev_g.lockPI);
-			}
-		}
-
-		MODGATECOM_run();
-
-		if (MODGATECOM_has_fatal_error()) {
-			// stop the thread if an fatal error occurred
-			pr_err("mGate exit thread because of fatal error 0x%08x\n", MODGATECOM_has_fatal_error());
-			return -1;
-		}
-
-		if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
-		    && AL_Data_s[0].i8uState >= MODGATE_ST_RUN_NO_DATA && i8uLastState[0] < MODGATE_ST_RUN_NO_DATA) {
-			// das mGate wurde beim Scan nicht erkannt, PiBridgeEth Kommunikation ist aber möglich
-			// suche den Konfigeintrag dazu
-			pr_info("search for right mGate %d\n", AL_Data_s[0].OtherID.i16uModulType);
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (RevPiDevice_getDev(i)->sId.i16uModulType ==
-				    (AL_Data_s[0].OtherID.i16uModulType | PICONTROL_NOT_CONNECTED)
-				    && RevPiDevice_getDev(i)->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
-					pr_info("found mGate %d\n", i);
-					RevPiDevice_getDev(i)->i8uActive = 1;
-					RevPiDevice_getDev(i)->sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
-					piCore_g.i8uRightMGateIdx = i;
-					break;
-				}
-			}
-		}
-		if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
-		    && AL_Data_s[1].i8uState >= MODGATE_ST_RUN_NO_DATA && i8uLastState[1] < MODGATE_ST_RUN_NO_DATA) {
-			// das mGate wurde beim Scan nicht erkannt, PiBridgeEth Kommunikation ist aber möglich
-			// suche den Konfigeintrag dazu
-			pr_info("search for left mGate %d\n", AL_Data_s[1].OtherID.i16uModulType);
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-
-				if (RevPiDevice_getDev(i)->sId.i16uModulType ==
-				    (AL_Data_s[1].OtherID.i16uModulType | PICONTROL_NOT_CONNECTED)
-				    && RevPiDevice_getDev(i)->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
-					pr_info("found mGate %d\n", i);
-					RevPiDevice_getDev(i)->i8uActive = 1;
-					RevPiDevice_getDev(i)->sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
-					piCore_g.i8uLeftMGateIdx = i;
-					break;
-				}
-			}
-		}
-
-		i8uLastState[0] = AL_Data_s[0].i8uState;
-		i8uLastState[1] = AL_Data_s[1].i8uState;
-
-		if (isRunning()) {
-			if (piDev_g.stopIO == false) {
-				my_rt_mutex_lock(&piDev_g.lockPI);
-				if (piDev_g.machine_type == REVPI_CORE) {
-					if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-						memcpy(piDev_g.ai8uPI +
-						       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i16uInputOffset, piCore_g.ai8uInput,
-						       RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->sId.i16uFBS_InputLength);
-					}
-				}
-				if (piCore_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-					memcpy(piDev_g.ai8uPI +
-					       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i16uInputOffset,
-					       piCore_g.ai8uInput + KB_PD_LEN,
-					       RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->sId.i16uFBS_InputLength);
-				}
-				rt_mutex_unlock(&piDev_g.lockPI);
-			}
-		}
-
-#ifdef VERBOSE
-		val++;
-		if (val >= 200) {
-			val = 0;
-			if (piCore_g.i8uRightMGateIdx != REV_PI_DEV_UNDEF) {
-				pr_info("right  %02x %02x   %d %d\n",
-					*(piDev_g.ai8uPI +
-					  RevPiDevice.dev[piCore_g.i8uRightMGateIdx].i16uInputOffset),
-					*(piDev_g.ai8uPI +
-					  RevPiDevice.dev[piCore_g.i8uRightMGateIdx].i16uOutputOffset),
-					RevPiDevice.dev[piCore_g.i8uRightMGateIdx].i16uInputOffset,
-					RevPiDevice.dev[piCore_g.i8uRightMGateIdx].i16uOutputOffset);
-			} else {
-				pr_info("right  no device\n");
-			}
-
-			if (piCore_g.i8uLeftMGateIdx != REV_PI_DEV_UNDEF) {
-				pr_info("left %02x %02x   %d %d\n",
-					*(piDev_g.ai8uPI +
-					  RevPiDevice.dev[piCore_g.i8uLeftMGateIdx].i16uInputOffset),
-					*(piDev_g.ai8uPI +
-					  RevPiDevice.dev[piCore_g.i8uLeftMGateIdx].i16uOutputOffset),
-					RevPiDevice.dev[piCore_g.i8uLeftMGateIdx].i16uInputOffset,
-					RevPiDevice.dev[piCore_g.i8uLeftMGateIdx].i16uOutputOffset);
-			} else {
-				pr_info("left   no device\n");
-			}
-		}
-#endif
-	}
-
-	pr_info("mGate exit\n");
-	return 0;
+	if (connected)
+		RevPiDevice_setStatus(0, status);
+	else
+		RevPiDevice_setStatus(status, 0);
 }
 
 static enum hrtimer_restart piIoTimer(struct hrtimer *pTimer)
@@ -339,21 +237,9 @@ static int piIoThread(void *data)
 	return 0;
 }
 
-
-int revpi_core_get_spi_speed(void)
-{
-	// return the speed in MHz of the SPI bus to the KSZ8851
-	if (piDev_g.machine_type == REVPI_CORE) {
-		return 20000000;	// 20 MHz on Core
-	} else {
-		return 10000000;	// 10 MHz on Connect
-	}
-}
-
 int revpi_core_init(void)
 {
 	struct sched_param param;
-	INT32U i32uRv;
 	int ret = 0;
 
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
@@ -361,13 +247,9 @@ int revpi_core_init(void)
 
 	if (piDev_g.machine_type == REVPI_CORE) {
 		// the Core has two modular gateway ports
-		piCore_g.abMGateActive[0] = true;
-		piCore_g.abMGateActive[1] = true;
 		gpiod_add_lookup_table(&revpi_core_gpios);
 	} else {
 		// the connect has only a only one modular gateway port on the left
-		piCore_g.abMGateActive[0] = false;
-		piCore_g.abMGateActive[1] = true;
 		gpiod_add_lookup_table(&revpi_connect_gpios);
 	}
 
@@ -428,35 +310,13 @@ int revpi_core_init(void)
 		pr_err("open serial port failed\n");
 		return -EFAULT;
 	}
-	piDev_g.init_step = 12;
-
-	i32uRv = MODGATECOM_init(piCore_g.ai8uInput, KB_PD_LEN, piCore_g.ai8uOutput, KB_PD_LEN, &EthDrvKSZ8851_g);
-	if (i32uRv != MODGATECOM_NO_ERROR) {
-		pr_err("MODGATECOM_init error %#08x\n", i32uRv);
-		return -EFAULT;
-	}
 	piDev_g.init_step = 14;
 
 	/* run threads */
-	sema_init(&piCore_g.gateSem, 0);
-	piCore_g.pGateThread = kthread_run(&piGateThread, NULL, "piControl Gate");
-	if (IS_ERR(piCore_g.pGateThread)) {
-		pr_err("kthread_run(gate) failed\n");
-		ret = PTR_ERR(piCore_g.pGateThread);
-		return ret;
-	}
-	param.sched_priority = RT_PRIO_GATE;
-	ret = sched_setscheduler(piCore_g.pGateThread, SCHED_FIFO, &param);
-	if (ret) {
-		pr_err("cannot set rt prio of gate thread\n");
-		goto err_stop_gate_thread;
-	}
-
 	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piControl Uart");
 	if (IS_ERR(piCore_g.pUartThread)) {
 		pr_err("kthread_run(uart) failed\n");
-		ret = PTR_ERR(piCore_g.pUartThread);
-		goto err_stop_gate_thread;
+		return PTR_ERR(piCore_g.pUartThread);
 	}
 	param.sched_priority = RT_PRIO_UART;
 	sched_setscheduler(piCore_g.pUartThread, SCHED_FIFO, &param);
@@ -488,8 +348,6 @@ err_stop_io_thread:
 	kthread_stop(piCore_g.pIoThread);
 err_stop_uart_thread:
 	kthread_stop(piCore_g.pUartThread);
-err_stop_gate_thread:
-	kthread_stop(piCore_g.pGateThread);
 
 	return ret;
 }
@@ -501,13 +359,6 @@ void revpi_core_fini(void)
 		kthread_stop(piCore_g.pIoThread);
 	if (!IS_ERR_OR_NULL(piCore_g.pUartThread))
 		kthread_stop(piCore_g.pUartThread);
-	if (!IS_ERR_OR_NULL(piCore_g.pGateThread))
-		kthread_stop(piCore_g.pGateThread);
-
-	if (piDev_g.init_step >= 14) {
-		/* unregister spi */
-		BSP_SPI_RWPERI_deinit(0);
-	}
 
 	if (piDev_g.init_step >= 12) {
 		piIoComm_finish();
@@ -533,8 +384,4 @@ void revpi_core_fini(void)
 		}
 	}
 
-	if (piSpiModule) {
-		module_put(piSpiModule);
-		piSpiModule = NULL;
-	}
 }

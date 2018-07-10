@@ -40,7 +40,9 @@
 #endif
 
 #include <kbUtilities.h>
+#ifndef __KUNBUSPI_KERNEL__
 #include <bsp/Ethernet/EthernetInterface.h>
+#endif
 
 typedef enum
 {
@@ -60,8 +62,10 @@ struct
     INT8U   i8uDestination[6];
     INT8U   i8uSource[6];
     INT16U  i16uType;
+#ifndef __KUNBUSPI_KERNEL__
     INT8U   i8uACK;             //Acknowledge
     INT8U   i8uCounter;
+#endif
 }
 #include <COMP_packEnd.h>
 MODGATECOM_LinkLayer;
@@ -73,6 +77,10 @@ typedef
 #include <COMP_packBegin.h>
 struct
 {
+#ifdef __KUNBUSPI_KERNEL__
+    INT8U   i8uACK;             //Acknowledge
+    INT8U   i8uCounter;
+#endif
     INT16U  i16uCmd;
     INT16U  i16uDataLength;
     INT32U  i32uError;
@@ -228,7 +236,7 @@ typedef sALData *ALHandle;
 extern sALData AL_Data_s[MODGATECOM_MAX_MODULES];
 
 //**********************************************************************************************
-
+#ifndef __KUNBUSPI_KERNEL__
 INT32U MODGATECOM_init (INT8U *pi8uInData_p,  INT16U i16uInDataLen_p, INT8U *pi8uOutData_p, INT16U i16uOutDataLen_p, ETHERNET_INTERFACE *EthDrv);
 void   MODGATECOM_run (void);
 
@@ -273,6 +281,8 @@ TBOOL  MODGATECOM_send_ACK (void);
 
 void   MODGATECOM_T1_Handler (void);
 void   MODGATECOM_T2_Handler (void);
+
+#endif // !__KUNBUSPI_KERNEL__
 
 #ifdef  __cplusplus
 }

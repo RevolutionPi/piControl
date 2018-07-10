@@ -49,7 +49,6 @@
 #include <linux/semaphore.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/spi/spi.h>
 #include <linux/kthread.h>
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
@@ -63,6 +62,7 @@
 #include <linux/of.h>
 #include <asm/div64.h>
 #include <linux/syscalls.h>
+#include <linux/slab.h>
 
 #include "revpi_common.h"
 #include "revpi_core.h"
@@ -75,7 +75,7 @@ MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
 MODULE_VERSION("1.4.0");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
-	       "spi-bcm2835 "		/* core spi0 gateways */
+	       "ks8851 "		/* core eth gateways */
 	       "spi-bcm2835aux "	/* compact spi2 i/o */
 	       "gpio-74x164 "		/* compact dout */
 	       "fixed "			/* compact ain/aout vref */
@@ -775,10 +775,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					pDev->i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
 					pDev->i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
 					pDev->i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-					if (piCore_g.i8uRightMGateIdx == i)
-						pDev->i8uModuleState = MODGATECOM_GetOtherFieldbusState(0);
-					if (piCore_g.i8uLeftMGateIdx == i)
-						pDev->i8uModuleState = MODGATECOM_GetOtherFieldbusState(1);
+					pDev->i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
 					status = i;
 				}
 			}
@@ -806,10 +803,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				pDev[i].i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
 				pDev[i].i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
 				pDev[i].i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-				if (piCore_g.i8uRightMGateIdx == i)
-					pDev[i].i8uModuleState = MODGATECOM_GetOtherFieldbusState(0);
-				if (piCore_g.i8uLeftMGateIdx == i)
-					pDev[i].i8uModuleState = MODGATECOM_GetOtherFieldbusState(1);
+				pDev[i].i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
 
 				if (	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
 				||	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16

@@ -43,6 +43,7 @@
 
 #include "revpi_common.h"
 #include "revpi_core.h"
+#include "revpi_gate.h"
 #include <ModGateRS485.h>
 #include <piDIOComm.h>
 #include <piAIOComm.h>
@@ -64,6 +65,7 @@ static char *pcFWUdata;
 void PiBridgeMaster_Stop(void)
 {
 	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	revpi_gate_fini();
 	piCore_g.eBridgeState = piBridgeStop;
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
@@ -72,6 +74,7 @@ void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
 	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
 	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
 	bEntering_s = bFALSE;
@@ -623,6 +626,7 @@ int PiBridgeMaster_Run(void)
 				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
 				    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
 					pr_err("too many communication errors -> set BridgeState to stopped\n");
+					revpi_gate_fini();
 					piCore_g.eBridgeState = piBridgeStop;
 				} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
 					   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
@@ -673,6 +677,7 @@ int PiBridgeMaster_Run(void)
 				init_retry--;
 			} else {
 				pr_info("set BridgeState to running\n");
+				revpi_gate_init();
 				piCore_g.eBridgeState = piBridgeRun;
 			}
 		}

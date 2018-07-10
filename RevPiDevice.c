@@ -381,6 +381,23 @@ void RevPiDevice_checkFirmwareUpdate(void)
 	}
 }
 
+u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
+{
+	int i;
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		if (right &&
+		    RevPiDevice_getDev(i)->i8uAddress < REV_PI_DEV_FIRST_RIGHT)
+			continue;
+		if (!right &&
+		    RevPiDevice_getDev(i)->i8uAddress >= REV_PI_DEV_FIRST_RIGHT)
+			continue;
+		if (RevPiDevice_getDev(i)->sId.i16uModulType == module_type)
+			return i;
+	}
+	return REV_PI_DEV_UNDEF;
+}
+
 INT8U RevPiDevice_setStatus(INT8U clr, INT8U set)
 {
 	RevPiDevices_s.i8uStatus &= ~clr;

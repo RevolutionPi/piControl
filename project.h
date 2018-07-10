@@ -35,14 +35,6 @@
 
 //#define ENDTEST_DIO
 
-#define PRINT_MODGATE_COM_STATE
-#if 0
-#define DEBUG_MODGATE
-#define pr_info_modgate(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-#else
-#define pr_info_modgate(fmt, ...)
-#endif
-
 #if 0
 #define DEBUG_CONFIG
 #define pr_info_config(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
@@ -85,19 +77,6 @@
 #endif
 
 #if 0
-#define pr_info_spi(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-#define pr_info_spi2(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-#elif 0
-#define DEBUG_DEVICE_SPI
-extern int __debug_show_msg;
-#define pr_info_spi(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-#define pr_info_spi2(fmt, ...)	if (__debug_show_msg) { pr_info(fmt, ##__VA_ARGS__); __debug_show_msg--; }
-#else
-#define pr_info_spi(fmt, ...)
-#define pr_info_spi2(fmt, ...)
-#endif
-
-#if 0
 #define DEBUG_SERIALCOMM
 #define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #define pr_info_serial2(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
@@ -110,13 +89,9 @@ extern int __debug_show_msg;
 #define DEBUG_DEVICE
 #define DEBUG_DEVICE_IO
 
-#define SPI_MODULE	"spi_bcm2835"
-#define SPI_BUS         0
 #define RT_PRIO_UART    39
 #define RT_PRIO_BRIDGE  38
 #define RT_PRIO_GATE    37
-
-#define INTERVAL_PI_GATE    ( 5*1000*1000)     //  5   ms    piGateCommunication
 
 #ifdef DEBUG_SERIALCOMM
 // use longer intervals to reduce the number of messages
@@ -129,11 +104,8 @@ extern int __debug_show_msg;
 #define INTERVAL_ADDITIONAL (    500*1000)     //  0.5 ms    piIoComm
 #endif
 
-#define KB_PD_LEN       512
+#define KB_PD_LEN       (u16)512
 #define KB_PI_LEN       4096
-
-#define GPIO_RESET		40
-#define KSZ8851_SPI_PORT	 0      // we use SPI port 0 for both sides
 
 //#define VERBOSE
 
