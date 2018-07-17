@@ -575,9 +575,9 @@ INT16U ksz8851ProcessInterrupt(void)
     {
 	pr_info_spi("%d: ksz8851ProcessInterrupt: rx overrun 0x%x\n", spi_selected_chip(), isr);
 #ifdef DEBUG_DEVICE_SPI
-	__debug_show_msg = 100;
+	__debug_show_msg += 100;
 #endif
-	if (rxOver > 1)	{
+	if (rxOver > 0)	{
 		ksz8851ReInit();
 		rxOver = 0;
 	} else {
@@ -820,9 +820,13 @@ TBOOL ksz8851PacketRead(
 
     if (i16uLength > *pi16uLength_p)
     {
+#ifdef DEBUG_DEVICE_SPI
+	__debug_show_msg += 100;
+#endif
 	pr_err("ksz8851PacketRead(%d) too long %d > %d\n", spi_selected_chip(), i16uLength, *pi16uLength_p);
-	ksz8851RetrievePacketData(dummy, i16uLength);
 	ksz8851EndPacketRetrieve();
+
+	ksz8851ReInit();
 
 	*pi16uLength_p = i16uLength;
 	bRet = bFALSE;

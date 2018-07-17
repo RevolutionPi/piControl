@@ -278,7 +278,9 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 			} else {
 #ifdef DEBUG_DEVICE_IO
 				bad++;
-				pr_info("dev %2d: recv ioprotocol crc error %u/%u\n", i8uAddress, bad, good);
+				if ((bad % 1000) == 0) {
+					pr_info("dev %2d: recv ioprotocol crc error %u/%u\n", i8uAddress, bad, good);
+				}
 #endif
 				i32uRv_l = 1;
 			}

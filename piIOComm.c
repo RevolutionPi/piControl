@@ -294,7 +294,7 @@ int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
 
 		if (down_timeout(&queueSem, msecs_to_jiffies(timeout_p)) != 0) {
 			// timeout
-			pr_info_serial("recv timeout: %d/%d \n", i16uRecvLen_s, i16uLen_p);
+			pr_info_serial2("recv timeout: %d/%d \n", i16uRecvLen_s, i16uLen_p);
 			clear();
 			return 0;
 		}
