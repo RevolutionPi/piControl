@@ -1,5 +1,5 @@
 
-CC=/home/md/pi/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin/arm-linux-gnueabihf-gcc
+#CC=/usr/bin/arm-linux-gnueabihf-gcc
 
 obj-m   := piControl.o
 
@@ -29,7 +29,7 @@ piControl-objs += pt100.o
 ccflags-y := -O2
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
-KDIR    := /home/md/pi/kernelbakery/kbuild7
+#KDIR    := /home/md/pi/kernelbakery/kbuild7
 KBUILD_CFLAGS += -g
 
 PWD   	:= $(shell pwd)
