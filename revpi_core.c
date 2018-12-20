@@ -313,6 +313,10 @@ int revpi_core_init(void)
 	piDev_g.init_step = 14;
 
 	/* run threads */
+	ret = set_kthread_prios(revpi_core_kthread_prios);
+	if (ret)
+		return ret;
+
 	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piControl Uart");
 	if (IS_ERR(piCore_g.pUartThread)) {
 		pr_err("kthread_run(uart) failed\n");
@@ -337,10 +341,6 @@ int revpi_core_init(void)
 		pr_err("cannot set rt prio of io thread\n");
 		goto err_stop_io_thread;
 	}
-
-	ret = set_kthread_prios(revpi_core_kthread_prios);
-	if (ret)
-		goto err_stop_io_thread;
 
 	return ret;
 
