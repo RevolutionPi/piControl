@@ -76,6 +76,7 @@ MODULE_DESCRIPTION("piControl Driver");
 MODULE_VERSION("1.4.0");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
+	       "spi-bcm2835 "		/* core spi0 eth gateways */
 	       "spi-bcm2835aux "	/* compact spi2 i/o */
 	       "gpio-74x164 "		/* compact dout */
 	       "fixed "			/* compact ain/aout vref */
@@ -184,6 +185,8 @@ static int __init piControlInit(void)
 	int devindex = 0;
 	dev_t curdev;
 	int res;
+
+	wait_for_device_probe();
 
 	pr_info("built: %s\n", COMPILETIME);
 
