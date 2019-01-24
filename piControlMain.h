@@ -61,7 +61,6 @@ enum revpi_machine {
 
 typedef struct spiControlDev {
 	// device driver stuff
-	int init_step;
 	enum revpi_machine machine_type;
 	void *machine;
 	struct cdev cdev;	// Char device structure

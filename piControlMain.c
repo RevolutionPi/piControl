@@ -234,12 +234,6 @@ static int __init piControlInit(void)
 		goto err_class_destroy;
 	}
 
-	res = cdev_add(&piDev_g.cdev, curdev, 1);
-	if (res) {
-		pr_err("cannot add cdev\n");
-		goto err_dev_destroy;
-	}
-
 	pr_info("MAJOR-No.  : %d  MINOR-No.  : %d\n", MAJOR(curdev), MINOR(curdev));
 
 	res = devm_led_trigger_register(piDev_g.dev, &piDev_g.power_red)
@@ -256,7 +250,7 @@ static int __init piControlInit(void)
 
 	if (res) {
 		pr_err("cannot register LED triggers\n");
-		goto err_cdev_del;
+		goto err_dev_destroy;
 	}
 
 	/* init some data */
@@ -285,22 +279,32 @@ static int __init piControlInit(void)
 
 	showPADS();
 
-	piDev_g.init_step = 17;
-
 	piDev_g.thermal_zone = thermal_zone_get_zone_by_name("bcm2835_thermal");
 	if (IS_ERR(piDev_g.thermal_zone)) {
 		pr_err("could not find thermal zone 'bcm2835_thermal'\n");
 		piDev_g.thermal_zone = NULL;
 	}
 
+	res = cdev_add(&piDev_g.cdev, curdev, 1);
+	if (res) {
+		pr_err("cannot add cdev\n");
+		goto err_revpi_fini;
+	}
+
 	pr_info("piControlInit done\n");
 	return 0;
 
+err_revpi_fini:
+	if (piDev_g.machine_type == REVPI_CORE) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_CONNECT) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_COMPACT) {
+		revpi_compact_fini();
+	}
 err_free_config:
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
-err_cdev_del:
-	cdev_del(&piDev_g.cdev);
 err_dev_destroy:
 	device_destroy(piControlClass, curdev);
 err_class_destroy:
@@ -401,6 +405,8 @@ static void __exit piControlCleanup(void)
 
 	pr_info_drv("piControlCleanup\n");
 
+	cdev_del(&piDev_g.cdev);
+
 	if (piDev_g.machine_type == REVPI_CORE) {
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
@@ -411,7 +417,6 @@ static void __exit piControlCleanup(void)
 
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
-	cdev_del(&piDev_g.cdev);
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor));
 	device_destroy(piControlClass, curdev);
 	class_destroy(piControlClass);
@@ -421,22 +426,13 @@ static void __exit piControlCleanup(void)
 	pr_info_drv("piControlCleanup done\n");
 }
 
-// true: system is initialized
-// false: system is not operational
-bool isInitialized(void)
-{
-	if (piDev_g.init_step < 17) {
-		return false;
-	}
-	return true;
-}
-
 // true: system is running
 // false: system is not operational
 bool isRunning(void)
 {
-	if (piDev_g.init_step < 17 || ((piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT)
-				       && (piCore_g.eBridgeState != piBridgeRun))) {
+	if ((piDev_g.machine_type == REVPI_CORE ||
+	     piDev_g.machine_type == REVPI_CONNECT) &&
+	    (piCore_g.eBridgeState != piBridgeRun)) {
 		return false;
 	}
 	return true;
@@ -446,11 +442,6 @@ bool isRunning(void)
 // false: system is not operational
 bool waitRunning(int timeout)	// ms
 {
-	if (piDev_g.init_step < 17) {
-		pr_info_drv("waitRunning: init_step=%d\n", piDev_g.init_step);
-		return false;
-	}
-
 	if (piDev_g.machine_type == REVPI_COMPACT)
 		return true;
 
@@ -717,9 +708,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_RESET:
 		pr_info("Reset: BridgeState=%d \n", piCore_g.eBridgeState);
 
-		if (!isInitialized()) {
-			return -EFAULT;
-		}
 		if (isRunning()) {
 			PiBridgeMaster_Stop();
 		}
@@ -1219,9 +1207,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
 				return -EPERM;
 			}
-			if (!isInitialized()) {
-				return -EFAULT;
-			}
 			if (isRunning()) {
 				return -ECANCELED;
 			}
@@ -1261,10 +1246,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
 				return -EPERM;
 			}
-			if (!isInitialized()) {
-				return -EFAULT;
-			}
-
 			if (isRunning()) {
 				return -ECANCELED;
 			}
