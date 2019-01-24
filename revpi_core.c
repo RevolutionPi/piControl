@@ -248,7 +248,7 @@ int revpi_core_init(void)
 	if (piDev_g.machine_type == REVPI_CORE) {
 		// the Core has two modular gateway ports
 		gpiod_add_lookup_table(&revpi_core_gpios);
-	} else {
+	} else if (piDev_g.machine_type == REVPI_CONNECT) {
 		// the connect has only a only one modular gateway port on the left
 		gpiod_add_lookup_table(&revpi_connect_gpios);
 	}
@@ -267,60 +267,66 @@ int revpi_core_init(void)
 	piCore_g.gpio_sniff1a = gpiod_get(piDev_g.dev, "Sniff1A", GPIOD_IN);
 	if (IS_ERR(piCore_g.gpio_sniff1a)) {
 		pr_err("cannot acquire gpio sniff 1a\n");
-		return PTR_ERR(piCore_g.gpio_sniff1a);
+		ret = PTR_ERR(piCore_g.gpio_sniff1a);
+		goto err_remove_table;
 	}
 	piCore_g.gpio_sniff2a = gpiod_get(piDev_g.dev, "Sniff2A", GPIOD_IN);
 	if (IS_ERR(piCore_g.gpio_sniff2a)) {
 		pr_err("cannot acquire gpio sniff 2a\n");
-		return PTR_ERR(piCore_g.gpio_sniff2a);
+		ret = PTR_ERR(piCore_g.gpio_sniff2a);
+		goto err_gpiod_put;
 	}
 	if (piDev_g.machine_type == REVPI_CORE) {
 		piCore_g.gpio_sniff1b = gpiod_get(piDev_g.dev, "Sniff1B", GPIOD_IN);
 		if (IS_ERR(piCore_g.gpio_sniff1b)) {
 			pr_err("cannot acquire gpio sniff 1b\n");
-			return PTR_ERR(piCore_g.gpio_sniff1b);
+			ret = PTR_ERR(piCore_g.gpio_sniff1b);
+			goto err_gpiod_put;
 		}
 		piCore_g.gpio_sniff2b = gpiod_get(piDev_g.dev, "Sniff2B", GPIOD_IN);
 		if (IS_ERR(piCore_g.gpio_sniff2b)) {
 			pr_err("cannot acquire gpio sniff 2b\n");
-			return PTR_ERR(piCore_g.gpio_sniff2b);
+			ret = PTR_ERR(piCore_g.gpio_sniff2b);
+			goto err_gpiod_put;
 		}
 	}
 	if (piDev_g.machine_type == REVPI_CONNECT) {
 		piCore_g.gpio_x2di = gpiod_get(piDev_g.dev, "X2_DI", GPIOD_IN);
 		if (IS_ERR(piCore_g.gpio_x2di)) {
 			pr_err("cannot acquire gpio x2 di\n");
-			return PTR_ERR(piCore_g.gpio_x2di);
+			ret = PTR_ERR(piCore_g.gpio_x2di);
+			goto err_gpiod_put;
 		}
 		piCore_g.gpio_x2do = gpiod_get(piDev_g.dev, "X2_DO", GPIOD_OUT_LOW);
 		if (IS_ERR(piCore_g.gpio_x2do)) {
 			pr_err("cannot acquire gpio x2 do\n");
-			return PTR_ERR(piCore_g.gpio_x2do);
+			ret = PTR_ERR(piCore_g.gpio_x2do);
+			goto err_gpiod_put;
 		}
 		piCore_g.gpio_wdtrigger = gpiod_get(piDev_g.dev, "WDTrigger", GPIOD_OUT_LOW);
 		if (IS_ERR(piCore_g.gpio_wdtrigger)) {
 			pr_err("cannot acquire gpio watchdog trigger\n");
-			return PTR_ERR(piCore_g.gpio_wdtrigger);
+			ret = PTR_ERR(piCore_g.gpio_wdtrigger);
+			goto err_gpiod_put;
 		}
 	}
 
-	piDev_g.init_step = 11;
-
 	if (piIoComm_init()) {
 		pr_err("open serial port failed\n");
-		return -EFAULT;
+		ret = -EFAULT;
+		goto err_gpiod_put;
 	}
-	piDev_g.init_step = 14;
 
 	/* run threads */
 	ret = set_kthread_prios(revpi_core_kthread_prios);
 	if (ret)
-		return ret;
+		goto err_close_serial;
 
 	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piControl Uart");
 	if (IS_ERR(piCore_g.pUartThread)) {
 		pr_err("kthread_run(uart) failed\n");
-		return PTR_ERR(piCore_g.pUartThread);
+		ret = PTR_ERR(piCore_g.pUartThread);
+		goto err_close_serial;
 	}
 	param.sched_priority = RT_PRIO_UART;
 	sched_setscheduler(piCore_g.pUartThread, SCHED_FIFO, &param);
@@ -348,6 +354,31 @@ err_stop_io_thread:
 	kthread_stop(piCore_g.pIoThread);
 err_stop_uart_thread:
 	kthread_stop(piCore_g.pUartThread);
+err_close_serial:
+	piIoComm_finish();
+err_gpiod_put:
+	if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff1a))
+		gpiod_put(piCore_g.gpio_sniff1a);
+	if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff2a))
+		gpiod_put(piCore_g.gpio_sniff2a);
+	if (piDev_g.machine_type == REVPI_CORE) {
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff1b))
+			gpiod_put(piCore_g.gpio_sniff1b);
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff2b))
+			gpiod_put(piCore_g.gpio_sniff2b);
+	} else if (piDev_g.machine_type == REVPI_CONNECT) {
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_x2di))
+			gpiod_put(piCore_g.gpio_x2di);
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_x2do))
+			gpiod_put(piCore_g.gpio_x2do);
+		if (!IS_ERR_OR_NULL(piCore_g.gpio_wdtrigger))
+			gpiod_put(piCore_g.gpio_wdtrigger);
+	}
+err_remove_table:
+	if (piDev_g.machine_type == REVPI_CORE)
+		gpiod_remove_lookup_table(&revpi_core_gpios);
+	else if (piDev_g.machine_type == REVPI_CONNECT)
+		gpiod_remove_lookup_table(&revpi_connect_gpios);
 
 	return ret;
 }
@@ -355,33 +386,28 @@ err_stop_uart_thread:
 void revpi_core_fini(void)
 {
 	// the IoThread cannot be stopped
-	if (!IS_ERR_OR_NULL(piCore_g.pIoThread))
-		kthread_stop(piCore_g.pIoThread);
-	if (!IS_ERR_OR_NULL(piCore_g.pUartThread))
-		kthread_stop(piCore_g.pUartThread);
-
-	if (piDev_g.init_step >= 12) {
-		piIoComm_finish();
-	}
+	kthread_stop(piCore_g.pIoThread);
+	kthread_stop(piCore_g.pUartThread);
+	piIoComm_finish();
 
 	/* reset GPIO direction */
-	if (piDev_g.init_step >= 11) {
-		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff1a)) {
-			piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
-			gpiod_put(piCore_g.gpio_sniff1a);
-		}
-		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff1b)) {
-			piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-			gpiod_put(piCore_g.gpio_sniff1b);
-		};
-		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff2a)) {
-			piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
-			gpiod_put(piCore_g.gpio_sniff2a);
-		};
-		if (!IS_ERR_OR_NULL(piCore_g.gpio_sniff2b)) {
-			piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-			gpiod_put(piCore_g.gpio_sniff2b);
-		}
+	piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+	gpiod_put(piCore_g.gpio_sniff1a);
+	piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
+	gpiod_put(piCore_g.gpio_sniff2a);
+	if (piDev_g.machine_type == REVPI_CORE) {
+		piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+		gpiod_put(piCore_g.gpio_sniff1b);
+		piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
+		gpiod_put(piCore_g.gpio_sniff2b);
+	} else if (piDev_g.machine_type == REVPI_CONNECT) {
+		gpiod_put(piCore_g.gpio_x2di);
+		gpiod_put(piCore_g.gpio_x2do);
+		gpiod_put(piCore_g.gpio_wdtrigger);
 	}
 
+	if (piDev_g.machine_type == REVPI_CORE)
+		gpiod_remove_lookup_table(&revpi_core_gpios);
+	else if (piDev_g.machine_type == REVPI_CONNECT)
+		gpiod_remove_lookup_table(&revpi_connect_gpios);
 }

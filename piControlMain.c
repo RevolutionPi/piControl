@@ -95,8 +95,6 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_t count, loff_t * ppos);
 static loff_t piControlSeek(struct file *file, loff_t off, int whence);
 static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long usr_addr);
-static void cleanup(void);
-static void __exit piControlCleanup(void);
 
 /******************************************************************************/
 /******************************  Global Vars  *********************************/
@@ -203,21 +201,18 @@ static int __init piControlInit(void)
 
 	// alloc_chrdev_region return 0 on success
 	res = alloc_chrdev_region(&piControlMajor, 0, 2, "piControl");
-
 	if (res) {
-		pr_info("ERROR: PN Driver not registered \n");
-		cleanup();
+		pr_err("cannot allocate char device numbers\n");
 		return res;
-	} else {
-		pr_info("MAJOR-No.  : %d\n", MAJOR(piControlMajor));
 	}
-	piDev_g.init_step = 1;
+
+	pr_info("MAJOR-No.  : %d\n", MAJOR(piControlMajor));
 
 	piControlClass = class_create(THIS_MODULE, "piControl");
 	if (IS_ERR(piControlClass)) {
 		pr_err("cannot create class\n");
-		cleanup();
-		return PTR_ERR(piControlClass);
+		res = PTR_ERR(piControlClass);
+		goto err_unreg_chrdev_region;
 	}
 	piControlClass->devnode = piControlClass_devnode;
 
@@ -235,18 +230,17 @@ static int __init piControlInit(void)
 	piDev_g.dev = device_create(piControlClass, NULL, curdev, NULL, "piControl%d", devindex);
 	if (IS_ERR(piDev_g.dev)) {
 		pr_err("cannot create device\n");
-		cleanup();
-		return PTR_ERR(piDev_g.dev);
+		res = PTR_ERR(piDev_g.dev);
+		goto err_class_destroy;
 	}
 
-	if (cdev_add(&piDev_g.cdev, curdev, 1)) {
-		pr_info("Add Cdev failed\n");
-		cleanup();
-		return -EFAULT;
-	} else {
-		pr_info("MAJOR-No.  : %d  MINOR-No.  : %d\n", MAJOR(curdev), MINOR(curdev));
+	res = cdev_add(&piDev_g.cdev, curdev, 1);
+	if (res) {
+		pr_err("cannot add cdev\n");
+		goto err_dev_destroy;
 	}
-	piDev_g.init_step = 2;
+
+	pr_info("MAJOR-No.  : %d  MINOR-No.  : %d\n", MAJOR(curdev), MINOR(curdev));
 
 	res = devm_led_trigger_register(piDev_g.dev, &piDev_g.power_red)
 	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_green)
@@ -262,10 +256,8 @@ static int __init piControlInit(void)
 
 	if (res) {
 		pr_err("cannot register LED triggers\n");
-		cleanup();
-		return res;
+		goto err_cdev_del;
 	}
-	piDev_g.init_step = 7;
 
 	/* init some data */
 	rt_mutex_init(&piDev_g.lockPI);
@@ -280,7 +272,6 @@ static int __init piControlInit(void)
 		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
 		// ignore errors
 	}
-	piDev_g.init_step = 8;
 
 	if (piDev_g.machine_type == REVPI_CORE) {
 		res = revpi_core_init();
@@ -289,10 +280,9 @@ static int __init piControlInit(void)
 	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		res = revpi_compact_init();
 	}
-	if (res) {
-		cleanup();
-		return res;
-	}
+	if (res)
+		goto err_free_config;
+
 	showPADS();
 
 	piDev_g.init_step = 17;
@@ -305,51 +295,23 @@ static int __init piControlInit(void)
 
 	pr_info("piControlInit done\n");
 	return 0;
+
+err_free_config:
+	kfree(piDev_g.ent);
+	kfree(piDev_g.devs);
+err_cdev_del:
+	cdev_del(&piDev_g.cdev);
+err_dev_destroy:
+	device_destroy(piControlClass, curdev);
+err_class_destroy:
+	class_destroy(piControlClass);
+err_unreg_chrdev_region:
+	unregister_chrdev_region(piControlMajor, 2);
+	return res;
 }
 
 /*****************************************************************************/
 /*       C L E A N U P                                                       */
-/*****************************************************************************/
-static void cleanup(void)
-{
-	if (piDev_g.machine_type == REVPI_CORE) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CONNECT) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_COMPACT) {
-		revpi_compact_fini();
-	}
-
-	if (piDev_g.init_step >= 8) {
-		if (piDev_g.ent != NULL)
-			kfree(piDev_g.ent);
-		piDev_g.ent = NULL;
-
-		if (piDev_g.devs != NULL)
-			kfree(piDev_g.devs);
-		piDev_g.devs = NULL;
-	}
-	if (piDev_g.init_step >= 2) {
-		cdev_del(&piDev_g.cdev);
-	}
-
-	if (!IS_ERR_OR_NULL(piDev_g.dev)) {
-		int devindex = 0;
-		dev_t curdev;
-
-		curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor) + devindex);
-		pr_info("Remove MINOR-No.  : %d\n", MINOR(curdev));
-		device_destroy(piControlClass, curdev);
-		piDev_g.dev = NULL;
-	}
-
-	if (!IS_ERR_OR_NULL(piControlClass)) {
-		class_destroy(piControlClass);
-		piControlClass = NULL;
-	}
-	unregister_chrdev_region(piControlMajor, 2);
-}
-
 /*****************************************************************************/
 static int piControlReset(tpiControlInst * priv)
 {
@@ -385,11 +347,7 @@ static int piControlReset(tpiControlInst * priv)
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
 		PiBridgeMaster_Reset();
 	} else if (piDev_g.machine_type == REVPI_COMPACT) {
-		int ret = revpi_compact_reset();
-		if (ret) {
-			cleanup();
-			return ret;
-		}
+		revpi_compact_reset();
 	}
 	showPADS();
 
@@ -439,9 +397,25 @@ static int piControlReset(tpiControlInst * priv)
 
 static void __exit piControlCleanup(void)
 {
+	dev_t curdev;
+
 	pr_info_drv("piControlCleanup\n");
 
-	cleanup();
+	if (piDev_g.machine_type == REVPI_CORE) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_CONNECT) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_COMPACT) {
+		revpi_compact_fini();
+	}
+
+	kfree(piDev_g.ent);
+	kfree(piDev_g.devs);
+	cdev_del(&piDev_g.cdev);
+	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor));
+	device_destroy(piControlClass, curdev);
+	class_destroy(piControlClass);
+	unregister_chrdev_region(piControlMajor, 2);
 
 	pr_info_drv("driver stopped with MAJOR-No. %d\n\n ", MAJOR(piControlMajor));
 	pr_info_drv("piControlCleanup done\n");
