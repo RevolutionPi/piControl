@@ -495,12 +495,16 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	if (!waitRunning(3000)) {
 		int status;
 		pr_err("problem at driver initialization\n");
+		if(eRunStatus_s != enPiBridgeMasterStatus_FWUMode){
+			pr_err("no piControl reset possible, a firmware update is running\n");
+			kfree(priv);
+			return -EINVAL;
+		}
 		status = piControlReset(priv);
 		if (status) {
 			kfree(priv);
 			return status;
 		}
-		//return -EINVAL;
 	}
 
 	piDev_g.PnAppCon++;

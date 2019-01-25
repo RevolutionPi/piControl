@@ -151,6 +151,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 		}
 
 		PiBridgeMaster_FWUReset();
+		printUserMsg(priv,"update firmware success");
 		ret = 1;	// success
 	}
 
@@ -159,6 +160,7 @@ laError:
 		kfree(data);
 	kfree(filename);
 	close_filename(input);
-
+	if(ret!=1)
+		printUserMsg(priv, "update firmware fail");
 	return ret;
 }

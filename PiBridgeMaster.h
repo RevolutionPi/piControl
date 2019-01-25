@@ -60,6 +60,8 @@ typedef enum _EPiBridgeMasterStatus {
 
 } EPiBridgeMasterStatus;
 
+extern EPiBridgeMasterStatus eRunStatus_s;
+
 void PiBridgeMaster_Reset(void);
 int PiBridgeMaster_Adjust(void);
 void PiBridgeMaster_setDefaults(void);

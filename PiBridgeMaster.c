@@ -55,7 +55,7 @@
 
 static int init_retry = MAX_INIT_RETRIES;
 static volatile TBOOL bEntering_s = bTRUE;
-static EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
+EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
 static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
 
 static INT32U i32uFWUAddress, i32uFWUSerialNum, i32uFWUFlashAddr, i32uFWUlength, i8uFWUScanned;
