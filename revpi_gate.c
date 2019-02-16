@@ -109,6 +109,14 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	 */
 	cancel_delayed_work_sync(&conn->send_work);
 	cancel_delayed_work(&conn->destroy_work);
+
+	if (conn->revpi_dev && !piDev_g.stopIO) {
+		conn->revpi_dev->i8uModuleState = FBSTATE_LINK;
+		rt_mutex_lock(&piDev_g.lockPI);
+		memset(conn->in, 0, conn->in_len);
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
+
 	dev_put(conn->dev);
 	kfree(conn);
 
