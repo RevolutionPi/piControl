@@ -140,7 +140,7 @@ struct      // IOP_TYP1_CMD_DATA2
 {
     UIoProtocolHeader uHeader;
     INT16U i16uOutput;
-    INT16U i16uChannels;    // bitfield counter channel
+    INT16U i16uChannels;    // bitfield pwm channel
     INT8U  ai8uValue[16];   // [0-100] pwm value in %
     INT8U  i8uCrc;
 }
