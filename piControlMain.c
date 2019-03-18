@@ -1269,7 +1269,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	default:
-		pr_err("Invalid Ioctl from %s", current->comm);
+		pr_debug("Invalid Ioctl from %s", current->comm);
 		return (-EINVAL);
 		break;
 
