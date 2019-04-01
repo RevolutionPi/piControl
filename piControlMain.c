@@ -67,6 +67,7 @@
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "revpi_compact.h"
+#include "compat.h"
 
 #include "piFirmwareUpdate.h"
 
@@ -279,9 +280,9 @@ static int __init piControlInit(void)
 
 	showPADS();
 
-	piDev_g.thermal_zone = thermal_zone_get_zone_by_name("bcm2835_thermal");
+	piDev_g.thermal_zone = thermal_zone_get_zone_by_name(BCM2835_THERMAL_ZONE);
 	if (IS_ERR(piDev_g.thermal_zone)) {
-		pr_err("could not find thermal zone 'bcm2835_thermal'\n");
+		pr_err("cannot find thermal zone\n");
 		piDev_g.thermal_zone = NULL;
 	}
 
