@@ -1269,6 +1269,18 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		}
 		break;
 
+	case KB_SET_POS:
+		{
+			loff_t off = 0;
+
+			if (usr_addr != 0)
+				off = *(unsigned int*)usr_addr;
+			status = piControlSeek(file, off, 0);
+			if (status > 0)
+				status = 0;
+		}
+		break;
+
 	default:
 		pr_debug("Invalid Ioctl from %s", current->comm);
 		return (-EINVAL);

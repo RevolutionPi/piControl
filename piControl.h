@@ -109,6 +109,7 @@
 #define  KB_CONFIG_SEND                     _IO(KB_IOC_MAGIC, 24 )  // for download of configuration to Master Gateway: download config data
 #define  KB_CONFIG_START                    _IO(KB_IOC_MAGIC, 25 )  // for download of configuration to Master Gateway: restart IO communication
 #define  KB_SET_OUTPUT_WATCHDOG             _IO(KB_IOC_MAGIC, 26 )  // activate a watchdog for this handle. If write is not called for a given period all outputs are set to 0
+#define  KB_SET_POS                         _IO(KB_IOC_MAGIC, 27 )  // set the f_pos, the unsigned int * is used to interpret the pos value
 
 #define  KB_WAIT_FOR_EVENT                  _IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET                     1       // piControl was reset, reload configuration
