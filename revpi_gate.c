@@ -9,6 +9,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/netfilter.h>
 #include <linux/rculist.h>
 
 #include "project.h"
@@ -28,6 +29,21 @@ static LIST_HEAD(revpi_gate_connections);
 static DEFINE_MUTEX(revpi_gate_lock);		/* serializes list add/del */
 DEFINE_STATIC_SRCU(revpi_gate_srcu);		/* protects list traversal */
 static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_fini_wq);
+
+static unsigned int revpi_gate_nf_hook(void *priv, struct sk_buff *skb,
+				       const struct nf_hook_state *state)
+{
+	u16 eth_proto = ntohs(eth_hdr(skb)->h_proto);
+
+	return likely(eth_proto == ETH_P_KUNBUSGW) ? NF_ACCEPT : NF_DROP;
+}
+
+static const struct nf_hook_ops revpi_gate_nf_hook_ops = {
+	.hook	  = revpi_gate_nf_hook,
+	.pf	  = NFPROTO_NETDEV,
+	.hooknum  = NF_NETDEV_EGRESS,
+	.priority = INT_MAX,
+};
 
 /**
  * struct revpi_gate_connection - connection with a neighboring gateway
@@ -52,6 +68,7 @@ static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_fini_wq);
 struct revpi_gate_connection {
 	struct list_head list_node;
 	struct net_device *dev;
+	struct nf_hook_ops nf_hook_ops;
 	struct delayed_work send_work;
 	struct delayed_work destroy_work;
 	MODGATE_AL_Status state;
@@ -116,6 +133,9 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 		memset(conn->in, 0, conn->in_len);
 		rt_mutex_unlock(&piDev_g.lockPI);
 	}
+
+	if (conn->nf_hook_ops.dev)
+		nf_unregister_net_hook(dev_net(conn->dev), &conn->nf_hook_ops);
 
 	dev_put(conn->dev);
 	kfree(conn);
@@ -409,6 +429,7 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 {
 	MODGATECOM_TransportLayer *rcv_tl;
 	struct sk_buff *skb;
+	int ret;
 
 	if (!conn) {
 		pr_info("%s: id request\n", dev->name);
@@ -419,6 +440,15 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 			goto drop;
 
 		dev_hold(dev);
+		conn->nf_hook_ops = revpi_gate_nf_hook_ops;
+		conn->nf_hook_ops.dev = dev;
+		ret = nf_register_net_hook(dev_net(dev), &conn->nf_hook_ops);
+		if (ret) {
+			pr_warn("%s: failed to register packet filter (%d)\n",
+			        dev->name, ret);
+			conn->nf_hook_ops.dev = NULL;
+		}
+
 		conn->dev = dev;
 		conn->state = MODGATE_ST_ID_REQ;
 		conn->in_ctr = rcv_tl->i8uCounter;
