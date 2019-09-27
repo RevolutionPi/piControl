@@ -195,6 +195,10 @@ static int __init piControlInit(void)
 	} else if (of_machine_is_compatible("kunbus,revpi-connect")) {
 		piDev_g.machine_type = REVPI_CONNECT;
 		pr_info("RevPi Connect\n");
+	} else if (of_machine_is_compatible("kunbus,revpi-connect-flat")) {
+		piDev_g.machine_type = REVPI_CONNECT_FLAT;
+		pr_info("RevPi Connect Flat\n");
+		return 0; /* unsupported */
 	} else {
 		piDev_g.machine_type = REVPI_CORE;
 		pr_info("RevPi Core\n");
