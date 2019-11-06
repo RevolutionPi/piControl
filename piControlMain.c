@@ -751,6 +751,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					pDev->i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
 					pDev->i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
 					status = i;
+					break;
 				}
 			}
 		}

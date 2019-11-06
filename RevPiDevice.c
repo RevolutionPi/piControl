@@ -158,6 +158,8 @@ int RevPiDevice_run(void)
 					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
 						RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
 					}
+					else
+						RevPiDevice_getDev(i8uDevice)->i8uModuleState = DIOSTATE_OFFLINE;
 					retval -= 1;	// tell calling function that an error occured
 					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
 						// the first error is ignored
@@ -165,6 +167,7 @@ int RevPiDevice_run(void)
 					}
 				} else {
 					RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
+					RevPiDevice_getDev(i8uDevice)->i8uModuleState = DIOSTATE_CYCLIC_IO;
 				}
 				break;
 
@@ -174,6 +177,8 @@ int RevPiDevice_run(void)
 					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
 						RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
 					}
+					else
+						RevPiDevice_getDev(i8uDevice)->i8uModuleState = AIOSTATE_OFFLINE;
 					retval -= 1;	// tell calling function that an error occured
 					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
 						// the first error is ignored
@@ -181,6 +186,7 @@ int RevPiDevice_run(void)
 					}
 				} else {
 					RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
+					RevPiDevice_getDev(i8uDevice)->i8uModuleState = AIOSTATE_CYCLIC_IO;
 				}
 				break;
 
