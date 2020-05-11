@@ -261,15 +261,13 @@ static int revpi_compact_poll_ain(void *data)
 			pr_info("ain thread reset to %d chans\n",
 				 numchans);
 
-			if (!numchans) {
-				complete(&machine->ain_reset);
-				set_current_state(TASK_IDLE);
-				schedule();
-				continue;
-			}
+			/*
+			 * If numchans is 0, still need to wake up once per sec
+			 * to update core frequency and temperature.
+			 */
+			cycletimer_change(&ct, NSEC_PER_SEC / max(numchans, 1));
 
 			i = 0;
-			cycletimer_change(&ct, NSEC_PER_SEC / numchans);
 			smp_store_release(&machine->ain_should_reset, false);
 			complete(&machine->ain_reset);
 			pr_info_aio("AIn Reset: ct %dms, %d active: %d %d %d %d %d %d %d %d    %d %d %d %d %d %d %d %d\n",
@@ -278,6 +276,9 @@ static int revpi_compact_poll_ain(void *data)
 				chan[0], chan[1], chan[2], chan[3], chan[4], chan[5], chan[6], chan[7]
 				);
 		}
+
+		if (!numchans)
+			goto next_chan; /* only update core freq and temp */
 
 		/* poll ain */
 		ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
@@ -305,7 +306,7 @@ static int revpi_compact_poll_ain(void *data)
 		image->drv.ain[chan[i]] = raw;
 
 next_chan:
-		if (++i == numchans) {
+		if (++i >= numchans) {
 			i = 0;
 
 			// update every 1 sec
