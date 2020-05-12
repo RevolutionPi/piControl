@@ -246,8 +246,10 @@ static int revpi_compact_poll_ain(void *data)
 			for (i = 0, numchans = 0; i < ARRAY_SIZE(chan); i++) {
 				unsigned long config = machine->config.ain[i];
 
-				if (!test_bit(AIN_ENABLED, &config))
+				if (!test_bit(AIN_ENABLED, &config)) {
+					image->drv.ain[i] = 0;
 					continue;
+				}
 
 				/* pre-calculate channel parameters */
 				rtd[numchans]  = test_bit(AIN_RTD, &config);
@@ -394,14 +396,10 @@ void revpi_compact_adjust_config(void)
 	int result = 0, found;
 	uint8_t *state;
 
-	// do not allow accesses to process image while the offset are changed
-	my_rt_mutex_lock(&piDev_g.lockPI);
-
 	RevPiDevice_init();
 
 	if (piDev_g.devs == NULL) {
 		// config file could not be read, do nothing
-		rt_mutex_unlock(&piDev_g.lockPI);
 		return;
 	}
 
@@ -503,9 +501,6 @@ void revpi_compact_adjust_config(void)
 			RevPiDevice_incDevCnt();
 		}
 	}
-
-	rt_mutex_unlock(&piDev_g.lockPI);						\
-
 }
 
 int revpi_compact_init(void)
@@ -697,9 +692,15 @@ void revpi_compact_fini(void)
 int revpi_compact_reset()
 {
 	SRevPiCompact *machine = piDev_g.machine;
+	SRevPiCompactImage *image = (SRevPiCompactImage *)piDev_g.ai8uPI +
+				    machine->config.offset;
 	int ret;
 
+	/* disallow access to process image while offsets are changed */
+	my_rt_mutex_lock(&piDev_g.lockPI);
 	revpi_compact_adjust_config();
+	memset(&image->usr, 0, sizeof(image->usr));
+	rt_mutex_unlock(&piDev_g.lockPI);
 
 	machine->config = revpi_compact_config_g;
 
