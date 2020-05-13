@@ -717,7 +717,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_RESET:
 		pr_info("Reset: BridgeState=%d \n", piCore_g.eBridgeState);
 
-		if (isRunning()) {
+		if ((piDev_g.machine_type == REVPI_CORE ||
+		     piDev_g.machine_type == REVPI_CONNECT) && isRunning()) {
 			PiBridgeMaster_Stop();
 		}
 		status = piControlReset(priv);
