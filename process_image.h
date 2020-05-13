@@ -43,19 +43,10 @@ static inline void cycletimer_sleep(struct cycletimer *ct)
 static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
-	u64 zeroth_cycle;
-	ktime_t now;
 
 	ct->cycletime = ns_to_ktime(cycletime);
-
-	now = hrtimer_cb_get_time(timer);
-	zeroth_cycle = ktime_divns(now, cycletime) * cycletime;
-
-	/* avoid missing the first cycle if the zeroth is almost expired */
-	if (ktime_to_ns(now) - zeroth_cycle > 100 * NSEC_PER_USEC)
-		zeroth_cycle += cycletime;
-
-	hrtimer_set_expires(timer, ns_to_ktime(zeroth_cycle));
+	hrtimer_cancel(timer);
+	hrtimer_set_expires(timer, hrtimer_cb_get_time(timer));
 }
 
 static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime)
