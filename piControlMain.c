@@ -842,24 +842,42 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_VALUE:
 		{
-			SPIValue *pValue = (SPIValue *) usr_addr;
+			SPIValue spi_val;
+			u8 val;
 
 			if (!isRunning())
 				return -EFAULT;
 
-			if (pValue->i16uAddress >= KB_PI_LEN) {
+			if (!access_ok(VERIFY_WRITE, (void __user *) usr_addr,
+				       sizeof(spi_val))) {
+				pr_err("invalid address provided by user\n");
+				return -EFAULT;
+			}
+
+			if (__copy_from_user(&spi_val, (const void __user *) usr_addr,
+					     sizeof(spi_val))) {
+				pr_err("failed to copy spi value from user\n");
+				return -EFAULT;
+			}
+
+			if (spi_val.i16uAddress >= KB_PI_LEN) {
 				status = -EFAULT;
 			} else {
-				INT8U i8uValue_l;
 				// bei einem Byte braucht man keinen Lock rt_mutex_lock(&piDev_g.lockPI);
-				i8uValue_l = piDev_g.ai8uPI[pValue->i16uAddress];
+				val = piDev_g.ai8uPI[spi_val.i16uAddress];
 				// bei einem Byte braucht man keinen Lock rt_mutex_unlock(&piDev_g.lockPI);
 
-				if (pValue->i8uBit >= 8) {
-					pValue->i8uValue = i8uValue_l;
+				if (spi_val.i8uBit >= 8) {
+					spi_val.i8uValue = val;
 				} else {
-					pValue->i8uValue = (i8uValue_l & (1 << pValue->i8uBit))
+					spi_val.i8uValue = (val & (1 << spi_val.i8uBit))
 					    ? 1 : 0;
+				}
+
+				if (__copy_to_user((void __user *) usr_addr, &spi_val,
+						   sizeof(spi_val))) {
+					pr_err("failed to copy spi value to user\n");
+					return -EFAULT;
 				}
 
 				status = 0;
