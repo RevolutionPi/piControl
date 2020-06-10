@@ -781,40 +781,46 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_DEVICE_INFO_LIST:
 		{
-			SDeviceInfo *pDev = (SDeviceInfo *) usr_addr;
+			SDeviceInfo *dev_infos;
+			unsigned int num_devs = RevPiDevice_getDevCnt();
 			bool firmware_update = false;
 			int i;
 
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				pDev[i].i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
-				pDev[i].i8uActive = RevPiDevice_getDev(i)->i8uActive;
-				pDev[i].i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
-				pDev[i].i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
-				pDev[i].i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
-				pDev[i].i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
-				pDev[i].i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
-				pDev[i].i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
-				pDev[i].i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
-				pDev[i].i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
-				pDev[i].i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
-				pDev[i].i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
-				pDev[i].i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
-				pDev[i].i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-				pDev[i].i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+			dev_infos = kcalloc(num_devs, sizeof(SDeviceInfo),
+					    GFP_KERNEL);
+			if (!dev_infos)
+				return -ENOMEM;
 
-				if (	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
-				||	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16
-				||	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DI_16) {
+			for (i = 0; i < num_devs; i++) {
+				dev_infos[i].i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
+				dev_infos[i].i8uActive = RevPiDevice_getDev(i)->i8uActive;
+				dev_infos[i].i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
+				dev_infos[i].i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
+				dev_infos[i].i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
+				dev_infos[i].i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
+				dev_infos[i].i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
+				dev_infos[i].i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
+				dev_infos[i].i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
+				dev_infos[i].i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
+				dev_infos[i].i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
+				dev_infos[i].i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
+				dev_infos[i].i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
+				dev_infos[i].i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
+				dev_infos[i].i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+
+				if (	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
+				||	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16
+				||	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DI_16) {
 					// DIO with firmware older than 1.4 should be updated
-					if (	pDev[i].i16uSW_Major < 1
-					    || (pDev[i].i16uSW_Major == 1 && pDev[i].i16uSW_Minor < 4)) {
+					if (	dev_infos[i].i16uSW_Major < 1
+					    || (dev_infos[i].i16uSW_Major == 1 && dev_infos[i].i16uSW_Minor < 4)) {
 						firmware_update = true;
 					}
 				}
-				if (	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
+				if (	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
 					// AIO with firmware older than 1.3 should be updated
-					if (	pDev[i].i16uSW_Major < 1
-					    || (pDev[i].i16uSW_Major == 1 && pDev[i].i16uSW_Minor < 3)) {
+					if (	dev_infos[i].i16uSW_Major < 1
+					    || (dev_infos[i].i16uSW_Major == 1 && dev_infos[i].i16uSW_Minor < 3)) {
 						firmware_update = true;
 					}
 				}
@@ -823,6 +829,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				printUserMsg(priv, "The firmware of some I/O modules must be updated.\n"
 					     "Please connect only one module to the RevPi and call 'piTest -f'");
 			}
+			if (copy_to_user((void __user *) usr_addr, dev_infos,
+					 sizeof(SDeviceInfo) * num_devs)) {
+				pr_err("failed to copy device list to user\n");
+				kfree(dev_infos);
+				return -EFAULT;
+			}
+			kfree(dev_infos);
 			status = RevPiDevice_getDevCnt();
 		}
 		break;
