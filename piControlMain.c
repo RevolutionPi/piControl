@@ -887,28 +887,34 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_SET_VALUE:
 		{
-			SPIValue *pValue = (SPIValue *) usr_addr;
+			SPIValue spi_val;
 
 			if (!isRunning())
 				return -EFAULT;
 
-			if (pValue->i16uAddress >= KB_PI_LEN) {
+			if (copy_from_user(&spi_val, (const void __user *) usr_addr,
+					   sizeof(spi_val))) {
+				pr_err("failed to copy spi value from user\n");
+				return -EFAULT;
+			}
+
+			if (spi_val.i16uAddress >= KB_PI_LEN) {
 				status = -EFAULT;
 			} else {
 				INT8U i8uValue_l;
 				my_rt_mutex_lock(&piDev_g.lockPI);
-				i8uValue_l = piDev_g.ai8uPI[pValue->i16uAddress];
+				i8uValue_l = piDev_g.ai8uPI[spi_val.i16uAddress];
 
-				if (pValue->i8uBit >= 8) {
-					i8uValue_l = pValue->i8uValue;
+				if (spi_val.i8uBit >= 8) {
+					i8uValue_l = spi_val.i8uValue;
 				} else {
-					if (pValue->i8uValue)
-						i8uValue_l |= (1 << pValue->i8uBit);
+					if (spi_val.i8uValue)
+						i8uValue_l |= (1 << spi_val.i8uBit);
 					else
-						i8uValue_l &= ~(1 << pValue->i8uBit);
+						i8uValue_l &= ~(1 << spi_val.i8uBit);
 				}
 
-				piDev_g.ai8uPI[pValue->i16uAddress] = i8uValue_l;
+				piDev_g.ai8uPI[spi_val.i16uAddress] = i8uValue_l;
 				rt_mutex_unlock(&piDev_g.lockPI);
 
 				if (priv->tTimeoutDurationMs > 0) {
@@ -916,7 +922,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				}
 
 #ifdef VERBOSE
-				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n", pValue->i16uAddress, pValue->i8uBit, pValue->i8uValue, i8uValue_l);
+				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n", spi_val.i16uAddress, spi_val.i8uBit, spi_val.i8uValue, i8uValue_l);
 #endif
 
 				status = 0;
