@@ -726,35 +726,56 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_DEVICE_INFO:
 		{
-			SDeviceInfo *pDev = (SDeviceInfo *) usr_addr;
+			SDeviceInfo dev_info;
 			int i, found;
+
+			if (!access_ok(VERIFY_WRITE, (void __user *) usr_addr, sizeof(dev_info))) {
+				pr_err("invalid address provided by user\n");
+				return -EFAULT;
+			}
+
+			if (__copy_from_user(&dev_info, (const void __user *) usr_addr, sizeof(dev_info))) {
+				pr_err("failed to copy dev info from user\n");
+				return -EFAULT;
+			}
+
 			for (i = 0, found = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (pDev->i8uAddress != 0 && pDev->i8uAddress == RevPiDevice_getDev(i)->i8uAddress) {
+				if (dev_info.i8uAddress != 0 && dev_info.i8uAddress == RevPiDevice_getDev(i)->i8uAddress) {
 					found = 1;
+					break;
 				}
-				if (pDev->i16uModuleType != 0 && pDev->i16uModuleType == RevPiDevice_getDev(i)->sId.i16uModulType) {
+				if (dev_info.i16uModuleType != 0 && dev_info.i16uModuleType == RevPiDevice_getDev(i)->sId.i16uModulType) {
 					found = 1;
-				}
-				if (found) {
-					pDev->i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
-					pDev->i8uActive = RevPiDevice_getDev(i)->i8uActive;
-					pDev->i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
-					pDev->i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
-					pDev->i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
-					pDev->i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
-					pDev->i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
-					pDev->i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
-					pDev->i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
-					pDev->i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
-					pDev->i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
-					pDev->i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
-					pDev->i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
-					pDev->i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-					pDev->i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
-					status = i;
 					break;
 				}
 			}
+			if (found) {
+				dev_info.i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
+				dev_info.i8uActive = RevPiDevice_getDev(i)->i8uActive;
+				dev_info.i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
+				dev_info.i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
+				dev_info.i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
+				dev_info.i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
+				dev_info.i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
+				dev_info.i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
+				dev_info.i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
+				dev_info.i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
+				dev_info.i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
+				dev_info.i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
+				dev_info.i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
+				dev_info.i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
+				dev_info.i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+
+				if (__copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
+					pr_err("failed to copy dev info to user\n");
+					return -EFAULT;
+				}
+
+				status = i;
+				break;
+			}
+			/* nothing found */
+			return -ENXIO;
 		}
 		break;
 
