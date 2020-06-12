@@ -933,7 +933,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_FIND_VARIABLE:
 		{
 			int i;
-			SPIVariable *var = (SPIVariable *) usr_addr;
+			SPIVariable spi_var;
+			int namelen;
+			const char __user *usr_name;
 
 			if (!isRunning())
 				return -EFAULT;
@@ -943,20 +945,36 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				break;
 			}
 
+			usr_name = ((SPIVariable *) usr_addr)->strVarName;
+
+			namelen = strncpy_from_user(spi_var.strVarName, usr_name,
+						    sizeof(spi_var.strVarName) - 1);
+			if (namelen < 0) {
+				pr_err("failed to copy spi variable from user\n");
+				return -EFAULT;
+			}
+			/* make sure we have a valid string */
+			spi_var.strVarName[namelen] = '\0';
+			/* set default */
+			spi_var.i16uAddress = 0xffff;
+			spi_var.i8uBit = 0xff;
+			spi_var.i16uLength = 0xffff;
+
 			for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
 				//pr_info("strcmp(%s, %s)\n", piDev_g.ent->ent[i].strVarName, var->strVarName);
-				if (strcmp(piDev_g.ent->ent[i].strVarName, var->strVarName) == 0) {
-					var->i16uAddress = piDev_g.ent->ent[i].i16uOffset;
-					var->i8uBit = piDev_g.ent->ent[i].i8uBitPos;
-					var->i16uLength = piDev_g.ent->ent[i].i16uBitLength;
+				if (strcmp(piDev_g.ent->ent[i].strVarName, spi_var.strVarName) == 0) {
+					spi_var.i16uAddress = piDev_g.ent->ent[i].i16uOffset;
+					spi_var.i8uBit = piDev_g.ent->ent[i].i8uBitPos;
+					spi_var.i16uLength = piDev_g.ent->ent[i].i16uBitLength;
 					status = 0;
-					return status;
+					break;
 				}
 			}
 
-			var->i16uAddress = 0xffff;
-			var->i8uBit = 0xff;
-			var->i16uLength = 0xffff;
+			if (copy_to_user((void __user *) usr_addr, &spi_var, sizeof(spi_var))) {
+				pr_err("failed to copy spi variable to user\n");
+				return -EFAULT;
+			}
 
 		}
 		break;
