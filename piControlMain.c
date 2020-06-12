@@ -1395,8 +1395,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			loff_t off = 0;
 
-			if (usr_addr != 0)
-				off = *(unsigned int*)usr_addr;
+			if (usr_addr != 0) {
+				if (get_user(off, (unsigned int __user *) usr_addr)) {
+					pr_err("failed to copy offset from user\n");
+					return -EFAULT;
+				}
+			}
+
 			status = piControlSeek(file, off, 0);
 			if (status > 0)
 				status = 0;
