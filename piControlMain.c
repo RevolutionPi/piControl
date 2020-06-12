@@ -1105,7 +1105,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_INTERN_SET_SERIAL_NUM:
 		{
-			INT32U *pData = (INT32U *) usr_addr;	// pData is an array containing the module address and the serial number
+			u32 snum_data[2]; 	// snum_data is an array containing the module address and the serial number
 
 			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
 				return -EPERM;
@@ -1114,13 +1114,19 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (!isRunning())
 				return -EFAULT;
 
+			if (copy_from_user(snum_data, (const void __user *) usr_addr,
+					   sizeof(snum_data))) {
+				pr_err("failed to copy serial num from user\n");
+				return -EFAULT;
+			}
+
 			PiBridgeMaster_Stop();
 			msleep(500);
 
-			if (PiBridgeMaster_FWUModeEnter(pData[0], 1) == 0) {
+			if (PiBridgeMaster_FWUModeEnter(snum_data[0], 1) == 0) {
 
-				if (PiBridgeMaster_FWUsetSerNum(pData[1]) == 0) {
-					pr_info("piControlIoctl: set serial number to %u in module %u", pData[1], pData[0]);
+				if (PiBridgeMaster_FWUsetSerNum(snum_data[1]) == 0) {
+					pr_info("piControlIoctl: set serial number to %u in module %u", snum_data[1], snum_data[0]);
 				}
 
 				PiBridgeMaster_FWUReset();
