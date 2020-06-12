@@ -1016,7 +1016,12 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					uint8_t val1, val2;
 					uint8_t mask = piDev_g.cl->ent[i].i8uBitMask;
 
-					val1 = *(uint8_t *) (usr_addr + addr);
+					if (get_user(val1, (u8 __user*) (usr_addr + addr))) {
+						pr_err("failed to copy byte from user\n");
+						status = -EFAULT;
+						break;
+					}
+
 					val1 &= mask;
 
 					val2 = piDev_g.ai8uPI[addr];
