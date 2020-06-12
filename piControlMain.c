@@ -1251,7 +1251,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_WAIT_FOR_EVENT:
 		{
 			tpiEventEntry *pEntry;
-			int *pData = (int *)usr_addr;
 
 			pr_info_drv("wait(%d)\n", priv->instNum);
 			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
@@ -1259,13 +1258,17 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
 
 				pr_info_drv("wait(%d): got event %d\n", priv->instNum, pEntry->event);
-				*pData = pEntry->event;
 
 				list_del(&pEntry->list);
 				rt_mutex_unlock(&priv->lockEventList);
-				kfree(pEntry);
 
-				status = 0;
+				if (put_user(pEntry->event, (u32 __user *) usr_addr)) {
+					status = -EFAULT;
+				} else {
+					status = 0;
+				}
+
+				kfree(pEntry);
 			}
 		}
 		break;
