@@ -1148,7 +1148,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_UPDATE_DEVICE_FIRMWARE:
 		{
 			int i, ret, cnt;
-			INT32U *pData = (INT32U *) usr_addr;	// pData is null or points to the module address
+			u32 data;
+			INT32U *pData = NULL;	// pData is null or points to the module address
+
 
 			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
 				return -EPERM;
@@ -1158,6 +1160,16 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				printUserMsg(priv, "piControl is not running");
 				return -EFAULT;
 			}
+
+			if (usr_addr) {
+				if (get_user(data, (u32 __user *) usr_addr)) {
+					pr_err("failed to copy update info from user\n");
+					return -EFAULT;
+				}
+
+				pData = &data;
+			}
+
 			// at the moment the update works only, if there is only one module connected on the right
 #if 0
 #ifndef ENDTEST_DIO
