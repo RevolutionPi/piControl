@@ -1288,15 +1288,20 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			// parameter = 0: stop I/Os
 			// parameter = 1: start I/Os
 			// parameter = 2: toggle I/Os
-			int *pData = (int *)usr_addr;
+			u32 data;
 
 			if (!isRunning())
 				return -EFAULT;
 
-			if (*pData == 2) {
+			if (get_user(data, (u32 __user *) usr_addr)) {
+				pr_err("Failed to copy stop command from user\n");
+				return -EFAULT;
+			}
+
+			if (data == 2) {
 				piDev_g.stopIO = !piDev_g.stopIO;
 			} else {
-				piDev_g.stopIO = (*pData) ? true : false;
+				piDev_g.stopIO = data ? true : false;
 			}
 			status = piDev_g.stopIO;
 		}
