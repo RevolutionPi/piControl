@@ -1053,7 +1053,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_DIO_RESET_COUNTER:
 		{
 			SDioCounterReset tel;
-			SDIOResetCounter *pPar = (SDIOResetCounter *) usr_addr;
+			SDIOResetCounter res_cnt;
 			int i;
 			bool found = false;
 
@@ -1065,8 +1065,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EFAULT;
 			}
 
+			if (copy_from_user(&res_cnt, (const void __user *) usr_addr, sizeof(res_cnt))) {
+				pr_err("failed to copy reset counter from user\n");
+				return -EFAULT;
+			}
+
 			for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
-				if (RevPiDevice_getDev(i)->i8uAddress == pPar->i8uAddress
+				if (RevPiDevice_getDev(i)->i8uAddress == res_cnt.i8uAddress
 				    && RevPiDevice_getDev(i)->i8uActive
 				    && (RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
 					|| RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DI_16)) {
@@ -1075,17 +1080,17 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				}
 			}
 
-			if (!found || pPar->i16uBitfield == 0) {
-				pr_info("piControlIoctl: resetCounter failed bitfield 0x%x", pPar->i16uBitfield);
+			if (!found || res_cnt.i16uBitfield == 0) {
+				pr_info("piControlIoctl: resetCounter failed bitfield 0x%x", res_cnt.i16uBitfield);
 				return -EINVAL;
 			}
 
-			tel.uHeader.sHeaderTyp1.bitAddress = pPar->i8uAddress;
+			tel.uHeader.sHeaderTyp1.bitAddress = res_cnt.i8uAddress;
 			tel.uHeader.sHeaderTyp1.bitIoHeaderType = 0;
 			tel.uHeader.sHeaderTyp1.bitReqResp = 0;
 			tel.uHeader.sHeaderTyp1.bitLength = sizeof(SDioCounterReset) - IOPROTOCOL_HEADER_LENGTH - 1;
 			tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
-			tel.i16uChannels = pPar->i16uBitfield;
+			tel.i16uChannels = res_cnt.i16uBitfield;
 
 			my_rt_mutex_lock(&piCore_g.lockUserTel);
 			memcpy(&piCore_g.requestUserTel, &tel, sizeof(tel));
