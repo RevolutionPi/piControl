@@ -1380,8 +1380,12 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_SET_OUTPUT_WATCHDOG:
 		{
-			unsigned int *pData = (unsigned int *)usr_addr;
-			priv->tTimeoutDurationMs = *pData;
+			if (get_user(priv->tTimeoutDurationMs,
+				     (unsigned long __user *) usr_addr)) {
+				pr_err("failed to copy timeout from user\n");
+				return -EFAULT;
+			}
+
 			priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
 			status = 0;
 		}
