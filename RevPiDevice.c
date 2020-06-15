@@ -115,7 +115,7 @@ void RevPiDevice_init(void)
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiConnect_ID_g.i16uFBS_InputLength;
 			break;
-		case REVPI_CONNECT_FLAT:
+		case REVPI_FLAT:
 			break;
 	}
 
