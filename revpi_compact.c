@@ -597,7 +597,7 @@ int revpi_compact_init(void)
 	if (IS_ERR(machine->aout[0]) || IS_ERR(machine->aout[1])) {
 		pr_err("cannot acquire analog output chans\n");
 		ret = PTR_ERR(machine->aout[0]) | PTR_ERR(machine->aout[1]);
-		goto err_unregister_aout;
+		goto err_release_aout;
 	}
 
 	machine->io_thread = kthread_create(&revpi_compact_poll_io, machine,
@@ -648,7 +648,6 @@ err_stop_io_thread:
 err_release_aout:
 	iio_channel_release(machine->aout[0]);
 	iio_channel_release(machine->aout[1]);
-err_unregister_aout:
 	iio_map_array_unregister(machine->aout_dev);
 err_put_aout:
 	iio_device_put(machine->aout_dev);
