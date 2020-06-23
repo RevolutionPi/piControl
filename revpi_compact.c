@@ -564,9 +564,8 @@ int revpi_compact_init(void)
 	machine->ain_dev = dev_to_iio_dev(dev);
 	ret = iio_map_array_register(machine->ain_dev,
 				     (struct iio_map *)revpi_compact_ain);
-	put_device(dev);
 	if (ret)
-		goto err_put_dout_fault;
+		goto err_put_ain_dev;
 
 	machine->ain = iio_channel_get_all(piDev_g.dev);
 	if (IS_ERR(machine->ain)) {
@@ -584,9 +583,8 @@ int revpi_compact_init(void)
 	machine->aout_dev = dev_to_iio_dev(dev);
 	ret = iio_map_array_register(machine->aout_dev,
 				     (struct iio_map *)revpi_compact_aout);
-	put_device(dev);
 	if (ret)
-		goto err_release_ain;
+		goto err_put_aout;
 
 	machine->aout[0] = iio_channel_get(piDev_g.dev, "aout0");
 	machine->aout[1] = iio_channel_get(piDev_g.dev, "aout1");
@@ -646,10 +644,14 @@ err_release_aout:
 	iio_channel_release(machine->aout[1]);
 err_unregister_aout:
 	iio_map_array_unregister(machine->aout_dev);
+err_put_aout:
+	iio_device_put(machine->aout_dev);
 err_release_ain:
 	iio_channel_release_all(machine->ain);
 err_unregister_ain:
 	iio_map_array_unregister(machine->ain_dev);
+err_put_ain_dev:
+	iio_device_put(machine->ain_dev);
 err_put_dout_fault:
 	gpiod_put(machine->dout_fault);
 err_put_din_dev:
@@ -679,8 +681,10 @@ void revpi_compact_fini(void)
 	iio_channel_release(machine->aout[0]);
 	iio_channel_release(machine->aout[1]);
 	iio_map_array_unregister(machine->aout_dev);
+	iio_device_put(machine->aout_dev);
 	iio_channel_release_all(machine->ain);
 	iio_map_array_unregister(machine->ain_dev);
+	iio_device_put(machine->ain_dev);
 	gpiod_put(machine->dout_fault);
 	put_device(machine->din_dev);
 	gpiod_put_array(machine->dout);
