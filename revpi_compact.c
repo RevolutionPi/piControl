@@ -547,6 +547,12 @@ int revpi_compact_init(void)
 	}
 
 	dev = bus_find_device(&spi_bus_type, NULL, "74hc595", match_name);
+	if (!dev) {
+		pr_err("cannot find digital output device\n");
+		ret = -ENODEV;
+		goto err_put_din_dev;
+	}
+
 	machine->dout_fault = gpiod_get(dev, "kunbus,fault", GPIOD_IN);
 	put_device(dev);
 	if (IS_ERR(machine->dout_fault)) {
