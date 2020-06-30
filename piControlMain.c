@@ -726,74 +726,101 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_DEVICE_INFO:
 		{
-			SDeviceInfo *pDev = (SDeviceInfo *) usr_addr;
+			SDeviceInfo dev_info;
 			int i, found;
+
+			if (!access_ok(VERIFY_WRITE, (void __user *) usr_addr, sizeof(dev_info))) {
+				pr_err("invalid address provided by user\n");
+				return -EFAULT;
+			}
+
+			if (__copy_from_user(&dev_info, (const void __user *) usr_addr, sizeof(dev_info))) {
+				pr_err("failed to copy dev info from user\n");
+				return -EFAULT;
+			}
+
 			for (i = 0, found = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (pDev->i8uAddress != 0 && pDev->i8uAddress == RevPiDevice_getDev(i)->i8uAddress) {
+				if (dev_info.i8uAddress != 0 && dev_info.i8uAddress == RevPiDevice_getDev(i)->i8uAddress) {
 					found = 1;
+					break;
 				}
-				if (pDev->i16uModuleType != 0 && pDev->i16uModuleType == RevPiDevice_getDev(i)->sId.i16uModulType) {
+				if (dev_info.i16uModuleType != 0 && dev_info.i16uModuleType == RevPiDevice_getDev(i)->sId.i16uModulType) {
 					found = 1;
-				}
-				if (found) {
-					pDev->i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
-					pDev->i8uActive = RevPiDevice_getDev(i)->i8uActive;
-					pDev->i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
-					pDev->i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
-					pDev->i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
-					pDev->i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
-					pDev->i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
-					pDev->i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
-					pDev->i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
-					pDev->i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
-					pDev->i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
-					pDev->i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
-					pDev->i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
-					pDev->i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-					pDev->i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
-					status = i;
 					break;
 				}
 			}
+			if (found) {
+				dev_info.i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
+				dev_info.i8uActive = RevPiDevice_getDev(i)->i8uActive;
+				dev_info.i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
+				dev_info.i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
+				dev_info.i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
+				dev_info.i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
+				dev_info.i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
+				dev_info.i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
+				dev_info.i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
+				dev_info.i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
+				dev_info.i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
+				dev_info.i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
+				dev_info.i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
+				dev_info.i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
+				dev_info.i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+
+				if (__copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
+					pr_err("failed to copy dev info to user\n");
+					return -EFAULT;
+				}
+
+				status = i;
+				break;
+			}
+			/* nothing found */
+			return -ENXIO;
 		}
 		break;
 
 	case KB_GET_DEVICE_INFO_LIST:
 		{
-			SDeviceInfo *pDev = (SDeviceInfo *) usr_addr;
+			SDeviceInfo *dev_infos;
+			unsigned int num_devs = RevPiDevice_getDevCnt();
 			bool firmware_update = false;
 			int i;
 
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				pDev[i].i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
-				pDev[i].i8uActive = RevPiDevice_getDev(i)->i8uActive;
-				pDev[i].i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
-				pDev[i].i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
-				pDev[i].i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
-				pDev[i].i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
-				pDev[i].i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
-				pDev[i].i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
-				pDev[i].i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
-				pDev[i].i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
-				pDev[i].i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
-				pDev[i].i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
-				pDev[i].i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
-				pDev[i].i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-				pDev[i].i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+			dev_infos = kcalloc(num_devs, sizeof(SDeviceInfo),
+					    GFP_KERNEL);
+			if (!dev_infos)
+				return -ENOMEM;
 
-				if (	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
-				||	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16
-				||	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DI_16) {
+			for (i = 0; i < num_devs; i++) {
+				dev_infos[i].i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
+				dev_infos[i].i8uActive = RevPiDevice_getDev(i)->i8uActive;
+				dev_infos[i].i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
+				dev_infos[i].i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
+				dev_infos[i].i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
+				dev_infos[i].i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
+				dev_infos[i].i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
+				dev_infos[i].i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
+				dev_infos[i].i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
+				dev_infos[i].i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
+				dev_infos[i].i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
+				dev_infos[i].i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
+				dev_infos[i].i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
+				dev_infos[i].i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
+				dev_infos[i].i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+
+				if (	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
+				||	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16
+				||	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DI_16) {
 					// DIO with firmware older than 1.4 should be updated
-					if (	pDev[i].i16uSW_Major < 1
-					    || (pDev[i].i16uSW_Major == 1 && pDev[i].i16uSW_Minor < 4)) {
+					if (	dev_infos[i].i16uSW_Major < 1
+					    || (dev_infos[i].i16uSW_Major == 1 && dev_infos[i].i16uSW_Minor < 4)) {
 						firmware_update = true;
 					}
 				}
-				if (	pDev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
+				if (	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
 					// AIO with firmware older than 1.3 should be updated
-					if (	pDev[i].i16uSW_Major < 1
-					    || (pDev[i].i16uSW_Major == 1 && pDev[i].i16uSW_Minor < 3)) {
+					if (	dev_infos[i].i16uSW_Major < 1
+					    || (dev_infos[i].i16uSW_Major == 1 && dev_infos[i].i16uSW_Minor < 3)) {
 						firmware_update = true;
 					}
 				}
@@ -802,30 +829,55 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				printUserMsg(priv, "The firmware of some I/O modules must be updated.\n"
 					     "Please connect only one module to the RevPi and call 'piTest -f'");
 			}
+			if (copy_to_user((void __user *) usr_addr, dev_infos,
+					 sizeof(SDeviceInfo) * num_devs)) {
+				pr_err("failed to copy device list to user\n");
+				kfree(dev_infos);
+				return -EFAULT;
+			}
+			kfree(dev_infos);
 			status = RevPiDevice_getDevCnt();
 		}
 		break;
 
 	case KB_GET_VALUE:
 		{
-			SPIValue *pValue = (SPIValue *) usr_addr;
+			SPIValue spi_val;
+			u8 val;
 
 			if (!isRunning())
 				return -EFAULT;
 
-			if (pValue->i16uAddress >= KB_PI_LEN) {
+			if (!access_ok(VERIFY_WRITE, (void __user *) usr_addr,
+				       sizeof(spi_val))) {
+				pr_err("invalid address provided by user\n");
+				return -EFAULT;
+			}
+
+			if (__copy_from_user(&spi_val, (const void __user *) usr_addr,
+					     sizeof(spi_val))) {
+				pr_err("failed to copy spi value from user\n");
+				return -EFAULT;
+			}
+
+			if (spi_val.i16uAddress >= KB_PI_LEN) {
 				status = -EFAULT;
 			} else {
-				INT8U i8uValue_l;
 				// bei einem Byte braucht man keinen Lock rt_mutex_lock(&piDev_g.lockPI);
-				i8uValue_l = piDev_g.ai8uPI[pValue->i16uAddress];
+				val = piDev_g.ai8uPI[spi_val.i16uAddress];
 				// bei einem Byte braucht man keinen Lock rt_mutex_unlock(&piDev_g.lockPI);
 
-				if (pValue->i8uBit >= 8) {
-					pValue->i8uValue = i8uValue_l;
+				if (spi_val.i8uBit >= 8) {
+					spi_val.i8uValue = val;
 				} else {
-					pValue->i8uValue = (i8uValue_l & (1 << pValue->i8uBit))
+					spi_val.i8uValue = (val & (1 << spi_val.i8uBit))
 					    ? 1 : 0;
+				}
+
+				if (__copy_to_user((void __user *) usr_addr, &spi_val,
+						   sizeof(spi_val))) {
+					pr_err("failed to copy spi value to user\n");
+					return -EFAULT;
 				}
 
 				status = 0;
@@ -835,28 +887,34 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_SET_VALUE:
 		{
-			SPIValue *pValue = (SPIValue *) usr_addr;
+			SPIValue spi_val;
 
 			if (!isRunning())
 				return -EFAULT;
 
-			if (pValue->i16uAddress >= KB_PI_LEN) {
+			if (copy_from_user(&spi_val, (const void __user *) usr_addr,
+					   sizeof(spi_val))) {
+				pr_err("failed to copy spi value from user\n");
+				return -EFAULT;
+			}
+
+			if (spi_val.i16uAddress >= KB_PI_LEN) {
 				status = -EFAULT;
 			} else {
 				INT8U i8uValue_l;
 				my_rt_mutex_lock(&piDev_g.lockPI);
-				i8uValue_l = piDev_g.ai8uPI[pValue->i16uAddress];
+				i8uValue_l = piDev_g.ai8uPI[spi_val.i16uAddress];
 
-				if (pValue->i8uBit >= 8) {
-					i8uValue_l = pValue->i8uValue;
+				if (spi_val.i8uBit >= 8) {
+					i8uValue_l = spi_val.i8uValue;
 				} else {
-					if (pValue->i8uValue)
-						i8uValue_l |= (1 << pValue->i8uBit);
+					if (spi_val.i8uValue)
+						i8uValue_l |= (1 << spi_val.i8uBit);
 					else
-						i8uValue_l &= ~(1 << pValue->i8uBit);
+						i8uValue_l &= ~(1 << spi_val.i8uBit);
 				}
 
-				piDev_g.ai8uPI[pValue->i16uAddress] = i8uValue_l;
+				piDev_g.ai8uPI[spi_val.i16uAddress] = i8uValue_l;
 				rt_mutex_unlock(&piDev_g.lockPI);
 
 				if (priv->tTimeoutDurationMs > 0) {
@@ -864,7 +922,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				}
 
 #ifdef VERBOSE
-				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n", pValue->i16uAddress, pValue->i8uBit, pValue->i8uValue, i8uValue_l);
+				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n", spi_val.i16uAddress, spi_val.i8uBit, spi_val.i8uValue, i8uValue_l);
 #endif
 
 				status = 0;
@@ -875,7 +933,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_FIND_VARIABLE:
 		{
 			int i;
-			SPIVariable *var = (SPIVariable *) usr_addr;
+			SPIVariable spi_var;
+			int namelen;
+			const char __user *usr_name;
 
 			if (!isRunning())
 				return -EFAULT;
@@ -885,20 +945,36 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				break;
 			}
 
+			usr_name = ((SPIVariable *) usr_addr)->strVarName;
+
+			namelen = strncpy_from_user(spi_var.strVarName, usr_name,
+						    sizeof(spi_var.strVarName) - 1);
+			if (namelen < 0) {
+				pr_err("failed to copy spi variable from user\n");
+				return -EFAULT;
+			}
+			/* make sure we have a valid string */
+			spi_var.strVarName[namelen] = '\0';
+			/* set default */
+			spi_var.i16uAddress = 0xffff;
+			spi_var.i8uBit = 0xff;
+			spi_var.i16uLength = 0xffff;
+
 			for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
 				//pr_info("strcmp(%s, %s)\n", piDev_g.ent->ent[i].strVarName, var->strVarName);
-				if (strcmp(piDev_g.ent->ent[i].strVarName, var->strVarName) == 0) {
-					var->i16uAddress = piDev_g.ent->ent[i].i16uOffset;
-					var->i8uBit = piDev_g.ent->ent[i].i8uBitPos;
-					var->i16uLength = piDev_g.ent->ent[i].i16uBitLength;
+				if (strcmp(piDev_g.ent->ent[i].strVarName, spi_var.strVarName) == 0) {
+					spi_var.i16uAddress = piDev_g.ent->ent[i].i16uOffset;
+					spi_var.i8uBit = piDev_g.ent->ent[i].i8uBitPos;
+					spi_var.i16uLength = piDev_g.ent->ent[i].i16uBitLength;
 					status = 0;
-					return status;
+					break;
 				}
 			}
 
-			var->i16uAddress = 0xffff;
-			var->i8uBit = 0xff;
-			var->i16uLength = 0xffff;
+			if (copy_to_user((void __user *) usr_addr, &spi_var, sizeof(spi_var))) {
+				pr_err("failed to copy spi variable to user\n");
+				return -EFAULT;
+			}
 
 		}
 		break;
@@ -940,7 +1016,12 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					uint8_t val1, val2;
 					uint8_t mask = piDev_g.cl->ent[i].i8uBitMask;
 
-					val1 = *(uint8_t *) (usr_addr + addr);
+					if (get_user(val1, (u8 __user*) (usr_addr + addr))) {
+						pr_err("failed to copy byte from user\n");
+						status = -EFAULT;
+						break;
+					}
+
 					val1 &= mask;
 
 					val2 = piDev_g.ai8uPI[addr];
@@ -972,7 +1053,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_DIO_RESET_COUNTER:
 		{
 			SDioCounterReset tel;
-			SDIOResetCounter *pPar = (SDIOResetCounter *) usr_addr;
+			SDIOResetCounter res_cnt;
 			int i;
 			bool found = false;
 
@@ -984,8 +1065,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EFAULT;
 			}
 
+			if (copy_from_user(&res_cnt, (const void __user *) usr_addr, sizeof(res_cnt))) {
+				pr_err("failed to copy reset counter from user\n");
+				return -EFAULT;
+			}
+
 			for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
-				if (RevPiDevice_getDev(i)->i8uAddress == pPar->i8uAddress
+				if (RevPiDevice_getDev(i)->i8uAddress == res_cnt.i8uAddress
 				    && RevPiDevice_getDev(i)->i8uActive
 				    && (RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
 					|| RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DI_16)) {
@@ -994,17 +1080,17 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				}
 			}
 
-			if (!found || pPar->i16uBitfield == 0) {
-				pr_info("piControlIoctl: resetCounter failed bitfield 0x%x", pPar->i16uBitfield);
+			if (!found || res_cnt.i16uBitfield == 0) {
+				pr_info("piControlIoctl: resetCounter failed bitfield 0x%x", res_cnt.i16uBitfield);
 				return -EINVAL;
 			}
 
-			tel.uHeader.sHeaderTyp1.bitAddress = pPar->i8uAddress;
+			tel.uHeader.sHeaderTyp1.bitAddress = res_cnt.i8uAddress;
 			tel.uHeader.sHeaderTyp1.bitIoHeaderType = 0;
 			tel.uHeader.sHeaderTyp1.bitReqResp = 0;
 			tel.uHeader.sHeaderTyp1.bitLength = sizeof(SDioCounterReset) - IOPROTOCOL_HEADER_LENGTH - 1;
 			tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
-			tel.i16uChannels = pPar->i16uBitfield;
+			tel.i16uChannels = res_cnt.i16uBitfield;
 
 			my_rt_mutex_lock(&piCore_g.lockUserTel);
 			memcpy(&piCore_g.requestUserTel, &tel, sizeof(tel));
@@ -1019,7 +1105,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_INTERN_SET_SERIAL_NUM:
 		{
-			INT32U *pData = (INT32U *) usr_addr;	// pData is an array containing the module address and the serial number
+			u32 snum_data[2]; 	// snum_data is an array containing the module address and the serial number
 
 			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
 				return -EPERM;
@@ -1028,13 +1114,19 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (!isRunning())
 				return -EFAULT;
 
+			if (copy_from_user(snum_data, (const void __user *) usr_addr,
+					   sizeof(snum_data))) {
+				pr_err("failed to copy serial num from user\n");
+				return -EFAULT;
+			}
+
 			PiBridgeMaster_Stop();
 			msleep(500);
 
-			if (PiBridgeMaster_FWUModeEnter(pData[0], 1) == 0) {
+			if (PiBridgeMaster_FWUModeEnter(snum_data[0], 1) == 0) {
 
-				if (PiBridgeMaster_FWUsetSerNum(pData[1]) == 0) {
-					pr_info("piControlIoctl: set serial number to %u in module %u", pData[1], pData[0]);
+				if (PiBridgeMaster_FWUsetSerNum(snum_data[1]) == 0) {
+					pr_info("piControlIoctl: set serial number to %u in module %u", snum_data[1], snum_data[0]);
 				}
 
 				PiBridgeMaster_FWUReset();
@@ -1056,7 +1148,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_UPDATE_DEVICE_FIRMWARE:
 		{
 			int i, ret, cnt;
-			INT32U *pData = (INT32U *) usr_addr;	// pData is null or points to the module address
+			u32 data;
+			INT32U *pData = NULL;	// pData is null or points to the module address
+
 
 			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
 				return -EPERM;
@@ -1066,6 +1160,16 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				printUserMsg(priv, "piControl is not running");
 				return -EFAULT;
 			}
+
+			if (usr_addr) {
+				if (get_user(data, (u32 __user *) usr_addr)) {
+					pr_err("failed to copy update info from user\n");
+					return -EFAULT;
+				}
+
+				pData = &data;
+			}
+
 			// at the moment the update works only, if there is only one module connected on the right
 #if 0
 #ifndef ENDTEST_DIO
@@ -1147,7 +1251,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_WAIT_FOR_EVENT:
 		{
 			tpiEventEntry *pEntry;
-			int *pData = (int *)usr_addr;
 
 			pr_info_drv("wait(%d)\n", priv->instNum);
 			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
@@ -1155,13 +1258,17 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
 
 				pr_info_drv("wait(%d): got event %d\n", priv->instNum, pEntry->event);
-				*pData = pEntry->event;
 
 				list_del(&pEntry->list);
 				rt_mutex_unlock(&priv->lockEventList);
-				kfree(pEntry);
 
-				status = 0;
+				if (put_user(pEntry->event, (u32 __user *) usr_addr)) {
+					status = -EFAULT;
+				} else {
+					status = 0;
+				}
+
+				kfree(pEntry);
 			}
 		}
 		break;
@@ -1181,15 +1288,20 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			// parameter = 0: stop I/Os
 			// parameter = 1: start I/Os
 			// parameter = 2: toggle I/Os
-			int *pData = (int *)usr_addr;
+			u32 data;
 
 			if (!isRunning())
 				return -EFAULT;
 
-			if (*pData == 2) {
+			if (get_user(data, (u32 __user *) usr_addr)) {
+				pr_err("Failed to copy stop command from user\n");
+				return -EFAULT;
+			}
+
+			if (data == 2) {
 				piDev_g.stopIO = !piDev_g.stopIO;
 			} else {
-				piDev_g.stopIO = (*pData) ? true : false;
+				piDev_g.stopIO = data ? true : false;
 			}
 			status = piDev_g.stopIO;
 		}
@@ -1268,8 +1380,12 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_SET_OUTPUT_WATCHDOG:
 		{
-			unsigned int *pData = (unsigned int *)usr_addr;
-			priv->tTimeoutDurationMs = *pData;
+			if (get_user(priv->tTimeoutDurationMs,
+				     (unsigned long __user *) usr_addr)) {
+				pr_err("failed to copy timeout from user\n");
+				return -EFAULT;
+			}
+
 			priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
 			status = 0;
 		}
@@ -1279,8 +1395,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			loff_t off = 0;
 
-			if (usr_addr != 0)
-				off = *(unsigned int*)usr_addr;
+			if (usr_addr != 0) {
+				if (get_user(off, (unsigned int __user *) usr_addr)) {
+					pr_err("failed to copy offset from user\n");
+					return -EFAULT;
+				}
+			}
+
 			status = piControlSeek(file, off, 0);
 			if (status > 0)
 				status = 0;
