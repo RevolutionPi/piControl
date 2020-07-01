@@ -598,12 +598,18 @@ int revpi_compact_init(void)
 	}
 
 	machine->aout[0] = iio_channel_get(piDev_g.dev, "aout0");
-	machine->aout[1] = iio_channel_get(piDev_g.dev, "aout1");
 	put_device(dev);
-	if (IS_ERR(machine->aout[0]) || IS_ERR(machine->aout[1])) {
-		pr_err("cannot acquire analog output chans\n");
-		ret = PTR_ERR(machine->aout[0]) | PTR_ERR(machine->aout[1]);
+	if (IS_ERR(machine->aout[0])) {
+		pr_err("cannot acquire analog output chan 0\n");
+		ret = PTR_ERR(machine->aout[0]);
 		goto err_unregister_aout;
+	}
+
+	machine->aout[1] = iio_channel_get(piDev_g.dev, "aout1");
+	if (IS_ERR(machine->aout[1])) {
+		pr_err("cannot acquire analog output chan 1\n");
+		ret = PTR_ERR(machine->aout[1]);
+		goto err_release_aout0;
 	}
 
 	machine->io_thread = kthread_create(&revpi_compact_poll_io, machine,
@@ -611,7 +617,7 @@ int revpi_compact_init(void)
 	if (IS_ERR(machine->io_thread)) {
 		pr_err("cannot create i/o thread\n");
 		ret = PTR_ERR(machine->io_thread);
-		goto err_release_aout;
+		goto err_release_aout1;
 	}
 
 	param.sched_priority = IO_THREAD_PRIO;
@@ -651,9 +657,10 @@ err_stop_ain_thread:
 	kthread_stop(machine->ain_thread);
 err_stop_io_thread:
 	kthread_stop(machine->io_thread);
-err_release_aout:
-	iio_channel_release(machine->aout[0]);
+err_release_aout1:
 	iio_channel_release(machine->aout[1]);
+err_release_aout0:
+	iio_channel_release(machine->aout[0]);
 err_unregister_aout:
 	iio_map_array_unregister(machine->aout_dev);
 err_release_ain:
