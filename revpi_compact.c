@@ -570,11 +570,13 @@ int revpi_compact_init(void)
 	machine->ain_dev = dev_to_iio_dev(dev);
 	ret = iio_map_array_register(machine->ain_dev,
 				     (struct iio_map *)revpi_compact_ain);
-	put_device(dev);
-	if (ret)
+	if (ret) {
+		put_device(dev);
 		goto err_put_dout_fault;
+	}
 
 	machine->ain = iio_channel_get_all(piDev_g.dev);
+	put_device(dev);
 	if (IS_ERR(machine->ain)) {
 		pr_err("cannot acquire analog input chans\n");
 		ret = PTR_ERR(machine->ain);
@@ -590,12 +592,14 @@ int revpi_compact_init(void)
 	machine->aout_dev = dev_to_iio_dev(dev);
 	ret = iio_map_array_register(machine->aout_dev,
 				     (struct iio_map *)revpi_compact_aout);
-	put_device(dev);
-	if (ret)
+	if (ret) {
+		put_device(dev);
 		goto err_release_ain;
+	}
 
 	machine->aout[0] = iio_channel_get(piDev_g.dev, "aout0");
 	machine->aout[1] = iio_channel_get(piDev_g.dev, "aout1");
+	put_device(dev);
 	if (IS_ERR(machine->aout[0]) || IS_ERR(machine->aout[1])) {
 		pr_err("cannot acquire analog output chans\n");
 		ret = PTR_ERR(machine->aout[0]) | PTR_ERR(machine->aout[1]);
