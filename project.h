@@ -80,9 +80,11 @@
 #define DEBUG_SERIALCOMM
 #define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #define pr_info_serial2(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
+#define pr_info_io(fmt, ...)		pr_info(fmt, ##__VA_ARGS__)
 #else
 #define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 #define pr_info_serial2(fmt, ...)
+#define pr_info_io(fmt, ...)
 #endif
 
 //#define DEBUG_GPIO

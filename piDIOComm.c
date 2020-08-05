@@ -124,6 +124,7 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 
 INT32U piDIOComm_Init(INT8U i8uDevice_p)
 {
+	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 	int ret;
 	SIOGeneric sResponse_l;
 	INT8U i, len_l;
@@ -140,8 +141,7 @@ INT32U piDIOComm_Init(INT8U i8uDevice_p)
 
 				ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
 				if (ret > 0) {
-					if (sResponse_l.ai8uData[len_l] ==
-					    piIoComm_Crc8((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l)) {
+					if (piIoComm_response_valid(&sResponse_l, addr, len_l)) {
 						return 0;	// success
 					} else {
 						return 1;	// wrong crc
@@ -167,9 +167,6 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 	INT8U i8uAddress;
 	int ret;
 	static INT8U last_out[40][18];
-#ifdef DEBUG_DEVICE_IO
-	static INT32U good, bad;
-#endif
 #ifdef DEBUG_DEVICE_DIO
 	static INT8U last_in[40][2];
 #endif
@@ -243,8 +240,7 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 
 		ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
 		if (ret > 0) {
-			if (sResponse_l.ai8uData[len_l] ==
-			    piIoComm_Crc8((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l)) {
+			if (piIoComm_response_valid(&sResponse_l, i8uAddress, len_l)) {
 				memcpy(&data_in[0], sResponse_l.ai8uData, 3 * sizeof(INT16U));
 				memset(&data_in[6], 0, 64);
 				p = 0;
@@ -272,16 +268,7 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 						    sResponse_l.ai8uData[0], sResponse_l.ai8uData[1]);
 				}
 #endif
-#ifdef DEBUG_DEVICE_IO
-				good++;
-#endif
 			} else {
-#ifdef DEBUG_DEVICE_IO
-				bad++;
-				if ((bad % 1000) == 0) {
-					pr_info("dev %2d: recv ioprotocol crc error %u/%u\n", i8uAddress, bad, good);
-				}
-#endif
 				i32uRv_l = 1;
 			}
 		} else {

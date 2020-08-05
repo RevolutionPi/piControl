@@ -271,6 +271,7 @@ INT32U piAIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 
 INT32U piAIOComm_Init(INT8U i8uDevice_p)
 {
+	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 	int ret;
 	SIOGeneric sResponse_l;
 	INT8U i, len_l;
@@ -287,8 +288,7 @@ INT32U piAIOComm_Init(INT8U i8uDevice_p)
 
 				ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
 				if (ret > 0) {
-					if (sResponse_l.ai8uData[len_l] ==
-					    piIoComm_Crc8((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l)) {
+					if (piIoComm_response_valid(&sResponse_l, addr, len_l)) {
 						pr_info_aio("piAIOComm_Init done configIn1\n");
 						// success -> continue
 					} else {
@@ -308,8 +308,7 @@ INT32U piAIOComm_Init(INT8U i8uDevice_p)
 
 				ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
 				if (ret > 0) {
-					if (sResponse_l.ai8uData[len_l] ==
-					    piIoComm_Crc8((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l)) {
+					if (piIoComm_response_valid(&sResponse_l, addr, len_l)) {
 						pr_info_aio("piAIOComm_Init done configIn2\n");
 						// success -> continue
 					} else {
@@ -330,8 +329,7 @@ INT32U piAIOComm_Init(INT8U i8uDevice_p)
 
 				ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
 				if (ret > 0) {
-					if (sResponse_l.ai8uData[len_l] ==
-					    piIoComm_Crc8((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l)) {
+					if (piIoComm_response_valid(&sResponse_l, addr, len_l)) {
 						pr_info_aio("piAIOComm_Init done config\n");
 						return 0;	// success -> leave the function
 					} else {
@@ -404,9 +402,7 @@ INT32U piAIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 
 		ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
 		if (ret > 0) {
-			if (len_l == sResponse_l.uHeader.sHeaderTyp1.bitLength
-			    && sResponse_l.ai8uData[len_l] ==
-			    piIoComm_Crc8((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l)) {
+			if (piIoComm_response_valid(&sResponse_l, i8uAddress, len_l)) {
 				memcpy(data_in, sResponse_l.ai8uData, len_l);
 
 				if (piDev_g.stopIO == false) {

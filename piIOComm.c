@@ -288,7 +288,7 @@ int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
 
 		if (down_timeout(&queueSem, msecs_to_jiffies(timeout_p)) != 0) {
 			// timeout
-			pr_info_serial2("recv timeout: %d/%d \n", i16uRecvLen_s, i16uLen_p);
+			pr_info_io("recv timeout: %d/%d \n", i16uRecvLen_s, i16uLen_p);
 			clear();
 			return 0;
 		}
@@ -330,6 +330,68 @@ INT8U piIoComm_Crc8(INT8U * pi8uFrame_p, INT16U i16uLen_p)
 		i8uRv_l = i8uRv_l ^ pi8uFrame_p[i16uLen_p];
 	}
 	return i8uRv_l;
+}
+
+bool piIoComm_response_valid(SIOGeneric *resp, u8 expected_addr,
+			     u8 expected_len)
+{
+#ifdef DEBUG_DEVICE_IO
+	static unsigned long good, bad;
+#endif
+
+	if (resp->uHeader.sHeaderTyp1.bitAddress != expected_addr) {
+		pr_info_io("dev %2hhu: expected packet from dev %hhu%s%s\n",
+			   resp->uHeader.sHeaderTyp1.bitAddress, expected_addr,
+			   resp->uHeader.sHeaderTyp1.bitLength != expected_len
+			   ? " / len_mismatch" : "",
+			   resp->ai8uData[expected_len] != piIoComm_Crc8(
+							   (INT8U *)resp,
+				 IOPROTOCOL_HEADER_LENGTH + expected_len)
+			   ? " / crc_mismatch" : "");
+		goto err;
+	}
+
+	if (resp->uHeader.sHeaderTyp1.bitReqResp != 1) {
+		pr_info_io("dev %2hhu: received request, expected response%s%s\n",
+			   resp->uHeader.sHeaderTyp1.bitAddress,
+			   resp->uHeader.sHeaderTyp1.bitLength != expected_len
+			   ? " / len_mismatch" : "",
+			   resp->ai8uData[expected_len] != piIoComm_Crc8(
+							   (INT8U *)resp,
+				 IOPROTOCOL_HEADER_LENGTH + expected_len)
+			   ? " / crc_mismatch" : "");
+		goto err;
+	}
+
+	if (resp->uHeader.sHeaderTyp1.bitLength != expected_len) {
+		pr_info_io("dev %2hhu: received %hhu, expected %hhu bytes\n",
+			   resp->uHeader.sHeaderTyp1.bitAddress,
+			   resp->uHeader.sHeaderTyp1.bitLength, expected_len);
+		goto err;
+	}
+
+	if (resp->ai8uData[expected_len] != piIoComm_Crc8((INT8U *)resp,
+	    IOPROTOCOL_HEADER_LENGTH + expected_len)) {
+		pr_info_io("dev %2hhu: invalid crc\n",
+			   resp->uHeader.sHeaderTyp1.bitAddress);
+		goto err;
+	}
+
+#ifdef DEBUG_DEVICE_IO
+	good++;
+#endif
+	return true;
+
+err:
+	pr_info_io("packet: %*ph\n", resp->uHeader.sHeaderTyp1.bitLength +
+		   IOPROTOCOL_HEADER_LENGTH + 1, resp);
+#ifdef DEBUG_DEVICE_IO
+	bad++;
+	if ((bad % 1000) == 0)
+		pr_info("dev all: ioprotocol statistics: %lu errors, %lu good\n",
+			bad, good);
+#endif
+	return false;
 }
 
 int piIoComm_init(void)
