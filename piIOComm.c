@@ -255,7 +255,9 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 			return -2;
 		}
 	}
+	down(&recvLenSem);
 	clear();
+	up(&recvLenSem);
 	vfs_fsync(piIoComm_fd_m, 1);
 	return 0;
 }
@@ -289,11 +291,15 @@ int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
 		if (down_timeout(&queueSem, msecs_to_jiffies(timeout_p)) != 0) {
 			// timeout
 			pr_info_io("recv timeout: %d/%d \n", i16uRecvLen_s, i16uLen_p);
+			down(&recvLenSem);
 			clear();
+			up(&recvLenSem);
 			return 0;
 		}
+		down(&recvLenSem);
 		for (; i < i16uLen_p; i++)
 			recv(&buf_p[i]);
+		up(&recvLenSem);
 	}
 
 #ifdef DEBUG_SERIALCOMM
