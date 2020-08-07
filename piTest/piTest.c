@@ -197,7 +197,8 @@ char *getModuleName(uint16_t moduletype)
 		return "Gateway ModbusTCP";
 	case 100:
 		return "Gateway DMX";
-
+	case 117:
+		return "RevPi MIO";
 	default:
 		return "unknown moduletype";
 		break;
@@ -816,7 +817,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	// Scan argument
-	while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlfS")) != -1) {
+	while ((c = getopt(argc, argv, "dv:1qr:w:s:R:c:g:xlfS")) != -1) {
 		switch (c) {
 		case 'd':
 			showDeviceList();
@@ -910,7 +911,22 @@ int main(int argc, char *argv[])
 			}
 			piControlResetCounter(address, val);
 			break;
-
+		case 'c':
+		{
+			int addr, channl, mode;
+			rc = sscanf(optarg, "%d,0x%x,0x%x", &addr, &channl, &mode);
+			if (rc != 3) {
+				rc = sscanf(optarg, "%d,%d,%d", &addr, &channl, &mode);
+				if (rc != 3) {
+					printf("Wrong arguments for calibrate function\n");
+					printf("Try '-c address,channel,mode' (without spaces)\n");
+					return 0;
+				}
+			}
+			piControlCalibrate(addr, channl, mode);
+			printf("calibrate on device:%d, channels:0x%x, mode:0x%x\n", addr, channl, mode);
+		}
+			break;
 		case 'g':
 			rc = sscanf(optarg, "%d,%d", &offset, &bit);
 			if (rc != 2) {

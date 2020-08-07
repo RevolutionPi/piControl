@@ -48,3 +48,5 @@ struct kthread_prio {
 };
 
 int set_kthread_prios(const struct kthread_prio *ktprios);
+
+unsigned char revpi_crc8(void *buf, unsigned short len);

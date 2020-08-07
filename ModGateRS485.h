@@ -82,9 +82,8 @@ typedef enum
     eIoProtocol,
 } ERs485Protocol;
 
-typedef
-#include <COMP_packBegin.h>
-struct
+#pragma pack(push,1)
+typedef struct
 {
     INT8U i8uDstAddr;
     INT8U i8uSrcAddr;
@@ -92,9 +91,8 @@ struct
     INT16U i16uSequNr;
     INT8U i8uDataLen;
     INT8U ai8uData[MAX_TELEGRAM_DATA_SIZE];
-}
-#include <COMP_packEnd.h>
-SRs485Telegram;
+} SRs485Telegram;
+#pragma pack(pop)
 
 //-----------------------------------------------------------------------------
 

@@ -247,3 +247,14 @@ out:
 	read_unlock(&tasklist_lock);
 	return ret;
 }
+
+unsigned char revpi_crc8(void *buf, unsigned short len)
+{
+	unsigned char *data = (unsigned char *)buf;
+	unsigned char ret = 0;
+
+	while (len--) {
+		ret = ret ^ data[len];
+	}
+	return ret;
+}

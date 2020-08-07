@@ -655,3 +655,40 @@ INT32S piIoComm_fwuReset(int address)
 {
 	return fwuResetModule(address);
 }
+
+void revpi_io_build_header(UIoProtocolHeader *hdr,
+											unsigned char addr,
+											unsigned char len,
+											unsigned char cmd)
+{
+	hdr->sHeaderTyp1.bitAddress = addr;
+	hdr->sHeaderTyp1.bitIoHeaderType = 0;
+	hdr->sHeaderTyp1.bitReqResp = 0;
+	hdr->sHeaderTyp1.bitLength = len;
+	hdr->sHeaderTyp1.bitCommand = cmd;
+}
+
+
+
+int revpi_io_talk(void *sndbuf, int sndlen, void *rcvbuf, int rcvlen)
+{
+	int ret;
+
+	ret = piIoComm_send(sndbuf, sndlen);
+	if (ret) {
+		pr_err_ratelimited("send buf to pibridge failed(len:%d)\n", sndlen);
+		return -ECOMM;
+	}
+
+	if (!rcvbuf || rcvlen == 0) {
+		return 0;
+	}
+
+	ret = piIoComm_recv(rcvbuf, rcvlen);
+	if(ret != rcvlen) {
+		pr_err_ratelimited("recv len from pibridge error(got:%d, exp:%d)",ret, rcvlen);
+		return -ECOMM;
+	}
+
+	return 0;
+}

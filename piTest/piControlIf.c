@@ -503,6 +503,23 @@ void piShowLastMessage(void)
                 puts(cMsg);
 }
 
+int piControlCalibrate(int addr, int channl, int mode)
+{
+	int ret;
+	SAIOCalibrate cali;
+
+	cali.i8uAddress = addr;
+	cali.i8uCalibrationMode = channl;
+	cali.i8uChannels = mode;
+
+	piControlOpen();
+
+    if (PiControlHandle_g < 0)
+                return -ENODEV;
+
+	ret = ioctl(PiControlHandle_g, KB_AIO_CALIBRATE, &cali);
+	return ret;
+}
 
 
 #ifdef KUNBUS_TEST
@@ -559,6 +576,8 @@ int piControlSetSerial(int addr, int serial)
         ret = ioctl(PiControlHandle_g, KB_INTERN_SET_SERIAL_NUM, data);
         return ret;
 }
+
+
 
 #endif
 

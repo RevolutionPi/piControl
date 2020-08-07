@@ -122,15 +122,17 @@ typedef struct S_KUNBUS_REV_NUMBER {
 #define KUNBUS_FW_DESCR_TYP_PI_CON_CAN                            109
 #define KUNBUS_FW_DESCR_TYP_PI_CON_MBUS                           110
 #define KUNBUS_FW_DESCR_TYP_PI_CON_BT                             111
+#define KUNBUS_FW_DESCR_TYP_PI_MIO								  117
+
 
 #define KUNBUS_FW_DESCR_TYP_INTERN                                  0xffff
 #define KUNBUS_FW_DESCR_TYP_UNDEFINED                               0xffff
 
 #define KUNBUS_FW_DESCR_MAC_ADDR_LEN                  6	//!< number of bytes in a MAC Address
 
-typedef
-#include <COMP_packBegin.h>
-    struct S_KUNBUS_FW_DESCR {
+#pragma pack(push,1)
+
+typedef     struct S_KUNBUS_FW_DESCR {
 
 	INT32U i32uLength;	///< number of bytes in struct, used to determine which elements are present
 	///  must be always the first member of the struct
@@ -141,14 +143,10 @@ typedef
 	INT32U i32uFwuEntryAddr;	//!< Entry of Firmwareupdate from application
 	INT32U i32uApplStartAddr;	//!< Startaddress of application specific flash area
 	INT32U i32uApplEndAddr;	//!< Last address of application specific flash area
-}				///< Kunbus internal option bytes
-#include <COMP_packEnd.h>
-T_KUNBUS_FW_DESCR;
+}		T_KUNBUS_FW_DESCR;		///< Kunbus internal option bytes
 
 
-typedef
-#include <COMP_packBegin.h>
-    struct S_KUNBUS_APPL_DESCR {
+typedef     struct S_KUNBUS_APPL_DESCR {
 
 	INT32U i32uLength;	//!< number of bytes in struct, used to determine which elements are present
 	INT32U i32uVectorAddr;	//!< address of vector table.
@@ -160,13 +158,9 @@ typedef
 	INT16U i16uSwMinor;	///< minor revision number; valid numbers 0-1000, other numbers reserved
 	INT32U i32uSvnRevision;	///< SVN revision number (mainly for internal use);
 	INT32U i32uBootFlags;	///< Boot action flags
-}
-#include <COMP_packEnd.h>
-T_KUNBUS_APPL_DESCR;
+} T_KUNBUS_APPL_DESCR;
 
-typedef
-#include <COMP_packBegin.h>
-    struct S_KUNBUS_CNFG_DATA_HDR {
+typedef     struct S_KUNBUS_CNFG_DATA_HDR {
 
 	INT8U ai8uIdent[4];	///< identification String 1 "KBCD"
 	INT32U i32uCrc;		///< address of CRC Checksum over application area
@@ -175,9 +169,9 @@ typedef
 	INT16U i16uHwRevision;	///< Revision of hardware
 	INT8U i8uSwMajor;	///< major revision number; valid numbers 0-50, other numbers reserved
 	INT8U ai8uDummy[3];	///< padding
-}
-#include <COMP_packEnd.h>
-T_KUNBUS_CNFG_DATA_HDR;
+} T_KUNBUS_CNFG_DATA_HDR;
+
+#pragma pack(pop)
 
 
 //+=============================================================================================

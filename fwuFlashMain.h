@@ -26,10 +26,10 @@
 extern "C" { 
 #endif 
 
+#pragma pack(push,1)
 
-typedef 
-#include <COMP_packBegin.h>     
-struct StrFileHeadData
+
+typedef  struct StrFileHeadData
 {
     INT16U usType;
     INT16U usHwRev;
@@ -38,31 +38,23 @@ struct StrFileHeadData
     INT32U ulFlashEnd;
     INT32U ulFwuEntry;
     INT32U ulFlashCrc;
-} 
-#include <COMP_packEnd.h>     
-TFileHeadData;
+}  TFileHeadData;
 
-typedef 
-#include <COMP_packBegin.h>     
-struct StrFPGAHeadData
+typedef  struct StrFPGAHeadData
 {
     unsigned long ulFPGALen;
     unsigned long ulFPGACrc;
-} 
-#include <COMP_packEnd.h>     
-TFPGAHeadData;
+}  TFPGAHeadData;
 
-typedef 
-#include <COMP_packBegin.h>     
-struct StrFileHead
+typedef  struct StrFileHead
 {
     INT8U acSync[2];
     INT32U ulLength;
     TFileHeadData dat;
 	TFPGAHeadData fpga;
-} 
-#include <COMP_packEnd.h>     
-TFileHead;
+}  TFileHead;
+#pragma pack(pop)
+
 
 
 #define FWU_FILENAME_PATTERN		"/*.kfu"

@@ -44,6 +44,8 @@
 #include "revpi_core.h"
 #include <piDIOComm.h>
 #include <piAIOComm.h>
+#include <revpi_mio.h>
+
 
 static SDeviceConfig RevPiDevices_s;
 
@@ -128,6 +130,25 @@ void RevPiDevice_finish(void)
 	piIoComm_finish();
 }
 
+void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval)
+{
+	if (r) {
+		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
+			RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
+		}
+		else
+			RevPiDevice_getDev(i8uDevice)->i8uModuleState = IOSTATE_OFFLINE;
+		*retval -= 1;	// tell calling function that an error occured
+		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
+			// the first error is ignored
+			RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
+		}
+	} else {
+		RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
+		RevPiDevice_getDev(i8uDevice)->i8uModuleState = IOSTATE_CYCLIC_IO;
+	}
+}
+
 //*************************************************************************************************
 //| Function: RevPiDevice_run
 //|
@@ -142,7 +163,7 @@ void RevPiDevice_finish(void)
 int RevPiDevice_run(void)
 {
 	INT8U i8uDevice = 0;
-	INT32U r;
+	INT32U r = 0;
 	int retval = 0;
 
 	RevPiDevices_s.i16uErrorCnt = 0;
@@ -154,40 +175,16 @@ int RevPiDevice_run(void)
 			case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 			case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 				r = piDIOComm_sendCyclicTelegram(i8uDevice);
-				if (r) {
-					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
-						RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
-					}
-					else
-						RevPiDevice_getDev(i8uDevice)->i8uModuleState = DIOSTATE_OFFLINE;
-					retval -= 1;	// tell calling function that an error occured
-					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
-						// the first error is ignored
-						RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
-					}
-				} else {
-					RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
-					RevPiDevice_getDev(i8uDevice)->i8uModuleState = DIOSTATE_CYCLIC_IO;
-				}
+				revpi_dev_update_state(i8uDevice, r, &retval);
 				break;
 
 			case KUNBUS_FW_DESCR_TYP_PI_AIO:
 				r = piAIOComm_sendCyclicTelegram(i8uDevice);
-				if (r) {
-					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
-						RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
-					}
-					else
-						RevPiDevice_getDev(i8uDevice)->i8uModuleState = AIOSTATE_OFFLINE;
-					retval -= 1;	// tell calling function that an error occured
-					if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
-						// the first error is ignored
-						RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
-					}
-				} else {
-					RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
-					RevPiDevice_getDev(i8uDevice)->i8uModuleState = AIOSTATE_CYCLIC_IO;
-				}
+				revpi_dev_update_state(i8uDevice, r, &retval);
+				break;
+			case KUNBUS_FW_DESCR_TYP_PI_MIO:
+				r = revpi_mio_cycle(i8uDevice);
+				revpi_dev_update_state(i8uDevice, r, &retval);
 				break;
 
 			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN:

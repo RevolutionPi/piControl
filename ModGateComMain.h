@@ -52,43 +52,37 @@ typedef enum
     FBSTATE_CYCLIC_IO = 0x03, // Zyklischer Datenaustausch ist aktiv (z.B. operational)
 } MODGATECOM_FieldbusStatus;
 
-//**********************************************************************************************
-// Link Layer
-//**********************************************************************************************
-typedef
-#include <COMP_packBegin.h>
-struct
-{
-    INT8U   i8uDestination[6];
-    INT8U   i8uSource[6];
-    INT16U  i16uType;
+#pragma pack(push,1)
+	//**********************************************************************************************
+	// Link Layer
+	//**********************************************************************************************
+typedef struct {
+		INT8U	i8uDestination[6];
+		INT8U	i8uSource[6];
+		INT16U	i16uType;
 #ifndef __KUNBUSPI_KERNEL__
-    INT8U   i8uACK;             //Acknowledge
-    INT8U   i8uCounter;
+		INT8U	i8uACK; 			//Acknowledge
+		INT8U	i8uCounter;
 #endif
-}
-#include <COMP_packEnd.h>
-MODGATECOM_LinkLayer;
+	} MODGATECOM_LinkLayer;
 
-//**********************************************************************************************
-// Transport Layer
-//**********************************************************************************************
-typedef
-#include <COMP_packBegin.h>
-struct
-{
+	//**********************************************************************************************
+	// Transport Layer
+	//**********************************************************************************************
+	typedef struct
+	{
 #ifdef __KUNBUSPI_KERNEL__
-    INT8U   i8uACK;             //Acknowledge
-    INT8U   i8uCounter;
+		INT8U	i8uACK; 			//Acknowledge
+		INT8U	i8uCounter;
 #endif
-    INT16U  i16uCmd;
-    INT16U  i16uDataLength;
-    INT32U  i32uError;
-    INT8U   i8uVersion;
-    INT8U   i8uReserved;
-}
-#include <COMP_packEnd.h>
-MODGATECOM_TransportLayer;
+		INT16U	i16uCmd;
+		INT16U	i16uDataLength;
+		INT32U	i32uError;
+		INT8U	i8uVersion;
+		INT8U	i8uReserved;
+	} MODGATECOM_TransportLayer;
+
+
 
 //**********************************************************************************************
 // Application Layer
@@ -135,11 +129,9 @@ typedef enum
 #define MODGATE_AL_MAX_LEN                  (sizeof(MODGATECOM_CyclicPD) + MODGATE_MAX_PD_DATALEN)   // 543 size of the biggest AL packet
 #define MODGATE_LL_MAX_LEN                  ((MODGATE_TL_HEADER_LEN + MODGATE_AL_MAX_LEN + 3) & 0xfffffffc) // 544 bigger packet on the line, rounded up to the next multiple of 4
 
+
 //**********************************************************************************************
-typedef
-#include <COMP_packBegin.h>
-struct
-{
+typedef struct {
     INT32U  i32uSerialnumber;
     INT16U  i16uModulType;
     INT16U  i16uHW_Revision;
@@ -149,33 +141,25 @@ struct
     INT16U  i16uFBS_InputLength;
     INT16U  i16uFBS_OutputLength;
     INT16U  i16uFeatureDescriptor;
-}
-#include <COMP_packEnd.h>
-MODGATECOM_IDResp;
+} MODGATECOM_IDResp;
 
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
-struct
-{
+
+struct {
     INT8U   i8uFieldbusStatus;  // type MODGATECOM_FieldbusStatus
     INT16U  i16uOffset;
     INT16U  i16uDataLen;
     INT8U   i8uData[0];     // dummy declaration for up to MODGATE_MAX_PD_DATALEN bytes
-}
-#include <COMP_packEnd.h>
-MODGATECOM_CyclicPD;
+} MODGATECOM_CyclicPD;
 
-typedef
-#include <COMP_packBegin.h>
-struct
+typedef struct
 {
     MODGATECOM_LinkLayer      strLinkLayer;
     MODGATECOM_TransportLayer strTransportLayer;
     INT8U                     i8uData[MODGATE_AL_MAX_LEN];
-}
-#include <COMP_packEnd.h>
-MODGATECOM_Packet;
+} MODGATECOM_Packet;
+#pragma pack(pop)
 
 //**********************************************************************************************
 

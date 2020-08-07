@@ -47,6 +47,7 @@
 #include <ModGateRS485.h>
 #include <piDIOComm.h>
 #include <piAIOComm.h>
+#include <revpi_mio.h>
 #include "process_image.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
@@ -54,7 +55,12 @@
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
 
 static int init_retry = MAX_INIT_RETRIES;
+
+/*whether the State Machine is enterable,
+in another word, False:devices are in (re)initialization,
+with this bEntering_s the firmware update will wait until the (re)init. finished*/
 static volatile TBOOL bEntering_s = bTRUE;
+
 EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
 static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
 
@@ -262,6 +268,179 @@ void PiBridgeMaster_setDefaults(void)
 	}
 }
 
+
+void revpi_ioinit_continue(void)
+{
+	int i, ret = 0;
+	msleep(100);	// wait a while
+	pr_info("start data exchange\n");
+	RevPiDevice_startDataexchange();
+	msleep(110);	// wait a while
+
+	// send config messages
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		if (RevPiDevice_getDev(i)->i8uActive) {
+			switch (RevPiDevice_getDev(i)->sId.i16uModulType) {
+			case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+			case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+			case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+				ret = piDIOComm_Init(i);
+				pr_info("piDIOComm_Init(%d) done %d\n", RevPiDevice_getDev(i)->i8uAddress, ret);
+				if (ret != 0) {
+					// init failed -> deactive module
+					if (ret == 4) {
+						pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
+							RevPiDevice_getDev(i)->i8uAddress);
+					} else {
+						pr_err("piDIOComm_Init(%d) failed, error %d\n",
+							RevPiDevice_getDev(i)->i8uAddress, ret);
+					}
+					RevPiDevice_getDev(i)->i8uActive = 0;
+				}
+				break;
+			case KUNBUS_FW_DESCR_TYP_PI_AIO:
+				ret = piAIOComm_Init(i);
+				pr_info("piAIOComm_Init(%d) done %d\n", RevPiDevice_getDev(i)->i8uAddress, ret);
+				if (ret != 0) {
+					// init failed -> deactive module
+					if (ret == 4) {
+						pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
+							RevPiDevice_getDev(i)->i8uAddress);
+					} else {
+						pr_err("piAIOComm_Init(%d) failed, error %d\n",
+							RevPiDevice_getDev(i)->i8uAddress, ret);
+					}
+					RevPiDevice_getDev(i)->i8uActive = 0;
+				}
+				break;
+			case KUNBUS_FW_DESCR_TYP_PI_MIO:
+				ret = revpi_mio_init(i);
+				if(ret) {
+					pr_err("mio init failed in status-Continue(ret:%d)\n", ret);
+					RevPiDevice_getDev(i)->i8uActive = 0;
+				}
+				break;
+			}
+		}
+	}
+}
+
+void revpi_ioinit_endconfig(void)
+{
+	int i;
+	int ret = 0;
+
+
+#ifdef DEBUG_MASTER_STATE
+	pr_info_master("Enter EndOfConfig State\n\n");
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
+			       i,
+			       RevPiDevice_getDev(i)->i8uAddress,
+			       RevPiDevice_getDev(i)->sId.i16uModulType,
+			       RevPiDevice_getDev(i)->i8uActive,
+			       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength,
+			       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
+		pr_info_master("           input offset  %5d  len %3d\n",
+			       RevPiDevice_getDev(i)->i16uInputOffset,
+			       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength);
+		pr_info_master("           output offset %5d  len %3d\n",
+			       RevPiDevice_getDev(i)->i16uOutputOffset,
+			       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
+		pr_info_master("           serial number %d  version %d.%d\n",
+			       RevPiDevice_getDev(i)->sId.i32uSerialnumber,
+			       RevPiDevice_getDev(i)->sId.i16uSW_Major,
+			       RevPiDevice_getDev(i)->sId.i16uSW_Minor);
+	}
+
+	pr_info_master("\n");
+#endif
+
+	piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+
+	PiBridgeMaster_Adjust();
+
+#ifdef DEBUG_MASTER_STATE
+	pr_info_master("After Adjustment\n");
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
+			       i,
+			       RevPiDevice_getDev(i)->i8uAddress,
+			       RevPiDevice_getDev(i)->sId.i16uModulType,
+			       RevPiDevice_getDev(i)->i8uActive,
+			       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength,
+			       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
+		pr_info_master("           input offset  %5d  len %3d\n",
+			       RevPiDevice_getDev(i)->i16uInputOffset,
+			       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength);
+		pr_info_master("           output offset %5d  len %3d\n",
+			       RevPiDevice_getDev(i)->i16uOutputOffset,
+			       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
+	}
+	pr_info_master("\n");
+#endif
+	PiBridgeMaster_setDefaults();
+
+#ifndef ENDTEST_DIO
+	my_rt_mutex_lock(&piDev_g.lockPI);
+	memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
+	rt_mutex_unlock(&piDev_g.lockPI);
+#else
+#warning Defaultvalues are NOT set in process image
+#endif
+	msleep(100);	// wait a while
+	pr_info("start data exchange\n");
+	RevPiDevice_startDataexchange();
+	msleep(110);	// wait a while
+
+	// send config messages
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		if (RevPiDevice_getDev(i)->i8uActive) {
+			switch (RevPiDevice_getDev(i)->sId.i16uModulType) {
+			case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+			case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+			case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+				ret = piDIOComm_Init(i);
+				pr_info("piDIOComm_Init done %d\n", ret);
+				if (ret != 0) {
+					// init failed -> deactive module
+					if (ret == 4) {
+						pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
+							RevPiDevice_getDev(i)->i8uAddress);
+					} else {
+						pr_err("piDIOComm_Init(%d) failed, error %d\n",
+							RevPiDevice_getDev(i)->i8uAddress, ret);
+					}
+					RevPiDevice_getDev(i)->i8uActive = 0;
+				}
+				break;
+			case KUNBUS_FW_DESCR_TYP_PI_AIO:
+				ret = piAIOComm_Init(i);
+				pr_info("piAIOComm_Init done %d\n", ret);
+				if (ret != 0) {
+					// init failed -> deactive module
+					if (ret == 4) {
+						pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
+							RevPiDevice_getDev(i)->i8uAddress);
+					} else {
+						pr_err("piAIOComm_Init(%d) failed, error %d\n",
+							RevPiDevice_getDev(i)->i8uAddress, ret);
+					}
+					RevPiDevice_getDev(i)->i8uActive = 0;
+				}
+				break;
+			case KUNBUS_FW_DESCR_TYP_PI_MIO:
+				ret = revpi_mio_init(i);
+				if(ret) {
+					pr_err("mio init failed in status-EndConfig(ret:%d)\n", ret);
+					RevPiDevice_getDev(i)->i8uActive = 0;
+				}
+				break;
+			}
+		}
+	}
+}
+
 int PiBridgeMaster_Run(void)
 {
 	static kbUT_Timer tTimeoutTimer_s;
@@ -270,7 +449,6 @@ int PiBridgeMaster_Run(void)
 	static INT8U last_led;
 	static unsigned long last_update;
 	int ret = 0;
-	int i;
 
 	my_rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piCore_g.eBridgeState != piBridgeStop) {
@@ -464,51 +642,7 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_Continue:
-			msleep(100);	// wait a while
-			pr_info("start data exchange\n");
-			RevPiDevice_startDataexchange();
-			msleep(110);	// wait a while
-
-			// send config messages
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (RevPiDevice_getDev(i)->i8uActive) {
-					switch (RevPiDevice_getDev(i)->sId.i16uModulType) {
-					case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-					case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-					case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-						ret = piDIOComm_Init(i);
-						pr_info("piDIOComm_Init(%d) done %d\n", RevPiDevice_getDev(i)->i8uAddress, ret);
-						if (ret != 0) {
-							// init failed -> deactive module
-							if (ret == 4) {
-								pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
-									RevPiDevice_getDev(i)->i8uAddress);
-							} else {
-								pr_err("piDIOComm_Init(%d) failed, error %d\n",
-									RevPiDevice_getDev(i)->i8uAddress, ret);
-							}
-							RevPiDevice_getDev(i)->i8uActive = 0;
-						}
-						break;
-					case KUNBUS_FW_DESCR_TYP_PI_AIO:
-						ret = piAIOComm_Init(i);
-						pr_info("piAIOComm_Init(%d) done %d\n", RevPiDevice_getDev(i)->i8uAddress, ret);
-						if (ret != 0) {
-							// init failed -> deactive module
-							if (ret == 4) {
-								pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
-									RevPiDevice_getDev(i)->i8uAddress);
-							} else {
-								pr_err("piAIOComm_Init(%d) failed, error %d\n",
-									RevPiDevice_getDev(i)->i8uAddress, ret);
-							}
-							RevPiDevice_getDev(i)->i8uActive = 0;
-						}
-						break;
-					}
-				}
-			}
-			ret = 0;
+			revpi_ioinit_continue();
 
 			eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
 			bEntering_s = bFALSE;
@@ -516,111 +650,11 @@ int PiBridgeMaster_Run(void)
 
 		case enPiBridgeMasterStatus_EndOfConfig:
 			if (bEntering_s) {
-#ifdef DEBUG_MASTER_STATE
-				pr_info_master("Enter EndOfConfig State\n\n");
-				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-					pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
-						       i,
-						       RevPiDevice_getDev(i)->i8uAddress,
-						       RevPiDevice_getDev(i)->sId.i16uModulType,
-						       RevPiDevice_getDev(i)->i8uActive,
-						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength,
-						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-					pr_info_master("           input offset  %5d  len %3d\n",
-						       RevPiDevice_getDev(i)->i16uInputOffset,
-						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength);
-					pr_info_master("           output offset %5d  len %3d\n",
-						       RevPiDevice_getDev(i)->i16uOutputOffset,
-						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-					pr_info_master("           serial number %d  version %d.%d\n",
-						       RevPiDevice_getDev(i)->sId.i32uSerialnumber,
-						       RevPiDevice_getDev(i)->sId.i16uSW_Major,
-						       RevPiDevice_getDev(i)->sId.i16uSW_Minor);
-				}
-
-				pr_info_master("\n");
-#endif
-
-				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
-
-				PiBridgeMaster_Adjust();
-
-#ifdef DEBUG_MASTER_STATE
-				pr_info_master("After Adjustment\n");
-				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-					pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
-						       i,
-						       RevPiDevice_getDev(i)->i8uAddress,
-						       RevPiDevice_getDev(i)->sId.i16uModulType,
-						       RevPiDevice_getDev(i)->i8uActive,
-						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength,
-						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-					pr_info_master("           input offset  %5d  len %3d\n",
-						       RevPiDevice_getDev(i)->i16uInputOffset,
-						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength);
-					pr_info_master("           output offset %5d  len %3d\n",
-						       RevPiDevice_getDev(i)->i16uOutputOffset,
-						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-				}
-				pr_info_master("\n");
-#endif
-				PiBridgeMaster_setDefaults();
-
-#ifndef ENDTEST_DIO
-				my_rt_mutex_lock(&piDev_g.lockPI);
-				memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
-				rt_mutex_unlock(&piDev_g.lockPI);
-#else
-#warning Defaultvalues are NOT set in process image
-#endif
-				msleep(100);	// wait a while
-				pr_info("start data exchange\n");
-				RevPiDevice_startDataexchange();
-				msleep(110);	// wait a while
-
-				// send config messages
-				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-					if (RevPiDevice_getDev(i)->i8uActive) {
-						switch (RevPiDevice_getDev(i)->sId.i16uModulType) {
-						case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-						case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-						case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-							ret = piDIOComm_Init(i);
-							pr_info("piDIOComm_Init done %d\n", ret);
-							if (ret != 0) {
-								// init failed -> deactive module
-								if (ret == 4) {
-									pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
-										RevPiDevice_getDev(i)->i8uAddress);
-								} else {
-									pr_err("piDIOComm_Init(%d) failed, error %d\n",
-										RevPiDevice_getDev(i)->i8uAddress, ret);
-								}
-								RevPiDevice_getDev(i)->i8uActive = 0;
-							}
-							break;
-						case KUNBUS_FW_DESCR_TYP_PI_AIO:
-							ret = piAIOComm_Init(i);
-							pr_info("piAIOComm_Init done %d\n", ret);
-							if (ret != 0) {
-								// init failed -> deactive module
-								if (ret == 4) {
-									pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
-										RevPiDevice_getDev(i)->i8uAddress);
-								} else {
-									pr_err("piAIOComm_Init(%d) failed, error %d\n",
-										RevPiDevice_getDev(i)->i8uAddress, ret);
-								}
-								RevPiDevice_getDev(i)->i8uActive = 0;
-							}
-							break;
-						}
-					}
-				}
+				revpi_ioinit_endconfig();
 				bEntering_s = bFALSE;
-				ret = 0;
 			}
 
+			/*Initialization finished, cyclically communication over pibridge*/
 			if (RevPiDevice_run()) {
 				// an error occured, check error limits
 				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
