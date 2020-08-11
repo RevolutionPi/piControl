@@ -509,8 +509,8 @@ int piControlCalibrate(int addr, int channl, int mode)
 	SAIOCalibrate cali;
 
 	cali.i8uAddress = addr;
-	cali.i8uCalibrationMode = channl;
-	cali.i8uChannels = mode;
+	cali.i8uCalibrationMode = mode;
+	cali.i8uChannels = channl;
 
 	piControlOpen();
 

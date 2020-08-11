@@ -77,4 +77,3 @@ int revpi_mio_init(unsigned char devno);
 int revpi_mio_config(unsigned char addr, unsigned short ent_cnt, SEntryInfo *ent);
 int revpi_mio_reset(void);
 int revpi_mio_cycle(unsigned char devno);
-int revpi_mio_calibrate(SAIOCalibrate *cali);

@@ -1108,6 +1108,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			int i;
 			bool found = false;
 			SAIOCalibrate cali;
+			SMioCalibrationRequest req;
 
 			if (piDev_g.machine_type != REVPI_CORE && piDev_g.machine_type != REVPI_CONNECT) {
 					return -EPERM;
@@ -1136,7 +1137,23 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EINVAL;
 			}
 
-			(void)revpi_mio_calibrate(&cali);
+			revpi_io_build_header(&req.uHeader, cali.i8uAddress,
+							sizeof(SMioCalibrationRequestData), IOP_TYP1_CMD_DATA6);
+			req.sData.i8uCalibrationMode = cali.i8uCalibrationMode;
+			req.sData.i8uChannels = cali.i8uChannels;
+			/*the crc calculation will be done by Tel sending*/
+
+			my_rt_mutex_lock(&piCore_g.lockUserTel);
+			memcpy(&piCore_g.requestUserTel, &req, sizeof(req));
+			piCore_g.pendingUserTel = true;
+			down(&piCore_g.semUserTel);
+			status = piCore_g.statusUserTel;
+			rt_mutex_unlock(&piCore_g.lockUserTel);
+
+			pr_info("MIO calibrate header:0x%x, data:0x%x, status %d\n",
+											*(unsigned short *)&req.uHeader,
+											*(unsigned short *)&req.sData,
+											status);
 
 			break;
 		}

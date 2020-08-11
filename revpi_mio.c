@@ -246,7 +246,7 @@ int revpi_mio_init(unsigned char devno)
 	int i, ret;
 	struct mio_config *conf = NULL;
 	SMioConfigResponse resp;
-	unsigned char crc_cal;
+	unsigned char crc;
 	unsigned char addr;
 
 	addr = RevPiDevice_getDev(devno)->i8uAddress;
@@ -289,9 +289,9 @@ int revpi_mio_init(unsigned char devno)
 										*(unsigned short*)&conf->dio.uHeader,
 										*(unsigned short*)&resp.uHeader);
 
-	crc_cal = revpi_crc8(&resp, sizeof(resp) - 1);
-	if (resp.i8uCrc != crc_cal) {
-		pr_err("crc for mio:dio conf err(got:%d, exp:%d)\n", resp.i8uCrc, crc_cal);
+	crc = revpi_crc8(&resp, sizeof(resp) - 1);
+	if (resp.i8uCrc != crc) {
+		pr_err("crc for mio:dio conf err(got:%d, exp:%d)\n", resp.i8uCrc, crc);
 	}
 
 	/*aio out*/
@@ -304,9 +304,9 @@ int revpi_mio_init(unsigned char devno)
 										*(unsigned short*)&conf->aio_i.uHeader,
 										*(unsigned short*)&resp.uHeader);
 
-	crc_cal = revpi_crc8(&resp, sizeof(resp) - 1);
-	if (resp.i8uCrc != crc_cal) {
-		pr_err("crc for mio:aio_i conf err(got:%d, exp:%d)\n",resp.i8uCrc, crc_cal);
+	crc = revpi_crc8(&resp, sizeof(resp) - 1);
+	if (resp.i8uCrc != crc) {
+		pr_err("crc for mio:aio_i conf err(got:%d, exp:%d)\n",resp.i8uCrc, crc);
 	}
 
 	/*aio out*/
@@ -319,33 +319,11 @@ int revpi_mio_init(unsigned char devno)
 						*(unsigned short*)&conf->aio_o.uHeader,
 						*(unsigned short*)&resp.uHeader);
 
-	crc_cal = revpi_crc8(&resp, sizeof(resp) - 1);
-	if (resp.i8uCrc != crc_cal) {
-		pr_err("crc for mio:aio_o conf err(got:%d, exp:%d)\n", resp.i8uCrc, crc_cal);
+	crc = revpi_crc8(&resp, sizeof(resp) - 1);
+	if (resp.i8uCrc != crc) {
+		pr_err("crc for mio:aio_o conf err(got:%d, exp:%d)\n", resp.i8uCrc, crc);
 	}
 
 	pr_info("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
 	return 0;
-}
-
-int revpi_mio_calibrate(SAIOCalibrate *cali)
-{
-	int ret;
-	SMioCalibrationRequest req;
-
-	revpi_io_build_header(&req.uHeader, cali->i8uAddress, sizeof(SMioCalibrationRequestData), IOP_TYP1_CMD_DATA6);
-	req.sData.i8uCalibrationMode = cali->i8uCalibrationMode;
-	req.sData.i8uChannels = cali->i8uChannels;
-	req.i8uCrc = revpi_crc8(&req, sizeof(req) - 1);
-
-	ret = revpi_io_talk(&req, sizeof(req), NULL, 0);
-	if(ret) {
-		pr_err("talk with mio for calibrate err(ret:%d)\n", ret);
-	}
-
-	pr_info("MIO calibrate header:0x%x, data:0x%x, ret %d\n",
-									*(unsigned short *)&req.uHeader,
-									*(unsigned short *)&req.sData,
-									ret);
-	return ret;
 }
