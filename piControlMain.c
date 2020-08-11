@@ -863,9 +863,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (spi_val.i16uAddress >= KB_PI_LEN) {
 				status = -EFAULT;
 			} else {
-				// bei einem Byte braucht man keinen Lock rt_mutex_lock(&piDev_g.lockPI);
+				rt_mutex_lock(&piDev_g.lockPI);
 				val = piDev_g.ai8uPI[spi_val.i16uAddress];
-				// bei einem Byte braucht man keinen Lock rt_mutex_unlock(&piDev_g.lockPI);
+				rt_mutex_unlock(&piDev_g.lockPI);
 
 				if (spi_val.i8uBit >= 8) {
 					spi_val.i8uValue = val;
