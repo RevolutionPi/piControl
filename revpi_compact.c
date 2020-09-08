@@ -247,7 +247,9 @@ static int revpi_compact_poll_ain(void *data)
 				unsigned long config = machine->config.ain[i];
 
 				if (!test_bit(AIN_ENABLED, &config)) {
+					my_rt_mutex_lock(&piDev_g.lockPI);
 					image->drv.ain[i] = 0;
+					rt_mutex_unlock(&piDev_g.lockPI);
 					continue;
 				}
 
@@ -284,11 +286,15 @@ static int revpi_compact_poll_ain(void *data)
 
 		/* poll ain */
 		ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
+
+		my_rt_mutex_lock(&piDev_g.lockPI);
 		assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
 		if (ret < 0) {
 			image->drv.ain[chan[i]] = 0;
+			rt_mutex_unlock(&piDev_g.lockPI);
 			goto next_chan;
 		}
+		rt_mutex_unlock(&piDev_g.lockPI);
 
 		/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
 		tmp = shift_right((s64)raw * 12500 * 100000000LL, 21);
@@ -305,13 +311,16 @@ static int revpi_compact_poll_ain(void *data)
 			GetPt100Temperature(resistance, &raw);
 		}
 
+		my_rt_mutex_lock(&piDev_g.lockPI);
 		image->drv.ain[chan[i]] = raw;
+		rt_mutex_unlock(&piDev_g.lockPI);
 
 next_chan:
 		if (++i >= numchans) {
 			i = 0;
 
 			// update every 1 sec
+			my_rt_mutex_lock(&piDev_g.lockPI);
 			if (piDev_g.thermal_zone != NULL) {
 				int temp, ret;
 
@@ -324,6 +333,7 @@ next_chan:
 			}
 
 			image->drv.i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
+			rt_mutex_unlock(&piDev_g.lockPI);
 		}
 
 		cycletimer_sleep(&ct);
