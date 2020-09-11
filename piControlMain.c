@@ -67,6 +67,7 @@
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "revpi_compact.h"
+#include "revpi_flat.h"
 #include "compat.h"
 
 #include "piFirmwareUpdate.h"
@@ -198,7 +199,6 @@ static int __init piControlInit(void)
 	} else if (of_machine_is_compatible("kunbus,revpi-flat")) {
 		piDev_g.machine_type = REVPI_FLAT;
 		pr_info("RevPi Flat\n");
-		return 0; /* unsupported */
 	} else {
 		piDev_g.machine_type = REVPI_CORE;
 		pr_info("RevPi Core\n");
@@ -278,6 +278,8 @@ static int __init piControlInit(void)
 		res = revpi_core_init();
 	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		res = revpi_compact_init();
+	} else if (piDev_g.machine_type == REVPI_FLAT) {
+		res = revpi_flat_init();
 	}
 	if (res)
 		goto err_free_config;
@@ -418,6 +420,8 @@ static void __exit piControlCleanup(void)
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_fini();
+	} else if (piDev_g.machine_type == REVPI_FLAT) {
+		revpi_flat_fini();
 	}
 
 	kfree(piDev_g.ent);
@@ -447,7 +451,8 @@ bool isRunning(void)
 // false: system is not operational
 bool waitRunning(int timeout)	// ms
 {
-	if (piDev_g.machine_type == REVPI_COMPACT)
+	if ((piDev_g.machine_type == REVPI_COMPACT) ||
+	    (piDev_g.machine_type == REVPI_FLAT))
 		return true;
 
 	timeout /= 100;

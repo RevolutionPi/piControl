@@ -20,6 +20,7 @@ piControl-objs += revpi_common.o
 piControl-objs += revpi_compact.o
 piControl-objs += revpi_core.o
 piControl-objs += revpi_gate.o
+piControl-objs += revpi_flat.o
 piControl-objs += pt100.o
 
 ccflags-y := -O2
