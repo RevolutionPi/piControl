@@ -305,3 +305,20 @@ void revpi_flat_fini(void)
 	iio_device_put(flat->aout.indio_dev);
 	iio_device_put(flat->ain.indio_dev);
 }
+
+int revpi_flat_reset()
+{
+	struct revpi_flat *flat = piDev_g.machine;
+	struct revpi_flat_image *usr_image;
+
+	usr_image = (struct revpi_flat_image *) (piDev_g.ai8uPI +
+						 flat->config.offset);
+
+	dev_info(piDev_g.dev, "Resetting REVPI Flat control\n");
+
+	my_rt_mutex_lock(&piDev_g.lockPI);
+	memset(&usr_image->usr, 0, sizeof(usr_image->usr));
+	rt_mutex_unlock(&piDev_g.lockPI);
+
+	return 0;
+}
