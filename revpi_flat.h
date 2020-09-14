@@ -10,5 +10,6 @@
 
 int revpi_flat_init(void);
 void revpi_flat_fini(void);
+int revpi_flat_reset(void);
 
 #endif /* _REVPI_FLAT_H */

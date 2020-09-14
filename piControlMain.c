@@ -359,7 +359,10 @@ static int piControlReset(tpiControlInst * priv)
 		PiBridgeMaster_Reset();
 	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_reset();
+	} else if (piDev_g.machine_type == REVPI_FLAT) {
+		revpi_flat_reset();
 	}
+
 	showPADS();
 
 	if (!waitRunning(timeout)) {
