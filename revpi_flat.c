@@ -40,10 +40,13 @@ struct revpi_flat_image {
 		s16 ain;
 #define REVPI_FLAT_AIN_TX_ERR  			7
 		u8 ain_status;
+#define REVPI_FLAT_AOUT_TX_ERR			7
+		u8 aout_status;
 		u8 cpu_temp;
 		u8 cpu_freq;
 	} __attribute__ ((__packed__)) drv;
 	struct {
+		u16 aout;
 		u8 dout;
 	} __attribute__ ((__packed__)) usr;
 } __attribute__ ((__packed__));
@@ -58,6 +61,7 @@ struct revpi_flat {
 	struct gpio_desc *digout;
 	struct gpio_descs *dout;
 	struct iio_channel ain;
+	struct iio_channel aout;
 };
 
 static const struct kthread_prio revpi_flat_kthread_prios[] = {
@@ -83,6 +87,8 @@ static int revpi_flat_poll_dout(void *data)
 	struct revpi_flat_image *image = &flat->image;
 	struct revpi_flat_image *usr_image;
 	int dout_val = -1;
+	int aout_val = -1;
+	int raw_out;
 
 	usr_image = (struct revpi_flat_image *) (piDev_g.ai8uPI +
 						 flat->config.offset);
@@ -93,12 +99,31 @@ static int revpi_flat_poll_dout(void *data)
 		if (usr_image->usr.dout != image->usr.dout)
 			dout_val = usr_image->usr.dout;
 
+		if (usr_image->usr.aout != image->usr.aout)
+			aout_val = usr_image->usr.aout;
+
 		image->usr = usr_image->usr;
 		rt_mutex_unlock(&piDev_g.lockPI);
 
 		if (dout_val != -1) {
 			gpiod_set_value_cansleep(flat->digout, !!dout_val);
 			dout_val = -1;
+		}
+
+		if (aout_val != -1) {
+			int ret;
+
+			raw_out = (image->usr.aout << 12) / 10000;
+
+			ret = iio_write_channel_raw(&flat->aout,
+						    min(raw_out, 4096));
+			if (ret)
+				dev_err(piDev_g.dev, "failed to write value to "
+					"analog ouput: %i\n", ret);
+
+			assign_bit_in_byte(REVPI_FLAT_AOUT_TX_ERR,
+					   &image->drv.aout_status, ret < 0);
+			aout_val = -1;
 		}
 
 		usleep_range(100, 150);
@@ -208,12 +233,24 @@ int revpi_flat_init(void)
 	flat->ain.indio_dev = dev_to_iio_dev(dev);
 	flat->ain.channel = &(flat->ain.indio_dev->channels[0]);
 
+
+	dev = bus_find_device(&iio_bus_type, NULL, "dac7512",
+			      revpi_flat_match_iio_name);
+	if (!dev) {
+		dev_err(piDev_g.dev, "cannot find analog output device\n");
+		ret = -ENODEV;
+		goto err_put_ain;
+	}
+
+	flat->aout.indio_dev = dev_to_iio_dev(dev);
+	flat->aout.channel = &(flat->aout.indio_dev->channels[0]);
+
 	flat->dout_thread = kthread_create(&revpi_flat_poll_dout, flat,
 					   "piControl dout");
 	if (IS_ERR(flat->dout_thread)) {
 		dev_err(piDev_g.dev, "cannot create dout thread\n");
 		ret = PTR_ERR(flat->dout_thread);
-		goto err_put_ain;
+		goto err_put_aout;
 	}
 
 	param.sched_priority = REVPI_FLAT_DOUT_THREAD_PRIO;
@@ -251,6 +288,8 @@ err_stop_ain_thread:
 	kthread_stop(flat->ain_thread);
 err_stop_dout_thread:
 	kthread_stop(flat->dout_thread);
+err_put_aout:
+	iio_device_put(flat->aout.indio_dev);
 err_put_ain:
 	iio_device_put(flat->ain.indio_dev);
 
@@ -263,5 +302,6 @@ void revpi_flat_fini(void)
 
 	kthread_stop(flat->ain_thread);
 	kthread_stop(flat->dout_thread);
+	iio_device_put(flat->aout.indio_dev);
 	iio_device_put(flat->ain.indio_dev);
 }
