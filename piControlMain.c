@@ -120,6 +120,10 @@ tpiControlDev piDev_g = {
 	.a2_red.name = "a2_red",
 	.a3_green.name = "a3_green",
 	.a3_red.name = "a3_red",
+	.a4_green.name = "a4_green",
+	.a4_red.name = "a4_red",
+	.a5_green.name = "a5_green",
+	.a5_red.name = "a5_red",
 };
 
 static dev_t piControlMajor;
@@ -247,10 +251,19 @@ static int __init piControlInit(void)
 	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_green)
 	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_red);
 
-	if (piDev_g.machine_type == REVPI_CONNECT) {
+	if ((piDev_g.machine_type == REVPI_CONNECT) ||
+	    (piDev_g.machine_type == REVPI_FLAT)) {
 		res = res
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a3_green)
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a3_red);
+	}
+
+	if (piDev_g.machine_type == REVPI_FLAT) {
+		res = res
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a4_green)
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a4_red)
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a5_green)
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a5_red);
 	}
 
 	if (res) {

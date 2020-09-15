@@ -201,15 +201,21 @@ typedef struct SConfigDataStr
 #define PICONTROL_STATUS_RIGHT_GATEWAY                  0x20
 #define PICONTROL_STATUS_X2_DIN                         0x40    // RevPi Connect only
 
-#define PICONTROL_LED_A1_GREEN                          0x01
-#define PICONTROL_LED_A1_RED                            0x02
-#define PICONTROL_LED_A2_GREEN                          0x04
-#define PICONTROL_LED_A2_RED                            0x08
-
-#define PICONTROL_LED_A3_GREEN                          0x10    // RevPi Connect only
-#define PICONTROL_LED_A3_RED                            0x20    // RevPi Connect only
-#define PICONTROL_X2_DOUT                               0x40    // RevPi Connect only
-#define PICONTROL_WD_TRIGGER                            0x80    // RevPi Connect only
+#define PICONTROL_LED_A1_GREEN                          0x0001
+#define PICONTROL_LED_A1_RED                            0x0002
+#define PICONTROL_LED_A2_GREEN                          0x0004
+#define PICONTROL_LED_A2_RED                            0x0008
+/* Revpi Connect and Flat */
+#define PICONTROL_LED_A3_GREEN                          0x0010
+#define PICONTROL_LED_A3_RED                            0x0020
+/* RevPi Connect only */
+#define PICONTROL_X2_DOUT                               0x0040
+#define PICONTROL_WD_TRIGGER                            0x0080
+/* Revpi Flat only */
+#define PICONTROL_LED_A4_GREEN                          0x0040
+#define PICONTROL_LED_A4_RED                            0x0080
+#define PICONTROL_LED_A5_GREEN                          0x0100
+#define PICONTROL_LED_A5_RED                            0x0200
 
 
 /******************************************************************************/

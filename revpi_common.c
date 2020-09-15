@@ -25,7 +25,7 @@
 
 void revpi_led_trigger_event(u16 led_prev, u16 led)
 {
-	u8 changed = led_prev ^ led;
+	u16 changed = led_prev ^ led;
 	if (changed == 0)
 		return;
 
@@ -41,12 +41,29 @@ void revpi_led_trigger_event(u16 led_prev, u16 led)
 	if (changed & PICONTROL_LED_A2_RED) {
 		led_trigger_event(&piDev_g.a2_red, (led & PICONTROL_LED_A2_RED) ? LED_FULL : LED_OFF);
 	}
-	if (piDev_g.machine_type == REVPI_CONNECT) {
+
+	if ((piDev_g.machine_type == REVPI_CONNECT) ||
+	    (piDev_g.machine_type == REVPI_FLAT)) {
 		if (changed & PICONTROL_LED_A3_GREEN) {
 			led_trigger_event(&piDev_g.a3_green, (led & PICONTROL_LED_A3_GREEN) ? LED_FULL : LED_OFF);
 		}
 		if (changed & PICONTROL_LED_A3_RED) {
 			led_trigger_event(&piDev_g.a3_red, (led & PICONTROL_LED_A3_RED) ? LED_FULL : LED_OFF);
+		}
+	}
+
+	if (piDev_g.machine_type == REVPI_FLAT) {
+		if (changed & PICONTROL_LED_A4_GREEN) {
+			led_trigger_event(&piDev_g.a4_green, (led & PICONTROL_LED_A4_GREEN) ? LED_FULL : LED_OFF);
+		}
+		if (changed & PICONTROL_LED_A4_RED) {
+			led_trigger_event(&piDev_g.a4_red, (led & PICONTROL_LED_A4_RED) ? LED_FULL : LED_OFF);
+		}
+		if (changed & PICONTROL_LED_A5_GREEN) {
+			led_trigger_event(&piDev_g.a5_green, (led & PICONTROL_LED_A5_GREEN) ? LED_FULL : LED_OFF);
+		}
+		if (changed & PICONTROL_LED_A5_RED) {
+			led_trigger_event(&piDev_g.a5_red, (led & PICONTROL_LED_A5_RED) ? LED_FULL : LED_OFF);
 		}
 	}
 }
