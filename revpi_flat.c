@@ -46,6 +46,7 @@ struct revpi_flat_image {
 		u8 cpu_freq;
 	} __attribute__ ((__packed__)) drv;
 	struct {
+		u16 leds;
 		u16 aout;
 		u8 dout;
 	} __attribute__ ((__packed__)) usr;
@@ -164,7 +165,9 @@ static int revpi_flat_poll_ain(void *data)
 {
 	struct revpi_flat *flat = (struct revpi_flat *) data;
 	struct revpi_flat_image *image = &flat->image;
+	u16 prev_leds = 0;
 	int temperature;
+	u16 leds;
 	int ret;
 
 	while (!kthread_should_stop()) {
@@ -186,7 +189,13 @@ static int revpi_flat_poll_ain(void *data)
 		}
 		/* read cpu frequency */
 		image->drv.cpu_freq = bcm2835_cpufreq_get_clock() / 10;
+		leds = image->usr.leds;
 		rt_mutex_unlock(&piDev_g.lockPI);
+
+		if (prev_leds != leds)
+			revpi_led_trigger_event(prev_leds, leds);
+
+		prev_leds = leds;
 	}
 
 	return 0;
