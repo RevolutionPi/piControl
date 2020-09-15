@@ -23,7 +23,7 @@
 
 #define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 
-void revpi_led_trigger_event(u8 led_prev, u8 led)
+void revpi_led_trigger_event(u16 led_prev, u16 led)
 {
 	u8 changed = led_prev ^ led;
 	if (changed == 0)
