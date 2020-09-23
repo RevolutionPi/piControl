@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
+#include <linux/thermal.h>
 #include <linux/iio/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <uapi/linux/sched/types.h>
@@ -39,6 +40,8 @@ struct revpi_flat_image {
 		s16 ain;
 #define REVPI_FLAT_AIN_TX_ERR  			7
 		u8 ain_status;
+		u8 cpu_temp;
+		u8 cpu_freq;
 	} __attribute__ ((__packed__)) drv;
 	struct {
 		u8 dout;
@@ -135,12 +138,30 @@ static int revpi_flat_handle_ain(struct revpi_flat *flat)
 static int revpi_flat_poll_ain(void *data)
 {
 	struct revpi_flat *flat = (struct revpi_flat *) data;
+	struct revpi_flat_image *image = &flat->image;
+	int temperature;
 	int ret;
 
 	while (!kthread_should_stop()) {
 		ret = revpi_flat_handle_ain(flat);
 		if (ret)
 			msleep(REVPI_FLAT_AIN_POLL_INTERVAL);
+
+		my_rt_mutex_lock(&piDev_g.lockPI);
+		/* read cpu temperature */
+		if (piDev_g.thermal_zone != NULL) {
+			ret = thermal_zone_get_temp(piDev_g.thermal_zone,
+						    &temperature);
+			if (ret) {
+				dev_err(piDev_g.dev,"Failed to get cpu "
+					"temperature");
+			} else {
+				image->drv.cpu_temp = temperature / 1000;
+			}
+		}
+		/* read cpu frequency */
+		image->drv.cpu_freq = bcm2835_cpufreq_get_clock() / 10;
+		rt_mutex_unlock(&piDev_g.lockPI);
 	}
 
 	return 0;
