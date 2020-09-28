@@ -110,6 +110,7 @@
 #define  KB_CONFIG_START                    _IO(KB_IOC_MAGIC, 25 )  // for download of configuration to Master Gateway: restart IO communication
 #define  KB_SET_OUTPUT_WATCHDOG             _IO(KB_IOC_MAGIC, 26 )  // activate a watchdog for this handle. If write is not called for a given period all outputs are set to 0
 #define  KB_SET_POS                         _IO(KB_IOC_MAGIC, 27 )  // set the f_pos, the unsigned int * is used to interpret the pos value
+#define  KB_AIO_CALIBRATE                   _IO(KB_IOC_MAGIC, 28 )
 
 #define  KB_WAIT_FOR_EVENT                  _IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET                     1       // piControl was reset, reload configuration
@@ -175,6 +176,13 @@ typedef struct SDIOResetCounterStr
     uint8_t     i8uAddress;             // Address of module in current configuration
     uint16_t    i16uBitfield;           // bitfield, if bit n is 1, reset counter/encoder on input n
 } SDIOResetCounter;
+
+typedef struct SAIOCalibrateStr
+{
+    uint8_t     i8uAddress;        // Address of module in current configuration
+    uint8_t     i8uCalibrationMode;  //bitfield: mode
+    uint8_t     i8uChannels;         //channels to calibrate
+} SAIOCalibrate;
 
 #define CONFIG_DATA_SIZE 256
 
