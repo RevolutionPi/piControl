@@ -85,7 +85,8 @@ MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "mux_gpio "		/* compact ain mux */
 	       "iio_mux "		/* compact ain mux */
 	       "mcp320x "		/* compact ain */
-	       "ti-dac082s085");	/* compact aout */
+	       "ti-dac082s085 "		/* compact aout */
+	       "ad5446");		/* flat aout */
 
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
