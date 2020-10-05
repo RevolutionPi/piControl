@@ -122,6 +122,7 @@ typedef struct S_KUNBUS_REV_NUMBER {
 #define KUNBUS_FW_DESCR_TYP_PI_CON_CAN                            109
 #define KUNBUS_FW_DESCR_TYP_PI_CON_MBUS                           110
 #define KUNBUS_FW_DESCR_TYP_PI_CON_BT                             111
+#define KUNBUS_FW_DESCR_TYP_PI_MIO                                118
 #define KUNBUS_FW_DESCR_TYP_PI_FLAT                               135
 
 #define KUNBUS_FW_DESCR_TYP_INTERN                                  0xffff

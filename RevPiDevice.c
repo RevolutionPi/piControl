@@ -44,6 +44,7 @@
 #include "revpi_core.h"
 #include <piDIOComm.h>
 #include <piAIOComm.h>
+#include <revpi_mio.h>
 
 static SDeviceConfig RevPiDevices_s;
 
@@ -178,6 +179,10 @@ int RevPiDevice_run(void)
 
 			case KUNBUS_FW_DESCR_TYP_PI_AIO:
 				r = piAIOComm_sendCyclicTelegram(i8uDevice);
+				revpi_dev_update_state(i8uDevice, r, &retval);
+				break;
+			case KUNBUS_FW_DESCR_TYP_PI_MIO:
+				r = revpi_mio_cycle(i8uDevice);
 				revpi_dev_update_state(i8uDevice, r, &retval);
 				break;
 

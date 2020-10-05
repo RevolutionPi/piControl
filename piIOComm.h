@@ -44,6 +44,14 @@
 
 #define REV_PI_TTY_DEVICE	"/dev/ttyAMA0"
 
+enum IOSTATE {
+    /* physically not connected */
+    IOSTATE_OFFLINE   = 0x00,
+    /* cyclical data exchange is active */
+    IOSTATE_CYCLIC_IO = 0x01,
+};
+
+
 typedef enum _EGpioValue
 {
     enGpioValue_Low  = 0,
@@ -94,3 +102,7 @@ INT32S piIoComm_fwuFlashErase(int address);
 INT32S piIoComm_fwuFlashWrite(int address, INT32U flashAddr, char *data, INT32U length);
 INT32S piIoComm_fwuReset(int address);
 
+void revpi_io_build_header(UIoProtocolHeader *hdr,
+		unsigned char addr, unsigned char len, unsigned char cmd);
+
+int revpi_io_talk(void *sndbuf, int sndlen, void *rcvbuf, int rcvlen);

@@ -47,6 +47,7 @@
 #include <ModGateRS485.h>
 #include <piDIOComm.h>
 #include <piAIOComm.h>
+#include <revpi_mio.h>
 #include "process_image.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
@@ -259,6 +260,17 @@ void PiBridgeMaster_setDefaults(void)
 				*pi32uPtr = (INT32U) piDev_g.ent->ent[i].i32uDefault;
 			}
 		}
+	}
+}
+
+static inline void revpi_pbm_cont_mio(unsigned char i)
+{
+	int ret;
+
+	ret = revpi_mio_init(i);
+	if(ret) {
+		pr_err("mio init failed in status-Continue(ret:%d)\n", ret);
+		RevPiDevice_getDev(i)->i8uActive = 0;
 	}
 }
 
@@ -505,6 +517,9 @@ int PiBridgeMaster_Run(void)
 							RevPiDevice_getDev(i)->i8uActive = 0;
 						}
 						break;
+					case KUNBUS_FW_DESCR_TYP_PI_MIO:
+						revpi_pbm_cont_mio(i);
+						break;
 					}
 				}
 			}
@@ -611,6 +626,13 @@ int PiBridgeMaster_Run(void)
 									pr_err("piAIOComm_Init(%d) failed, error %d\n",
 										RevPiDevice_getDev(i)->i8uAddress, ret);
 								}
+								RevPiDevice_getDev(i)->i8uActive = 0;
+							}
+							break;
+						case KUNBUS_FW_DESCR_TYP_PI_MIO:
+							ret = revpi_mio_init(i);
+							if(ret) {
+								pr_err("mio init failed in status-EndConfig(ret:%d)\n", ret);
 								RevPiDevice_getDev(i)->i8uActive = 0;
 							}
 							break;

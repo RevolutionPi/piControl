@@ -69,6 +69,7 @@
 #include "revpi_compact.h"
 #include "revpi_flat.h"
 #include "compat.h"
+#include "revpi_mio.h"
 
 #include "piFirmwareUpdate.h"
 
@@ -1124,7 +1125,64 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			rt_mutex_unlock(&piCore_g.lockUserTel);
 		}
 		break;
+	case KB_AIO_CALIBRATE:
+	{
+		int i;
+		bool found = false;
+		struct pictl_calibrate cali;
+		SMioCalibrationRequest req;
 
+		if (piDev_g.machine_type != REVPI_CORE
+			&& piDev_g.machine_type != REVPI_CONNECT) {
+			return -EPERM;
+		}
+
+		if (!isRunning()) {
+			return -EFAULT;
+		}
+
+		if (copy_from_user(&cali, (const void __user *) usr_addr,
+					sizeof(cali))) {
+			pr_err("failed to copy calibrate request from user\n");
+			return -EFAULT;
+		}
+
+		for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
+			if (RevPiDevice_getDev(i)->i8uAddress == cali.address
+				&& RevPiDevice_getDev(i)->i8uActive
+				&& RevPiDevice_getDev(i)->sId.i16uModulType
+					== KUNBUS_FW_DESCR_TYP_PI_MIO) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found || cali.channels == 0) {
+			pr_info("calibrate failed, channel 0x%x\n",
+						cali.channels);
+			return -EINVAL;
+		}
+
+		revpi_io_build_header(&req.uHeader, cali.address,
+			sizeof(SMioCalibrationRequestData), IOP_TYP1_CMD_DATA6);
+		req.sData.i8uCalibrationMode = cali.mode;
+		req.sData.i8uChannels = cali.channels;
+		/*the crc calculation will be done by Tel sending*/
+
+		my_rt_mutex_lock(&piCore_g.lockUserTel);
+		memcpy(&piCore_g.requestUserTel, &req, sizeof(req));
+		piCore_g.pendingUserTel = true;
+		down(&piCore_g.semUserTel);
+		status = piCore_g.statusUserTel;
+		rt_mutex_unlock(&piCore_g.lockUserTel);
+
+		pr_info("MIO calibrate header:0x%x, data:0x%x, status %d\n",
+			*(unsigned short *)&req.uHeader,
+			*(unsigned short *)&req.sData,
+			status);
+
+		break;
+	}
 	case KB_INTERN_SET_SERIAL_NUM:
 		{
 			u32 snum_data[2]; 	// snum_data is an array containing the module address and the serial number
