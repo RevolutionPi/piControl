@@ -53,6 +53,7 @@ typedef struct _SDevice
     INT16U i16uErrorCnt;
     MODGATECOM_IDResp sId;
     INT8U i8uModuleState;
+	INT8U i8uPriv;	//used by the module privately
 } SDevice;
 
 
