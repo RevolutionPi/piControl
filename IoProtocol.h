@@ -465,4 +465,139 @@ struct      // IOP_TYP1_CMD_DATA5
 SAioScalingResponse;
 
 //-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// ----------------- MULTI IO modules -------------------------------------
+//-----------------------------------------------------------------------------
+#pragma pack(push,1)
+
+#define MIO_PWM_TMR_CNT 		3
+#define MIO_DIO_PORT_CNT		4
+#define MIO_AIO_PORT_CNT		8
+
+typedef struct {
+	// bitfield: 1=output, 0=input
+	INT8U i8uIoConfig;
+	// bitfield: 1=pwmIn, 0=pulseIn
+	INT8U i8uInputMode;
+	// bitfield: 1=pwmIn, 0=pulseIn
+	INT8U i8uPullup;
+	// bitfield: 1=pwmOut, 0=digitalOut(pulseOut)
+	INT8U i8uOutputMode;
+	// pwm output frequency (Hz)
+	INT16U i16uPwmFrq[MIO_PWM_TMR_CNT];
+	// pulse length (ms)
+	INT16U i16uPlsLen[MIO_DIO_PORT_CNT];
+	// bitfield: 1=retrigger after OutputState Toggle, 0=no retrigger
+	INT8U i8uPulseRetrigMode;
+} SMioDIOConfigData;
+
+// Requests for Multi IO modules: Config
+// IOP_TYP1_CMD_CFG
+typedef struct {
+	UIoProtocolHeader uHeader;
+	SMioDIOConfigData sData;
+	INT8U i8uCrc;
+} SMioDIOConfig;
+
+typedef struct {
+	// bitfield: 1=output (Fixed Output), 0=input (InputThreshold)
+	INT8U i8uDirection;
+	// Input Threshold(dir=0) or Fixed Output(direction=1)
+	INT16U i16uVolt[MIO_AIO_PORT_CNT];
+} SMioAIOConfigData;
+
+typedef struct {
+	// IOP_TYP1_CMD_DATA4
+	UIoProtocolHeader uHeader;
+	SMioAIOConfigData sData;
+	INT8U i8uCrc;
+} SMioAIOConfig;
+
+//-----------------------------------------------------------------------------
+// Request for Multi IO modules:
+typedef struct {
+	//bitfield: mode
+	INT8U i8uCalibrationMode;
+	//channels to calibrate
+	INT8U i8uChannels;
+} SMioCalibrationRequestData;
+
+typedef struct {
+	// IOP_TYP5_CMD_DATA6
+	UIoProtocolHeader uHeader;
+	SMioCalibrationRequestData sData;
+	INT8U  i8uCrc;
+} SMioCalibrationRequest;
+
+typedef struct {
+	//bitfield: 1=high, 0=low (when IoMode==1)
+	INT8U i8uOutputValue;
+	//dutycycle: [0-1000]
+	INT16U i16uDutycycle[MIO_DIO_PORT_CNT];
+} SMioDigitalRequestData;
+
+typedef struct {
+	// IOP_TYP1_CMD_DATA
+	UIoProtocolHeader uHeader;
+	SMioDigitalRequestData sData;
+	INT8U  i8uCrc;
+} SMioDigitalRequest;
+
+typedef struct {
+	// analog channels to change    - 1 byte
+	INT8U i8uChannels;
+	// Output Voltage (mV)          - 16 bytes
+	INT16U i16uOutputVoltage[MIO_AIO_PORT_CNT];
+} SMioAnalogRequestData;
+
+typedef struct {
+	// IOP_TYP5_CMD_DATA2
+	UIoProtocolHeader uHeader;
+	SMioAnalogRequestData sData;
+	INT8U  i8uCrc;
+} SMioAnalogRequest;
+
+//-----------------------------------------------------------------------------
+//TODO: Code Review: the  cycled request and response data are visible to
+//customer, are those definitions clear to customer?
+typedef struct {
+	UIoProtocolHeader uHeader;
+	INT8U  i8uCrc;
+} SMioConfigResponse;
+
+typedef struct	{
+	//bitfield: 1=high, 0=low
+	INT8U i8uDigitalInputStatus;
+	// dutycycle: [0-1000] OR pulse-length
+	INT16U i16uDcPlen[MIO_DIO_PORT_CNT];
+	// pwm-frequency [Hz] OR pulse-count
+	INT16U i16uFreqPcnt[MIO_DIO_PORT_CNT];
+} SMioDigitalResponseData;
+
+// Response of Multi IO modules
+// Digital data response
+typedef struct {
+	// IOP_TYP1_CMD_DATA
+	UIoProtocolHeader uHeader;
+	SMioDigitalResponseData sData;
+	INT8U  i8uCrc;
+} SMioDigitalResponse;
+
+typedef struct {
+	// bitfield: 1=high, 0=low
+	INT8U i8uAnalogInputStatus;
+	// analog input value
+	INT16S i16sAnalogInputVoltage[MIO_AIO_PORT_CNT];
+} SMioAnalogResponseData;
+
+// Analog data response
+typedef struct {
+	// IOP_TYP1_CMD_DATA2
+	UIoProtocolHeader uHeader;
+	SMioAnalogResponseData sData;
+	INT8U  i8uCrc;
+} SMioAnalogResponse;
+
+#pragma pack(pop)
 #endif // IOPROTOCOL_H_INC
