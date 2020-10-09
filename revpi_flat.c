@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/iio/iio.h>
 #include <linux/thermal.h>
+#include <linux/types.h>
 #include <linux/iio/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <uapi/linux/sched/types.h>
@@ -19,6 +20,7 @@
 #include "revpi_common.h"
 #include "project.h"
 #include "piControlMain.h"
+#include "piControl.h"
 #include "process_image.h"
 
 /* relais gpio num */
@@ -30,6 +32,11 @@
    by resistors into account. See the flat schematics for details. */
 #define REVPI_FLAT_AIN_CORRECTION		1986582478
 #define REVPI_FLAT_AIN_POLL_INTERVAL		85
+
+#define REVPI_FLAT_CONFIG_OFFSET_LEDS		6
+#define REVPI_FLAT_CONFIG_OFFSET_AOUT		8
+#define REVPI_FLAT_CONFIG_OFFSET_DOUT		10
+#define REVPI_FLAT_CONFIG_OFFSET_AIN_MODE	11
 
 static struct {
 	u16 leds;
@@ -207,6 +214,46 @@ static int revpi_flat_match_iio_name(struct device *dev, void *data)
 	return !strcmp(data, dev_to_iio_dev(dev)->name);
 }
 
+void revpi_flat_config(u8 addr, u16 num_entries, SEntryInfo *entry)
+{
+	int i;
+
+	for (i = 0; i < num_entries; i++) {
+		switch (entry[i].i16uOffset) {
+		case REVPI_FLAT_CONFIG_OFFSET_LEDS:
+			revpi_flat_defconf.leds = entry[i].i32uDefault & 0x3F;
+			break;
+		case REVPI_FLAT_CONFIG_OFFSET_AOUT:
+			revpi_flat_defconf.aout = entry[i].i32uDefault;
+			break;
+		case REVPI_FLAT_CONFIG_OFFSET_DOUT:
+			revpi_flat_defconf.dout = !!entry[i].i32uDefault;
+			break;
+		case REVPI_FLAT_CONFIG_OFFSET_AIN_MODE:
+			revpi_flat_defconf.ain_mode_current =
+				!!entry[i].i32uDefault;
+			break;
+		}
+	}
+}
+
+int revpi_flat_reset()
+{
+	struct revpi_flat_image *usr_image;
+
+	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
+
+	dev_info(piDev_g.dev, "Resetting REVPI Flat control\n");
+
+	my_rt_mutex_lock(&piDev_g.lockPI);
+	usr_image->usr.leds = revpi_flat_defconf.leds;
+	usr_image->usr.aout = revpi_flat_defconf.aout;
+	usr_image->usr.dout = revpi_flat_defconf.dout;
+	rt_mutex_unlock(&piDev_g.lockPI);
+
+	return 0;
+}
+
 int revpi_flat_init(void)
 {
 	struct revpi_flat *flat;
@@ -289,6 +336,8 @@ int revpi_flat_init(void)
 	if (ret)
 		goto err_stop_ain_thread;
 
+	revpi_flat_reset();
+
 	wake_up_process(flat->dout_thread);
 	wake_up_process(flat->ain_thread);
 
@@ -314,19 +363,4 @@ void revpi_flat_fini(void)
 	kthread_stop(flat->dout_thread);
 	iio_device_put(flat->aout.indio_dev);
 	iio_device_put(flat->ain.indio_dev);
-}
-
-int revpi_flat_reset()
-{
-	struct revpi_flat_image *usr_image;
-
-	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
-
-	dev_info(piDev_g.dev, "Resetting REVPI Flat control\n");
-
-	my_rt_mutex_lock(&piDev_g.lockPI);
-	memset(&usr_image->usr, 0, sizeof(usr_image->usr));
-	rt_mutex_unlock(&piDev_g.lockPI);
-
-	return 0;
 }
