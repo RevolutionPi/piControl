@@ -31,9 +31,12 @@
 #define REVPI_FLAT_AIN_CORRECTION		1986582478
 #define REVPI_FLAT_AIN_POLL_INTERVAL		85
 
-struct revpi_flat_config {
-	unsigned int offset;
-};
+static struct {
+	u16 leds;
+	u16 aout;
+	u8 dout;
+	u8 ain_mode_current;
+} revpi_flat_defconf;
 
 struct revpi_flat_image {
 	struct {
@@ -54,7 +57,6 @@ struct revpi_flat_image {
 
 struct revpi_flat {
 	struct revpi_flat_image image;
-	struct revpi_flat_config config;
 	struct task_struct *dout_thread;
 	struct task_struct *ain_thread;
 	struct device *din_dev;
@@ -91,8 +93,7 @@ static int revpi_flat_poll_dout(void *data)
 	int aout_val = -1;
 	int raw_out;
 
-	usr_image = (struct revpi_flat_image *) (piDev_g.ai8uPI +
-						 flat->config.offset);
+	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
 	while (!kthread_should_stop()) {
 		my_rt_mutex_lock(&piDev_g.lockPI);
 		usr_image->drv = image->drv;
@@ -317,11 +318,9 @@ void revpi_flat_fini(void)
 
 int revpi_flat_reset()
 {
-	struct revpi_flat *flat = piDev_g.machine;
 	struct revpi_flat_image *usr_image;
 
-	usr_image = (struct revpi_flat_image *) (piDev_g.ai8uPI +
-						 flat->config.offset);
+	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
 
 	dev_info(piDev_g.dev, "Resetting REVPI Flat control\n");
 
