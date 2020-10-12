@@ -28,6 +28,8 @@
 
 #define REVPI_FLAT_DOUT_THREAD_PRIO		(MAX_USER_RT_PRIO / 2 + 8)
 #define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_USER_RT_PRIO / 2 + 6)
+/* ain resistor (Ohm) */
+#define REVPI_FLAT_AIN_RESISTOR			240
 /* This value is a correction factor which takes the currency loss caused
    by resistors into account. See the flat schematics for details. */
 #define REVPI_FLAT_AIN_CORRECTION		1986582478
@@ -59,6 +61,7 @@ struct revpi_flat_image {
 		u16 leds;
 		u16 aout;
 		u8 dout;
+		u8 ain_mode_current;
 	} __attribute__ ((__packed__)) usr;
 } __attribute__ ((__packed__));
 
@@ -141,7 +144,7 @@ static int revpi_flat_poll_dout(void *data)
 	return 0;
 }
 
-static int revpi_flat_handle_ain(struct revpi_flat *flat)
+static int revpi_flat_handle_ain(struct revpi_flat *flat, bool mode_current)
 {
 	struct revpi_flat_image *image = &flat->image;
 	unsigned long long ain_val;
@@ -159,7 +162,13 @@ static int revpi_flat_handle_ain(struct revpi_flat *flat)
 	}
 	/* AIN value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
 	ain_val = shift_right((s64) raw_val * 12500, 21) + 6250;
-	ain_val *= REVPI_FLAT_AIN_CORRECTION;
+
+	if (mode_current) {
+		ain_val *= 1000000000;
+		ain_val = div_s64(ain_val, REVPI_FLAT_AIN_RESISTOR);
+	} else
+		ain_val *= REVPI_FLAT_AIN_CORRECTION;
+
 	ain_val = (int) div_s64(ain_val, 1000000000LL);
 
 	my_rt_mutex_lock(&piDev_g.lockPI);
@@ -173,13 +182,14 @@ static int revpi_flat_poll_ain(void *data)
 {
 	struct revpi_flat *flat = (struct revpi_flat *) data;
 	struct revpi_flat_image *image = &flat->image;
+	bool ain_mode_current = false;
 	u16 prev_leds = 0;
 	int temperature;
 	u16 leds;
 	int ret;
 
 	while (!kthread_should_stop()) {
-		ret = revpi_flat_handle_ain(flat);
+		ret = revpi_flat_handle_ain(flat, ain_mode_current);
 		if (ret)
 			msleep(REVPI_FLAT_AIN_POLL_INTERVAL);
 
@@ -198,6 +208,7 @@ static int revpi_flat_poll_ain(void *data)
 		/* read cpu frequency */
 		image->drv.cpu_freq = bcm2835_cpufreq_get_clock() / 10;
 		leds = image->usr.leds;
+		ain_mode_current = !!image->usr.ain_mode_current;
 		rt_mutex_unlock(&piDev_g.lockPI);
 
 		if (prev_leds != leds)
@@ -230,8 +241,7 @@ void revpi_flat_config(u8 addr, u16 num_entries, SEntryInfo *entry)
 			revpi_flat_defconf.dout = !!entry[i].i32uDefault;
 			break;
 		case REVPI_FLAT_CONFIG_OFFSET_AIN_MODE:
-			revpi_flat_defconf.ain_mode_current =
-				!!entry[i].i32uDefault;
+			revpi_flat_defconf.ain_mode_current = !!entry[i].i32uDefault;
 			break;
 		}
 	}
@@ -249,6 +259,7 @@ int revpi_flat_reset()
 	usr_image->usr.leds = revpi_flat_defconf.leds;
 	usr_image->usr.aout = revpi_flat_defconf.aout;
 	usr_image->usr.dout = revpi_flat_defconf.dout;
+	usr_image->usr.ain_mode_current = revpi_flat_defconf.ain_mode_current;
 	rt_mutex_unlock(&piDev_g.lockPI);
 
 	return 0;
