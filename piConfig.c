@@ -48,6 +48,7 @@
 #include <piAIOComm.h>
 #include <revpi_mio.h>
 #include <revpi_compact.h>
+#include <revpi_flat.h>
 
 #define TOKEN_DEVICES       "Devices"
 #define TOKEN_CONNECTIONS   "Connections"
@@ -943,6 +944,10 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			revpi_mio_config((*devs)->dev[i].i8uAddress,
 				(*devs)->dev[i].i16uEntries,
 				&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_FLAT:
+			revpi_flat_config((*devs)->dev[i].i8uAddress, (*devs)->dev[i].i16uEntries,
+					  &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;
 		}
 	}
