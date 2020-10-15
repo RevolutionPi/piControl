@@ -21,6 +21,7 @@
 #include "project.h"
 #include "piControlMain.h"
 #include "piControl.h"
+#include "RevPiDevice.h"
 #include "process_image.h"
 
 /* relais gpio num */
@@ -225,6 +226,51 @@ static int revpi_flat_match_iio_name(struct device *dev, void *data)
 	return !strcmp(data, dev_to_iio_dev(dev)->name);
 }
 
+static void revpi_flat_adjust_config(void)
+{
+	SDeviceInfo *dev_info = piDev_g.devs->dev;
+	SDevice *dev;
+	int i;
+
+	/* Add all virtual devices to list of known devices. The first device is
+	   the flat, so skip it. */
+	for (i = 1; i < piDev_g.devs->i16uNumDevices; i++) {
+		dev_info = &piDev_g.devs->dev[i];
+		dev = RevPiDevice_getDev(i);
+
+		if (dev_info->i16uModuleType >= PICONTROL_SW_OFFSET) {
+			/* virtual device are always active */
+			dev->i8uActive = 1;
+			dev->sId.i16uModulType = dev_info->i16uModuleType;
+		} else {
+			pr_err("Additional module type %d is not allowed on "
+			       "RevPi Flat. Only sw modules are allowed.\n",
+			       dev_info->i16uModuleType);
+
+			RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
+			dev->i8uActive = 0;
+			dev->sId.i16uModulType = dev_info->i16uModuleType |
+						 PICONTROL_NOT_CONNECTED;
+		}
+		dev->i8uAddress = dev_info->i8uAddress;
+		dev->i8uScan = 0;
+		dev->i16uInputOffset = dev_info->i16uInputOffset;
+		dev->i16uOutputOffset = dev_info->i16uOutputOffset;
+		dev->i16uConfigOffset = dev_info->i16uConfigOffset;
+		dev->i16uConfigLength = dev_info->i16uConfigLength;
+		dev->sId.i32uSerialnumber = dev_info->i32uSerialnumber;
+		dev->sId.i16uHW_Revision = dev_info->i16uHW_Revision;
+		dev->sId.i16uSW_Major = dev_info->i16uSW_Major;
+		dev->sId.i16uSW_Minor = dev_info->i16uSW_Minor;
+		dev->sId.i32uSVN_Revision = dev_info->i32uSVN_Revision;
+		dev->sId.i16uFBS_InputLength = dev_info->i16uInputLength;
+		dev->sId.i16uFBS_OutputLength = dev_info->i16uOutputLength;
+		dev->sId.i16uFeatureDescriptor = 0;
+
+		RevPiDevice_incDevCnt();
+	}
+}
+
 void revpi_flat_config(u8 addr, u16 num_entries, SEntryInfo *entry)
 {
 	int i;
@@ -251,9 +297,13 @@ int revpi_flat_reset()
 {
 	struct revpi_flat_image *usr_image;
 
-	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
-
 	dev_info(piDev_g.dev, "Resetting REVPI Flat control\n");
+
+	RevPiDevice_init();
+
+	revpi_flat_adjust_config();
+
+	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
 
 	my_rt_mutex_lock(&piDev_g.lockPI);
 	usr_image->usr.leds = revpi_flat_defconf.leds;
