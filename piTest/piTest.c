@@ -147,6 +147,8 @@ char *getModuleName(uint16_t moduletype)
 		return "RevPi CON M-Bus";
 	case 111:
 		return "RevPi CON BT";
+	case 135:
+		return "RevPi Flat";
 
 	case PICONTROL_SW_MODBUS_TCP_SLAVE:
 		return "ModbusTCP Slave Adapter";
