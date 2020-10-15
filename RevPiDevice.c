@@ -83,6 +83,19 @@ const MODGATECOM_IDResp RevPiConnect_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
+const MODGATECOM_IDResp RevPiFlat_ID_g = {
+	.i32uSerialnumber = 1,
+	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_FLAT,
+	.i16uHW_Revision = 1,
+	.i16uSW_Major = 1,
+	.i16uSW_Minor = 0,
+	.i32uSVN_Revision = 0,
+	.i16uFBS_InputLength = 6,
+	.i16uFBS_OutputLength = 6,
+	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
+};
+
+
 void RevPiDevice_init(void)
 {
 	pr_info("RevPiDevice_init()\n");
@@ -116,6 +129,9 @@ void RevPiDevice_init(void)
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiConnect_ID_g.i16uFBS_InputLength;
 			break;
 		case REVPI_FLAT:
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiFlat_ID_g;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiFlat_ID_g.i16uFBS_InputLength;
 			break;
 	}
 
