@@ -232,6 +232,11 @@ static void revpi_flat_adjust_config(void)
 	SDevice *dev;
 	int i;
 
+	/* Check if there are any valid parsing results at all. This might
+	   not be the case if an invalid config file was provided. */
+	if (piDev_g.devs == NULL)
+		return;
+
 	/* Add all virtual devices to list of known devices. The first device is
 	   the flat, so skip it. */
 	for (i = 1; i < piDev_g.devs->i16uNumDevices; i++) {
