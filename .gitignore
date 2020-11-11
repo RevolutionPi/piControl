@@ -1,0 +1,8 @@
+*.o
+*.cmd
+.tmp_versions/
+Module.symvers
+compiletime.h
+modules.order
+piControl.ko
+piControl.mod.c
