@@ -242,6 +242,9 @@ int revpi_mio_reset()
 int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 {
 	struct mio_config *conf;
+	int arr_idx;
+	int offset;
+	int i;
 
 	if (mio_cnt >= REVPI_MIO_MAX) {
 		pr_err("max. of MIOs(%d) reached(%d)\n", REVPI_MIO_MAX,
@@ -258,7 +261,9 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 	revpi_io_build_header(&conf->aio_o.uHeader, addr,
 			      sizeof(SMioAIOConfigData), IOP_TYP1_CMD_DATA4);
 
+	/*0=input (InputThreshold)*/
 	conf->aio_i.sData.i8uDirection = 0;
+	/*1=output(Fixed Output)*/
 	conf->aio_o.sData.i8uDirection = 1;
 
 	pr_info("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%d, "
@@ -267,6 +272,57 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		*(unsigned short*)&mio_list[mio_cnt].dio.uHeader,
 		*(unsigned short*)&mio_list[mio_cnt].aio_i.uHeader,
 		*(unsigned short*)&mio_list[mio_cnt].aio_o.uHeader);
+
+	for (i = 0; i < e_cnt; i++) {
+		offset = ent[i].i16uOffset;
+		switch (offset) {
+		case 0 ... MIO_CONF_BASE - 1:
+			/*nothing to do for input and output */
+			break;
+		case MIO_CONF_EMOD:
+			conf->dio.sData.i8uEncoderMode = ent[i].i32uDefault;
+			break;
+		case MIO_CONF_IOMOD ... MIO_CONF_PUL -1:
+			arr_idx = (offset - MIO_CONF_IOMOD) / sizeof(INT8U);
+			conf->dio.sData.i8uIoMode[arr_idx] = ent[i].i32uDefault;
+			break;
+		case MIO_CONF_PUL:
+			conf->dio.sData.i8uPullup = ent[i].i32uDefault;
+			break;
+		case MIO_CONF_PMOD:
+			conf->dio.sData.i8uPulseRetrigMode = ent[i].i32uDefault;
+			break;
+		case MIO_CONF_FPWM ... MIO_CONF_PLEN - 1:
+			arr_idx = (offset - MIO_CONF_FPWM) / sizeof(INT16U);
+			conf->dio.sData.i16uPwmFrequency[arr_idx]
+							= ent[i].i32uDefault;
+			break;
+		case MIO_CONF_PLEN ... MIO_CONF_THR - 1:
+			arr_idx = (offset - MIO_CONF_PLEN) / sizeof(INT16U);
+			conf->dio.sData.i16uPulseLength[arr_idx]
+							= ent[i].i32uDefault;
+			break;
+		case MIO_CONF_THR ... MIO_CONF_WSIZE - 1:
+
+			arr_idx = (offset - MIO_CONF_THR) / sizeof(INT16U);
+			conf->aio_i.sData.i16uVolt[arr_idx] = ent[i].i32uDefault;
+			break;
+		case MIO_CONF_WSIZE:
+			conf->aio_i.sData.i8uMvgAvgWindow = ent[i].i32uDefault;
+			break;
+		case MIO_CONF_OUTV ... MIO_CONF_END - 1:
+			arr_idx = (offset - MIO_CONF_OUTV) / sizeof(INT16U);
+			conf->aio_o.sData.i16uVolt[arr_idx] = ent[i].i32uDefault;
+			break;
+		default:
+			pr_warn("unknown config entry(offset:%d)\n", offset);
+			break;
+		}
+	}
+
+	pr_info("dio  :%*ph\n", sizeof(conf->dio.sData), &conf->dio.sData);
+	pr_info("aio-i:%*ph\n", sizeof(conf->aio_i.sData), &conf->aio_i.sData);
+	pr_info("aio-o:%*ph\n", sizeof(conf->aio_o.sData), &conf->aio_o.sData);
 
 	conf->dio.i8uCrc = revpi_crc8(&conf->dio, sizeof(conf->dio) - 1);
 	conf->aio_i.i8uCrc = revpi_crc8(&conf->aio_i, sizeof(conf->aio_i) - 1);

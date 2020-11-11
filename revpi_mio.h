@@ -21,25 +21,25 @@
 			sizeof(SMioAnalogResponseData)
 
 /*60*/
-#define MIO_CONF_DIO_DIR	MIO_CONF_BASE
+#define MIO_CONF_EMOD	MIO_CONF_BASE
 /*61*/
-#define MIO_CONF_DIO_IMOD	(MIO_CONF_DIO_DIR + 1)
-/*62*/
-#define MIO_CONF_DIO_PUL	(MIO_CONF_DIO_IMOD + 1)
-/*63*/
-#define MIO_CONF_DIO_OMOD	(MIO_CONF_DIO_PUL + 1)
-/*64*/
-#define MIO_CONF_DIO_FREQ	(MIO_CONF_DIO_OMOD + 1)
-/*70*/
-#define MIO_CONF_DIO_PLEN (MIO_CONF_DIO_FREQ + sizeof(INT16U) * MIO_PWM_TMR_CNT)
-/*78*/
-#define MIO_CONF_DIO_TRIG (MIO_CONF_DIO_PLEN + sizeof(INT16U) * MIO_DIO_PORT_CNT)
-/*79*/
-#define MIO_CONF_AIO_IN		(MIO_CONF_DIO_TRIG + 1)
-/*95*/
-#define MIO_CONF_AIO_OUT (MIO_CONF_AIO_IN + sizeof(INT16U) * MIO_AIO_PORT_CNT)
-/*111*/
-#define MIO_CONF_END	(MIO_CONF_AIO_OUT + sizeof(INT16U) * MIO_AIO_PORT_CNT)
+#define MIO_CONF_IOMOD	(MIO_CONF_EMOD + 1)
+/*65*/
+#define MIO_CONF_PUL	(MIO_CONF_IOMOD + sizeof(INT8U) * MIO_DIO_PORT_CNT)
+/*66*/
+#define MIO_CONF_PMOD	(MIO_CONF_PUL + 1)
+/*67*/
+#define MIO_CONF_FPWM	(MIO_CONF_PMOD + 1)
+/*73*/
+#define MIO_CONF_PLEN	(MIO_CONF_FPWM + sizeof(INT16U) * MIO_PWM_TMR_CNT)
+/*81*/
+#define MIO_CONF_THR	(MIO_CONF_PLEN + sizeof(INT16U) * MIO_DIO_PORT_CNT)
+/*97*/
+#define MIO_CONF_WSIZE	(MIO_CONF_THR + sizeof(INT16U) * MIO_AIO_PORT_CNT)
+/*98*/
+#define MIO_CONF_OUTV	(MIO_CONF_WSIZE + 1)
+/*114*/
+#define MIO_CONF_END	(MIO_CONF_OUTV + sizeof(INT16U) * MIO_AIO_PORT_CNT)
 
 /*
 because of the limitation of length field in UIoProtocolHeader, which has 5 bits,
