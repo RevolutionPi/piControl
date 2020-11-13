@@ -773,6 +773,13 @@ void printHelp(char *programname)
 	printf("                 -l: Wait for reset of piControl process.\n");
 	printf("\n");
 	printf("                 -f: Update firmware. (see tutorials on website for more info) \n");
+	printf("\n");
+	printf("  -c <addr>,<c>,<m>,<x>,<y>: Do the calibration. (see tutorials on website for more info)\n");
+	printf("                     <addr> is the address of module as displayed with option -d.\n");
+	printf("                     <c> is the bitmap of channels\n");
+	printf("                     <m> is the mode\n");
+	printf("                     <x> is the check point on x axix\n");
+	printf("                     <y> is the check point on y axis\n");
 }
 
 /***********************************************************************************/
@@ -818,7 +825,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	// Scan argument
-	while ((c = getopt(argc, argv, "dv:1qr:w:s:R:g:xlfS")) != -1) {
+	while ((c = getopt(argc, argv, "dv:1qr:w:s:R:c:g:xlfS")) != -1) {
 		switch (c) {
 		case 'd':
 			showDeviceList();
@@ -912,7 +919,26 @@ int main(int argc, char *argv[])
 			}
 			piControlResetCounter(address, val);
 			break;
-
+		case 'c':
+		{
+			int addr, channl, mode, x_val, y_val;
+			rc = sscanf(optarg, "%d,0x%x,0x%x,0x%x,0x%x",
+					&addr, &channl, &mode, &x_val, &y_val);
+			if (rc != 5) {
+				rc = sscanf(optarg, "%d,%d,%d,%d,%d",
+					&addr, &channl, &mode, &x_val, &y_val);
+				if (rc != 5) {
+					printf("Wrong arguments to calibrate\n");
+					printf("Try '-c address,channels,modes,"
+						"x,y'(without spaces)\n");
+					return 0;
+				}
+			}
+			piControlCalibrate(addr, channl, mode, x_val, y_val);
+			printf("calibrated dev:%d,chnnls:%d,mode:%d,x:%d,y:%d\n",
+					addr, channl, mode, x_val, y_val);
+		}
+			break;
 		case 'g':
 			rc = sscanf(optarg, "%d,%d", &offset, &bit);
 			if (rc != 2) {

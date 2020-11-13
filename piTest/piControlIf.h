@@ -74,6 +74,7 @@ void piShowLastMessage(void);
 int piControlIntMsg(int msg, unsigned char *data, int size);
 int piControlSetSerial(int addr, int serial);
 #endif
+int piControlCalibrate(int addr, int channl, int mode, int xval, int yval);
 
 void piControlClose(void);
 
