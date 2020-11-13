@@ -503,6 +503,25 @@ void piShowLastMessage(void)
                 puts(cMsg);
 }
 
+int piControlCalibrate(int addr, int channl, int mode, int xval, int yval)
+{
+	struct pictl_calibrate cali;
+	int ret;
+
+	cali.address = addr;
+	cali.mode = mode;
+	cali.channels = channl;
+	cali.x_val = xval;
+	cali.y_val = yval;
+
+	piControlOpen();
+
+	if (PiControlHandle_g < 0)
+		return -ENODEV;
+
+	ret = ioctl(PiControlHandle_g, KB_AIO_CALIBRATE, &cali);
+	return ret;
+}
 
 
 #ifdef KUNBUS_TEST
