@@ -1167,6 +1167,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			sizeof(SMioCalibrationRequestData), IOP_TYP1_CMD_DATA6);
 		req.sData.i8uCalibrationMode = cali.mode;
 		req.sData.i8uChannels = cali.channels;
+		req.sData.i8uPoint = cali.x_val;
+		req.sData.i16sCalibrationValue = cali.y_val;
 		/*the crc calculation will be done by Tel sending*/
 
 		my_rt_mutex_lock(&piCore_g.lockUserTel);

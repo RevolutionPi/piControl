@@ -521,6 +521,9 @@ typedef struct {
 	INT8U i8uCalibrationMode;
 	//channels to calibrate
 	INT8U i8uChannels;
+	//specifies point in lookupTable
+	INT8U i8uPoint;
+	INT16S i16sCalibrationValue;
 } SMioCalibrationRequestData;
 
 typedef struct {
