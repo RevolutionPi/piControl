@@ -147,6 +147,8 @@ char *getModuleName(uint16_t moduletype)
 		return "RevPi CON M-Bus";
 	case 111:
 		return "RevPi CON BT";
+	case 118:
+		return "RevPi MIO";
 	case 135:
 		return "RevPi Flat";
 
