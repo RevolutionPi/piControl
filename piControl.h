@@ -184,6 +184,9 @@ struct pictl_calibrate {
 	unsigned char	mode;
 	/* channels to calibrate */
 	unsigned char	channels;
+	/* point in lookupTable */
+	unsigned char	x_val;
+	signed short	y_val;
 };
 
 #define CONFIG_DATA_SIZE 256
