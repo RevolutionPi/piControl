@@ -207,6 +207,8 @@ int revpi_mio_cycle(unsigned char devno)
 
 	/* for the AIO cycle */
 	my_rt_mutex_lock(&piDev_g.lockPI);
+	io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
+
 	io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
 						&img_out->aio.i16uOutputVoltage,
 						MIO_AIO_PORT_CNT, 2);
@@ -297,18 +299,25 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 			conf->dio.sData.i16uPwmFrequency[arr_idx]
 							= ent[i].i32uDefault;
 			break;
-		case MIO_CONF_PLEN ... MIO_CONF_THR - 1:
+		case MIO_CONF_PLEN ... MIO_CONF_AIM - 1:
 			arr_idx = (offset - MIO_CONF_PLEN) / sizeof(INT16U);
 			conf->dio.sData.i16uPulseLength[arr_idx]
 							= ent[i].i32uDefault;
 			break;
+		case MIO_CONF_AIM:
+			conf->aio_i.sData.i8uIoMode
+				|= ent[i].i32uDefault << ent[i].i8uBitPos;
+			break;
 		case MIO_CONF_THR ... MIO_CONF_WSIZE - 1:
-
 			arr_idx = (offset - MIO_CONF_THR) / sizeof(INT16U);
 			conf->aio_i.sData.i16uVolt[arr_idx] = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_WSIZE:
 			conf->aio_i.sData.i8uMvgAvgWindow = ent[i].i32uDefault;
+			break;
+		case MIO_CONF_AOM:
+			conf->aio_o.sData.i8uIoMode
+				|= ent[i].i32uDefault << ent[i].i8uBitPos;
 			break;
 		case MIO_CONF_OUTV ... MIO_CONF_END - 1:
 			arr_idx = (offset - MIO_CONF_OUTV) / sizeof(INT16U);

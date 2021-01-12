@@ -501,6 +501,8 @@ typedef struct {
 typedef struct {
 	// bitfield: 1=output (Fixed Output), 0=input (InputThreshold)
 	INT8U i8uDirection;
+	// bitfield: Variable Voltage mode (0) or logic level mode (1)
+	INT8U  i8uIoMode;
 	// Input Threshold(dir=0) or Fixed Output(direction=1)
 	INT16U i16uVolt[MIO_AIO_PORT_CNT];
 	// Size of moving averag filter
@@ -548,6 +550,8 @@ typedef struct {
 } SMioDigitalRequest;
 
 typedef struct {
+	// High or low level on AO port (in fixed voltage mode)
+	INT8U i8uLogicLevel;
 	// analog channels to change    - 1 byte
 	INT8U i8uChannels;
 	// Output Voltage (mV)          - 16 bytes
