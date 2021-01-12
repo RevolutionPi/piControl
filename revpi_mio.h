@@ -20,25 +20,15 @@
 			sizeof(SMioDigitalResponseData) + \
 			sizeof(SMioAnalogResponseData)
 
-/*60*/
 #define MIO_CONF_EMOD	MIO_CONF_BASE
-/*61*/
 #define MIO_CONF_IOMOD	(MIO_CONF_EMOD + 1)
-/*65*/
 #define MIO_CONF_PUL	(MIO_CONF_IOMOD + sizeof(INT8U) * MIO_DIO_PORT_CNT)
-/*66*/
 #define MIO_CONF_PMOD	(MIO_CONF_PUL + 1)
-/*67*/
 #define MIO_CONF_FPWM	(MIO_CONF_PMOD + 1)
-/*73*/
 #define MIO_CONF_PLEN	(MIO_CONF_FPWM + sizeof(INT16U) * MIO_PWM_TMR_CNT)
-/*81*/
 #define MIO_CONF_THR	(MIO_CONF_PLEN + sizeof(INT16U) * MIO_DIO_PORT_CNT)
-/*97*/
 #define MIO_CONF_WSIZE	(MIO_CONF_THR + sizeof(INT16U) * MIO_AIO_PORT_CNT)
-/*98*/
 #define MIO_CONF_OUTV	(MIO_CONF_WSIZE + 1)
-/*114*/
 #define MIO_CONF_END	(MIO_CONF_OUTV + sizeof(INT16U) * MIO_AIO_PORT_CNT)
 
 /*
