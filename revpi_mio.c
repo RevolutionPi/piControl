@@ -357,7 +357,8 @@ int revpi_mio_init(unsigned char devno)
 
 	addr = RevPiDevice_getDev(devno)->i8uAddress;
 
-	pr_info("MIO Initializing...(devno:%d, addr:%d)\n", devno, addr);
+	pr_info("MIO Initializing...(devno:%d, addr:%d, conf-base:%d)\n",
+						devno, addr, MIO_CONF_BASE);
 
 	for (i = 0; i < mio_cnt; i++) {
 		pr_info("search mio conf(index:%d, addr:%d)\n", i,
