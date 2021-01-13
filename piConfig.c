@@ -138,8 +138,13 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 
 	while (1) {
 		read = kernel_read(input, buffer + (BUFFLEN - len), len, &input->f_pos);
-		if (read <= 0) {
-			pr_err("kernel_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
+		if (read < 0) {
+			pr_err("read file failed, ret=%d\n", read);
+			break;
+		}
+		if (read == 0) {
+			pr_info("read file finished, f_pos=%lld\n",
+							input->f_pos);
 			break;
 		}
 		ret = json_parser_string(parser, buffer, read, &processed);
