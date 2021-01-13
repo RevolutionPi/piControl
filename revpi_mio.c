@@ -255,6 +255,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 	}
 
 	conf = &mio_list[mio_cnt];
+	memset(conf, 0, sizeof(struct mio_config));
 
 	revpi_io_build_header(&conf->dio.uHeader, addr,
 			      sizeof(SMioDIOConfigData), IOP_TYP1_CMD_CFG);
