@@ -27,6 +27,9 @@
 /* relais gpio num */
 #define REVPI_FLAT_RELAIS_GPIO			28
 
+/* button gpio num */
+#define REVPI_FLAT_BUTTON_GPIO			13
+
 #define REVPI_FLAT_DOUT_THREAD_PRIO		(MAX_USER_RT_PRIO / 2 + 8)
 #define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_USER_RT_PRIO / 2 + 6)
 /* ain resistor (Ohm) */
@@ -57,6 +60,7 @@ struct revpi_flat_image {
 		u8 aout_status;
 		u8 cpu_temp;
 		u8 cpu_freq;
+		u8 button;
 	} __attribute__ ((__packed__)) drv;
 	struct {
 		u16 leds;
@@ -73,6 +77,7 @@ struct revpi_flat {
 	struct device *din_dev;
 	struct gpio_desc *dout_fault;
 	struct gpio_desc *digout;
+	struct gpio_desc *button_desc;
 	struct gpio_descs *dout;
 	struct iio_channel ain;
 	struct iio_channel aout;
@@ -107,6 +112,7 @@ static int revpi_flat_poll_dout(void *data)
 	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
 	while (!kthread_should_stop()) {
 		my_rt_mutex_lock(&piDev_g.lockPI);
+		image->drv.button = gpiod_get_value_cansleep(flat->button_desc);
 		usr_image->drv = image->drv;
 
 		if (usr_image->usr.dout != image->usr.dout)
@@ -342,6 +348,19 @@ int revpi_flat_init(void)
 	ret = gpiod_direction_output(flat->digout, 0);
 	if (ret) {
 		dev_err(piDev_g.dev, "Failed to set direction for relais "
+			"gpio %i\n", ret);
+		return -ENXIO;
+	}
+
+	flat->button_desc = gpio_to_desc(REVPI_FLAT_BUTTON_GPIO);
+	if (!flat->button_desc) {
+		dev_err(piDev_g.dev, "no gpio desc for button found\n");
+		return -ENXIO;
+	}
+
+	ret = gpiod_direction_input(flat->button_desc);
+	if (ret) {
+		dev_err(piDev_g.dev, "Failed to set direction for button "
 			"gpio %i\n", ret);
 		return -ENXIO;
 	}
