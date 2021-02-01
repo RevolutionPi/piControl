@@ -273,7 +273,9 @@ static int tree_append(void *structure, char *key, uint32_t key_length, void *ob
 	return 0;
 }
 
-static int do_tree(json_config * config, const char *filename, json_val_t ** root_structure)
+static int do_tree(json_config *config,
+			const char *filename,
+			json_val_t **root_structure)
 {
 	struct file *input;
 	json_parser parser;
@@ -285,30 +287,37 @@ static int do_tree(json_config * config, const char *filename, json_val_t ** roo
 	if (!input)
 		return 2;
 
-	ret = json_parser_dom_init(&dom, tree_create_structure, tree_create_data, tree_append);
+	ret = json_parser_dom_init(&dom,
+					tree_create_structure,
+					tree_create_data,
+					tree_append);
 	if (ret) {
-		pr_err("error: initializing helper failed: [code=%d] %s\n", ret, string_of_errors[ret]);
+		pr_err("error: initializing helper failed: [code=%d] %s\n",
+						ret, string_of_errors[ret]);
 		close_filename(input);
 		return ret;
 	}
 
 	ret = json_parser_init(&parser, config, json_parser_dom_callback, &dom);
 	if (ret) {
-		pr_err("error: initializing parser failed: [code=%d] %s\n", ret, string_of_errors[ret]);
+		pr_err("error: initializing parser failed: [code=%d] %s\n",
+						ret, string_of_errors[ret]);
 		close_filename(input);
 		return ret;
 	}
 
 	ret = process_file(&parser, input, &lines, &col);
 	if (ret) {
-		pr_err("line %d, col %d: [code=%d] %s\n", lines, col, ret, string_of_errors[ret]);
+		pr_err("line %d, col %d: [code=%d] %s\n",
+					lines, col, ret, string_of_errors[ret]);
 		close_filename(input);
 		return 1;
 	}
 
 	ret = json_parser_is_done(&parser);
 	if (!ret) {
-		pr_err("syntax error: offset %d  state %d\n", parser.stack_offset, parser.state);
+		pr_err("syntax error: offset %d  state %d\n",
+					parser.stack_offset, parser.state);
 		close_filename(input);
 		return 1;
 	}
