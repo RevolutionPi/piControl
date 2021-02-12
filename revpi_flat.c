@@ -292,7 +292,7 @@ void revpi_flat_config(u8 addr, u16 num_entries, SEntryInfo *entry)
 	for (i = 0; i < num_entries; i++) {
 		switch (entry[i].i16uOffset) {
 		case REVPI_FLAT_CONFIG_OFFSET_LEDS:
-			revpi_flat_defconf.leds = entry[i].i32uDefault & 0x3F;
+			revpi_flat_defconf.leds = entry[i].i32uDefault & 0x3FF;
 			break;
 		case REVPI_FLAT_CONFIG_OFFSET_AOUT:
 			revpi_flat_defconf.aout = entry[i].i32uDefault;
