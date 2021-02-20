@@ -36,11 +36,12 @@ EXTRA_CFLAGS = -I$(src)/
 
 EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__
 
+CROSS_COMPILE += arm-linux-gnueabihf-
 
 .PHONY: compiletime.h
 
 all: compiletime.h
-	$(MAKE) ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -C $(KDIR) M=$(PWD)  modules
+	$(MAKE) ARCH=arm CROSS_COMPILE=$(CROSS_COMPILE) -C $(KDIR) M=$(PWD)  modules
 
 compiletime.h:
 	echo "#define COMPILETIME \""`date`"\"" > compiletime.h
