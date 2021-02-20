@@ -41,7 +41,7 @@ CROSS_COMPILE += arm-linux-gnueabihf-
 .PHONY: compiletime.h
 
 all: compiletime.h
-	$(MAKE) ARCH=arm CROSS_COMPILE=$(CROSS_COMPILE) -C $(KDIR) M=$(PWD)  modules
+	$(MAKE) ARCH=arm CROSS_COMPILE="$(CROSS_COMPILE)" -C $(KDIR) M=$(PWD)  modules
 
 compiletime.h:
 	echo "#define COMPILETIME \""`date`"\"" > compiletime.h
