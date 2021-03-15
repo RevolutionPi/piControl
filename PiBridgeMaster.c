@@ -229,22 +229,23 @@ void PiBridgeMaster_setDefaults(void)
 					piDev_g.ent->ent[i].i8uBitPos, piDev_g.ent->ent[i].i32uDefault);
 
 			if (piDev_g.ent->ent[i].i16uBitLength == 1) {
-				INT8U i8uValue, i8uMask, addr, bit;
+				INT8U i8uValue, i8uMask, bit;
+				unsigned int offset;
 
-				addr = piDev_g.ent->ent[i].i16uOffset;
+				offset = piDev_g.ent->ent[i].i16uOffset;
 				bit = piDev_g.ent->ent[i].i8uBitPos;
 
-				addr += bit / 8;
+				offset += bit / 8;
 				bit %= 8;
 
-				i8uValue = piDev_g.ai8uPIDefault[addr];
+				i8uValue = piDev_g.ai8uPIDefault[offset];
 
 				i8uMask = (1 << bit);
 				if (piDev_g.ent->ent[i].i32uDefault != 0)
 					i8uValue |= i8uMask;
 				else
 					i8uValue &= ~i8uMask;
-				piDev_g.ai8uPIDefault[addr] = i8uValue;
+				piDev_g.ai8uPIDefault[offset] = i8uValue;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 8) {
 				piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset] =
 				    (INT8U) piDev_g.ent->ent[i].i32uDefault;
