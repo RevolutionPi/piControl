@@ -1139,3 +1139,80 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 
 	return ret;
 }
+
+void revpi_set_defaults(unsigned char *mem, piEntries *entries)
+{
+	unsigned int offset;
+	unsigned int type;
+	SEntryInfo *ent;
+	int i;
+
+	for (i = 0; i < entries->i16uNumEntries; i++) {
+		pr_info_aio("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
+			    ent->i8uAddress, ent->i8uType, ent->i16uBitLength,
+			    ent->i16uOffset, ent->i8uBitPos, ent->i32uDefault);
+
+		ent = &entries->ent[i];
+		type = ent->i8uType & ENTRY_INFO_TYPE_MASK;
+
+		/* skip parameters that cant be changed by the user */
+		if ((type != ENTRY_INFO_TYPE_OUTPUT) &&
+		    (type != ENTRY_INFO_TYPE_MEMORY))
+			continue;
+
+		offset = ent->i16uOffset;
+
+		if (ent->i16uBitLength == 1) {
+			u8 mask;
+			u8 val;
+			u8 bit;
+
+			bit = ent->i8uBitPos;
+
+			offset += bit / 8;
+			bit %= 8;
+
+			if (offset > (KB_PI_LEN - 1)) {
+				pr_err("invalid offset for configuration parameter %u\n",
+				       offset);
+				continue;
+			}
+			val = mem[offset];
+			mask = (1 << bit);
+
+			if (ent->i32uDefault != 0)
+				val |= mask;
+			else
+				val &= ~mask;
+
+			mem[offset] = val;
+		} else if (ent->i16uBitLength == 8) {
+			if (offset > (KB_PI_LEN - 1)) {
+				pr_err("invalid offset for configuration parameter (%u)\n",
+				       offset);
+				continue;
+			}
+			mem[offset] = (u8) ent->i32uDefault;
+		} else if (ent->i16uBitLength == 16) {
+			u16 *valptr;
+
+			if (offset > (KB_PI_LEN - 2)) {
+				pr_err("invalid offset for configuration parameter (%u)\n",
+				       offset);
+				continue;
+			}
+			valptr = (u16 *) &mem[offset];
+			*valptr = (u16) ent->i32uDefault;
+		} else if (ent->i16uBitLength == 32) {
+			u32 *valptr;
+
+			if (offset > (KB_PI_LEN - 4)) {
+				pr_err("invalid offset for configuration parameter (%u)\n",
+				       offset);
+				continue;
+			}
+			valptr = (u32 *) &mem[offset];
+			*valptr = ent->i32uDefault;
+		}
+	}
+}
