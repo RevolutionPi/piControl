@@ -147,6 +147,10 @@ typedef struct SDeviceInfoStr
 typedef struct SEntryInfoStr
 {
     uint8_t     i8uAddress;             // Address of module in current configuration
+#define ENTRY_INFO_TYPE_INPUT		1
+#define ENTRY_INFO_TYPE_OUTPUT		2
+#define ENTRY_INFO_TYPE_MEMORY		3
+#define ENTRY_INFO_TYPE_MASK		0x7F
     uint8_t     i8uType;                // 1=input, 2=output, 3=memory, 4=config, 0=undefined, + 0x80 if exported
     uint16_t    i16uIndex;              // index of I/O value for this module
     uint16_t    i16uBitLength;          // length of value in bits
