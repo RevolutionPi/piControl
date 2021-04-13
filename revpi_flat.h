@@ -14,6 +14,5 @@
 int revpi_flat_init(void);
 void revpi_flat_fini(void);
 int revpi_flat_reset(void);
-void revpi_flat_config(u8 addr, u16 num_entries, SEntryInfo *pEnt);
 
 #endif /* _REVPI_FLAT_H */

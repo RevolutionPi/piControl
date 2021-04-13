@@ -963,10 +963,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 				(*devs)->dev[i].i16uEntries,
 				&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;
-		case KUNBUS_FW_DESCR_TYP_PI_FLAT:
-			revpi_flat_config((*devs)->dev[i].i8uAddress, (*devs)->dev[i].i16uEntries,
-					  &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
 		}
 	}
 

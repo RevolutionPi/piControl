@@ -46,14 +46,6 @@
 #define REVPI_FLAT_CONFIG_OFFSET_DOUT		REVPI_FLAT_CONFIG_OFFSET(dout)
 #define REVPI_FLAT_CONFIG_OFFSET_AIN_MODE	REVPI_FLAT_CONFIG_OFFSET(ain_mode_current)
 
-
-static struct {
-	u16 leds;
-	u16 aout;
-	u8 dout;
-	u8 ain_mode_current;
-} revpi_flat_defconf;
-
 struct revpi_flat_image {
 	struct {
 		s16 ain;
@@ -285,46 +277,22 @@ static void revpi_flat_adjust_config(void)
 	}
 }
 
-void revpi_flat_config(u8 addr, u16 num_entries, SEntryInfo *entry)
+static void revpi_flat_set_defaults(void)
 {
-	int i;
-
-	for (i = 0; i < num_entries; i++) {
-		switch (entry[i].i16uOffset) {
-		case REVPI_FLAT_CONFIG_OFFSET_LEDS:
-			revpi_flat_defconf.leds = entry[i].i32uDefault & 0x3FF;
-			break;
-		case REVPI_FLAT_CONFIG_OFFSET_AOUT:
-			revpi_flat_defconf.aout = entry[i].i32uDefault;
-			break;
-		case REVPI_FLAT_CONFIG_OFFSET_DOUT:
-			revpi_flat_defconf.dout = !!entry[i].i32uDefault;
-			break;
-		case REVPI_FLAT_CONFIG_OFFSET_AIN_MODE:
-			revpi_flat_defconf.ain_mode_current = !!entry[i].i32uDefault;
-			break;
-		}
-	}
+	my_rt_mutex_lock(&piDev_g.lockPI);
+	memset(piDev_g.ai8uPI, 0, sizeof(piDev_g.ai8uPI));
+	revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
+	rt_mutex_unlock(&piDev_g.lockPI);
 }
 
 int revpi_flat_reset()
 {
-	struct revpi_flat_image *usr_image;
-
 	dev_info(piDev_g.dev, "Resetting REVPI Flat control\n");
 
 	RevPiDevice_init();
 
 	revpi_flat_adjust_config();
-
-	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
-
-	my_rt_mutex_lock(&piDev_g.lockPI);
-	usr_image->usr.leds = revpi_flat_defconf.leds;
-	usr_image->usr.aout = revpi_flat_defconf.aout;
-	usr_image->usr.dout = revpi_flat_defconf.dout;
-	usr_image->usr.ain_mode_current = revpi_flat_defconf.ain_mode_current;
-	rt_mutex_unlock(&piDev_g.lockPI);
+	revpi_flat_set_defaults();
 
 	return 0;
 }
