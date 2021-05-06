@@ -228,7 +228,6 @@ uint32_t bcm2835_cpufreq_get_clock(void)
 int set_kthread_prios(const struct kthread_prio *ktprios)
 {
 	const struct kthread_prio *ktprio;
-	struct sched_param param = { };
 	struct task_struct *child;
 	int ret = 0;
 
@@ -240,17 +239,9 @@ int set_kthread_prios(const struct kthread_prio *ktprios)
 			if (!strncmp(child->comm, ktprio->comm,
 				     TASK_COMM_LEN)) {
 				found = true;
-				param.sched_priority = ktprio->prio;
-				ret = sched_setscheduler(child, SCHED_FIFO,
-							 &param);
-				if (ret) {
-					pr_err("cannot set priority of %s\n",
-					       ktprio->comm);
-					goto out;
-				} else {
-					pr_info("set priority of %s to %d\n",
-						ktprio->comm, ktprio->prio);
-				}
+				sched_set_fifo(child);
+				pr_info("set priority of %s to %d\n",
+						ktprio->comm, MAX_RT_PRIO / 2);
 				break;
 			}
 

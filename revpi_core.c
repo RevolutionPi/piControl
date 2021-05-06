@@ -239,7 +239,6 @@ static int piIoThread(void *data)
 
 int revpi_core_init(void)
 {
-	struct sched_param param;
 	int ret = 0;
 
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
@@ -328,12 +327,7 @@ int revpi_core_init(void)
 		ret = PTR_ERR(piCore_g.pUartThread);
 		goto err_close_serial;
 	}
-	param.sched_priority = RT_PRIO_UART;
-	sched_setscheduler(piCore_g.pUartThread, SCHED_FIFO, &param);
-	if (ret) {
-		pr_err("cannot set rt prio of uart thread\n");
-		goto err_stop_uart_thread;
-	}
+	sched_set_fifo(piCore_g.pUartThread);
 
 	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piControl I/O");
 	if (IS_ERR(piCore_g.pIoThread)) {
@@ -341,12 +335,7 @@ int revpi_core_init(void)
 		ret = PTR_ERR(piCore_g.pIoThread);
 		goto err_stop_uart_thread;
 	}
-	param.sched_priority = RT_PRIO_BRIDGE;
-	ret = sched_setscheduler(piCore_g.pIoThread, SCHED_FIFO, &param);
-	if (ret) {
-		pr_err("cannot set rt prio of io thread\n");
-		goto err_stop_io_thread;
-	}
+	sched_set_fifo(piCore_g.pIoThread);
 
 	return ret;
 
