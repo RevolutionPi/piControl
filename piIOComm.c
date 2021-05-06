@@ -37,7 +37,6 @@
 #include <linux/termios.h>
 #include <linux/syscalls.h>
 #include <asm/uaccess.h>
-#include <asm/segment.h>
 #include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/gpio.h>
