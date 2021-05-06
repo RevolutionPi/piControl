@@ -39,7 +39,6 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>
-#include <asm/segment.h>
 
 #include "compat.h"
 #include "revpi_common.h"

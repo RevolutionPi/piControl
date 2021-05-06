@@ -38,7 +38,6 @@
 #include <linux/slab.h>		// included for KERN_INFO
 #include <linux/fs.h>
 #include <asm/uaccess.h>
-#include <asm/segment.h>
 
 #include "compat.h"
 #include "json.h"
