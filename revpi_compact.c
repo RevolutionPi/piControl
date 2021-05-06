@@ -15,7 +15,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/machine.h>
 #include <linux/kthread.h>
-#include <linux/spi/max3191x.h>
 #include <linux/spi/spi.h>
 #include <linux/ktime.h>
 #include <linux/thermal.h>
@@ -145,7 +144,11 @@ static int revpi_compact_poll_io(void *data)
 		/* poll din */
 		ret = gpiod_get_array_value_cansleep(machine->din->ndescs,
 						     machine->din->desc, val);
-		image->drv.din_status = max3191x_get_status(machine->din_dev);
+		/*
+		 * FIXME: The status is unsupported since revpi-5.10 kernel.
+		 *        Remove din_status from picontrol too?
+		 */
+		image->drv.din_status = 0;
 		image->drv.din = 0;
 		if (ret)
 			image->drv.din_status |= BIT(7);
