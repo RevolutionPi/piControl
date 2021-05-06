@@ -300,7 +300,6 @@ int revpi_flat_reset()
 int revpi_flat_init(void)
 {
 	struct revpi_flat *flat;
-	struct sched_param param = { };
 	struct device *dev;
 	int ret;
 
@@ -365,13 +364,7 @@ int revpi_flat_init(void)
 		ret = PTR_ERR(flat->dout_thread);
 		goto err_put_aout;
 	}
-
-	param.sched_priority = REVPI_FLAT_DOUT_THREAD_PRIO;
-	ret = sched_setscheduler(flat->dout_thread, SCHED_FIFO, &param);
-	if (ret) {
-		dev_err(piDev_g.dev, "cannot upgrade dout thread priority\n");
-		goto err_stop_dout_thread;
-	}
+	sched_set_fifo(flat->dout_thread);
 
 	flat->ain_thread = kthread_create(&revpi_flat_poll_ain, flat,
 					  "piControl ain");
@@ -380,13 +373,7 @@ int revpi_flat_init(void)
 		ret = PTR_ERR(flat->ain_thread);
 		goto err_stop_dout_thread;
 	}
-
-	param.sched_priority = REVPI_FLAT_AIN_THREAD_PRIO;
-	ret = sched_setscheduler(flat->ain_thread, SCHED_FIFO, &param);
-	if (ret) {
-		dev_err(piDev_g.dev, "cannot upgrade ain thread priority\n");
-		goto err_stop_ain_thread;
-	}
+	sched_set_fifo(flat->ain_thread);
 
 	ret = set_kthread_prios(revpi_flat_kthread_prios);
 	if (ret)
