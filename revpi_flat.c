@@ -222,7 +222,7 @@ static int revpi_flat_poll_ain(void *data)
 	return 0;
 }
 
-static int revpi_flat_match_iio_name(struct device *dev, void *data)
+static int revpi_flat_match_iio_name(struct device *dev, const void *data)
 {
 	return !strcmp(data, dev_to_iio_dev(dev)->name);
 }
