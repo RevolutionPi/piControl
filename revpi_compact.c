@@ -121,7 +121,12 @@ static int revpi_compact_poll_io(void *data)
 	SRevPiCompactImage *image = &machine->image;
 	SRevPiCompactImage prev = { };
 	struct cycletimer ct;
-	int ret, i, val[8];
+	int ret, i;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0)
+	int val;
+#else
+	DECLARE_BITMAP(val, 8);
+#endif
 	bool err;
 #ifdef BENCH
 	ktime_t t[7];
@@ -157,8 +162,12 @@ static int revpi_compact_poll_io(void *data)
 		if (ret)
 			image->drv.din_status |= BIT(7);
 		else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0)
 			for (i = 0; i < ARRAY_SIZE(val); i++)
 				image->drv.din |= val[i] << i;
+#else
+			image->drv.din = (u8)val[0] & 0xff;
+#endif
 
 		MEASSURE(1);
 		/* poll dout fault pin */
@@ -172,8 +181,12 @@ static int revpi_compact_poll_io(void *data)
 		MEASSURE(3);
 		/* write dout on every cycle to feed watchdog */
 		/* FIXME: GPIO core should return non-void for set() */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0)
 		for (i = 0; i < ARRAY_SIZE(val); i++)
 			val[i] = image->usr.dout & BIT(i);
+#else
+		val[0] = image->usr.dout & 0xff;
+#endif
 		gpiod_set_array_value_cansleep(machine->dout->ndescs,
 		                               machine->dout->desc,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)
