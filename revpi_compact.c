@@ -143,7 +143,11 @@ static int revpi_compact_poll_io(void *data)
 		MEASSURE(0);
 		/* poll din */
 		ret = gpiod_get_array_value_cansleep(machine->din->ndescs,
-						     machine->din->desc, val);
+		                                     machine->din->desc,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)
+		                                     machine->din->info,
+#endif
+		                                     val);
 		/*
 		 * FIXME: The status is unsupported since revpi-5.10 kernel.
 		 *        Remove din_status from picontrol too?
@@ -171,7 +175,11 @@ static int revpi_compact_poll_io(void *data)
 		for (i = 0; i < ARRAY_SIZE(val); i++)
 			val[i] = image->usr.dout & BIT(i);
 		gpiod_set_array_value_cansleep(machine->dout->ndescs,
-					       machine->dout->desc, val);
+		                               machine->dout->desc,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)
+		                               machine->dout->info,
+#endif
+		                               val);
 
 		MEASSURE(4);
 		/* write aout channels only if changed by user */
