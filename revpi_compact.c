@@ -364,7 +364,7 @@ next_chan:
 	return 0;
 }
 
-static int match_name(struct device *dev, void *data)
+static int match_name(struct device *dev, const void *data)
 {
 	const char *name = data;
 
