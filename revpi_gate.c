@@ -175,7 +175,6 @@ static struct sk_buff *revpi_gate_create_packet(
 	skb_reset_network_header(skb);
 	tl = (MODGATECOM_TransportLayer *)skb_put(skb, sizeof(*tl));
 	skb->dev = dev;
-	skb->priority = TC_PRIO_REALTIME;
 	skb->protocol = htons(ETH_P_KUNBUSGW);
 
 	if (dev_hard_header(skb, dev, ETH_P_KUNBUSGW,
