@@ -56,7 +56,6 @@ typedef enum
 // Link Layer
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     INT8U   i8uDestination[6];
@@ -74,7 +73,6 @@ MODGATECOM_LinkLayer;
 // Transport Layer
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
 struct
 {
 #ifdef __KUNBUSPI_KERNEL__
@@ -137,7 +135,6 @@ typedef enum
 
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     INT32U  i32uSerialnumber;
@@ -155,7 +152,6 @@ MODGATECOM_IDResp;
 
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     INT8U   i8uFieldbusStatus;  // type MODGATECOM_FieldbusStatus
@@ -167,7 +163,6 @@ struct
 MODGATECOM_CyclicPD;
 
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     MODGATECOM_LinkLayer      strLinkLayer;

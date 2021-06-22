@@ -60,7 +60,6 @@ typedef enum
 
 // Header
 typedef
-#include <COMP_packBegin.h>
 union
 {
     INT8U ai8uHeader[IOPROTOCOL_HEADER_LENGTH];
@@ -87,7 +86,6 @@ UIoProtocolHeader;
 //-----------------------------------------------------------------------------
 // generic data structure for request and response
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     UIoProtocolHeader uHeader;
@@ -103,7 +101,6 @@ SIOGeneric;
 //-----------------------------------------------------------------------------
 // Request for Digital IO modules: Config
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_CFG
 {
     UIoProtocolHeader uHeader;
@@ -123,7 +120,6 @@ SDioConfig;
 //-----------------------------------------------------------------------------
 // Request for Digital IO modules: digital output only, no pwm
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA
 {
     UIoProtocolHeader uHeader;
@@ -135,7 +131,6 @@ SDioRequest;
 
 // Request for Digital IO modules: output with variable number of pwm values
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA2
 {
     UIoProtocolHeader uHeader;
@@ -149,7 +144,6 @@ SDioPWMOutput;
 
 // Request for Digital IO modules: reset counter values
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA3
 {
     UIoProtocolHeader uHeader;
@@ -181,7 +175,6 @@ typedef struct
 
 // Answer if Digital IO modules: digital input and status, no counter or encoder values
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA
 {
     UIoProtocolHeader uHeader;
@@ -195,7 +188,6 @@ SDioResponse;
 
 // Answer if Digital IO modules: digital input and status, with counter or encoder values
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA2
 {
     UIoProtocolHeader uHeader;
@@ -297,7 +289,6 @@ typedef enum
 
 // Output configuration
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     EAioOutputRange       eOutputRange : 4;
@@ -315,7 +306,6 @@ SAioOutputConfig;
 
 // Input configuration
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     EAioInputRange      eInputRange : 4;
@@ -330,7 +320,6 @@ SAioInputConfig;
 
 // RTD configuration, 7 Bytes
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     INT8U i8uSensorType : 1; // 0:PT100 1:PT1000
@@ -345,7 +334,6 @@ struct
 SAioRtdConfig;
 
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_CFG
 {
     UIoProtocolHeader uHeader;
@@ -358,7 +346,6 @@ struct      // IOP_TYP1_CMD_CFG
 SAioConfig;
 
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_CFG
 {
     UIoProtocolHeader uHeader;
@@ -371,7 +358,6 @@ SAioInConfig;
 //-----------------------------------------------------------------------------
 // Data request for Analog IO modules, 4 Bytes
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA
 {
     UIoProtocolHeader uHeader;
@@ -384,7 +370,6 @@ SAioRequest;
 //-----------------------------------------------------------------------------
 // Data response of Analog IO modules, 20 Bytes
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA
 {
     UIoProtocolHeader uHeader;
@@ -401,7 +386,6 @@ SAioResponse;
 //-----------------------------------------------------------------------------
 // Data request for raw values of Analog IO modules, 0 Bytes
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA4
 {
     UIoProtocolHeader uHeader;
@@ -413,7 +397,6 @@ SAioRawRequest;
 //-----------------------------------------------------------------------------
 // Data response for raw values of Analog IO modules, 10 Bytes
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA4
 {
     UIoProtocolHeader uHeader;
@@ -429,7 +412,6 @@ SAioRawResponse;
 //-----------------------------------------------------------------------------
 // Data request for rtd scaling values of Analog IO modules, 0 Bytes
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     INT16U i16uRtd3wireFactor[AIO_MAX_RTD];
@@ -441,7 +423,6 @@ struct
 SAioRtdScaling;
 
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA5
 {
     UIoProtocolHeader uHeader;
@@ -454,7 +435,6 @@ SAioScalingRequest;
 //-----------------------------------------------------------------------------
 // Data response for rtd scaling values of Analog IO modules, 1 Byte
 typedef
-#include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA5
 {
     UIoProtocolHeader uHeader;

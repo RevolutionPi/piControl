@@ -131,7 +131,6 @@ typedef struct S_KUNBUS_REV_NUMBER {
 #define KUNBUS_FW_DESCR_MAC_ADDR_LEN                  6	//!< number of bytes in a MAC Address
 
 typedef
-#include <COMP_packBegin.h>
     struct S_KUNBUS_FW_DESCR {
 
 	INT32U i32uLength;	///< number of bytes in struct, used to determine which elements are present
@@ -149,7 +148,6 @@ T_KUNBUS_FW_DESCR;
 
 
 typedef
-#include <COMP_packBegin.h>
     struct S_KUNBUS_APPL_DESCR {
 
 	INT32U i32uLength;	//!< number of bytes in struct, used to determine which elements are present
@@ -167,7 +165,6 @@ typedef
 T_KUNBUS_APPL_DESCR;
 
 typedef
-#include <COMP_packBegin.h>
     struct S_KUNBUS_CNFG_DATA_HDR {
 
 	INT8U ai8uIdent[4];	///< identification String 1 "KBCD"

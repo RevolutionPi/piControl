@@ -83,7 +83,6 @@ typedef enum
 } ERs485Protocol;
 
 typedef
-#include <COMP_packBegin.h>
 struct
 {
     INT8U i8uDstAddr;
