@@ -12,6 +12,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include "IoProtocol.h"
 #include "ModGateComMain.h"
@@ -49,6 +50,7 @@ typedef struct _SRevPiCoreImage {
 
 typedef struct _SRevPiCore {
 	SRevPiCoreImage image;
+	struct rpi_firmware *fw;
 
 	// piGate stuff
 	INT8U i8uLeftMGateIdx;	// index of left GateModule in RevPiDevice_asDevice_m

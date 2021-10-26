@@ -263,6 +263,12 @@ int revpi_core_init(void)
 	rt_mutex_init(&piCore_g.lockBridgeState);
 	sema_init(&piCore_g.ioSem, 0);
 
+	piCore_g.fw = revpi_get_firmware();
+	if (!piCore_g.fw) {
+		dev_err(piDev_g.dev, "Failed to get revpi firmware\n");
+		return -ENXIO;
+	}
+
 	piCore_g.gpio_sniff1a = gpiod_get(piDev_g.dev, "Sniff1A", GPIOD_IN);
 	if (IS_ERR(piCore_g.gpio_sniff1a)) {
 		pr_err("cannot acquire gpio sniff 1a\n");
@@ -368,6 +374,7 @@ err_remove_table:
 		gpiod_remove_lookup_table(&revpi_core_gpios);
 	else if (piDev_g.machine_type == REVPI_CONNECT)
 		gpiod_remove_lookup_table(&revpi_connect_gpios);
+	revpi_release_firmware(piCore_g.fw);
 
 	return ret;
 }
@@ -399,4 +406,6 @@ void revpi_core_fini(void)
 		gpiod_remove_lookup_table(&revpi_core_gpios);
 	else if (piDev_g.machine_type == REVPI_CONNECT)
 		gpiod_remove_lookup_table(&revpi_connect_gpios);
+
+	revpi_release_firmware(piCore_g.fw);
 }
