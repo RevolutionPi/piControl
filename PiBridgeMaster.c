@@ -849,7 +849,8 @@ int PiBridgeMaster_Run(void)
 			}
 		}
 
-		piCore_g.image.drv.i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
+		piCore_g.image.drv.i8uCPUFrequency =
+			bcm2835_cpufreq_get_clock(piCore_g.fw) / 10;
 
 		last_update = kbUT_getCurrentMs();
 	}

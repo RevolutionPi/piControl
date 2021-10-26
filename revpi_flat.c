@@ -66,6 +66,7 @@ struct revpi_flat_image {
 } __attribute__ ((__packed__));
 
 struct revpi_flat {
+	struct rpi_firmware *fw;
 	struct revpi_flat_image image;
 	struct task_struct *dout_thread;
 	struct task_struct *ain_thread;
@@ -191,7 +192,7 @@ static int revpi_flat_poll_ain(void *data)
 			}
 		}
 		/* read cpu frequency */
-		image->drv.cpu_freq = bcm2835_cpufreq_get_clock() / 10;
+		image->drv.cpu_freq = bcm2835_cpufreq_get_clock(flat->fw) / 10;
 		leds = image->usr.leds;
 		ain_mode_current = !!image->usr.ain_mode_current;
 		rt_mutex_unlock(&piDev_g.lockPI);
@@ -318,11 +319,18 @@ int revpi_flat_init(void)
 		return -ENXIO;
 	}
 
+	flat->fw = revpi_get_firmware();
+	if (!flat->fw) {
+		dev_err(piDev_g.dev, "Failed to get revpi firmware\n");
+		return -ENXIO;
+	}
+
 	dev = bus_find_device(&iio_bus_type, NULL, "mcp3550-50",
 			      revpi_flat_match_iio_name);
 	if (!dev) {
 		dev_err(piDev_g.dev, "cannot find analog input device\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_put_fw;
 	}
 
 	flat->ain.indio_dev = dev_to_iio_dev(dev);
@@ -371,6 +379,8 @@ err_put_aout:
 	iio_device_put(flat->aout.indio_dev);
 err_put_ain:
 	iio_device_put(flat->ain.indio_dev);
+err_put_fw:
+	revpi_release_firmware(flat->fw);
 
 	return ret;
 }
@@ -383,4 +393,5 @@ void revpi_flat_fini(void)
 	kthread_stop(flat->dout_thread);
 	iio_device_put(flat->aout.indio_dev);
 	iio_device_put(flat->ain.indio_dev);
+	revpi_release_firmware(flat->fw);
 }
