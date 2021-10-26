@@ -1,5 +1,6 @@
 #include <linux/sched.h>
 #include <linux/version.h>
+#include <soc/bcm2835/raspberrypi-firmware.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
 #include <linux/sched/task.h>
 #include <uapi/linux/sched/types.h>
@@ -16,6 +17,8 @@ enum revpi_power_led_mode {
 void revpi_led_trigger_event(u16 led_prev, u16 led);
 void revpi_power_led_red_set(enum revpi_power_led_mode mode);
 void revpi_power_led_red_run(void);
+struct rpi_firmware *revpi_get_firmware(void);
+void revpi_release_firmware(struct rpi_firmware *fw);
 
 void revpi_check_timeout(void);
 
