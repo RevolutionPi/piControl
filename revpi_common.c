@@ -178,6 +178,26 @@ void revpi_power_led_red_run(void)
 	}
 }
 
+struct rpi_firmware *revpi_get_firmware(void)
+{
+	char *fwpath = "/soc/firmware";
+	struct rpi_firmware *fw = NULL;
+	struct device_node *node;
+
+	node = of_find_node_by_path(fwpath);
+	if (node) {
+		fw = rpi_firmware_get(node);
+		of_node_put(node);
+	}
+
+	return fw;
+}
+
+void revpi_release_firmware(struct rpi_firmware *fw)
+{
+	rpi_firmware_put(fw);
+}
+
 int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val)
 {
 	struct rpi_firmware *fw = rpi_firmware_get(NULL);
