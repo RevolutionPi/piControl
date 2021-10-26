@@ -198,7 +198,7 @@ void revpi_release_firmware(struct rpi_firmware *fw)
 	rpi_firmware_put(fw);
 }
 
-int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val)
+static int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val)
 {
 	struct rpi_firmware *fw = rpi_firmware_get(NULL);
 	struct {
@@ -208,7 +208,7 @@ int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val)
 	int ret;
 
 	packet.id = id;
-	packet.val = *val;
+	packet.val = 0;
 	ret = rpi_firmware_property(fw, tag, &packet, sizeof(packet));
 	if (ret)
 		return ret;

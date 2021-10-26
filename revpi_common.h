@@ -22,7 +22,6 @@ void revpi_release_firmware(struct rpi_firmware *fw);
 
 void revpi_check_timeout(void);
 
-int bcm2835_cpufreq_clock_property(u32 tag, u32 id, u32 * val);
 uint32_t bcm2835_cpufreq_get_clock(void);
 extern char *lock_file;
 extern int lock_line;
