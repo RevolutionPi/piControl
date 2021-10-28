@@ -345,8 +345,6 @@ int revpi_core_init(void)
 
 	return ret;
 
-err_stop_io_thread:
-	kthread_stop(piCore_g.pIoThread);
 err_stop_uart_thread:
 	kthread_stop(piCore_g.pUartThread);
 err_close_serial:
