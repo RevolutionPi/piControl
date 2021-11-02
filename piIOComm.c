@@ -108,10 +108,16 @@ int UartThreadProc(void *pArg)
 	char acBuf_l[MAX_READ_BUF];
 	UIoProtocolHeader ioHeader_l;
 
+	allow_signal(SIGTERM);
+
 	while (!kthread_should_stop()) {
 		//TODO optimize
 		int r = kernel_read(piIoComm_fd_m, acBuf_l, MAX_READ_BUF, &piIoComm_fd_m->f_pos);
-		if (r != MAX_READ_BUF) {	// not finished yet
+		if (r == -ERESTARTSYS) {
+			/* module is about to be unloaded, leave loop */
+			pr_info("UartThread: received TERM signal\n");
+			break;
+		} else if (r != MAX_READ_BUF) {	// not finished yet
 			clear();
 			return -1;
 		} else {

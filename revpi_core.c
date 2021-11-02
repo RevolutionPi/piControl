@@ -379,7 +379,9 @@ err_remove_table:
 
 void revpi_core_fini(void)
 {
-	// the IoThread cannot be stopped
+	/* tell UART thread to cancel the main loop */
+	send_sig(SIGTERM, piCore_g.pUartThread, 1);
+
 	kthread_stop(piCore_g.pIoThread);
 	kthread_stop(piCore_g.pUartThread);
 	piIoComm_finish();
