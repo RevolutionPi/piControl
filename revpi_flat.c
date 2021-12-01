@@ -281,7 +281,8 @@ static void revpi_flat_set_defaults(void)
 {
 	my_rt_mutex_lock(&piDev_g.lockPI);
 	memset(piDev_g.ai8uPI, 0, sizeof(piDev_g.ai8uPI));
-	revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
+	if (piDev_g.ent)
+		revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
 	rt_mutex_unlock(&piDev_g.lockPI);
 }
 
