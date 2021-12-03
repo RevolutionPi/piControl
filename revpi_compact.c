@@ -727,7 +727,8 @@ int revpi_compact_reset()
 	my_rt_mutex_lock(&piDev_g.lockPI);
 	revpi_compact_adjust_config();
 	memset(&image->usr, 0, sizeof(image->usr));
-	revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
+	if (piDev_g.ent)
+		revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
 	rt_mutex_unlock(&piDev_g.lockPI);
 
 	machine->config = revpi_compact_config_g;
