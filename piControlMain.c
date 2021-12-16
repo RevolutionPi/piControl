@@ -81,6 +81,7 @@ MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
 	       "spi-bcm2835aux "	/* compact spi2 i/o */
+	       "gpio-max3191x "		/* compact din */
 	       "gpio-74x164 "		/* compact dout */
 	       "fixed "			/* compact ain/aout vref */
 	       "mux_gpio "		/* compact ain mux */
