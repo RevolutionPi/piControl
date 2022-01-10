@@ -753,12 +753,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			SDeviceInfo dev_info;
 			int i, found;
 
-			if (!access_ok(VERIFY_WRITE, (void __user *) usr_addr, sizeof(dev_info))) {
-				pr_err("invalid address provided by user\n");
-				return -EFAULT;
-			}
-
-			if (__copy_from_user(&dev_info, (const void __user *) usr_addr, sizeof(dev_info))) {
+			if (copy_from_user(&dev_info, (const void __user *) usr_addr, sizeof(dev_info))) {
 				pr_err("failed to copy dev info from user\n");
 				return -EFAULT;
 			}
@@ -790,7 +785,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				dev_info.i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
 				dev_info.i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
 
-				if (__copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
+				if (copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
 					pr_err("failed to copy dev info to user\n");
 					return -EFAULT;
 				}
@@ -872,13 +867,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (!isRunning())
 				return -EFAULT;
 
-			if (!access_ok(VERIFY_WRITE, (void __user *) usr_addr,
-				       sizeof(spi_val))) {
-				pr_err("invalid address provided by user\n");
-				return -EFAULT;
-			}
-
-			if (__copy_from_user(&spi_val, (const void __user *) usr_addr,
+			if (copy_from_user(&spi_val, (const void __user *) usr_addr,
 					     sizeof(spi_val))) {
 				pr_err("failed to copy spi value from user\n");
 				return -EFAULT;
@@ -898,7 +887,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					    ? 1 : 0;
 				}
 
-				if (__copy_to_user((void __user *) usr_addr, &spi_val,
+				if (copy_to_user((void __user *) usr_addr, &spi_val,
 						   sizeof(spi_val))) {
 					pr_err("failed to copy spi value to user\n");
 					return -EFAULT;
