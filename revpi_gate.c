@@ -29,6 +29,8 @@ static LIST_HEAD(revpi_gate_connections);
 static DEFINE_MUTEX(revpi_gate_lock);		/* serializes list add/del */
 DEFINE_STATIC_SRCU(revpi_gate_srcu);		/* protects list traversal */
 static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_fini_wq);
+static struct sk_buff_head revpi_gate_rcvq;
+static struct task_struct *revpi_gate_rcv_thread;
 
 static unsigned int revpi_gate_nf_hook(void *priv, struct sk_buff *skb,
 				       const struct nf_hook_state *state)
@@ -568,6 +570,29 @@ unlock:
 	return ret;
 }
 
+static int revpi_gate_rcv_loop(void *data)
+{
+	struct sk_buff *skb;
+
+	while (true) {
+		while (!skb_queue_empty(&revpi_gate_rcvq)) {
+			skb = skb_dequeue(&revpi_gate_rcvq);
+			revpi_gate_process(skb, skb->dev);
+		}
+		set_current_state(TASK_IDLE);
+		if (kthread_should_stop()) {
+			__set_current_state(TASK_RUNNING);
+			return 0;
+		}
+		if (!skb_queue_empty(&revpi_gate_rcvq)) {
+			__set_current_state(TASK_RUNNING);
+			continue;
+		}
+		schedule();
+
+	}
+}
+
 static int revpi_gate_rcv(struct sk_buff *skb, struct net_device *dev,
 			  struct packet_type *pt, struct net_device *orig_dev)
 {
@@ -585,7 +610,9 @@ static int revpi_gate_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto drop;
 	}
 
-	return revpi_gate_process(skb, dev);
+	skb_queue_tail(&revpi_gate_rcvq, skb);
+	wake_up_process(revpi_gate_rcv_thread);
+	return NET_RX_SUCCESS;
 
 drop:
 	kfree_skb(skb);
@@ -599,15 +626,34 @@ static struct packet_type revpi_gate_packet_type __read_mostly = {
 
 void revpi_gate_init(void)
 {
+	skb_queue_head_init(&revpi_gate_rcvq);
+
+	revpi_gate_rcv_thread = kthread_run(&revpi_gate_rcv_loop, NULL,
+					    "revpi_gate_rcv");
+	if(IS_ERR(revpi_gate_rcv_thread)) {
+		pr_err("piControl: cannot run revpi_gate_rcv_thread (%ld), reset driver to retry\n",
+		       PTR_ERR(revpi_gate_rcv_thread));
+		return;
+	}
+
+	sched_set_fifo(revpi_gate_rcv_thread);
+
 	dev_add_pack(&revpi_gate_packet_type);
 }
 
 void revpi_gate_fini(void)
 {
 	struct revpi_gate_connection *conn;
+	struct sk_buff *skb;
 	int idx;
 
 	dev_remove_pack(&revpi_gate_packet_type);
+
+	kthread_stop(revpi_gate_rcv_thread);
+	while (!skb_queue_empty(&revpi_gate_rcvq)) {
+		skb = skb_dequeue(&revpi_gate_rcvq);
+		dev_kfree_skb(skb);
+	}
 
 	/*
 	 * Remaining connections cannot be torn down with flush_delayed_work():
