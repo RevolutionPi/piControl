@@ -231,8 +231,6 @@ static int piIoThread(void *data)
 		down(&piCore_g.ioSem);	// wait for timer
 	}
 
-	RevPiDevice_finish();
-
 	pr_info("piIO exit\n");
 	return 0;
 }
