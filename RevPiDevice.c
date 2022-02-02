@@ -139,12 +139,6 @@ void RevPiDevice_init(void)
 	RevPiDevice_incDevCnt();
 }
 
-void RevPiDevice_finish(void)
-{
-	//pr_info("RevPiDevice_finish()\n");
-	piIoComm_finish();
-}
-
 void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval)
 {
 	if (r) {

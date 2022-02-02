@@ -74,7 +74,6 @@ typedef struct _SDeviceConfig
 TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *pModgateId_p);
 
 void RevPiDevice_init(void);
-void RevPiDevice_finish(void);
 
 int RevPiDevice_run(void);
 TBOOL RevPiDevice_writeNextConfigurationRight(void);
