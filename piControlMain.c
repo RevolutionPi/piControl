@@ -433,6 +433,10 @@ static void __exit piControlCleanup(void)
 
 	cdev_del(&piDev_g.cdev);
 
+	if ((piDev_g.machine_type == REVPI_CORE ||
+	     piDev_g.machine_type == REVPI_CONNECT) && isRunning())
+		PiBridgeMaster_Stop();
+
 	if (piDev_g.machine_type == REVPI_CORE) {
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
