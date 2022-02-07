@@ -36,7 +36,7 @@ static inline void cycletimer_sleep(struct cycletimer *ct)
 			missed_cycles - 1);
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
-	hrtimer_restart(timer);
+	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_HARD);
 	schedule();
 }
 
@@ -53,7 +53,7 @@ static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime
 {
 	struct hrtimer *timer = &ct->sleeper.timer;
 
-	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->function = wake_up_sleeper;
 	ct->sleeper.task = current;
 	cycletimer_change(ct, cycletime);
