@@ -47,16 +47,6 @@ static const struct kthread_prio revpi_core_kthread_prios[] = {
 	{ }
 };
 
-static struct gpiod_lookup_table revpi_connect_gpios = {
-	.dev_id = "piControl0",
-	.table  = { GPIO_LOOKUP_IDX("pinctrl-bcm2835", 43, "Sniff1A",	0, GPIO_ACTIVE_HIGH),	// 1 links
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 29, "Sniff2A",	0, GPIO_ACTIVE_HIGH),	// 2 links
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835",  0, "X2_DI",	0, GPIO_ACTIVE_HIGH),	// Digital In auf X2 Stecker
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835",  1, "X2_DO",	0, GPIO_ACTIVE_HIGH),	// Digital Out (Relais) auf X2 Stecker
-		    GPIO_LOOKUP_IDX("pinctrl-bcm2835", 42, "WDTrigger", 0, GPIO_ACTIVE_HIGH),	// Watchdog trigger
-	},
-};
-
 SRevPiCore piCore_g;
 
 /**
@@ -236,19 +226,9 @@ static void deinit_sniff_gpios(void)
 	}
 }
 
-static void deinit_connect_gpios(void)
-{
-	gpiod_put(piCore_g.gpio_wdtrigger);
-	gpiod_put(piCore_g.gpio_x2do);
-	gpiod_put(piCore_g.gpio_x2di);
-	gpiod_remove_lookup_table(&revpi_connect_gpios);
-}
-
 static void deinit_gpios(void)
 {
 	deinit_sniff_gpios();
-	if (piDev_g.machine_type == REVPI_CONNECT)
-		deinit_connect_gpios();
 }
 
 static int init_sniff_gpios(struct platform_device *pdev)
@@ -294,41 +274,26 @@ static int init_sniff_gpios(struct platform_device *pdev)
 	return 0;
 }
 
-static int init_connect_gpios(void)
+static int init_connect_gpios(struct platform_device *pdev)
 {
-	int ret;
-	// the connect has only a only one modular gateway port on the left
-	gpiod_add_lookup_table(&revpi_connect_gpios);
-
-	piCore_g.gpio_x2di = gpiod_get(piDev_g.dev, "X2_DI", GPIOD_IN);
+	piCore_g.gpio_x2di = devm_gpiod_get_index(&pdev->dev, "connect", 0, GPIOD_IN);
 	if (IS_ERR(piCore_g.gpio_x2di)) {
-		pr_err("cannot acquire gpio x2 di\n");
-		ret = PTR_ERR(piCore_g.gpio_x2di);
-		goto err_remove_table;
+		dev_err(&pdev->dev, "cannot acquire gpio x2 di\n");
+		return PTR_ERR(piCore_g.gpio_x2di);
 	}
-	piCore_g.gpio_x2do = gpiod_get(piDev_g.dev, "X2_DO", GPIOD_OUT_LOW);
+
+	piCore_g.gpio_x2di = devm_gpiod_get_index(&pdev->dev, "connect", 1, GPIOD_OUT_LOW);
 	if (IS_ERR(piCore_g.gpio_x2do)) {
-		pr_err("cannot acquire gpio x2 do\n");
-		ret = PTR_ERR(piCore_g.gpio_x2do);
-		goto err_free_x2di;
+		dev_err(&pdev->dev, "cannot acquire gpio x2 do\n");
+		return PTR_ERR(piCore_g.gpio_x2do);
 	}
-	piCore_g.gpio_wdtrigger = gpiod_get(piDev_g.dev, "WDTrigger", GPIOD_OUT_LOW);
+
+	piCore_g.gpio_wdtrigger = devm_gpiod_get_index(&pdev->dev, "connect", 2, GPIOD_OUT_LOW);
 	if (IS_ERR(piCore_g.gpio_wdtrigger)) {
-		pr_err("cannot acquire gpio watchdog trigger\n");
-		ret = PTR_ERR(piCore_g.gpio_wdtrigger);
-		goto err_free_x2do;
+		dev_err(&pdev->dev, "cannot acquire gpio watchdog trigger\n");
+		return PTR_ERR(piCore_g.gpio_wdtrigger);
 	}
-
 	return 0;
-
-err_free_x2do:
-	gpiod_put(piCore_g.gpio_x2do);
-err_free_x2di:
-	gpiod_put(piCore_g.gpio_x2di);
-err_remove_table:
-	gpiod_remove_lookup_table(&revpi_connect_gpios);
-
-	return ret;
 }
 
 static int init_gpios(struct platform_device *pdev)
@@ -342,7 +307,7 @@ static int init_gpios(struct platform_device *pdev)
 	}
 
 	if (piDev_g.machine_type == REVPI_CONNECT) {
-		ret = init_connect_gpios();
+		ret = init_connect_gpios(pdev);
 		if (ret) {
 			dev_err(piDev_g.dev, "Failed to init connect gpios: %i\n",
 				ret);
