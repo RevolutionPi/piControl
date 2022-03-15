@@ -254,7 +254,7 @@ static int revpi_compact_poll_ain(void *data)
 	while (!kthread_should_stop()) {
 		unsigned long long tmp;
 
-		smp_read_barrier_depends();
+		smp_rmb();
 		if (machine->ain_should_reset) {
 			/* determine which channels are enabled */
 			pr_info_aio("AIn Reset: config %d %d %d %d %d %d %d %d\n",
