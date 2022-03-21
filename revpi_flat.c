@@ -187,6 +187,7 @@ static int revpi_flat_poll_ain(void *data)
 	bool ain_mode_current = false;
 	u16 prev_leds = 0;
 	int temperature;
+	int freq;
 	u16 leds;
 	int ret;
 
@@ -195,20 +196,21 @@ static int revpi_flat_poll_ain(void *data)
 		if (ret)
 			msleep(REVPI_FLAT_AIN_POLL_INTERVAL);
 
-		my_rt_mutex_lock(&piDev_g.lockPI);
 		/* read cpu temperature */
 		if (piDev_g.thermal_zone != NULL) {
 			ret = thermal_zone_get_temp(piDev_g.thermal_zone,
 						    &temperature);
-			if (ret) {
+			if (ret)
 				dev_err(piDev_g.dev,"Failed to get cpu "
 					"temperature");
-			} else {
-				image->drv.cpu_temp = temperature / 1000;
-			}
 		}
 		/* read cpu frequency */
-		image->drv.cpu_freq = bcm2835_cpufreq_get_clock() / 10;
+		freq = bcm2835_cpufreq_get_clock();
+
+		my_rt_mutex_lock(&piDev_g.lockPI);
+		if ((piDev_g.thermal_zone != NULL) && !ret)
+			image->drv.cpu_temp = temperature / 1000;
+		image->drv.cpu_freq = freq / 10;
 		leds = image->usr.leds;
 		ain_mode_current = !!image->usr.ain_mode_current;
 		rt_mutex_unlock(&piDev_g.lockPI);
