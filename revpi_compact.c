@@ -535,6 +535,7 @@ void revpi_compact_adjust_config(void)
 int revpi_compact_init(void)
 {
 	SRevPiCompact *machine;
+	struct sched_param param = { };
 	struct device *dev;
 	int ret;
 
@@ -654,7 +655,12 @@ int revpi_compact_init(void)
 		goto err_release_aout1;
 	}
 
-	sched_set_fifo(machine->io_thread);
+	param.sched_priority = IO_THREAD_PRIO;
+	ret = sched_setscheduler(machine->io_thread, SCHED_FIFO, &param);
+	if (ret) {
+		pr_err("cannot upgrade i/o thread priority\n");
+		goto err_stop_io_thread;
+	}
 
 	machine->ain_thread = kthread_create(&revpi_compact_poll_ain, machine,
 					     "piControl ain");
@@ -664,7 +670,12 @@ int revpi_compact_init(void)
 		goto err_stop_io_thread;
 	}
 
-	sched_set_fifo(machine->ain_thread);
+	param.sched_priority = AIN_THREAD_PRIO;
+	ret = sched_setscheduler(machine->ain_thread, SCHED_FIFO, &param);
+	if (ret) {
+		pr_err("cannot upgrade ain thread priority\n");
+		goto err_stop_ain_thread;
+	}
 
 	ret = set_kthread_prios(revpi_compact_kthread_prios);
 	if (ret)
