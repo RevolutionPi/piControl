@@ -323,6 +323,7 @@ err_deinit_sniff_gpios:
 
 static int pibridge_probe(struct platform_device *pdev)
 {
+	struct sched_param param;
 	int ret;
 
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
@@ -367,7 +368,12 @@ static int pibridge_probe(struct platform_device *pdev)
 		ret = PTR_ERR(piCore_g.pUartThread);
 		goto err_close_serial;
 	}
-	sched_set_fifo(piCore_g.pUartThread);
+	param.sched_priority = RT_PRIO_UART;
+	sched_setscheduler(piCore_g.pUartThread, SCHED_FIFO, &param);
+	if (ret) {
+		pr_err("cannot set rt prio of uart thread\n");
+		goto err_stop_uart_thread;
+	}
 
 	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piControl I/O");
 	if (IS_ERR(piCore_g.pIoThread)) {
@@ -375,10 +381,17 @@ static int pibridge_probe(struct platform_device *pdev)
 		ret = PTR_ERR(piCore_g.pIoThread);
 		goto err_stop_uart_thread;
 	}
-	sched_set_fifo(piCore_g.pIoThread);
+	param.sched_priority = RT_PRIO_BRIDGE;
+	ret = sched_setscheduler(piCore_g.pIoThread, SCHED_FIFO, &param);
+	if (ret) {
+		pr_err("cannot set rt prio of io thread\n");
+		goto err_stop_io_thread;
+	}
 
 	return 0;
 
+err_stop_io_thread:
+	kthread_stop(piCore_g.pIoThread);
 err_stop_uart_thread:
 	kthread_stop(piCore_g.pUartThread);
 err_close_serial:
