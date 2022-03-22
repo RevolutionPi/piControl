@@ -317,22 +317,24 @@ static int revpi_compact_poll_ain(void *data)
 
 next_chan:
 		if (++i >= numchans) {
+			int ret;
+			int freq;
+			int temp;
 			i = 0;
 
 			// update every 1 sec
-			my_rt_mutex_lock(&piDev_g.lockPI);
 			if (piDev_g.thermal_zone != NULL) {
-				int temp, ret;
-
 				ret = thermal_zone_get_temp(piDev_g.thermal_zone, &temp);
-				if (ret) {
+				if (ret)
 					pr_err("could not read cpu temperature");
-				} else {
-					image->drv.i8uCPUTemperature = temp / 1000;
-				}
 			}
 
-			image->drv.i8uCPUFrequency = bcm2835_cpufreq_get_clock() / 10;
+			freq = bcm2835_cpufreq_get_clock();
+
+			my_rt_mutex_lock(&piDev_g.lockPI);
+			if ((piDev_g.thermal_zone != NULL) && !ret)
+				image->drv.i8uCPUTemperature = temp / 1000;
+			image->drv.i8uCPUFrequency = freq / 10;
 			rt_mutex_unlock(&piDev_g.lockPI);
 		}
 
