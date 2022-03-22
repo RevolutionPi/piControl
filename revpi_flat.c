@@ -209,7 +209,7 @@ static int revpi_flat_poll_ain(void *data)
 		freq = bcm2835_cpufreq_get_clock(flat->fw);
 
 		my_rt_mutex_lock(&piDev_g.lockPI);
-		if (piDev_g.thermal_zone != NULL && ret)
+		if ((piDev_g.thermal_zone != NULL) && !ret)
 			image->drv.cpu_temp = temperature / 1000;
 		image->drv.cpu_freq = freq / 10;
 		leds = image->usr.leds;
