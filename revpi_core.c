@@ -282,7 +282,7 @@ static int init_connect_gpios(struct platform_device *pdev)
 		return PTR_ERR(piCore_g.gpio_x2di);
 	}
 
-	piCore_g.gpio_x2di = devm_gpiod_get_index(&pdev->dev, "connect", 1, GPIOD_OUT_LOW);
+	piCore_g.gpio_x2do = devm_gpiod_get_index(&pdev->dev, "connect", 1, GPIOD_OUT_LOW);
 	if (IS_ERR(piCore_g.gpio_x2do)) {
 		dev_err(&pdev->dev, "cannot acquire gpio x2 do\n");
 		return PTR_ERR(piCore_g.gpio_x2do);
