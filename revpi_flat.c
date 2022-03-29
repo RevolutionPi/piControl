@@ -79,23 +79,6 @@ struct revpi_flat {
 	struct iio_channel aout;
 };
 
-static const struct kthread_prio revpi_flat_kthread_prios[] = {
-	/* softirq daemons handling hrtimers */
-	{ .comm = "ktimersoftd/0",
-	  .prio = MAX_USER_RT_PRIO/2 + 10
-	},
-	{ .comm = "ktimersoftd/1",
-	  .prio = MAX_USER_RT_PRIO/2 + 10
-	},
-	{ .comm = "ktimersoftd/2",
-	  .prio = MAX_USER_RT_PRIO/2 + 10
-	},
-	{ .comm = "ktimersoftd/3",
-	  .prio = MAX_USER_RT_PRIO/2 + 10
-	},
-	{ }
-};
-
 static int revpi_flat_poll_dout(void *data)
 {
 	struct revpi_flat *flat = (struct revpi_flat *) data;
@@ -398,10 +381,6 @@ int revpi_flat_init(void)
 		dev_err(piDev_g.dev, "cannot upgrade ain thread priority\n");
 		goto err_stop_ain_thread;
 	}
-
-	ret = set_kthread_prios(revpi_flat_kthread_prios);
-	if (ret)
-		goto err_stop_ain_thread;
 
 	revpi_flat_reset();
 
