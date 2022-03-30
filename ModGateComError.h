@@ -33,7 +33,6 @@
 #ifndef MODGATEERROR_H_INC
 #define MODGATEERROR_H_INC
 
-#include <stdarg.h>
 #include <bsp/setjmp/BspSetJmp.h>
 
 // mGate errors 0x37xxxxxx
