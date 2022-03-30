@@ -33,8 +33,6 @@
 #ifndef MODGATERS485_H_INC
 #define MODGATERS485_H_INC
 
-#include <stddef.h>
-
 #include <IoProtocol.h>
 
 #define MAX_TELEGRAM_DATA_SIZE 256
