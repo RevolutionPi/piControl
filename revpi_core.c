@@ -43,7 +43,7 @@
 
 static const struct kthread_prio revpi_core_kthread_prios[] = {
 	/* spi pump to RevPi Gateways */
-	{ .comm = "spi0",		.prio = MAX_USER_RT_PRIO/2 + 4 },
+	{ .comm = "spi0",		.prio = MAX_RT_PRIO/2 + 4 },
 	{ }
 };
 

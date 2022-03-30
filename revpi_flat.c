@@ -30,8 +30,8 @@
 /* button gpio num */
 #define REVPI_FLAT_BUTTON_GPIO			13
 
-#define REVPI_FLAT_DOUT_THREAD_PRIO		(MAX_USER_RT_PRIO / 2 + 8)
-#define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_USER_RT_PRIO / 2 + 6)
+#define REVPI_FLAT_DOUT_THREAD_PRIO		(MAX_RT_PRIO / 2 + 8)
+#define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_RT_PRIO / 2 + 6)
 /* ain resistor (Ohm) */
 #define REVPI_FLAT_AIN_RESISTOR			240
 /* This value is a correction factor which takes the currency loss caused

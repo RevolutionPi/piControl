@@ -35,12 +35,12 @@
 #define REVPI_COMPACT_IO_CYCLE		( 250 * NSEC_PER_USEC)		// 250 usec
 #define REVPI_COMPACT_AIN_CYCLE		( 125 * NSEC_PER_MSEC)		// 125 msec
 
-#define IO_THREAD_PRIO	MAX_USER_RT_PRIO/2 + 8
-#define AIN_THREAD_PRIO MAX_USER_RT_PRIO/2 + 6
+#define IO_THREAD_PRIO	MAX_RT_PRIO/2 + 8
+#define AIN_THREAD_PRIO MAX_RT_PRIO/2 + 6
 
 static const struct kthread_prio revpi_compact_kthread_prios[] = {
 	/* spi pump to I/O chips */
-	{ .comm = "spi2",		.prio = MAX_USER_RT_PRIO/2 + 10 },
+	{ .comm = "spi2",		.prio = MAX_RT_PRIO/2 + 10 },
         /* softirq daemons handling hrtimers */
 	{ }
 };
