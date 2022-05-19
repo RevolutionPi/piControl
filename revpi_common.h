@@ -44,6 +44,9 @@ extern int lock_line;
 #define my_rt_mutex_lock(P)	rt_mutex_lock(P)
 #endif
 
+#define IRQ_THREAD "irq/*-"
+#define IRQ_THREAD_LEN (sizeof(IRQ_THREAD) - 1)
+
 struct kthread_prio {
 	const char comm[TASK_COMM_LEN];
 	int prio;

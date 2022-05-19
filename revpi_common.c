@@ -250,29 +250,48 @@ int set_kthread_prios(const struct kthread_prio *ktprios)
 	const struct kthread_prio *ktprio;
 	struct sched_param param = { };
 	struct task_struct *child;
-	int ret = 0;
+	const char *ktprio_comm;
+	const char *child_comm;
+	int len, ret = 0;
 
 	read_lock(&tasklist_lock);
 	for (ktprio = ktprios; ktprio->comm[0]; ktprio++) {
 		bool found = false;
 
-		list_for_each_entry(child, &kthreadd_task->children, sibling)
-			if (!strncmp(child->comm, ktprio->comm,
-				     TASK_COMM_LEN)) {
+		if (!strncmp(ktprio->comm, IRQ_THREAD, IRQ_THREAD_LEN)) {
+			ktprio_comm = ktprio->comm + IRQ_THREAD_LEN;
+		} else {
+			ktprio_comm = ktprio->comm;
+			len = TASK_COMM_LEN;
+		}
+
+		list_for_each_entry(child, &kthreadd_task->children, sibling) {
+			if (!strncmp(ktprio->comm, IRQ_THREAD,
+				     IRQ_THREAD_LEN)) {
+				child_comm = strchr(child->comm, '-');
+				if (!child_comm)
+					continue;
+				child_comm++;
+				len = TASK_COMM_LEN - (child_comm - child->comm);
+			} else {
+				child_comm = child->comm;
+			}
+
+			if (!strncmp(child_comm, ktprio_comm, len)) {
 				found = true;
 				param.sched_priority = ktprio->prio;
 				ret = sched_setscheduler(child, SCHED_FIFO,
 							 &param);
 				if (ret) {
 					pr_err("cannot set priority of %s\n",
-					       ktprio->comm);
+					       child->comm);
 					goto out;
 				} else {
 					pr_info("set priority of %s to %d\n",
-						ktprio->comm, ktprio->prio);
+						child->comm, ktprio->prio);
 				}
-				break;
 			}
+		}
 
 		if (!found) {
 			pr_err("cannot find kthread %s\n", ktprio->comm);
