@@ -200,7 +200,8 @@ static int __init piControlInit(void)
 	if (of_machine_is_compatible("kunbus,revpi-compact")) {
 		piDev_g.machine_type = REVPI_COMPACT;
 		pr_info("RevPi Compact\n");
-	} else if (of_machine_is_compatible("kunbus,revpi-connect")) {
+	} else if (of_machine_is_compatible("kunbus,revpi-connect") ||
+		   of_machine_is_compatible("kunbus,revpi-connect-se")) {
 		piDev_g.machine_type = REVPI_CONNECT;
 		pr_info("RevPi Connect\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-flat")) {
