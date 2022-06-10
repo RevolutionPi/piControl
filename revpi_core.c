@@ -306,7 +306,8 @@ static int init_gpios(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (piDev_g.machine_type == REVPI_CONNECT) {
+	if (piDev_g.machine_type == REVPI_CONNECT ||
+	    piDev_g.machine_type == REVPI_CONNECT_SE) {
 		ret = init_connect_gpios(pdev);
 		if (ret) {
 			dev_err(piDev_g.dev, "Failed to init connect gpios: %i\n",
