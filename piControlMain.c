@@ -197,20 +197,35 @@ static int __init piControlInit(void)
 
 	pr_info("built: %s\n", COMPILETIME);
 
-	if (of_machine_is_compatible("kunbus,revpi-compact")) {
-		piDev_g.machine_type = REVPI_COMPACT;
-		pr_info("RevPi Compact\n");
-	} else if (of_machine_is_compatible("kunbus,revpi-connect") ||
-		   of_machine_is_compatible("kunbus,revpi-connect-se")) {
+	piDev_g.variant_type = VARIANT_NORM;
+
+	if (of_machine_is_compatible("kunbus,revpi-core")) {
+		piDev_g.machine_type = REVPI_CORE;
+	} else if (of_machine_is_compatible("kunbus,revpi-connect")) {
 		piDev_g.machine_type = REVPI_CONNECT;
-		pr_info("RevPi Connect\n");
+	} else if (of_machine_is_compatible("kunbus,revpi-core-se")) {
+		piDev_g.machine_type = REVPI_CORE;
+		piDev_g.variant_type = VARIANT_SE;
+	} else if (of_machine_is_compatible("kunbus,revpi-connect-se")) {
+		piDev_g.machine_type = REVPI_CONNECT;
+		piDev_g.variant_type = VARIANT_SE;
+	} else if (of_machine_is_compatible("kunbus,revpi-core-1-1")) {
+		piDev_g.machine_type = REVPI_CORE;
+		piDev_g.variant_type = VARIANT_NEWD;
+	} else if (of_machine_is_compatible("kunbus,revpi-connect-1-2")) {
+		piDev_g.machine_type = REVPI_CONNECT;
+		piDev_g.variant_type = VARIANT_NEWD;
+	} else if (of_machine_is_compatible("kunbus,revpi-compact")) {
+		piDev_g.machine_type = REVPI_COMPACT;
 	} else if (of_machine_is_compatible("kunbus,revpi-flat")) {
 		piDev_g.machine_type = REVPI_FLAT;
-		pr_info("RevPi Flat\n");
 	} else {
-		piDev_g.machine_type = REVPI_CORE;
-		pr_info("RevPi Core\n");
+		pr_info("Failed to find a valid compatible string\n");
+		goto err_compatible;
 	}
+
+	pr_info("Recognize RevPi Device (Code:%d,%d)\n",
+		piDev_g.machine_type, piDev_g.variant_type);
 
 	// alloc_chrdev_region return 0 on success
 	res = alloc_chrdev_region(&piControlMajor, 0, 2, "piControl");
@@ -335,6 +350,7 @@ err_class_destroy:
 	class_destroy(piControlClass);
 err_unreg_chrdev_region:
 	unregister_chrdev_region(piControlMajor, 2);
+err_compatible:
 	return res;
 }
 

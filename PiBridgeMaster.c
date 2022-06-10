@@ -75,7 +75,8 @@ void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
 	my_rt_mutex_lock(&piCore_g.lockBridgeState);
-	revpi_gate_init();
+	if (piDev_g.variant_type != VARIANT_SE)
+		revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
 	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
 	bEntering_s = bFALSE;
@@ -700,7 +701,8 @@ int PiBridgeMaster_Run(void)
 				init_retry--;
 			} else {
 				pr_info("set BridgeState to running\n");
-				revpi_gate_init();
+				if (piDev_g.variant_type != VARIANT_SE)
+					revpi_gate_init();
 				piCore_g.eBridgeState = piBridgeRun;
 			}
 		}

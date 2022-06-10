@@ -60,9 +60,16 @@ enum revpi_machine {
 	REVPI_FLAT = 4,
 };
 
+enum revpi_variant {
+	VARIANT_NORM = 1,
+	VARIANT_SE = 2,
+	VARIANT_NEWD = 3, /* New Design, Core 1.1 or Connect 1.2, */
+};
+
 typedef struct spiControlDev {
 	// device driver stuff
 	enum revpi_machine machine_type;
+	enum revpi_variant variant_type;
 	void *machine;
 	struct cdev cdev;	// Char device structure
 	struct device *dev;
