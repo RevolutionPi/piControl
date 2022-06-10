@@ -66,7 +66,8 @@ static char *pcFWUdata;
 void PiBridgeMaster_Stop(void)
 {
 	my_rt_mutex_lock(&piCore_g.lockBridgeState);
-	revpi_gate_fini();
+	if (piDev_g.machine_type != REVPI_CONNECT_SE)
+		revpi_gate_fini();
 	piCore_g.eBridgeState = piBridgeStop;
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
@@ -75,7 +76,8 @@ void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
 	my_rt_mutex_lock(&piCore_g.lockBridgeState);
-	revpi_gate_init();
+	if (piDev_g.machine_type != REVPI_CONNECT_SE)
+		revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
 	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
 	bEntering_s = bFALSE;
@@ -319,7 +321,8 @@ int PiBridgeMaster_Run(void)
 			}
 			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
 				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
-				if (piDev_g.machine_type == REVPI_CONNECT) {
+				if (piDev_g.machine_type == REVPI_CONNECT ||
+				    piDev_g.machine_type == REVPI_CONNECT_SE) {
 					// the RevPi Connect has I/O modules only on the left side
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
 				} else {
@@ -649,7 +652,8 @@ int PiBridgeMaster_Run(void)
 				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
 				    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
 					pr_err("too many communication errors -> set BridgeState to stopped\n");
-					revpi_gate_fini();
+					if (piDev_g.machine_type != REVPI_CONNECT_SE)
+						revpi_gate_fini();
 					piCore_g.eBridgeState = piBridgeStop;
 				} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
 					   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
@@ -700,7 +704,8 @@ int PiBridgeMaster_Run(void)
 				init_retry--;
 			} else {
 				pr_info("set BridgeState to running\n");
-				revpi_gate_init();
+				if (piDev_g.machine_type != REVPI_CONNECT_SE)
+					revpi_gate_init();
 				piCore_g.eBridgeState = piBridgeRun;
 			}
 		}
@@ -816,7 +821,8 @@ int PiBridgeMaster_Run(void)
 	}
 
 	// set LEDs, Status and GPIOs
-	if (piDev_g.machine_type == REVPI_CONNECT) {
+	if (piDev_g.machine_type == REVPI_CONNECT ||
+	    piDev_g.machine_type == REVPI_CONNECT_SE) {
 		if (gpiod_get_value_cansleep(piCore_g.gpio_x2di)) {
 			RevPiDevice_setStatus(0, PICONTROL_STATUS_X2_DIN);
 		} else {
@@ -826,7 +832,8 @@ int PiBridgeMaster_Run(void)
 	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();
 
 	revpi_led_trigger_event(last_led, piCore_g.image.usr.i8uLED);
-	if (piDev_g.machine_type == REVPI_CONNECT) {
+	if (piDev_g.machine_type == REVPI_CONNECT ||
+	    piDev_g.machine_type == REVPI_CONNECT_SE) {
 		if ((last_led ^ piCore_g.image.usr.i8uLED) & PICONTROL_X2_DOUT) {
 			gpiod_set_value(piCore_g.gpio_x2do, (piCore_g.image.usr.i8uLED & PICONTROL_X2_DOUT) ? 1 : 0);
 		}
