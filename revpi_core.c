@@ -220,7 +220,8 @@ static void deinit_sniff_gpios(void)
 	piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
 	piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
 
-	if (piDev_g.machine_type == REVPI_CORE) {
+	if (piDev_g.machine_type == REVPI_CORE ||
+	    piDev_g.machine_type == REVPI_CORE_SE) {
 		piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
 		piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
 	}
@@ -255,7 +256,8 @@ static int init_sniff_gpios(struct platform_device *pdev)
 	piCore_g.gpio_sniff1a = descs->desc[0];
 	piCore_g.gpio_sniff2a = descs->desc[1];
 
-	if (piDev_g.machine_type == REVPI_CORE) {
+	if (piDev_g.machine_type == REVPI_CORE ||
+	    piDev_g.machine_type == REVPI_CORE_SE) {
 		descs = devm_gpiod_get_array(&pdev->dev, "right-sniff", GPIOD_IN);
 		if (IS_ERR(descs)) {
 			dev_err(&pdev->dev, "Failed to get right sniff gpios\n");
