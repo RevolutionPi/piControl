@@ -209,6 +209,9 @@ static int __init piControlInit(void)
 	} else if (of_machine_is_compatible("kunbus,revpi-flat")) {
 		piDev_g.machine_type = REVPI_FLAT;
 		pr_info("RevPi Flat\n");
+	} else if (of_machine_is_compatible("kunbus,revpi-core-se")) {
+		piDev_g.machine_type = REVPI_CORE_SE;
+		pr_info("RevPi Core SE\n");
 	} else {
 		piDev_g.machine_type = REVPI_CORE;
 		pr_info("RevPi Core\n");
@@ -294,6 +297,8 @@ static int __init piControlInit(void)
 
 	if (piDev_g.machine_type == REVPI_CORE) {
 		res = revpi_core_init();
+	} if (piDev_g.machine_type == REVPI_CORE_SE) {
+		res = revpi_core_init();
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
 		res = revpi_core_init();
 	} else if (piDev_g.machine_type == REVPI_CONNECT_SE) {
@@ -325,6 +330,8 @@ static int __init piControlInit(void)
 
 err_revpi_fini:
 	if (piDev_g.machine_type == REVPI_CORE) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_CORE_SE) {
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
 		revpi_core_fini();
@@ -378,6 +385,8 @@ static int piControlReset(tpiControlInst * priv)
 	}
 
 	if (piDev_g.machine_type == REVPI_CORE) {
+		PiBridgeMaster_Reset();
+	} else if (piDev_g.machine_type == REVPI_CORE_SE) {
 		PiBridgeMaster_Reset();
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
 		PiBridgeMaster_Reset();
@@ -444,11 +453,14 @@ static void __exit piControlCleanup(void)
 	cdev_del(&piDev_g.cdev);
 
 	if ((piDev_g.machine_type == REVPI_CORE ||
+	     piDev_g.machine_type == REVPI_CORE_SE||
 	     piDev_g.machine_type == REVPI_CONNECT_SE ||
 	     piDev_g.machine_type == REVPI_CONNECT) && isRunning())
 		PiBridgeMaster_Stop();
 
 	if (piDev_g.machine_type == REVPI_CORE) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_CORE_SE) {
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
 		revpi_core_fini();
@@ -476,6 +488,7 @@ static void __exit piControlCleanup(void)
 bool isRunning(void)
 {
 	if ((piDev_g.machine_type == REVPI_CORE ||
+	     piDev_g.machine_type == REVPI_CORE_SE ||
 	     piDev_g.machine_type == REVPI_CONNECT_SE ||
 	     piDev_g.machine_type == REVPI_CONNECT) &&
 	    (piCore_g.eBridgeState != piBridgeRun)) {
@@ -760,6 +773,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		pr_info("Reset: BridgeState=%d \n", piCore_g.eBridgeState);
 
 		if ((piDev_g.machine_type == REVPI_CORE ||
+		     piDev_g.machine_type == REVPI_CORE_SE ||
 		     piDev_g.machine_type == REVPI_CONNECT_SE ||
 		     piDev_g.machine_type == REVPI_CONNECT) && isRunning()) {
 			PiBridgeMaster_Stop();
@@ -1090,6 +1104,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			bool found = false;
 
 			if (piDev_g.machine_type != REVPI_CORE &&
+			    piDev_g.machine_type != REVPI_CORE_SE &&
 			    piDev_g.machine_type != REVPI_CONNECT &&
 			    piDev_g.machine_type != REVPI_CONNECT_SE) {
 				return -EPERM;
@@ -1144,6 +1159,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		SMioCalibrationRequest req;
 
 		if (piDev_g.machine_type != REVPI_CORE
+			&& piDev_g.machine_type != REVPI_CORE_SE
 			&& piDev_g.machine_type != REVPI_CONNECT_SE
 			&& piDev_g.machine_type != REVPI_CONNECT) {
 			return -EPERM;
@@ -1202,6 +1218,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			u32 snum_data[2]; 	// snum_data is an array containing the module address and the serial number
 
 			if (piDev_g.machine_type != REVPI_CORE &&
+			    piDev_g.machine_type != REVPI_CORE_SE &&
 			    piDev_g.machine_type != REVPI_CONNECT &&
 			    piDev_g.machine_type != REVPI_CONNECT_SE) {
 				return -EPERM;
@@ -1249,6 +1266,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 
 			if (piDev_g.machine_type != REVPI_CORE &&
+			    piDev_g.machine_type != REVPI_CORE_SE &&
 			    piDev_g.machine_type != REVPI_CONNECT &&
 			    piDev_g.machine_type != REVPI_CONNECT_SE) {
 				return -EPERM;
@@ -1321,6 +1339,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			SIOGeneric *tel = (SIOGeneric *) usr_addr;
 
 			if (piDev_g.machine_type != REVPI_CORE &&
+			    piDev_g.machine_type != REVPI_CORE_SE &&
 			    piDev_g.machine_type != REVPI_CONNECT &&
 			    piDev_g.machine_type != REVPI_CONNECT_SE) {
 				return -EPERM;
@@ -1410,6 +1429,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_CONFIG_STOP:	// for download of configuration to Master Gateway: stop IO communication completely
 		{
 			if (piDev_g.machine_type != REVPI_CORE &&
+			    piDev_g.machine_type != REVPI_CORE_SE &&
 			    piDev_g.machine_type != REVPI_CONNECT &&
 			    piDev_g.machine_type != REVPI_CONNECT_SE) {
 				return -EPERM;
@@ -1430,6 +1450,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			SConfigData *pData = (SConfigData *) usr_addr;
 
 			if (piDev_g.machine_type != REVPI_CORE &&
+			    piDev_g.machine_type != REVPI_CORE_SE &&
 			    piDev_g.machine_type != REVPI_CONNECT &&
 			    piDev_g.machine_type != REVPI_CONNECT_SE) {
 				return -EPERM;
@@ -1471,6 +1492,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_CONFIG_START:	// for download of configuration to Master Gateway: restart IO communication
 		{
 			if (piDev_g.machine_type != REVPI_CORE &&
+			    piDev_g.machine_type != REVPI_CORE_SE &&
 			    piDev_g.machine_type != REVPI_CONNECT &&
 			    piDev_g.machine_type != REVPI_CONNECT_SE) {
 				return -EPERM;
