@@ -283,6 +283,7 @@ static int __init piControlInit(void)
 
 	/* init some data */
 	rt_mutex_init(&piDev_g.lockPI);
+	rt_mutex_init(&piDev_g.lockIoctl);
 	piDev_g.stopIO = false;
 
 	piDev_g.tLastOutput1 = ktime_set(0, 0);
