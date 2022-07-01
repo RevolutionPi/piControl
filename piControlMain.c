@@ -771,6 +771,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	switch (prg_nr) {
 	case KB_RESET:
+		rt_mutex_lock(&piDev_g.lockIoctl);
 		pr_info("Reset: BridgeState=%d \n", piCore_g.eBridgeState);
 
 		if ((piDev_g.machine_type == REVPI_CORE ||
@@ -780,6 +781,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			PiBridgeMaster_Stop();
 		}
 		status = piControlReset(priv);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
 
 	case KB_GET_DEVICE_INFO:
