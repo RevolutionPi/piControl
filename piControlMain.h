@@ -78,6 +78,9 @@ typedef struct spiControlDev {
 	piDevices *devs;
 	piEntries *ent;
 	piCopylist *cl;
+	/* Protect internal resources, like devs, ent, cl, etc. during
+	   execution of ioctls. This is especially needed during reset. */
+	struct rt_mutex lockIoctl;
 	piConnectionList *connl;
 	ktime_t tLastOutput1, tLastOutput2;
 
