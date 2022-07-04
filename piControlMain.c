@@ -1227,12 +1227,15 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EPERM;
 			}
 
-			if (!isRunning())
-				return -EFAULT;
-
 			if (copy_from_user(snum_data, (const void __user *) usr_addr,
 					   sizeof(snum_data))) {
 				pr_err("failed to copy serial num from user\n");
+				return -EFAULT;
+			}
+
+			rt_mutex_lock(&piDev_g.lockIoctl);
+			if (!isRunning()) {
+				rt_mutex_unlock(&piDev_g.lockIoctl);
 				return -EFAULT;
 			}
 
@@ -1258,6 +1261,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			} else {
 				status = 0;
 			}
+			rt_mutex_unlock(&piDev_g.lockIoctl);
 		}
 		break;
 
