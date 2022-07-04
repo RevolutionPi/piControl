@@ -1279,11 +1279,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EPERM;
 			}
 
-			if (!isRunning()) {
-				printUserMsg(priv, "piControl is not running");
-				return -EFAULT;
-			}
-
 			if (usr_addr) {
 				if (get_user(data, (u32 __user *) usr_addr)) {
 					pr_err("failed to copy update info from user\n");
@@ -1293,18 +1288,27 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				pData = &data;
 			}
 
+			rt_mutex_lock(&piDev_g.lockIoctl);
+			if (!isRunning()) {
+				printUserMsg(priv, "piControl is not running");
+				rt_mutex_unlock(&piDev_g.lockIoctl);
+				return -EFAULT;
+			}
+
 			// at the moment the update works only, if there is only one module connected on the right
 #if 0
 #ifndef ENDTEST_DIO
 			if (RevPiDevice_getDevCnt() > 2)	// RevPi + Module to update
 			{
 				printUserMsg(priv, "Too many modules! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
+				rt_mutex_unlock(&piDev_g.lockIoctl);
 				return -EFAULT;
 			}
 #endif
 			if (RevPiDevice_getDevCnt() < 2
 			    || RevPiDevice_getDev(1)->i8uActive == 0 || RevPiDevice_getDev(1)->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
 				printUserMsg(priv, "No module to update! Firmware update is only possible, if there is exactly one module on the right of the RevPi Core.");
+				rt_mutex_unlock(&piDev_g.lockIoctl);
 				return -EFAULT;
 			}
 #endif
@@ -1338,6 +1342,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			} else {
 				PiBridgeMaster_Continue();
 			}
+			rt_mutex_unlock(&piDev_g.lockIoctl);
 		}
 		break;
 
