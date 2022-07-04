@@ -1447,11 +1447,14 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EPERM;
 			}
 
+			rt_mutex_lock(&piDev_g.lockIoctl);
 			if (!isRunning()) {
 				printUserMsg(priv, "piControl is not running");
+				rt_mutex_unlock(&piDev_g.lockIoctl);
 				return -EFAULT;
 			}
 			PiBridgeMaster_Stop();
+			rt_mutex_unlock(&piDev_g.lockIoctl);
 			msleep(50);
 			status = 0;
 		}
