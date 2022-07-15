@@ -41,7 +41,6 @@
 static const struct kthread_prio revpi_compact_kthread_prios[] = {
 	/* spi pump to I/O chips */
 	{ .comm = "spi2",		.prio = MAX_RT_PRIO/2 + 10 },
-        /* softirq daemons handling hrtimers */
 	{ }
 };
 
