@@ -32,15 +32,7 @@
 
 #include <linux/module.h>	// included for all kernel modules
 #include <linux/kernel.h>
-#include <linux/uaccess.h>
-#include <linux/fcntl.h>
-#include <linux/termios.h>
-#include <linux/syscalls.h>
-#include <asm/uaccess.h>
-#include <linux/fs.h>
-#include <linux/kthread.h>
-#include <linux/gpio.h>
-#include <linux/jiffies.h>
+#include <linux/pibridge_comm.h>
 
 #include <project.h>
 #include <common_define.h>
@@ -50,176 +42,9 @@
 #include "revpi_core.h"
 #include "piIOComm.h"
 
-struct file *piIoComm_fd_m;
-int piIoComm_timeoutCnt_m;
-
-//static struct task_struct *hRecvThread_s;
-static INT8U recvBuffer[REV_PI_RECV_BUFFER_SIZE];
-static INT16U i16uHead_s, i16uTail_s;
-static INT16U i16uRecvLen_s;
-static struct semaphore recvLenSem;
-static struct semaphore queueSem;
-
-// read one byte from the receive queue
-static int recv(INT8U * data)
-{
-	if (i16uHead_s == i16uTail_s) {
-		// queue is empty
-		return 0;
-	}
-
-	*data = recvBuffer[i16uTail_s];
-	if (i16uTail_s >= REV_PI_RECV_BUFFER_SIZE - 1)
-		i16uTail_s = 0;
-	else
-		i16uTail_s++;
-
-	return 1;
-}
-
-static int enqueue(INT8U data)
-{
-	INT16U i16uNextHead;
-	if (i16uHead_s >= REV_PI_RECV_BUFFER_SIZE - 1) {
-		i16uNextHead = 0;
-	} else {
-		i16uNextHead = i16uHead_s + 1;
-	}
-	if (i16uNextHead == i16uTail_s) {
-		// full
-		return 0;
-	}
-	recvBuffer[i16uHead_s] = data;
-	i16uHead_s = i16uNextHead;
-	return 1;
-}
-
-static void clear(void)
-{
-	pr_info_serial2("clear recv buffer\n");
-
-	i16uHead_s = i16uTail_s;
-	i16uRecvLen_s = 0;
-}
-
-int UartThreadProc(void *pArg)
-{
-#define MAX_READ_BUF 1
-	char acBuf_l[MAX_READ_BUF];
-	UIoProtocolHeader ioHeader_l;
-
-	allow_signal(SIGTERM);
-
-	while (!kthread_should_stop()) {
-		//TODO optimize
-		int r = kernel_read(piIoComm_fd_m, acBuf_l, MAX_READ_BUF, &piIoComm_fd_m->f_pos);
-		if (r == -ERESTARTSYS) {
-			/* module is about to be unloaded, leave loop */
-			pr_info("UartThread: received TERM signal\n");
-			break;
-		} else if (r != MAX_READ_BUF) {	// not finished yet
-			clear();
-			return -1;
-		} else {
-			down(&recvLenSem);
-			if (i16uRecvLen_s > 0) {
-				enqueue(acBuf_l[0]);
-				i16uRecvLen_s--;
-				if (i16uRecvLen_s < REV_PI_RECV_IO_HEADER_LEN && i16uRecvLen_s >= REV_PI_RECV_IO_HEADER_LEN - IOPROTOCOL_HEADER_LENGTH) {
-					// if piIoComm_recv was called with the length value REV_PI_RECV_IO_HEADER_LEN,
-					// the length in the received header is used.
-					int l = REV_PI_RECV_IO_HEADER_LEN - i16uRecvLen_s;
-					ioHeader_l.ai8uHeader[l - 1] = acBuf_l[0];
-					pr_info("UartThread: %d %02x\n", l, acBuf_l[0]);
-					if (l == IOPROTOCOL_HEADER_LENGTH) {
-						// now we have received two bytes and can read length field
-						// we already received the header, set the length to the length of data plus crc byte
-						i16uRecvLen_s = ioHeader_l.sHeaderTyp1.bitLength + 1;
-						pr_info("UartThread: len=%d\n", i16uRecvLen_s);
-					}
-				}
-				if (i16uRecvLen_s == 0) {
-					up(&queueSem);
-				}
-			} else {
-				enqueue(acBuf_l[0]);
-			}
-			up(&recvLenSem);
-		}
-	}
-
-	pr_info("UART Thread Exit\n");
-
-	return (0);
-}
-
-int piIoComm_open_serial(void)
-{
-	/*
-	 * Oeffnet seriellen Port
-	 * Gibt das Filehandle zurueck oder -1 bei Fehler
-	 *
-	 * RS232-Parameter:
-	 * 115200 bps, 8 Datenbits, 1 Stoppbit, even parity, no handshake
-	 */
-
-	struct file *fd;	/* Filedeskriptor */
-	struct termios newtio;	/* Schnittstellenoptionen */
-
-	/* Port oeffnen - read/write, kein "controlling tty", Status von DCD ignorieren */
-	fd = filp_open(REV_PI_TTY_DEVICE, O_RDWR | O_NOCTTY, 0);
-	if (!IS_ERR_OR_NULL(fd)) {
-		int r;
-		mm_segment_t oldfs;
-
-		oldfs = get_fs();
-		set_fs(KERNEL_DS);
-
-		/* get the current options */
-		r = fd->f_op->unlocked_ioctl(fd, TCGETS, (unsigned long)&newtio);
-		if (r < 0) {
-			set_fs(oldfs);
-			pr_info("unlocked_ioctl TCGETS failed %d\n", r);
-			return (-1);
-		}
-#if 0
-		newtio.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-		newtio.c_oflag &= ~OPOST;
-		newtio.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-		newtio.c_cflag &= ~(CSIZE);
-		newtio.c_cflag |= CS8 | PARENB | B115200;
-#else
-		newtio.c_iflag = 0;
-		newtio.c_oflag = 0;
-		newtio.c_lflag = 0;
-		newtio.c_cflag = CLOCAL | CREAD;
-		newtio.c_cflag |= CS8 | PARENB | B115200;
-#endif
-		if (fd->f_op->unlocked_ioctl(fd, TCSETS, (unsigned long)&newtio) < 0) {
-			set_fs(oldfs);
-			pr_info("unlocked_ioctl TCSETS failed\n");
-			return -1;
-		}
-		set_fs(oldfs);
-	} else {
-		pr_err("could not open device %s", REV_PI_TTY_DEVICE);
-		return -1;
-	}
-	piIoComm_fd_m = fd;
-
-	pr_info_serial("filp_open %d\n", (int)piIoComm_fd_m);
-
-	sema_init(&queueSem, 0);
-	sema_init(&recvLenSem, 1);
-	clear();
-
-	return 0;
-}
-
 int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 {
-	ssize_t write_l = 0;
-	INT16U i16uSent_l = 0;
+	int written;
 
 #ifdef DEBUG_SERIALCOMM
 	if (i16uLen_p == 1) {
@@ -245,68 +70,24 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 	}
 	//pr_info("vfs_write(%d, %d, %d)\n", (int)piIoComm_fd_m, i16uLen_p, (int)piIoComm_fd_m->f_pos);
 #endif
+	/* First clear receive FIFO to remove stale data */
+	pibridge_clear_fifo();
 
-	while (i16uSent_l < i16uLen_p) {
-		write_l = kernel_write(piIoComm_fd_m, buf_p + i16uSent_l, i16uLen_p - i16uSent_l, &piIoComm_fd_m->f_pos);
-		if (write_l < 0) {
-			pr_info_serial("write error %d\n", (int)write_l);
-			return -1;
-		}
-		i16uSent_l += write_l;
-		if (i16uSent_l <= i16uLen_p) {
-			pr_info_serial2("send: %d/%d bytes sent\n", i16uSent_l, i16uLen_p);
-		} else {
-			pr_info_serial("fatal write error %d\n", (int)write_l);
-			return -2;
-		}
+	written = pibridge_send(buf_p, i16uLen_p);
+	if (written < 0) {
+		pr_info_serial("pibridge_send error: %i\n", written);
+		return written;
+	} else if (written != i16uLen_p) {
+		pr_info_serial("pibridge_send error: not all data written (%i/%i)\n",
+			written, i16uLen_p);
+		return -ETIMEDOUT;
 	}
-	down(&recvLenSem);
-	clear();
-	up(&recvLenSem);
-	vfs_fsync(piIoComm_fd_m, 1);
+
 	return 0;
 }
 
 int piIoComm_recv(INT8U * buf_p, INT16U i16uLen_p)
 {
-	return piIoComm_recv_timeout(buf_p, i16uLen_p, REV_PI_IO_TIMEOUT);
-}
-
-int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
-{
-	INT16U i;
-	down(&recvLenSem);
-	if (i16uRecvLen_s > 0) {
-		pr_err("recv: last recv is not finished\n");
-		clear();
-	}
-
-	i = 0;
-	while (i < i16uLen_p && recv(&buf_p[i])) {
-		i++;
-	}
-
-	if (i == i16uLen_p) {
-		// alle Daten wurden schon empfangen
-		up(&recvLenSem);
-	} else {
-		i16uRecvLen_s = i16uLen_p - i;
-		up(&recvLenSem);
-
-		if (down_timeout(&queueSem, msecs_to_jiffies(timeout_p)) != 0) {
-			// timeout
-			pr_info_io("recv timeout: %d/%d \n", i16uRecvLen_s, i16uLen_p);
-			down(&recvLenSem);
-			clear();
-			up(&recvLenSem);
-			return 0;
-		}
-		down(&recvLenSem);
-		for (; i < i16uLen_p; i++)
-			recv(&buf_p[i]);
-		up(&recvLenSem);
-	}
-
 #ifdef DEBUG_SERIALCOMM
 	if (i16uLen_p == 1) {
 		pr_info("recv %d: %02x\n", i16uLen_p, buf_p[0]);
@@ -330,7 +111,12 @@ int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
 			buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
 	}
 #endif
-	return i16uLen_p;
+	return piIoComm_recv_timeout(buf_p, i16uLen_p, REV_PI_IO_TIMEOUT);
+}
+
+int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
+{
+	return pibridge_recv_timeout(buf_p, i16uLen_p, timeout_p);
 }
 
 INT8U piIoComm_Crc8(INT8U * pi8uFrame_p, INT16U i16uLen_p)
@@ -403,20 +189,6 @@ err:
 			bad, good);
 #endif
 	return false;
-}
-
-int piIoComm_init(void)
-{
-	return piIoComm_open_serial();
-}
-
-void piIoComm_finish(void)
-{
-	if (piIoComm_fd_m != NULL) {
-		pr_info_serial("filp_close %d\n", (int)piIoComm_fd_m);
-		filp_close(piIoComm_fd_m, NULL);
-		piIoComm_fd_m = NULL;
-	}
 }
 
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
@@ -524,84 +296,27 @@ EGpioValue piIoComm_readSniff(struct gpio_desc * pGpio)
 INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 			     INT8U * pi8uSendData_p, INT8U i8uSendDataLen_p, INT8U * pi8uRecvData_p, INT16U * pi16uRecvDataLen_p)
 {
-	SRs485Telegram suSendTelegram_l;
-	SRs485Telegram suRecvTelegram_l;
-	INT32S i32uRv_l = 0;
-	INT8U i8uLen_l;
+	u16 timeout = REV_PI_IO_TIMEOUT;
+	unsigned int rcvlen;
+	int ret;
 
-	memset(&suSendTelegram_l, 0, sizeof(SRs485Telegram));
-	suSendTelegram_l.i8uDstAddr = i8uAddress_p;	// receiver address
-	suSendTelegram_l.i8uSrcAddr = 0;	// sender Master
-	suSendTelegram_l.i16uCmd = i16uCmd_p;	// command
-	if (pi8uSendData_p != NULL) {
-		suSendTelegram_l.i8uDataLen = i8uSendDataLen_p;
-		memcpy(suSendTelegram_l.ai8uData, pi8uSendData_p, i8uSendDataLen_p);
-	} else {
-		suSendTelegram_l.i8uDataLen = 0;
+	rcvlen = (pi16uRecvDataLen_p != NULL) ? *pi16uRecvDataLen_p : 0;
+
+	// this starts a flash erase on the master module
+	// this usually take longer than the normal timeout
+	// -> increase the timeout value to 1s
+	if (i8uSendDataLen_p > 0 && pi8uSendData_p[0] == 'F')
+		timeout = 1000; // ms
+
+	ret = pibridge_req_gate_tmt(i8uAddress_p, i16uCmd_p, pi8uSendData_p,
+				    i8uSendDataLen_p, pi8uRecvData_p,
+				    rcvlen, timeout);
+	if (ret) {
+		pr_info_serial("Error sending gate request: %i\n", ret);
+		return ret;
 	}
-	suSendTelegram_l.ai8uData[i8uSendDataLen_p] = piIoComm_Crc8((INT8U *) & suSendTelegram_l, RS485_HDRLEN + i8uSendDataLen_p);
 
-	if (piIoComm_send((INT8U *) & suSendTelegram_l, RS485_HDRLEN + i8uSendDataLen_p + 1) == 0) {
-		uint16_t timeout_l;
-		pr_info_serial2("send gateprotocol addr %d cmd 0x%04x\n", suSendTelegram_l.i8uDstAddr, suSendTelegram_l.i16uCmd);
-
-		if (i8uAddress_p == 255)	// address 255 is for broadcasts without reply
-			return 0;
-
-		if (i8uSendDataLen_p > 0 && pi8uSendData_p[0] == 'F') {
-			// this starts a flash erase on the master module
-			// this usually take longer than the normal timeout
-			// -> increase the timeout value to 1s
-			timeout_l = 1000; // ms
-		} else {
-			timeout_l = REV_PI_IO_TIMEOUT;
-		}
-		if (piIoComm_recv_timeout((INT8U *) & suRecvTelegram_l, RS485_HDRLEN, timeout_l) == RS485_HDRLEN) {
-			// header was received -> receive data part
-#ifdef DEBUG_SERIALCOMM
-			if (pi16uRecvDataLen_p != NULL) {
-				i8uLen_l = *pi16uRecvDataLen_p;
-			}
-			pr_info("recv gateprotocol cmd/addr/len %x/%d/%d -> %x/%d/%d\n",
-				i16uCmd_p, i8uAddress_p, i8uLen_l,
-				suRecvTelegram_l.i16uCmd, suRecvTelegram_l.i8uSrcAddr, RS485_HDRLEN + suRecvTelegram_l.i8uDataLen + 1);
-#endif
-			if ((suRecvTelegram_l.i16uCmd & MODGATE_RS485_COMMAND_ANSWER_FILTER) != suSendTelegram_l.i16uCmd) {
-				pr_info_serial("wrong cmd code in response\n");
-				i32uRv_l = 5;
-			} else {
-				i8uLen_l = piIoComm_recv(suRecvTelegram_l.ai8uData, suRecvTelegram_l.i8uDataLen + 1);
-				if (i8uLen_l != suRecvTelegram_l.i8uDataLen + 1
-				    || suRecvTelegram_l.ai8uData[suRecvTelegram_l.i8uDataLen] !=
-				    piIoComm_Crc8((INT8U *) & suRecvTelegram_l, RS485_HDRLEN + suRecvTelegram_l.i8uDataLen)) {
-					pr_info_serial
-					    ("recv gateprotocol crc error: len=%d, %02x %02x %02x %02x %02x %02x %02x %02x\n",
-					     suRecvTelegram_l.i8uDataLen, suRecvTelegram_l.ai8uData[0],
-					     suRecvTelegram_l.ai8uData[1], suRecvTelegram_l.ai8uData[2],
-					     suRecvTelegram_l.ai8uData[3], suRecvTelegram_l.ai8uData[4],
-					     suRecvTelegram_l.ai8uData[5], suRecvTelegram_l.ai8uData[6], suRecvTelegram_l.ai8uData[7]);
-
-					i32uRv_l = 4;
-				} else if (suRecvTelegram_l.i16uCmd & MODGATE_RS485_COMMAND_ANSWER_ERROR) {
-					pr_info_serial("recv gateprotocol error %08x\n", *(INT32U *) (suRecvTelegram_l.ai8uData));
-					i32uRv_l = 3;
-				} else {
-					if (pi16uRecvDataLen_p != NULL) {
-						*pi16uRecvDataLen_p = suRecvTelegram_l.i8uDataLen;
-					}
-					if (pi8uRecvData_p != NULL) {
-						memcpy(pi8uRecvData_p, suRecvTelegram_l.ai8uData, suRecvTelegram_l.i8uDataLen);
-					}
-					i32uRv_l = 0;
-				}
-			}
-		} else {
-			i32uRv_l = 2;
-		}
-	} else {
-		i32uRv_l = 1;
-	}
-	return i32uRv_l;
+	return 0;
 }
 
 INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p)
