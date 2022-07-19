@@ -95,10 +95,6 @@ typedef struct _SRevPiCore {
 	INT16U i16uRecvDataLenGateTel;
 	int statusGateTel;
 
-	// piUart thread
-	struct task_struct *pUartThread;
-	struct semaphore uartSem;
-
 	// piIO thread
 	struct task_struct *pIoThread;
 	struct hrtimer ioTimer;

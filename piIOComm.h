@@ -64,21 +64,12 @@ typedef enum _EGpioMode
     enGpioMode_Output,
 } EGpioMode;
 
-extern struct file *piIoComm_fd_m;
-extern int piIoComm_timeoutCnt_m;
-
-int piIoComm_open_serial(void);
 int piIoComm_send(INT8U *buf_p, INT16U i16uLen_p);
 int piIoComm_recv(INT8U *buf_p, INT16U i16uLen_p);	// using default timeout REV_PI_IO_TIMEOUT
 int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p);
 bool piIoComm_response_valid(SIOGeneric *resp, u8 expected_addr,
 			     u8 expected_len);
-int UartThreadProc ( void *pArg);
-
 INT8U piIoComm_Crc8(INT8U *pi8uFrame_p, INT16U i16uLen_p);
-
-int  piIoComm_init(void);
-void piIoComm_finish(void);
 
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p);
