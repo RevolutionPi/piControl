@@ -356,34 +356,16 @@ static int pibridge_probe(struct platform_device *pdev)
 		goto err_deinit_gpios;
 	}
 
-	if (piIoComm_init()) {
-		pr_err("open serial port failed\n");
-		ret = -EFAULT;
-		goto err_release_fw;
-	}
-	/* run threads */
+	/* run thread */
 	ret = set_kthread_prios(revpi_core_kthread_prios);
 	if (ret)
-		goto err_close_serial;
-
-	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piControl Uart");
-	if (IS_ERR(piCore_g.pUartThread)) {
-		pr_err("kthread_run(uart) failed\n");
-		ret = PTR_ERR(piCore_g.pUartThread);
-		goto err_close_serial;
-	}
-	param.sched_priority = RT_PRIO_UART;
-	sched_setscheduler(piCore_g.pUartThread, SCHED_FIFO, &param);
-	if (ret) {
-		pr_err("cannot set rt prio of uart thread\n");
-		goto err_stop_uart_thread;
-	}
+		goto err_release_fw;
 
 	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piControl I/O");
 	if (IS_ERR(piCore_g.pIoThread)) {
 		pr_err("kthread_run(io) failed\n");
 		ret = PTR_ERR(piCore_g.pIoThread);
-		goto err_stop_uart_thread;
+		goto err_release_fw;
 	}
 	param.sched_priority = RT_PRIO_BRIDGE;
 	ret = sched_setscheduler(piCore_g.pIoThread, SCHED_FIFO, &param);
@@ -396,10 +378,6 @@ static int pibridge_probe(struct platform_device *pdev)
 
 err_stop_io_thread:
 	kthread_stop(piCore_g.pIoThread);
-err_stop_uart_thread:
-	kthread_stop(piCore_g.pUartThread);
-err_close_serial:
-	piIoComm_finish();
 err_release_fw:
 	revpi_release_firmware(piCore_g.fw);
 err_deinit_gpios:
@@ -410,12 +388,7 @@ err_deinit_gpios:
 
 static int pibridge_remove(struct platform_device *pdev)
 {
-	/* tell UART thread to cancel the main loop */
-	send_sig(SIGTERM, piCore_g.pUartThread, 1);
-
 	kthread_stop(piCore_g.pIoThread);
-	kthread_stop(piCore_g.pUartThread);
-	piIoComm_finish();
 	revpi_release_firmware(piCore_g.fw);
 	deinit_gpios();
 

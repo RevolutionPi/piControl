@@ -32,14 +32,6 @@
 
 #include <linux/module.h>	// included for all kernel modules
 #include <linux/kernel.h>
-#include <linux/uaccess.h>
-#include <linux/fcntl.h>
-#include <linux/termios.h>
-#include <linux/syscalls.h>
-#include <asm/uaccess.h>
-#include <linux/fs.h>
-#include <linux/kthread.h>
-#include <linux/gpio.h>
 
 #include <project.h>
 #include <common_define.h>
