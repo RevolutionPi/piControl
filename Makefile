@@ -36,18 +36,24 @@ EXTRA_CFLAGS = -I$(src)/
 
 EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__
 
-CROSS_COMPILE += arm-linux-gnueabihf-
+ARCH ?= arm
+
+ifeq ($(ARCH), arm)
+	CROSS_COMPILE += arm-linux-gnueabihf-
+else
+	CROSS_COMPILE += aarch64-linux-gnu-
+endif
 
 .PHONY: compiletime.h
 
 all: compiletime.h
-	$(MAKE) ARCH=arm CROSS_COMPILE="$(CROSS_COMPILE)" -C $(KDIR) M=$(PWD)  modules
+	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE="$(CROSS_COMPILE)" -C $(KDIR) M=$(PWD)  modules
 
 compiletime.h:
 	echo "#define COMPILETIME \""`date`"\"" > compiletime.h
 
 clean:
-	$(MAKE) ARCH=arm -C $(KDIR) M=$(PWD) clean
+	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(PWD) clean
 	rm -f $(piControl-objs)
 
 
