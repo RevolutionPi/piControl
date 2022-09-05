@@ -268,7 +268,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 	/*1=output(Fixed Output)*/
 	conf->aio_o.sData.i8uDirection = 1;
 
-	pr_info("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%d, "
+	pr_info("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd, "
 		"dio hdr:0x%x,aio_i hdr:0x%x, aio_o hdr:0x%x)\n",
 		addr, e_cnt, mio_cnt, MIO_CONF_BASE,
 		*(unsigned short*)&mio_list[mio_cnt].dio.uHeader,
@@ -329,9 +329,9 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		}
 	}
 
-	pr_info("dio  :%*ph\n", sizeof(conf->dio.sData), &conf->dio.sData);
-	pr_info("aio-i:%*ph\n", sizeof(conf->aio_i.sData), &conf->aio_i.sData);
-	pr_info("aio-o:%*ph\n", sizeof(conf->aio_o.sData), &conf->aio_o.sData);
+	pr_info("dio  :%*ph\n", (int) sizeof(conf->dio.sData), &conf->dio.sData);
+	pr_info("aio-i:%*ph\n", (int) sizeof(conf->aio_i.sData), &conf->aio_i.sData);
+	pr_info("aio-o:%*ph\n", (int) sizeof(conf->aio_o.sData), &conf->aio_o.sData);
 
 	conf->dio.i8uCrc = revpi_crc8(&conf->dio, sizeof(conf->dio) - 1);
 	conf->aio_i.i8uCrc = revpi_crc8(&conf->aio_i, sizeof(conf->aio_i) - 1);
@@ -366,7 +366,7 @@ int revpi_mio_init(unsigned char devno)
 
 	addr = RevPiDevice_getDev(devno)->i8uAddress;
 
-	pr_info("MIO Initializing...(devno:%d, addr:%d, conf-base:%d)\n",
+	pr_info("MIO Initializing...(devno:%d, addr:%d, conf-base:%zd)\n",
 						devno, addr, MIO_CONF_BASE);
 
 	for (i = 0; i < mio_cnt; i++) {
