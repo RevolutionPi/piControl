@@ -638,7 +638,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 
 	priv = (tpiControlInst *) file->private_data;
 
-	dev_dbg(priv->dev, "piControlRead Count: %u, Pos: %llu", count, *ppos);
+	dev_dbg(priv->dev, "piControlRead Count: %zu, Pos: %llu", count, *ppos);
 
 	if (*ppos < 0 || *ppos >= KB_PI_LEN) {
 		return 0;	// end of file
@@ -651,7 +651,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 	pPd = piDev_g.ai8uPI + *ppos;
 
 #ifdef VERBOSE
-	pr_info("piControlRead inst %d Count=%u, Pos=%llu: %02x %02x\n", priv->instNum, count, *ppos, pPd[0], pPd[1]);
+	pr_info("piControlRead inst %d Count=%zu, Pos=%llu: %02x %02x\n", priv->instNum, count, *ppos, pPd[0], pPd[1]);
 #endif
 
 	my_rt_mutex_lock(&piDev_g.lockPI);
@@ -681,7 +681,7 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 
 	priv = (tpiControlInst *) file->private_data;
 
-	dev_dbg(priv->dev, "piControlWrite Count: %u, Pos: %llu", count, *ppos);
+	dev_dbg(priv->dev, "piControlWrite Count: %zu, Pos: %llu", count, *ppos);
 
 	if (*ppos < 0 || *ppos >= KB_PI_LEN) {
 		return 0;	// end of file

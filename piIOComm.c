@@ -562,7 +562,7 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 			if (pi16uRecvDataLen_p != NULL) {
 				i8uLen_l = *pi16uRecvDataLen_p;
 			}
-			pr_info("recv gateprotocol cmd/addr/len %x/%d/%d -> %x/%d/%d\n",
+			pr_info("recv gateprotocol cmd/addr/len %x/%d/%d -> %x/%d/%zd\n",
 				i16uCmd_p, i8uAddress_p, i8uLen_l,
 				suRecvTelegram_l.i16uCmd, suRecvTelegram_l.i8uSrcAddr, RS485_HDRLEN + suRecvTelegram_l.i8uDataLen + 1);
 #endif
