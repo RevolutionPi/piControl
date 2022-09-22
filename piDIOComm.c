@@ -35,9 +35,12 @@
 
 #include <project.h>
 #include <common_define.h>
+#include <linux/pibridge_comm.h>
 
 #include "revpi_common.h"
 #include "revpi_core.h"
+
+#define DIO_OUTPUT_DATA_LEN		18
 
 static INT8U i8uConfigured_s = 0;
 static SDioConfig dioConfig_s[10];
@@ -149,128 +152,97 @@ INT32U piDIOComm_Init(INT8U i8uDevice_p)
 	return 4;		// unknown device
 }
 
-INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
+INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
 {
-	INT32U i32uRv_l = 0;
-	SIOGeneric sRequest_l;
-	SIOGeneric sResponse_l;
-	INT8U len_l, data_out[18], i, p, data_in[70];
-	INT8U i8uAddress;
+	static u8 last_out[40][DIO_OUTPUT_DATA_LEN];
+	u8 in_buf[IOPROTOCOL_MAXDATA_LENGTH];
+	u8 out_buf[DIO_OUTPUT_DATA_LEN];
+	u8 snd_buf[DIO_OUTPUT_DATA_LEN];
+	SDevice *revpi_dev;
+	u8 data_in[70];
+	u8 snd_len;
+	u8 rcv_len;
+	u8 addr;
 	int ret;
-	static INT8U last_out[40][18];
-#ifdef DEBUG_DEVICE_DIO
-	static INT8U last_in[40][2];
-#endif
+	u8 cmd;
+	u8 i;
+	u8 j;
 
-	if (RevPiDevice_getDev(i8uDevice_p)->sId.i16uFBS_OutputLength != 18) {
+	revpi_dev = RevPiDevice_getDev(devnum);
+
+	if (revpi_dev->sId.i16uFBS_OutputLength != DIO_OUTPUT_DATA_LEN)
 		return 4;
-	}
 
-	len_l = 18;
-	i8uAddress = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
+	addr = revpi_dev->i8uAddress;
 
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(data_out, piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uOutputOffset, len_l);
+		memcpy(out_buf, piDev_g.ai8uPI + revpi_dev->i16uOutputOffset,
+		       DIO_OUTPUT_DATA_LEN);
 		rt_mutex_unlock(&piDev_g.lockPI);
 	} else {
-		memset(data_out, 0, len_l);
+		memset(out_buf, 0, sizeof(out_buf));
 	}
 
-	p = 255;
-	for (i = len_l; i > 0; i--) {
-		if (data_out[i - 1] != last_out[i8uAddress][i - 1]) {
-			p = i - 1;
+	j = 255;
+	for (i = DIO_OUTPUT_DATA_LEN; i > 0; i--) {
+		if (out_buf[i - 1] != last_out[addr][i - 1]) {
+			j = i - 1;
 			break;
 		}
 	}
 
-	sRequest_l.uHeader.sHeaderTyp1.bitAddress = i8uAddress;
-	sRequest_l.uHeader.sHeaderTyp1.bitIoHeaderType = 0;
-	sRequest_l.uHeader.sHeaderTyp1.bitReqResp = 0;
-
-	if (p == 255 || p < 2) {
-		// nur die direkten output bits haben sich geändert -> SDioRequest
-		len_l = sizeof(INT16U);
-		sRequest_l.uHeader.sHeaderTyp1.bitLength = len_l;
-		sRequest_l.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA;
-		memcpy(sRequest_l.ai8uData, data_out, len_l);
+	if (j == 255 || j < 2) {
+		// only the direct output pins have changed
+		snd_len = sizeof(u16);
+		cmd = IOP_TYP1_CMD_DATA;
+		memcpy(snd_buf, out_buf, snd_len);
 	} else {
-		SDioPWMOutput *pReq = (SDioPWMOutput *) & sRequest_l;
+		struct pwm_data *pwm = (struct pwm_data *) snd_buf;
 
-		memcpy(&pReq->i16uOutput, data_out, sizeof(INT16U));
-
-		// kopiere die pwm werte die sich geändert haben
-		pReq->i16uChannels = 0;
-		p = 0;
+		memcpy(&pwm->output, out_buf, sizeof(u16));
+		// copy all PWM values that have changed
+		pwm->channels = 0;
+		j = 0;
 		for (i = 0; i < 16; i++) {
-			if (last_out[i8uAddress][i + 2] != data_out[i + 2]) {
-				pReq->i16uChannels |= 1 << i;
-				pReq->ai8uValue[p++] = data_out[i + 2];
+			if (last_out[addr][i + 2] != out_buf[i + 2]) {
+				pwm->channels |= 1 << i;
+				pwm->value[j] = out_buf[i + 2];
+				j++;
 			}
 		}
-		len_l = p + 2 * sizeof(INT16U);
-		sRequest_l.uHeader.sHeaderTyp1.bitLength = len_l;
-		sRequest_l.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA2;
+		snd_len = j + 4;
+		cmd = IOP_TYP1_CMD_DATA2;
 	}
 
-	sRequest_l.ai8uData[len_l] = piIoComm_Crc8((INT8U *) & sRequest_l, IOPROTOCOL_HEADER_LENGTH + len_l);
+	memcpy(last_out[addr], out_buf, sizeof(out_buf));
 
-#ifdef DEBUG_DEVICE_DIO
-	if (last_out[i8uAddress][0] != sRequest_l.ai8uData[0] || last_out[i8uAddress][1] != sRequest_l.ai8uData[1]) {
-		pr_info_dio("dev %2d: send cyclic Data addr %d output 0x%02x 0x%02x\n",
-			    i8uAddress, RevPiDevice_getDev(i8uDevice_p].i16uOutputOffset,
-			    sRequest_l.ai8uData[0], sRequest_l.ai8uData[1]);
+	rcv_len = 3 * sizeof(u16) + i8uNumCounter[addr] * sizeof(u32);
+
+	ret = pibridge_req_io(addr, cmd, snd_buf, snd_len, in_buf, rcv_len);
+	if (ret) {
+		pr_warn_ratelimited("addr %2d: io communication failed %d\n",
+			addr, ret);
+		return 1;
 	}
-#endif
-	memcpy(last_out[i8uAddress], data_out, sizeof(data_out));
 
-	ret = piIoComm_send((INT8U *) & sRequest_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
-	if (ret == 0) {
-		len_l = 3 * sizeof(INT16U) + i8uNumCounter[i8uAddress] * sizeof(INT32U);
+	memcpy(&data_in[0], in_buf, 3 * sizeof(u16));
+	memset(&data_in[6], 0, 64);
 
-		ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
-		if (ret > 0) {
-			if (piIoComm_response_valid(&sResponse_l, i8uAddress, len_l)) {
-				memcpy(&data_in[0], sResponse_l.ai8uData, 3 * sizeof(INT16U));
-				memset(&data_in[6], 0, 64);
-				p = 0;
-				for (i = 0; i < 16; i++) {
-					if (i16uCounterAct[i8uAddress] & (1 << i)) {
-						memcpy(&data_in[3 * sizeof(INT16U) + i * sizeof(INT32U)],
-						       &sResponse_l.ai8uData[3 * sizeof(INT16U) + p * sizeof(INT32U)],
-						       sizeof(INT32U));
-						p++;
-					}
-				}
-
-				rt_mutex_lock(&piDev_g.lockPI);
-				memcpy(piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uInputOffset, data_in,
-				       sizeof(data_in));
-				rt_mutex_unlock(&piDev_g.lockPI);
-
-#ifdef DEBUG_DEVICE_DIO
-				if (last_in[i8uAddress][0] != sResponse_l.ai8uData[0]
-				    || last_in[i8uAddress][1] != sResponse_l.ai8uData[1]) {
-					last_in[i8uAddress][0] = sResponse_l.ai8uData[0];
-					last_in[i8uAddress][1] = sResponse_l.ai8uData[1];
-					pr_info_dio("dev %2d: recv cyclic Data addr %d input 0x%02x 0x%02x\n\n",
-						    i8uAddress, RevPiDevice_getDev(i8uDevice_p].i16uInputOffset,
-						    sResponse_l.ai8uData[0], sResponse_l.ai8uData[1]);
-				}
-#endif
-			} else {
-				i32uRv_l = 1;
-			}
-		} else {
-			i32uRv_l = 2;
-			pr_info_dio("dev %2d: recv ioprotocol timeout error exp %d\n",
-				    i8uAddress, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
-
+	j = 0;
+	for (i = 0; i < 16; i++) {
+		if (i16uCounterAct[addr] & (1 << i)) {
+			memcpy(&data_in[3 * sizeof(u16) + i * sizeof(u32)],
+			       &in_buf[3 * sizeof(u16) + j * sizeof(u32)],
+			       sizeof(u32));
+			j++;
 		}
-	} else {
-		i32uRv_l = 3;
-		pr_info_dio("dev %2d: send ioprotocol send error %d\n", i8uAddress, ret);
 	}
-	return i32uRv_l;
+
+	rt_mutex_lock(&piDev_g.lockPI);
+	memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, data_in,
+	       sizeof(data_in));
+	rt_mutex_unlock(&piDev_g.lockPI);
+
+	return 0;
 }

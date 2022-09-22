@@ -134,18 +134,11 @@ struct      // IOP_TYP1_CMD_DATA
 SDioRequest;
 
 // Request for Digital IO modules: output with variable number of pwm values
-typedef
-#include <COMP_packBegin.h>
-struct      // IOP_TYP1_CMD_DATA2
-{
-    UIoProtocolHeader uHeader;
-    INT16U i16uOutput;
-    INT16U i16uChannels;    // bitfield pwm channel
-    INT8U  ai8uValue[16];   // [0-100] pwm value in %
-    INT8U  i8uCrc;
-}
-#include <COMP_packEnd.h>
-SDioPWMOutput;
+struct pwm_data {		// IOP_TYP1_CMD_DATA2
+	u16 output;
+	u16 channels;		// bitfield pwm channel
+	u8 value[16];		// [0-100] pwm value in %
+} __attribute__((__packed__));
 
 // Request for Digital IO modules: reset counter values
 typedef
