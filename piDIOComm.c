@@ -118,38 +118,32 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 
 INT32U piDIOComm_Init(INT8U i8uDevice_p)
 {
+	u8 snd_len = sizeof(SDioConfig) - IOPROTOCOL_HEADER_LENGTH - 1;
 	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
+	UIoProtocolHeader *hdr;
+	u8 *snd_buf;
 	int ret;
-	SIOGeneric sResponse_l;
-	INT8U i, len_l;
+	int i;
 
-	pr_info_dio("piDIOComm_Init %d of %d  addr %d numCnt %d\n", i8uDevice_p, i8uConfigured_s,
-		    RevPiDevice_getDev(i8uDevice_p)->i8uAddress,
-		    i8uNumCounter[RevPiDevice_getDev(i8uDevice_p)->i8uAddress]);
+	pr_info_dio("piDIOComm_Init %d of %d  addr %d numCnt %d\n", i8uDevice_p,
+		    i8uConfigured_s, addr, i8uNumCounter[addr]);
+
+	ret = 4;  // unknown device
 
 	for (i = 0; i < i8uConfigured_s; i++) {
-		if (dioConfig_s[i].uHeader.sHeaderTyp1.bitAddress == RevPiDevice_getDev(i8uDevice_p)->i8uAddress) {
-			ret = piIoComm_send((INT8U *) & dioConfig_s[i], sizeof(SDioConfig));
-			if (ret == 0) {
-				len_l = 0;	// empty config telegram
+		hdr = &dioConfig_s[i].uHeader;
 
-				ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
-				if (ret > 0) {
-					if (piIoComm_response_valid(&sResponse_l, addr, len_l)) {
-						return 0;	// success
-					} else {
-						return 1;	// wrong crc
-					}
-				} else {
-					return 2;	// no response
-				}
-			} else {
-				return 3;	// could not send
-			}
+		if (hdr->sHeaderTyp1.bitAddress == addr) {
+			snd_buf = ((u8 *) &dioConfig_s[i]) +
+				  IOPROTOCOL_HEADER_LENGTH;
+
+			ret = pibridge_req_io(addr, IOP_TYP1_CMD_CFG, snd_buf,
+					      snd_len, NULL, 0);
+			break;
 		}
 	}
 
-	return 4;		// unknown device
+	return ret;
 }
 
 INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
