@@ -177,7 +177,7 @@ INT32U piDIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 	len_l = 18;
 	i8uAddress = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 
-	if (piDev_g.stopIO == false) {
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		rt_mutex_lock(&piDev_g.lockPI);
 		memcpy(data_out, piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uOutputOffset, len_l);
 		rt_mutex_unlock(&piDev_g.lockPI);

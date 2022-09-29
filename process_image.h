@@ -80,7 +80,7 @@ static __always_inline int test_bit_in_byte(u8 nr, u8 * addr)
 
 #define flip_process_image(shadow, offset)						\
 {											\
-	if (piDev_g.stopIO == false) {							\
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {			\
 		if (((typeof(shadow))(piDev_g.ai8uPI + (offset))) == 0 || (shadow) == 0) \
 			pr_err("NULL pointer: %p %p\n", ((typeof(shadow))(piDev_g.ai8uPI + (offset))), (shadow)); \
 		my_rt_mutex_lock(&piDev_g.lockPI);					\

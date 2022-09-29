@@ -284,7 +284,7 @@ static int __init piControlInit(void)
 	/* init some data */
 	rt_mutex_init(&piDev_g.lockPI);
 	rt_mutex_init(&piDev_g.lockIoctl);
-	piDev_g.stopIO = false;
+	clear_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags);
 
 	piDev_g.tLastOutput1 = ktime_set(0, 0);
 	piDev_g.tLastOutput2 = ktime_set(0, 0);
@@ -1416,8 +1416,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_STOP_IO:
 		{
-			// parameter = 0: stop I/Os
-			// parameter = 1: start I/Os
+			// parameter = 0: start I/Os
+			// parameter = 1: stop I/Os
 			// parameter = 2: toggle I/Os
 			u32 data;
 
@@ -1430,11 +1430,18 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			if (data == 2) {
-				piDev_g.stopIO = !piDev_g.stopIO;
+				change_bit(PICONTROL_DEV_FLAG_STOP_IO,
+					   &piDev_g.flags);
 			} else {
-				piDev_g.stopIO = data ? true : false;
+				if (data)
+					set_bit(PICONTROL_DEV_FLAG_STOP_IO,
+						&piDev_g.flags);
+				else
+					clear_bit(PICONTROL_DEV_FLAG_STOP_IO,
+						  &piDev_g.flags);
 			}
-			status = piDev_g.stopIO;
+			status = test_bit(PICONTROL_DEV_FLAG_STOP_IO,
+					  &piDev_g.flags) ? 1 : 0;
 		}
 		break;
 

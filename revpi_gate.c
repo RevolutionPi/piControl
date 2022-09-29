@@ -129,7 +129,8 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	cancel_delayed_work_sync(&conn->send_work);
 	cancel_delayed_work(&conn->destroy_work);
 
-	if (conn->revpi_dev && !piDev_g.stopIO) {
+	if (conn->revpi_dev &&
+	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		conn->revpi_dev->i8uModuleState = FBSTATE_LINK;
 		rt_mutex_lock(&piDev_g.lockPI);
 		memset(conn->in, 0, conn->in_len);
@@ -245,7 +246,8 @@ static void revpi_gate_send_work(struct work_struct *work)
 	if (!skb)
 		return;
 
-	if (conn->revpi_dev && !piDev_g.stopIO) {
+	if (conn->revpi_dev &&
+	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		rt_mutex_lock(&piDev_g.lockPI);
 		memcpy(al->i8uData, conn->out, conn->out_len);
 		rt_mutex_unlock(&piDev_g.lockPI);
@@ -316,7 +318,8 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 			goto drop;
 	}
 
-	if (conn->revpi_dev && !piDev_g.stopIO) {
+	if (conn->revpi_dev &&
+	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		conn->revpi_dev->i8uModuleState = rcv_al->i8uFieldbusStatus;
 		rt_mutex_lock(&piDev_g.lockPI);
 		memcpy(conn->in + rcv_al->i16uOffset, rcv_al->i8uData,
