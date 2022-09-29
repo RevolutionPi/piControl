@@ -207,7 +207,7 @@ int piIoComm_open_serial(void)
 	}
 	piIoComm_fd_m = fd;
 
-	pr_info_serial("filp_open %d\n", (int)piIoComm_fd_m);
+	pr_info_serial("serial device %s opened\n", REV_PI_TTY_DEVICE);
 
 	sema_init(&queueSem, 0);
 	sema_init(&recvLenSem, 1);
@@ -413,7 +413,7 @@ int piIoComm_init(void)
 void piIoComm_finish(void)
 {
 	if (piIoComm_fd_m != NULL) {
-		pr_info_serial("filp_close %d\n", (int)piIoComm_fd_m);
+		pr_info_serial("serial device %s closed\n", REV_PI_TTY_DEVICE);
 		filp_close(piIoComm_fd_m, NULL);
 		piIoComm_fd_m = NULL;
 	}
