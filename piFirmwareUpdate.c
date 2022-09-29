@@ -74,7 +74,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 
 	read = kernel_read(input, (char *)&header, sizeof(header), &input->f_pos);
 	if (read <= 0) {
-		pr_err("kernel_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
+		pr_err("kernel_read returned %d: %s, %ld\n", read, filename, (long int)input->f_pos);
 		ret = -EINVAL;
 		goto laError;
 	}
@@ -116,7 +116,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	// read the whole file
 	read = kernel_read(input, data, length, &input->f_pos);
 	if (read < length) {
-		pr_err("kernel_read returned %d: %x, %ld\n", read, (int)input, (long int)input->f_pos);
+		pr_err("kernel_read returned %d: %s, %ld\n", read, filename, (long int)input->f_pos);
 		goto laError;
 	}
 
