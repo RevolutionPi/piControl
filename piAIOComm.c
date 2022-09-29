@@ -368,7 +368,7 @@ INT32U piAIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 	len_l = sizeof(data_out);
 	i8uAddress = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 
-	if (piDev_g.stopIO == false) {
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		my_rt_mutex_lock(&piDev_g.lockPI);
 		memcpy(data_out, piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uOutputOffset, len_l);
 		rt_mutex_unlock(&piDev_g.lockPI);
@@ -404,7 +404,8 @@ INT32U piAIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
 			if (piIoComm_response_valid(&sResponse_l, i8uAddress, len_l)) {
 				memcpy(data_in, sResponse_l.ai8uData, len_l);
 
-				if (piDev_g.stopIO == false) {
+				if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO,
+					     &piDev_g.flags)) {
 					my_rt_mutex_lock(&piDev_g.lockPI);
 					memcpy(piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uInputOffset, data_in,
 					       sizeof(data_in));

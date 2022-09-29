@@ -801,7 +801,7 @@ int PiBridgeMaster_Run(void)
 
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 
-	if (piDev_g.stopIO) {
+	if (test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		revpi_power_led_red_set(REVPI_POWER_LED_FLICKR);
 	} else  {
 		if (piCore_g.eBridgeState == piBridgeRun) {
@@ -868,7 +868,7 @@ int PiBridgeMaster_Run(void)
 
 	if (piCore_g.eBridgeState == piBridgeRun) {
 		//flip_process_image(&piCore_g.image, RevPiDevice_getCoreOffset());
-		if (piDev_g.stopIO == false) {
+		if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 			INT8U *p1, *p2;
 			SRevPiCoreImage *pI1, *pI2;
 			p1 = piDev_g.ai8uPI + RevPiDevice_getCoreOffset();
