@@ -178,15 +178,8 @@ INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
 		memset(out_buf, 0, sizeof(out_buf));
 	}
 
-	j = 255;
-	for (i = DIO_OUTPUT_DATA_LEN; i > 0; i--) {
-		if (out_buf[i - 1] != last_out[addr][i - 1]) {
-			j = i - 1;
-			break;
-		}
-	}
-
-	if (j == 255 || j < 2) {
+	/* check if any PWM values have changed since last cycle */
+	if (!memcmp(out_buf + 2, last_out[addr] + 2, DIO_OUTPUT_DATA_LEN - 2)) {
 		// only the direct output pins have changed
 		snd_len = sizeof(u16);
 		cmd = IOP_TYP1_CMD_DATA;
