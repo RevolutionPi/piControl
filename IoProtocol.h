@@ -351,7 +351,7 @@ SAioConfig;
 
 typedef
 #include <COMP_packBegin.h>
-struct      // IOP_TYP1_CMD_CFG
+struct      // IOP_TYP1_CMD_DATA2 (Input 1+2) or IOP_TYP1_CMD_DATA3 (Input 3+4)
 {
     SAioInputConfig sAioInputConfig[AIO_HALF_INPUTS];		// 16 Bytes
 }
