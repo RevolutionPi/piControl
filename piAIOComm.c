@@ -36,10 +36,8 @@
 
 #include <project.h>
 #include <common_define.h>
-#include <ModGateRS485.h>
 
 #include "revpi_common.h"
-#include <PiBridgeMaster.h>
 #include <RevPiDevice.h>
 #include <piControlMain.h>
 
