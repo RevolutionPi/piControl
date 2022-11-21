@@ -337,15 +337,14 @@ struct
 #include <COMP_packEnd.h>
 SAioRtdConfig;
 
+// AIO configuration, 31 Bytes
 typedef
 #include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_CFG
 {
-    UIoProtocolHeader uHeader;
     INT8U i8uInputSampleRate;
     SAioRtdConfig sAioRtdConfig[AIO_MAX_RTD];
     SAioOutputConfig sAioOutputConfig[AIO_MAX_OUTPUTS];
-    INT8U i8uCrc;
 }
 #include <COMP_packEnd.h>
 SAioConfig;
@@ -354,9 +353,7 @@ typedef
 #include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_CFG
 {
-    UIoProtocolHeader uHeader;
     SAioInputConfig sAioInputConfig[AIO_HALF_INPUTS];		// 16 Bytes
-    INT8U i8uCrc;
 }
 #include <COMP_packEnd.h>
 SAioInConfig;

@@ -102,8 +102,8 @@ typedef enum
 
 void piAIOComm_InitStart(void);
 
-INT32U piAIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt);
+u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt);
 
-INT32U piAIOComm_Init(INT8U i8uDevice_p);
+u32 piAIOComm_Init(u8 devnum);
 
 u32 piAIOComm_sendCyclicTelegram(u8 devnum);
