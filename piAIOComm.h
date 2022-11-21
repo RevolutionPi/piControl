@@ -106,4 +106,4 @@ INT32U piAIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 
 INT32U piAIOComm_Init(INT8U i8uDevice_p);
 
-INT32U piAIOComm_sendCyclicTelegram(INT8U i8uDevice_p);
+u32 piAIOComm_sendCyclicTelegram(u8 devnum);
