@@ -367,9 +367,7 @@ typedef
 #include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA
 {
-    UIoProtocolHeader uHeader;
     INT16S i16sOutputValue[AIO_MAX_OUTPUTS]; // Output value in mV or uA
-    INT8U  i8uCrc;
 }
 #include <COMP_packEnd.h>
 SAioRequest;
@@ -380,13 +378,11 @@ typedef
 #include <COMP_packBegin.h>
 struct      // IOP_TYP1_CMD_DATA
 {
-    UIoProtocolHeader uHeader;
     INT16S i16sInputValue[AIO_MAX_INPUTS];  // Input value in mV or uA
     INT8U i8uInputStatus[AIO_MAX_INPUTS];   // Input status
     INT16S i16sRtdValue[AIO_MAX_RTD];       // RTD value in 0,1°C
     INT8U i8uRtdStatus[AIO_MAX_RTD];        // RTD status
     INT8U i8uOutputStatus[AIO_MAX_OUTPUTS]; // Output status
-    INT8U i8uCrc;
 }
 #include <COMP_packEnd.h>
 SAioResponse;

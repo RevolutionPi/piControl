@@ -32,6 +32,7 @@
 
 #include <linux/module.h>	// included for all kernel modules
 #include <linux/kernel.h>
+#include <linux/pibridge_comm.h>
 
 #include <project.h>
 #include <common_define.h>
@@ -45,6 +46,9 @@
 #include <IoProtocol.h>
 #include <piIOComm.h>
 #include <piAIOComm.h>
+
+#define AIO_OUTPUT_DATA_LEN		sizeof(SAioRequest)
+#define AIO_INPUT_DATA_LEN		sizeof(SAioResponse)
 
 static INT8U i8uConfigured_s = 0;
 static SAioConfig aioConfig_s[10];
@@ -338,100 +342,45 @@ INT32U piAIOComm_Init(INT8U i8uDevice_p)
 	return 4;		// unknown device
 }
 
-INT32U piAIOComm_sendCyclicTelegram(INT8U i8uDevice_p)
+
+u32 piAIOComm_sendCyclicTelegram(u8 devnum)
 {
-	INT32U i32uRv_l = 0;
-	SIOGeneric sRequest_l;
-	SIOGeneric sResponse_l;
-	INT8U len_l;
-	INT8U data_out[sizeof(SAioRequest) - IOPROTOCOL_HEADER_LENGTH - 1];
-	INT8U data_in[sizeof(SAioResponse) - IOPROTOCOL_HEADER_LENGTH - 1];
-	INT8U i8uAddress;
+	u8 snd_buf[AIO_OUTPUT_DATA_LEN];
+	u8 rcv_buf[AIO_INPUT_DATA_LEN];
+	SDevice *revpi_dev;
+	u8 addr;
 	int ret;
-#ifdef DEBUG_DEVICE_AIO
-	static INT8U last_out[40][sizeof(data_out)];
-	static INT8U last_in[40][2];
-#endif
 
-	if (RevPiDevice_getDev(i8uDevice_p)->sId.i16uFBS_OutputLength != sizeof(data_out)) {
+	revpi_dev = RevPiDevice_getDev(devnum);
+
+	if (revpi_dev->sId.i16uFBS_OutputLength != AIO_OUTPUT_DATA_LEN)
 		return 4;
-	}
 
-	len_l = sizeof(data_out);
-	i8uAddress = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
+	addr = revpi_dev->i8uAddress;
 
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		my_rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(data_out, piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uOutputOffset, len_l);
+		memcpy(snd_buf, piDev_g.ai8uPI + revpi_dev->i16uOutputOffset,
+		       AIO_OUTPUT_DATA_LEN);
 		rt_mutex_unlock(&piDev_g.lockPI);
 	} else {
-		memset(data_out, 0, len_l);
+		memset(snd_buf, 0, AIO_OUTPUT_DATA_LEN);
 	}
 
-	sRequest_l.uHeader.sHeaderTyp1.bitAddress = i8uAddress;
-	sRequest_l.uHeader.sHeaderTyp1.bitIoHeaderType = 0;
-	sRequest_l.uHeader.sHeaderTyp1.bitReqResp = 0;
-	sRequest_l.uHeader.sHeaderTyp1.bitLength = len_l;
-	sRequest_l.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA;
-
-	memcpy(sRequest_l.ai8uData, data_out, len_l);
-
-	sRequest_l.ai8uData[len_l] = piIoComm_Crc8((INT8U *) & sRequest_l, IOPROTOCOL_HEADER_LENGTH + len_l);
-
-#ifdef DEBUG_DEVICE_AIO
-	if (last_out[i8uAddress][0] != sRequest_l.ai8uData[0] || last_out[i8uAddress][1] != sRequest_l.ai8uData[1]) {
-		pr_info_aio("dev %2d: send cyclic Data addr %d output 0x%02x 0x%02x\n",
-			    i8uAddress, RevPiDevice_getDev(i8uDevice_p].i16uOutputOffset,
-			    sRequest_l.ai8uData[0], sRequest_l.ai8uData[1]);
+	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA, snd_buf,
+			      AIO_OUTPUT_DATA_LEN, rcv_buf, AIO_INPUT_DATA_LEN);
+	if (ret) {
+		pr_warn_ratelimited("addr %2d: io communication failed with AIO %d\n",
+			addr, ret);
+		return 1;
 	}
-	memcpy(last_out[i8uAddress], data_out, sizeof(data_out));
-#endif
 
-	ret = piIoComm_send((INT8U *) & sRequest_l, sizeof(SAioRequest));
-	if (ret == 0) {
-		len_l = sizeof(SAioResponse) - IOPROTOCOL_HEADER_LENGTH - 1;	// data length only
-
-		ret = piIoComm_recv((INT8U *) & sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
-		if (ret > 0) {
-			if (piIoComm_response_valid(&sResponse_l, i8uAddress, len_l)) {
-				memcpy(data_in, sResponse_l.ai8uData, len_l);
-
-				if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO,
-					     &piDev_g.flags)) {
-					my_rt_mutex_lock(&piDev_g.lockPI);
-					memcpy(piDev_g.ai8uPI + RevPiDevice_getDev(i8uDevice_p)->i16uInputOffset, data_in,
-					       sizeof(data_in));
-					rt_mutex_unlock(&piDev_g.lockPI);
-				}
-
-#ifdef DEBUG_DEVICE_AIO
-				if (last_in[i8uAddress][0] != sResponse_l.ai8uData[0]
-				    || last_in[i8uAddress][1] != sResponse_l.ai8uData[1]) {
-					last_in[i8uAddress][0] = sResponse_l.ai8uData[0];
-					last_in[i8uAddress][1] = sResponse_l.ai8uData[1];
-					pr_info_aio("dev %2d: recv cyclic Data addr %d input 0x%02x 0x%02x\n\n",
-						    i8uAddress, RevPiDevice_getDev(i8uDevice_p].i16uInputOffset,
-						    sResponse_l.ai8uData[0], sResponse_l.ai8uData[1]);
-				}
-#endif
-			} else {
-				i32uRv_l = 1;
-				pr_info_aio("dev %2d: recv ioprotocol crc/len error, %x!=%x, len:%d!=%d\n",
-						i8uAddress,
-						sResponse_l.ai8uData[len_l],
-						piIoComm_Crc8((INT8U *) &sResponse_l, IOPROTOCOL_HEADER_LENGTH + len_l),
-						sResponse_l.uHeader.sHeaderTyp1.bitLength,
-						len_l);
-			}
-		} else {
-			i32uRv_l = 2;
-			pr_info_aio("dev %2d: recv ioprotocol timeout error exp %d\n",
-				    i8uAddress, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
-
-		}
-	} else {
-		i32uRv_l = 3;
-		pr_info_aio("dev %2d: send ioprotocol send error %d\n", i8uAddress, ret);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		my_rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, rcv_buf,
+		       AIO_INPUT_DATA_LEN);
+		rt_mutex_unlock(&piDev_g.lockPI);
 	}
-	return i32uRv_l;
+
+	return 0;
 }
