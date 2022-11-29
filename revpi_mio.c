@@ -23,7 +23,7 @@ static int mio_cnt;
 /* store the sent analog request.
    the field i8uChannels of struct SMioAnalogRequestData takes no function here,
    but it could be used for the debuging purpose */
-static SMioAnalogRequestData mio_dio_request_last[REVPI_MIO_MAX];
+static SMioAnalogRequestData mio_aio_request_last[REVPI_MIO_MAX];
 
 static inline unsigned char revpi_crc8(void *buf, unsigned short len)
 {
@@ -143,7 +143,7 @@ int revpi_mio_cycle(unsigned char devno)
 	int ret;
 
 	dev = RevPiDevice_getDev(devno);
-	last = &mio_dio_request_last[dev->i8uPriv];
+	last = &mio_aio_request_last[dev->i8uPriv];
 
 	img_out = (struct mio_img_out *)(piDev_g.ai8uPI +
 					 dev->i16uOutputOffset);
