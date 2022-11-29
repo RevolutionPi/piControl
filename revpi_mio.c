@@ -349,7 +349,7 @@ int revpi_mio_init(unsigned char devno)
 	if (resp.i8uCrc != crc)
 		pr_err("crc for mio:dio conf err(got:%d, exp:%d)\n",
 		       resp.i8uCrc, crc);
-	/*aio out*/
+	/*aio in*/
 	memset(&resp, 0, sizeof(resp));
 	ret = revpi_io_talk(&conf->aio_i, sizeof(conf->aio_i), &resp,
 			    sizeof(resp));
