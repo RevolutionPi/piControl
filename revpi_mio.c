@@ -25,11 +25,6 @@ static int mio_cnt;
    but it could be used for the debuging purpose */
 static SMioAnalogRequestData mio_aio_request_last[REVPI_MIO_MAX];
 
-static inline unsigned char revpi_crc8(void *buf, unsigned short len)
-{
-	return piIoComm_Crc8((INT8U *)buf, len);
-}
-
 static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 			       SMioDigitalResponseData *resp_data)
 {

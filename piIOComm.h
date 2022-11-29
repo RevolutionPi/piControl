@@ -96,5 +96,3 @@ INT32S piIoComm_fwuReset(int address);
 
 void revpi_io_build_header(UIoProtocolHeader *hdr,
 		unsigned char addr, unsigned char len, unsigned char cmd);
-
-int revpi_io_talk(void *sndbuf, int sndlen, void *rcvbuf, int rcvlen);
