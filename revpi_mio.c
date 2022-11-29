@@ -139,7 +139,7 @@ static unsigned long revpi_chnl_cmp(void *a, void *b, int count, int step)
 
 	for (i = 0; i < count; i++) {
 		if (memcmp(pa + i * step, pb + i * step, step))
-			set_bit(i, &ret);
+			__set_bit(i, &ret);
 	}
 	return ret;
 }
