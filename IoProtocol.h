@@ -480,7 +480,7 @@ typedef struct {
 // IOP_TYP1_CMD_CFG
 typedef struct {
 	UIoProtocolHeader uHeader;
-	SMioDIOConfigData sData;
+	SMioDIOConfigData sData;				/* 21 bytes */
 	INT8U i8uCrc;
 } SMioDIOConfig;
 
@@ -498,7 +498,7 @@ typedef struct {
 typedef struct {
 	// IOP_TYP1_CMD_DATA4
 	UIoProtocolHeader uHeader;
-	SMioAIOConfigData sData;
+	SMioAIOConfigData sData;				/* 19 bytes */
 	INT8U i8uCrc;
 } SMioAIOConfig;
 
@@ -517,7 +517,7 @@ typedef struct {
 typedef struct {
 	// IOP_TYP5_CMD_DATA6
 	UIoProtocolHeader uHeader;
-	SMioCalibrationRequestData sData;
+	SMioCalibrationRequestData sData;			/*  5 bytes */
 	INT8U  i8uCrc;
 } SMioCalibrationRequest;
 
@@ -531,7 +531,7 @@ typedef struct {
 typedef struct {
 	// IOP_TYP1_CMD_DATA
 	UIoProtocolHeader uHeader;
-	SMioDigitalRequestData sData;
+	SMioDigitalRequestData sData;				/*  9 bytes */
 	INT8U  i8uCrc;
 } SMioDigitalRequest;
 
@@ -547,7 +547,7 @@ typedef struct {
 typedef struct {
 	// IOP_TYP5_CMD_DATA2
 	UIoProtocolHeader uHeader;
-	SMioAnalogRequestData sData;
+	SMioAnalogRequestData sData;				/* 18 bytes */
 	INT8U  i8uCrc;
 } SMioAnalogRequest;
 
@@ -573,7 +573,7 @@ typedef struct	{
 typedef struct {
 	// IOP_TYP1_CMD_DATA
 	UIoProtocolHeader uHeader;
-	SMioDigitalResponseData sData;
+	SMioDigitalResponseData sData;				/* 17 bytes */
 	INT8U  i8uCrc;
 } SMioDigitalResponse;
 
@@ -588,7 +588,7 @@ typedef struct {
 typedef struct {
 	// IOP_TYP1_CMD_DATA2
 	UIoProtocolHeader uHeader;
-	SMioAnalogResponseData sData;
+	SMioAnalogResponseData sData;				/* 17 bytes */
 	INT8U  i8uCrc;
 } SMioAnalogResponse;
 
