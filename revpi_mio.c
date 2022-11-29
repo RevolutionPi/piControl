@@ -85,10 +85,8 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 			      sizeof(SMioAnalogRequestData) - compressed,
 			      IOP_TYP1_CMD_DATA2);
 	/*copy: from process image:output to request*/
-	rt_mutex_lock(&piDev_g.lockPI);
 	memcpy(&req.sData, req_data, sizeof(SMioAnalogRequestData) -
 				     compressed);
-	rt_mutex_unlock(&piDev_g.lockPI);
 
 	req.i8uCrc = revpi_crc8(&req, sizeof(req) - 1 - compressed);
 	/*crc is adjoining data */
