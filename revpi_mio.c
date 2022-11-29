@@ -205,24 +205,15 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 	conf = &mio_list[mio_cnt];
 	memset(conf, 0, sizeof(struct mio_config));
 
-	revpi_io_build_header(&conf->dio.uHeader, addr,
-			      sizeof(SMioDIOConfigData), IOP_TYP1_CMD_CFG);
-	revpi_io_build_header(&conf->aio_i.uHeader, addr,
-			      sizeof(SMioAIOConfigData), IOP_TYP1_CMD_DATA4);
-	revpi_io_build_header(&conf->aio_o.uHeader, addr,
-			      sizeof(SMioAIOConfigData), IOP_TYP1_CMD_DATA4);
+	conf->addr = addr;
 
 	/*0=input (InputThreshold)*/
-	conf->aio_i.sData.i8uDirection = 0;
+	conf->aio_i.i8uDirection = 0;
 	/*1=output(Fixed Output)*/
-	conf->aio_o.sData.i8uDirection = 1;
+	conf->aio_o.i8uDirection = 1;
 
-	pr_info("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd, "
-		"dio hdr:0x%x,aio_i hdr:0x%x, aio_o hdr:0x%x)\n",
-		addr, e_cnt, mio_cnt, MIO_CONF_BASE,
-		*(unsigned short*)&mio_list[mio_cnt].dio.uHeader,
-		*(unsigned short*)&mio_list[mio_cnt].aio_i.uHeader,
-		*(unsigned short*)&mio_list[mio_cnt].aio_o.uHeader);
+	pr_info("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd)\n",
+		addr, e_cnt, mio_cnt, MIO_CONF_BASE);
 
 	for (i = 0; i < e_cnt; i++) {
 		offset = ent[i].i16uOffset;
@@ -231,46 +222,46 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 			/*nothing to do for input and output */
 			break;
 		case MIO_CONF_EMOD:
-			conf->dio.sData.i8uEncoderMode = ent[i].i32uDefault;
+			conf->dio.i8uEncoderMode = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_IOMOD ... MIO_CONF_PUL -1:
 			arr_idx = (offset - MIO_CONF_IOMOD) / sizeof(INT8U);
-			conf->dio.sData.i8uIoMode[arr_idx] = ent[i].i32uDefault;
+			conf->dio.i8uIoMode[arr_idx] = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_PUL:
-			conf->dio.sData.i8uPullup = ent[i].i32uDefault;
+			conf->dio.i8uPullup = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_PMOD:
-			conf->dio.sData.i8uPulseRetrigMode = ent[i].i32uDefault;
+			conf->dio.i8uPulseRetrigMode = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_FPWM ... MIO_CONF_PLEN - 1:
 			arr_idx = (offset - MIO_CONF_FPWM) / sizeof(INT16U);
-			conf->dio.sData.i16uPwmFrequency[arr_idx]
+			conf->dio.i16uPwmFrequency[arr_idx]
 							= ent[i].i32uDefault;
 			break;
 		case MIO_CONF_PLEN ... MIO_CONF_AIM - 1:
 			arr_idx = (offset - MIO_CONF_PLEN) / sizeof(INT16U);
-			conf->dio.sData.i16uPulseLength[arr_idx]
+			conf->dio.i16uPulseLength[arr_idx]
 							= ent[i].i32uDefault;
 			break;
 		case MIO_CONF_AIM:
-			conf->aio_i.sData.i8uIoMode
+			conf->aio_i.i8uIoMode
 				|= ent[i].i32uDefault << ent[i].i8uBitPos;
 			break;
 		case MIO_CONF_THR ... MIO_CONF_WSIZE - 1:
 			arr_idx = (offset - MIO_CONF_THR) / sizeof(INT16U);
-			conf->aio_i.sData.i16uVolt[arr_idx] = ent[i].i32uDefault;
+			conf->aio_i.i16uVolt[arr_idx] = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_WSIZE:
-			conf->aio_i.sData.i8uMvgAvgWindow = ent[i].i32uDefault;
+			conf->aio_i.i8uMvgAvgWindow = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_AOM:
-			conf->aio_o.sData.i8uIoMode
+			conf->aio_o.i8uIoMode
 				|= ent[i].i32uDefault << ent[i].i8uBitPos;
 			break;
 		case MIO_CONF_OUTV ... MIO_CONF_END - 1:
 			arr_idx = (offset - MIO_CONF_OUTV) / sizeof(INT16U);
-			conf->aio_o.sData.i16uVolt[arr_idx] = ent[i].i32uDefault;
+			conf->aio_o.i16uVolt[arr_idx] = ent[i].i32uDefault;
 			break;
 		default:
 			pr_warn("unknown config entry(offset:%d)\n", offset);
@@ -278,37 +269,18 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		}
 	}
 
-	pr_info("dio  :%*ph\n", (int) sizeof(conf->dio.sData), &conf->dio.sData);
-	pr_info("aio-i:%*ph\n", (int) sizeof(conf->aio_i.sData), &conf->aio_i.sData);
-	pr_info("aio-o:%*ph\n", (int) sizeof(conf->aio_o.sData), &conf->aio_o.sData);
-
-	conf->dio.i8uCrc = revpi_crc8(&conf->dio, sizeof(conf->dio) - 1);
-	conf->aio_i.i8uCrc = revpi_crc8(&conf->aio_i, sizeof(conf->aio_i) - 1);
-	conf->aio_o.i8uCrc = revpi_crc8(&conf->aio_o, sizeof(conf->aio_o) - 1);
+	pr_info("dio  :%*ph\n", (int) sizeof(conf->dio), &conf->dio);
+	pr_info("aio-i:%*ph\n", (int) sizeof(conf->aio_i), &conf->aio_i);
+	pr_info("aio-o:%*ph\n", (int) sizeof(conf->aio_o), &conf->aio_o);
 
 	mio_cnt++;
 
 	return 0;
 }
 
-static inline void revpi_mio_addr_chk(struct mio_config *conf,
-					unsigned char addr)
-{
-	/*the address of dio and aio (in and out) should be the same*/
-	if ((conf->aio_i.uHeader.sHeaderTyp1.bitAddress != addr ) ||
-	    (conf->aio_o.uHeader.sHeaderTyp1.bitAddress != addr )) {
-		pr_warn("addr differ in mio conf(dio:%d, aio "
-			"in:%d, aio out:%d)\n", addr,
-			conf->aio_i.uHeader.sHeaderTyp1.bitAddress,
-			conf->aio_o.uHeader.sHeaderTyp1.bitAddress);
-	}
-}
-
 int revpi_mio_init(unsigned char devno)
 {
 	struct mio_config *conf = NULL;
-	SMioConfigResponse resp;
-	unsigned char crc;
 	unsigned char addr;
 	int ret;
 	int i;
@@ -320,12 +292,11 @@ int revpi_mio_init(unsigned char devno)
 
 	for (i = 0; i < mio_cnt; i++) {
 		pr_info("search mio conf(index:%d, addr:%d)\n", i,
-			mio_list[i].dio.uHeader.sHeaderTyp1.bitAddress);
+			mio_list[i].addr);
 
-		if (mio_list[i].dio.uHeader.sHeaderTyp1.bitAddress == addr) {
+		if (mio_list[i].addr == addr) {
 			conf = &mio_list[i];
 			RevPiDevice_getDev(devno)->i8uPriv = (unsigned char) i;
-			revpi_mio_addr_chk(conf, addr);
 			break;
 		}
 	}
@@ -334,52 +305,28 @@ int revpi_mio_init(unsigned char devno)
 		pr_err("fail to find the mio module(devno:%d)\n", devno);
 		return -ENODATA;
 	}
+
 	/*dio*/
-	memset(&resp, 0, sizeof(resp));
-	ret = revpi_io_talk(&conf->dio, sizeof(conf->dio), &resp, sizeof(resp));
+	ret = pibridge_req_io(addr, IOP_TYP1_CMD_CFG,
+			      &conf->dio, sizeof(conf->dio), NULL, 0);
 	if (ret) {
 		pr_err("talk with mio for conf dio err(devno:%d, ret:%d)\n",
 		       devno, ret);
 	}
-	pr_info("headers of mio:aio conf request: 0x%4x, response:0x%4x\n",
-		*(unsigned short *) &conf->dio.uHeader,
-		*(unsigned short *) &resp.uHeader);
 
-	crc = revpi_crc8(&resp, sizeof(resp) - 1);
-	if (resp.i8uCrc != crc)
-		pr_err("crc for mio:dio conf err(got:%d, exp:%d)\n",
-		       resp.i8uCrc, crc);
 	/*aio in*/
-	memset(&resp, 0, sizeof(resp));
-	ret = revpi_io_talk(&conf->aio_i, sizeof(conf->aio_i), &resp,
-			    sizeof(resp));
+	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA4,
+			      &conf->aio_i, sizeof(conf->aio_i), NULL, 0);
 	if (ret)
 		pr_err("talk with mio for conf aio_i err(devno:%d, ret:%d)\n",
 		       devno, ret);
 
-	pr_info("headers of mio:aio_i conf request: 0x%4x, response:0x%4x\n",
-		*(unsigned short *) &conf->aio_i.uHeader,
-		*(unsigned short *) &resp.uHeader);
-
-	crc = revpi_crc8(&resp, sizeof(resp) - 1);
-	if (resp.i8uCrc != crc)
-		pr_err("crc for mio:aio_i conf err(got:%d, exp:%d)\n",
-		       resp.i8uCrc, crc);
 	/*aio out*/
-	memset(&resp, 0, sizeof(resp));
-	ret = revpi_io_talk(&conf->aio_o, sizeof(conf->aio_o), &resp,
-			    sizeof(resp));
+	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA4,
+			      &conf->aio_o, sizeof(conf->aio_o), NULL, 0);
 	if (ret)
 		pr_err("talk with mio for conf aio_o err(devno:%d, ret:%d)\n",
 		       devno, ret);
-	pr_info("headers of mio:aio_o conf request: 0x%4x, response:0x%4x\n",
-		*(unsigned short *) &conf->aio_o.uHeader,
-		*(unsigned short *) &resp.uHeader);
-
-	crc = revpi_crc8(&resp, sizeof(resp) - 1);
-	if (resp.i8uCrc != crc)
-		pr_err("crc for mio:aio_o conf err(got:%d, exp:%d)\n",
-		       resp.i8uCrc, crc);
 
 	pr_info("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
 
