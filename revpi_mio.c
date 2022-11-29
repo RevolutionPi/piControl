@@ -7,6 +7,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/pibridge_comm.h>
 
 #include <project.h>
 #include <common_define.h>
@@ -32,41 +33,26 @@ static inline unsigned char revpi_crc8(void *buf, unsigned short len)
 static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 			       SMioDigitalResponseData *resp_data)
 {
-	SMioDigitalResponse resp;
-	SMioDigitalRequest req;
-	unsigned char crc_cal;
+	SMioDigitalResponseData resp;
+	SMioDigitalRequestData req;
 	int ret;
 
-	revpi_io_build_header(&req.uHeader, dev->i8uAddress,
-			      sizeof(SMioDigitalRequestData),
-			      IOP_TYP1_CMD_DATA);
 	/*copy: from process image:output to request*/
 	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(&req.sData, req_data, sizeof(SMioDigitalRequestData));
+	memcpy(&req, req_data, sizeof(req));
 	rt_mutex_unlock(&piDev_g.lockPI);
 
-	req.i8uCrc = revpi_crc8(&req, sizeof(req) - 1);
-
-	ret = revpi_io_talk(&req, sizeof(req), &resp, sizeof(resp));
+	ret = pibridge_req_io(dev->i8uAddress, IOP_TYP1_CMD_DATA,
+			      &req, sizeof(req), &resp, sizeof(resp));
 	if (ret) {
 		pr_err_ratelimited("talk with mio for dio data error(addr:%d, "
 				   "ret:%d)\n", dev->i8uAddress, ret);
-		return -EIO;
+		return ret;
 	}
 
-	crc_cal = revpi_crc8(&resp, sizeof(resp) - 1);
-	if (resp.i8uCrc != crc_cal) {
-		pr_err_ratelimited("crc for dio data err(got:%d, expect:%d)\n",
-				   resp.i8uCrc, crc_cal);
-		return -EBADMSG;
-	}
-
-	pr_info_once("headers of mio:dio data request: 0x%4x, response:0x%4x\n",
-		     *(unsigned short *) &req.uHeader,
-		     *(unsigned short *) &resp.uHeader);
 	/*copy: from response to process image:input*/
 	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(resp_data, &resp.sData, sizeof(SMioDigitalResponseData));
+	memcpy(resp_data, &resp, sizeof(*resp_data));
 	rt_mutex_unlock(&piDev_g.lockPI);
 
 	return 0;
@@ -76,43 +62,21 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 			       size_t ch_cnt, SMioAnalogResponseData *resp_data)
 {
 	size_t compressed = (MIO_AIO_PORT_CNT - ch_cnt) * sizeof(INT16U);
-	SMioAnalogResponse resp;
-	SMioAnalogRequest req;
-	unsigned char crc_cal;
+	SMioAnalogResponseData resp;
 	int ret;
 
-	revpi_io_build_header(&req.uHeader, dev->i8uAddress,
-			      sizeof(SMioAnalogRequestData) - compressed,
-			      IOP_TYP1_CMD_DATA2);
-	/*copy: from process image:output to request*/
-	memcpy(&req.sData, req_data, sizeof(SMioAnalogRequestData) -
-				     compressed);
-
-	req.i8uCrc = revpi_crc8(&req, sizeof(req) - 1 - compressed);
-	/*crc is adjoining data */
-	memcpy(&req.i8uCrc - compressed, &req.i8uCrc, 1);
-
-	ret = revpi_io_talk(&req, sizeof(req) - compressed, &resp,
-			    sizeof(resp));
+	ret = pibridge_req_io(dev->i8uAddress, IOP_TYP1_CMD_DATA2,
+			      req_data, sizeof(*req_data) - compressed,
+			      &resp, sizeof(resp));
 	if (ret) {
 		pr_err_ratelimited("talk with mio for aio data error(addr:%d, "
 				   "ret:%d)\n", dev->i8uAddress, ret);
-		return -EIO;
-	}
-	crc_cal = revpi_crc8(&resp, sizeof(resp) - 1);
-
-	if (resp.i8uCrc != crc_cal) {
-		pr_err_ratelimited("crc for aio data err(got:%d, expect:%d)\n",
-				   resp.i8uCrc, crc_cal);
-		return -EBADMSG;
+		return ret;
 	}
 
-	pr_info_once("headers of mio:aio data request: 0x%4x, response:0x%4x\n",
-		     *(unsigned short *) &req.uHeader,
-		     *(unsigned short *) &resp.uHeader);
 	/*copy: from response to process image*/
 	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(resp_data, &resp.sData, sizeof(SMioAnalogResponseData));
+	memcpy(resp_data, &resp, sizeof(*resp_data));
 	rt_mutex_unlock(&piDev_g.lockPI);
 
 	return 0;
