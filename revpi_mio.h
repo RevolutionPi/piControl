@@ -44,9 +44,10 @@ structs for digital, analog input and analog output configurations are put here,
 despite of the repeated headers
 */
 struct mio_config {
-	SMioDIOConfig dio;   /*digital configuration*/
-	SMioAIOConfig aio_i; /*analog configuration for input*/
-	SMioAIOConfig aio_o; /*analog configuration for output*/
+	u8 addr;
+	SMioDIOConfigData dio;   /*digital configuration*/
+	SMioAIOConfigData aio_i; /*analog configuration for input*/
+	SMioAIOConfigData aio_o; /*analog configuration for output*/
 };
 
 struct mio_img_out {
