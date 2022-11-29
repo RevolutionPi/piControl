@@ -144,10 +144,6 @@ static unsigned long revpi_chnl_cmp(void *a, void *b, int count, int step)
 	return ret;
 }
 
-#define VALUE_MASK(v, h, l) ((v) & (GENMASK((h), (l))))
-#define VALUE_MASK_L(v, h) VALUE_MASK((v), (h), 0)
-#define VALUE_MASK_H(v, l) VALUE_MASK((v), (BITS_PER_LONG - 1), (l))
-
 /*
 	compress the channel, only data of changed channel will be taken
 	input parameters:
@@ -160,12 +156,12 @@ static unsigned int revpi_chnl_compress(void *dst, void *src,
 					unsigned long bitmap, int step)
 {
 	unsigned char *d, *s;
-	unsigned int i = 0;
+	unsigned int i, last = __fls(bitmap);
 
 	s = (unsigned char *) src;
 	d = (unsigned char *) dst;
 
-	for (i = 0; i < 32 && VALUE_MASK_H(bitmap, i); i++) {
+	for (i = 0; i <= last; i++) {
 		if (test_bit(i, &bitmap)) {
 			memcpy(d, s + i * step, step);
 			d += step;
