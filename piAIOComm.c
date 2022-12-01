@@ -245,8 +245,8 @@ u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 
 u32 piAIOComm_Init(u8 devnum)
 {
+	void *snd_buf;
 	int dev_idx;
-	u8 *snd_buf;
 	u8 addr;
 	int ret;
 
@@ -263,7 +263,7 @@ u32 piAIOComm_Init(u8 devnum)
 	if (dev_idx == num_aios)
 		return 4; // unknown device
 
-	snd_buf = (u8 *) &aioIn1Config_s[dev_idx];
+	snd_buf = &aioIn1Config_s[dev_idx];
 
 	pr_info_aio("piAIOComm_Init send configIn1\n");
 	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA2, snd_buf,
@@ -271,7 +271,7 @@ u32 piAIOComm_Init(u8 devnum)
 	if (ret)
 		return 3;
 
-	snd_buf = (u8 *) &aioIn2Config_s[dev_idx];
+	snd_buf = &aioIn2Config_s[dev_idx];
 
 	pr_info_aio("piAIOComm_Init send configIn2\n");
 	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA3, snd_buf,
@@ -279,7 +279,7 @@ u32 piAIOComm_Init(u8 devnum)
 	if (ret)
 		return 3;
 
-	snd_buf = (u8 *) &aioConfig_s[dev_idx];
+	snd_buf = &aioConfig_s[dev_idx];
 
 	pr_info_aio("piAIOComm_Init send config\n");
 	ret = pibridge_req_io(addr, IOP_TYP1_CMD_CFG, snd_buf,
