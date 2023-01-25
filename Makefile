@@ -1,6 +1,4 @@
 
-#CC=/usr/bin/arm-linux-gnueabihf-gcc
-
 obj-m   := piControl.o
 
 #add other objects e.g. test.o
@@ -27,7 +25,6 @@ piControl-objs += revpi_mio.o
 ccflags-y := -O2
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
-#KDIR    := /home/md/pi/kernelbakery/kbuild7
 KBUILD_CFLAGS += -g
 
 PWD   	:= $(shell pwd)
@@ -36,26 +33,14 @@ EXTRA_CFLAGS = -I$(src)/
 
 EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__
 
-ARCH ?= arm
-
-ifeq ($(ARCH), arm)
-	CROSS_COMPILE += arm-linux-gnueabihf-
-else
-	CROSS_COMPILE += aarch64-linux-gnu-
-endif
-
 .PHONY: compiletime.h
 
 all: compiletime.h
-	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE="$(CROSS_COMPILE)" -C $(KDIR) M=$(PWD)  modules
+	$(MAKE) -C $(KDIR) M=$(PWD)  modules
 
 compiletime.h:
 	echo "#define COMPILETIME \""`date`"\"" > compiletime.h
 
 clean:
-	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(PWD) clean
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -f $(piControl-objs)
-
-
-
-
