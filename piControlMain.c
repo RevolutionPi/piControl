@@ -211,6 +211,10 @@ static int __init piControlInit(void)
 		piDev_g.pibridge_supported = 1;
 		piDev_g.only_left_pibridge = 1;
 		pr_info("RevPi Connect SE\n");
+	} else if (of_machine_is_compatible("kunbus,revpi-connect4")) {
+		piDev_g.machine_type = REVPI_CONNECT_4;
+		piDev_g.pibridge_supported = 1;
+		pr_info("RevPi Connect 4\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-flat")) {
 		piDev_g.machine_type = REVPI_FLAT;
 		pr_info("RevPi Flat\n");
@@ -312,6 +316,8 @@ static int __init piControlInit(void)
 		res = revpi_core_init();
 	} else if (piDev_g.machine_type == REVPI_CONNECT_SE) {
 		res = revpi_core_init();
+	} else if (piDev_g.machine_type == REVPI_CONNECT_4) {
+		res = revpi_core_init();
 	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		res = revpi_compact_init();
 	} else if (piDev_g.machine_type == REVPI_FLAT) {
@@ -345,6 +351,8 @@ err_revpi_fini:
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_CONNECT_SE) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_CONNECT_4) {
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_fini();
@@ -465,6 +473,8 @@ static void __exit piControlCleanup(void)
 	} else if (piDev_g.machine_type == REVPI_CONNECT) {
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_CONNECT_SE) {
+		revpi_core_fini();
+	} else if (piDev_g.machine_type == REVPI_CONNECT_4) {
 		revpi_core_fini();
 	} else if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_fini();
