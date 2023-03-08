@@ -42,7 +42,8 @@
 
 #define REV_PI_RECV_IO_HEADER_LEN	65530
 
-#define REV_PI_TTY_DEVICE	"/dev/ttyAMA0"
+#define REV_PI_TTY_DEVICE           "/dev/ttyAMA0"
+#define REV_PI_TTY_DEVICE_CONNECT_4 "/dev/ttyAMA1"
 
 enum IOSTATE {
     /* physically not connected */
