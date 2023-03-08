@@ -60,6 +60,7 @@ enum revpi_machine {
 	REVPI_FLAT = 4,
 	REVPI_CONNECT_SE = 5,
 	REVPI_CORE_SE = 6,
+	REVPI_CONNECT_4 = 7,
 };
 
 typedef struct spiControlDev {

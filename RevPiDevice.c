@@ -84,6 +84,18 @@ const MODGATECOM_IDResp RevPiConnect_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
+const MODGATECOM_IDResp RevPiConnect4_ID_g = {
+	.i32uSerialnumber = 1,	 // TODO: Read from HAT EEPROM ?
+	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT_4,
+	.i16uHW_Revision = 1,
+	.i16uSW_Major = 1,
+	.i16uSW_Minor = 0,
+	.i32uSVN_Revision = 0,
+	.i16uFBS_InputLength = 6,
+	.i16uFBS_OutputLength = 5,
+	.i16uFeatureDescriptor = 0
+};
+
 const MODGATECOM_IDResp RevPiFlat_ID_g = {
 	.i32uSerialnumber = 1,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_FLAT,
@@ -138,6 +150,11 @@ void RevPiDevice_init(void)
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiConnect_ID_g;
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiConnect_ID_g.i16uFBS_InputLength;
+			break;
+		case REVPI_CONNECT_4:
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiConnect4_ID_g;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiConnect4_ID_g.i16uFBS_InputLength;
 			break;
 		case REVPI_FLAT:
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiFlat_ID_g;
