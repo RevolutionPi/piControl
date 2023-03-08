@@ -167,7 +167,13 @@ int piIoComm_open_serial(void)
 	struct termios newtio;	/* Schnittstellenoptionen */
 
 	/* Port oeffnen - read/write, kein "controlling tty", Status von DCD ignorieren */
-	fd = filp_open(REV_PI_TTY_DEVICE, O_RDWR | O_NOCTTY, 0);
+	const char* tty_interface;
+	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+		tty_interface = REV_PI_TTY_DEVICE_CONNECT_4;
+	} else {
+		tty_interface = REV_PI_TTY_DEVICE;
+	}
+	fd = filp_open(tty_interface, O_RDWR | O_NOCTTY, 0);
 	if (!IS_ERR_OR_NULL(fd)) {
 		int r;
 		mm_segment_t oldfs;
@@ -202,12 +208,12 @@ int piIoComm_open_serial(void)
 		}
 		set_fs(oldfs);
 	} else {
-		pr_err("could not open device %s", REV_PI_TTY_DEVICE);
+		pr_err("could not open device %s", tty_interface);
 		return -1;
 	}
 	piIoComm_fd_m = fd;
 
-	pr_info_serial("serial device %s opened\n", REV_PI_TTY_DEVICE);
+	pr_info_serial("serial device %s opened\n", tty_interface);
 
 	sema_init(&queueSem, 0);
 	sema_init(&recvLenSem, 1);
@@ -413,7 +419,7 @@ int piIoComm_init(void)
 void piIoComm_finish(void)
 {
 	if (piIoComm_fd_m != NULL) {
-		pr_info_serial("serial device %s closed\n", REV_PI_TTY_DEVICE);
+		pr_info_serial("serial device closed\n");
 		filp_close(piIoComm_fd_m, NULL);
 		piIoComm_fd_m = NULL;
 	}
