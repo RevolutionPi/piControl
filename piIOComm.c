@@ -233,7 +233,7 @@ void piIoComm_writeSniff(struct gpio_desc *pGpio, EGpioValue eVal_p, EGpioMode e
 		gpiod_direction_input(pGpio);
 	} else {
 		gpiod_direction_output(pGpio, eVal_p);
-		gpiod_set_value(pGpio, eVal_p);
+		gpiod_set_value_cansleep(pGpio, eVal_p);
 	}
 }
 
