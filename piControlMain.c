@@ -1147,9 +1147,10 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			my_rt_mutex_lock(&piCore_g.lockUserTel);
 			memcpy(&piCore_g.requestUserTel, &tel, sizeof(tel));
 
-			piCore_g.pendingUserTel = true;
+			set_bit(REVPI_CORE_FLAG_PENDING_TELEGRAM, &piCore_g.flags);
 			down(&piCore_g.semUserTel);
 			status = piCore_g.statusUserTel;
+			clear_bit(REVPI_CORE_FLAG_PENDING_TELEGRAM, &piCore_g.flags);
 			pr_info("piControlIoctl: resetCounter result %d", status);
 			rt_mutex_unlock(&piCore_g.lockUserTel);
 		}
@@ -1204,9 +1205,10 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 		my_rt_mutex_lock(&piCore_g.lockUserTel);
 		memcpy(&piCore_g.requestUserTel, &req, sizeof(req));
-		piCore_g.pendingUserTel = true;
+		set_bit(REVPI_CORE_FLAG_PENDING_TELEGRAM, &piCore_g.flags);
 		down(&piCore_g.semUserTel);
 		status = piCore_g.statusUserTel;
+		clear_bit(REVPI_CORE_FLAG_PENDING_TELEGRAM, &piCore_g.flags);
 		rt_mutex_unlock(&piCore_g.lockUserTel);
 
 		pr_info("MIO calibrate header:0x%x, data:0x%x, status %d\n",
@@ -1366,9 +1368,11 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				status = -EFAULT;
 				break;
 			}
-			piCore_g.pendingUserTel = true;
+			set_bit(REVPI_CORE_FLAG_PENDING_TELEGRAM, &piCore_g.flags);
 			down(&piCore_g.semUserTel);
 			status = piCore_g.statusUserTel;
+			clear_bit(REVPI_CORE_FLAG_PENDING_TELEGRAM, &piCore_g.flags);
+
 			if (copy_to_user(tel, &piCore_g.responseUserTel, sizeof(SIOGeneric))) {
 				rt_mutex_unlock(&piCore_g.lockUserTel);
 				status = -EFAULT;

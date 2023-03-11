@@ -74,7 +74,8 @@ typedef struct _SRevPiCore {
 	// handle user telegrams
 	struct rt_mutex lockUserTel;
 	struct semaphore semUserTel;
-	bool pendingUserTel;
+#define REVPI_CORE_FLAG_PENDING_TELEGRAM		(1 << 0)
+	unsigned long flags;
 	SIOGeneric requestUserTel;
 	SIOGeneric responseUserTel;
 	int statusUserTel;

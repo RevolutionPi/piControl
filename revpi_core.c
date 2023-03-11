@@ -341,7 +341,7 @@ static int pibridge_probe(struct platform_device *pdev)
 
 	rt_mutex_init(&piCore_g.lockUserTel);
 	sema_init(&piCore_g.semUserTel, 0);
-	piCore_g.pendingUserTel = false;
+	clear_bit(REVPI_CORE_FLAG_PENDING_TELEGRAM, &piCore_g.flags);
 
 	rt_mutex_init(&piCore_g.lockGateTel);
 	sema_init(&piCore_g.semGateTel, 0);
