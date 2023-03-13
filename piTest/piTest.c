@@ -1,9 +1,8 @@
 /*!
+ * SPDX-License-Identifier: MIT
  *
  * Project: piTest
  * Demo source code for usage of piControl driver
- *
- * MIT License
  *
  * Copyright (C) 2017 : KUNBUS GmbH, Heerweg 15C, 73370 Denkendorf, Germany
  *

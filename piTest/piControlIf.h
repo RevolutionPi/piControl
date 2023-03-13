@@ -1,8 +1,7 @@
 /*!
+ * SPDX-License-Identifier: MIT
  *
  * Project: Pi Control
- *
- * MIT License
  *
  * Copyright (C) 2017 : KUNBUS GmbH, Heerweg 15C, 73370 Denkendorf, Germany
  *
