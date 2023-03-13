@@ -2,8 +2,14 @@ Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Source: https://github.com/RevolutionPi/piControl
 
 Files: *
-Copyright: 2016-2017 Kunbus GmbH
-License: GPL-2.0
+Copyright: 2016-2023 KUNBUS GmbH
+License: GPL-2.0+
+
+Files: debian/*
+Copyright: 2016-2023 KUNBUS GmbH
+License: GPL-2.0+
+
+License: GPL-2.0+
  This package is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License (version 2) as
  published by the Free Software Foundation.
