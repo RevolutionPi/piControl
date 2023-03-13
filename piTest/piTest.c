@@ -349,7 +349,7 @@ void readVariableValue(char *pszVariableName, bool cyclic, char format, bool qui
 	uint16_t i16uValue;
 	uint32_t i32uValue;
 
-	strncpy(sPiVariable.strVarName, pszVariableName, sizeof(sPiVariable.strVarName));
+	snprintf(sPiVariable.strVarName, sizeof(sPiVariable.strVarName), "%s", pszVariableName);
 	rc = piControlGetVariableInfo(&sPiVariable);
 	if (rc < 0) {
 		printf("Cannot find variable '%s'\n", pszVariableName);
@@ -569,7 +569,7 @@ void writeVariableValue(char *pszVariableName, uint32_t i32uValue)
 	uint8_t i8uValue;
 	uint16_t i16uValue;
 
-	strncpy(sPiVariable.strVarName, pszVariableName, sizeof(sPiVariable.strVarName));
+	snprintf(sPiVariable.strVarName, sizeof(sPiVariable.strVarName), "%s", pszVariableName);
 	rc = piControlGetVariableInfo(&sPiVariable);
 	if (rc < 0) {
 		printf("Cannot find variable '%s'\n", pszVariableName);
@@ -697,7 +697,7 @@ void showVariableInfo(char *pszVariableName)
 	int rc;
 	SPIVariable sPiVariable;
 
-	strncpy(sPiVariable.strVarName, pszVariableName, sizeof(sPiVariable.strVarName));
+	snprintf(sPiVariable.strVarName, sizeof(sPiVariable.strVarName), "%s", pszVariableName);
 	rc = piControlGetVariableInfo(&sPiVariable);
 	if (rc < 0) {
 		printf("Cannot read variable info\n");
@@ -888,7 +888,7 @@ int main(int argc, char *argv[])
 			}
 			pszTok = strtok(optarg, ",");
 			if (pszTok != NULL) {
-				strncpy(szVariableName, pszTok, sizeof(szVariableName));
+				snprintf(szVariableName, sizeof(((SPIVariable *)0)->strVarName), "%s", pszTok);
 				pszTok = strtok(NULL, ",");
 				if (pszTok != NULL) {
 					value = strtol(pszTok, NULL, 10);
