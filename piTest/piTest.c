@@ -923,11 +923,11 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 		{
-			int addr, channl, mode, x_val, y_val;
-			rc = sscanf(optarg, "%d,0x%x,0x%x,0x%x,0x%x",
+			unsigned int addr, channl, mode, x_val, y_val;
+			rc = sscanf(optarg, "%u,0x%x,0x%x,0x%x,0x%x",
 					&addr, &channl, &mode, &x_val, &y_val);
 			if (rc != 5) {
-				rc = sscanf(optarg, "%d,%d,%d,%d,%d",
+				rc = sscanf(optarg, "%u,%u,%u,%u,%u",
 					&addr, &channl, &mode, &x_val, &y_val);
 				if (rc != 5) {
 					printf("Wrong arguments to calibrate\n");
