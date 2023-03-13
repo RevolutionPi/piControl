@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include <piControl.h>
 #include <common_define.h>
 #include <IoProtocol.h>
 #include <linux/gpio/consumer.h>
@@ -85,7 +86,7 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
     INT8U *pi8uSendData_p, INT8U i8uSendDataLen_p,
     INT8U *pi8uRecvData_p, INT16U *pi16uRecvDataLen_p);
 
-INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p);
+int piIoComm_sendTelegram(SIOGeneric *msg);
 INT32S piIoComm_gotoGateProtocol(void);
 INT32S piIoComm_gotoFWUMode(int address);
 INT32S piIoComm_fwuSetSerNum(int address, INT32U serNum);

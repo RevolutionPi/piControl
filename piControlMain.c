@@ -1196,11 +1196,11 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		}
 
 		revpi_io_build_header(&req.uHeader, cali.address,
-			sizeof(SMioCalibrationRequestData), IOP_TYP1_CMD_DATA6);
-		req.sData.i8uCalibrationMode = cali.mode;
-		req.sData.i8uChannels = cali.channels;
-		req.sData.i8uPoint = cali.x_val;
-		req.sData.i16sCalibrationValue = cali.y_val;
+			sizeof(struct calibration_data), IOP_TYP1_CMD_DATA6);
+		req.sData.mode = cali.mode;
+		req.sData.channel = cali.channels;
+		req.sData.refPoint = cali.x_val;
+		req.sData.val = cali.y_val;
 		/*the crc calculation will be done by Tel sending*/
 
 		my_rt_mutex_lock(&piCore_g.lockUserTel);

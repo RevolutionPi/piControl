@@ -504,22 +504,19 @@ typedef struct {
 
 //-----------------------------------------------------------------------------
 // Request for Multi IO modules:
-typedef struct {
-	//bitfield: mode
-	INT8U i8uCalibrationMode;
-	//channels to calibrate
-	INT8U i8uChannels;
-	//specifies point in lookupTable
-	INT8U i8uPoint;
-	INT16S i16sCalibrationValue;
-} SMioCalibrationRequestData;
+struct calibration_data {		// IOP_TYP1_CMD_DATA6
+	u8 mode;
+	u8 channel;
+	u8 refPoint;
+	s16 val;
+} __attribute__((__packed__));
 
 typedef struct {
 	// IOP_TYP5_CMD_DATA6
 	UIoProtocolHeader uHeader;
-	SMioCalibrationRequestData sData;			/*  5 bytes */
+	struct calibration_data sData;				/*  5 bytes */
 	INT8U  i8uCrc;
-} SMioCalibrationRequest;
+} __attribute__((__packed__)) SMioCalibrationRequest;
 
 typedef struct {
 	//bitfield: 1=high, 0=low (when IoMode==1)

@@ -243,7 +243,7 @@ int RevPiDevice_run(void)
 
 	// if the user-ioctl want to send a telegram, do it now
 	if (test_bit(REVPI_CORE_FLAG_PENDING_TELEGRAM, &piCore_g.flags)) {
-		piCore_g.statusUserTel = piIoComm_sendTelegram(&piCore_g.requestUserTel, &piCore_g.responseUserTel);
+		piCore_g.statusUserTel = piIoComm_sendTelegram(&piCore_g.requestUserTel);
 		up(&piCore_g.semUserTel);
 	}
 
