@@ -1,18 +1,19 @@
 Source: picontrol
 Section: contrib/electronics
-Priority: extra
+Priority: optional
 Standards-Version: 3.9.8
-Build-Depends: debhelper (>= 9)
+Build-Depends: debhelper (>= 10)
 Maintainer: KUNBUS GmbH <support@kunbus.com>
-Homepage: https://revolution.kunbus.com/
-Vcs-Git: https://github.com/RevolutionPi/piControl
+Homepage: https://revolutionpi.com/
+Vcs-Browser: https://github.com/RevolutionPi/piControl
+Vcs-Git: https://github.com/RevolutionPi/piControl.git
 
 Package: pitest
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Revolution Pi command line utility
  Interact with the in-kernel piControl process to list I/O devices and
- gateway devices attached to a RevPi Core, read and write values in the
+ gateway devices attached to a RevPi device, read and write values in the
  process image and reset the piControl process.  Comes with full source
  code.  Revolution Pi is a set of IoT products based on the Raspberry Pi
  and geared towards industrial usage.
