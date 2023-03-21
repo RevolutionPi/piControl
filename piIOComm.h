@@ -40,8 +40,6 @@
 #define REV_PI_IO_TIMEOUT           10         // msec
 #define REV_PI_RECV_BUFFER_SIZE     100
 
-#define REV_PI_RECV_IO_HEADER_LEN	65530
-
 #define REV_PI_TTY_DEVICE           "/dev/ttyAMA0"
 #define REV_PI_TTY_DEVICE_CONNECT_4 "/dev/ttyAMA1"
 
@@ -86,7 +84,6 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
     INT8U *pi8uSendData_p, INT8U i8uSendDataLen_p,
     INT8U *pi8uRecvData_p, INT16U *pi16uRecvDataLen_p);
 
-INT32S piIoComm_sendTelegram(SIOGeneric * pRequest_p, SIOGeneric * pResponse_p);
 INT32S piIoComm_gotoGateProtocol(void);
 INT32S piIoComm_gotoFWUMode(int address);
 INT32S piIoComm_fwuSetSerNum(int address, INT32U serNum);
