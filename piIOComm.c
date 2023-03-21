@@ -307,7 +307,9 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 	ret = pibridge_req_gate_tmt(i8uAddress_p, i16uCmd_p, pi8uSendData_p,
 				    i8uSendDataLen_p, pi8uRecvData_p,
 				    rcvlen, timeout);
-	if (ret) {
+	if (ret != rcvlen) {
+		if (ret >= 0)
+			ret = -EIO;
 		pr_info_serial("Error sending gate request: %i\n", ret);
 		return ret;
 	}
