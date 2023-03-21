@@ -39,7 +39,9 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 
 	ret = pibridge_req_io(dev->i8uAddress, IOP_TYP1_CMD_DATA,
 			      &req, sizeof(req), &resp, sizeof(resp));
-	if (ret) {
+	if (ret != sizeof(resp)) {
+		if (ret > 0)
+			ret = -EIO;
 		pr_err_ratelimited("talk with mio for dio data error(addr:%d, "
 				   "ret:%d)\n", dev->i8uAddress, ret);
 		return ret;
@@ -63,7 +65,9 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 	ret = pibridge_req_io(dev->i8uAddress, IOP_TYP1_CMD_DATA2,
 			      req_data, sizeof(*req_data) - compressed,
 			      &resp, sizeof(resp));
-	if (ret) {
+	if (ret != sizeof(resp)) {
+		if (ret > 0)
+			ret = -EIO;
 		pr_err_ratelimited("talk with mio for aio data error(addr:%d, "
 				   "ret:%d)\n", dev->i8uAddress, ret);
 		return ret;
