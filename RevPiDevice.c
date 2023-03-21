@@ -32,6 +32,7 @@
 
 #include <linux/module.h>	// included for all kernel modules
 #include <linux/delay.h>
+#include <linux/pibridge_comm.h>
 
 #include <project.h>
 
@@ -243,7 +244,19 @@ int RevPiDevice_run(void)
 
 	// if the user-ioctl want to send a telegram, do it now
 	if (piCore_g.pendingUserTel == true) {
-		piCore_g.statusUserTel = piIoComm_sendTelegram(&piCore_g.requestUserTel, &piCore_g.responseUserTel);
+		SIOGeneric *req = &piCore_g.requestUserTel;
+		SIOGeneric *resp = &piCore_g.responseUserTel;
+		UIoProtocolHeader *hdr = &req->uHeader;
+		int ret;
+
+		ret = pibridge_req_io(hdr->sHeaderTyp1.bitAddress,
+				      hdr->sHeaderTyp1.bitCommand,
+				      req->ai8uData,
+				      hdr->sHeaderTyp1.bitLength,
+				      resp->ai8uData,
+				      sizeof(resp->ai8uData));
+
+		piCore_g.statusUserTel = ret > 0 ? 0 : ret;
 		piCore_g.pendingUserTel = false;
 		up(&piCore_g.semUserTel);
 	}
