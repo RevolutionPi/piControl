@@ -282,7 +282,7 @@ int PiBridgeMaster_Run(void)
 	static kbUT_Timer tTimeoutTimer_s;
 	static kbUT_Timer tConfigTimeoutTimer_s;
 	static int error_cnt;
-	static INT8U last_led;
+	static u16 last_led;
 	static unsigned long last_update;
 	int ret = 0;
 	int i;
@@ -830,17 +830,25 @@ int PiBridgeMaster_Run(void)
 	}
 	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();
 
-	revpi_led_trigger_event(last_led, piCore_g.image.usr.i8uLED);
+	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+		revpi_rgb_led_trigger_event(last_led, piCore_g.image.usr.rgb_leds);
+	} else {
+		revpi_led_trigger_event(last_led, piCore_g.image.usr.leds);
+	}
 	if (piDev_g.machine_type == REVPI_CONNECT ||
 	    piDev_g.machine_type == REVPI_CONNECT_SE) {
-		if ((last_led ^ piCore_g.image.usr.i8uLED) & PICONTROL_X2_DOUT) {
-			gpiod_set_value(piCore_g.gpio_x2do, (piCore_g.image.usr.i8uLED & PICONTROL_X2_DOUT) ? 1 : 0);
+		if ((last_led ^ piCore_g.image.usr.leds) & PICONTROL_X2_DOUT) {
+			gpiod_set_value(piCore_g.gpio_x2do, (piCore_g.image.usr.leds & PICONTROL_X2_DOUT) ? 1 : 0);
 		}
-		if ((last_led ^ piCore_g.image.usr.i8uLED) & PICONTROL_WD_TRIGGER) {
-			gpiod_set_value(piCore_g.gpio_wdtrigger, (piCore_g.image.usr.i8uLED & PICONTROL_WD_TRIGGER) ? 1 : 0);
+		if ((last_led ^ piCore_g.image.usr.leds) & PICONTROL_WD_TRIGGER) {
+			gpiod_set_value(piCore_g.gpio_wdtrigger, (piCore_g.image.usr.leds & PICONTROL_WD_TRIGGER) ? 1 : 0);
 		}
 	}
-	last_led = piCore_g.image.usr.i8uLED;
+	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+		last_led = piCore_g.image.usr.rgb_leds;
+	} else {
+		last_led = piCore_g.image.usr.leds;
+	}
 
 	// update every 1 sec
 	if ((kbUT_getCurrentMs() - last_update) > 1000) {
@@ -872,7 +880,10 @@ int PiBridgeMaster_Run(void)
 			pI2 = (SRevPiProcessImage *)p2;
 			my_rt_mutex_lock(&piDev_g.lockPI);
 			pI1->drv = pI2->drv;
-			pI2->usr = pI1->usr;
+			// The size of _SRevPiProcessImage.usr was 5 bytes before the field rgb_leds was introduced
+			// with Connect 4 and the size changed to 7 bytes. In order to maintain compatibility with existing deviecs,
+			// only the number of bytes defined in MODGATECOM_IDResp.i16uFBS_OutputLength is copied with memcpy.
+			memcpy(&pI2->usr, &pI1->usr, RevPiDevice_getDev(0)->sId.i16uFBS_OutputLength);
 			rt_mutex_unlock(&piDev_g.lockPI);
 		}
 	}

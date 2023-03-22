@@ -110,6 +110,12 @@ typedef struct spiControlDev {
 	struct led_trigger a4_red;
 	struct led_trigger a5_green;
 	struct led_trigger a5_red;
+	/* RevPi Connect 4 only */
+	struct led_trigger a1_blue;
+	struct led_trigger a2_blue;
+	struct led_trigger a3_blue;
+	struct led_trigger a4_blue;
+	struct led_trigger a5_blue;
 } tpiControlDev;
 
 typedef struct spiEventEntry {

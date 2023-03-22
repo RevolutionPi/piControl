@@ -233,6 +233,23 @@ typedef struct SConfigDataStr
 #define PICONTROL_LED_A4_RED                            0x0080
 #define PICONTROL_LED_A5_GREEN                          0x0100
 #define PICONTROL_LED_A5_RED                            0x0200
+/* RevPi Connect 4 only */
+#define PICONTROL_LED_RGB_A1_RED                        0x0001
+#define PICONTROL_LED_RGB_A1_GREEN                      0x0002
+#define PICONTROL_LED_RGB_A1_BLUE                       0x0004
+#define PICONTROL_LED_RGB_A2_RED                        0x0008
+#define PICONTROL_LED_RGB_A2_GREEN                      0x0010
+#define PICONTROL_LED_RGB_A2_BLUE                       0x0020
+#define PICONTROL_LED_RGB_A3_RED                        0x0040
+#define PICONTROL_LED_RGB_A3_GREEN                      0x0080
+#define PICONTROL_LED_RGB_A3_BLUE                       0x0100
+#define PICONTROL_LED_RGB_A4_RED                        0x0200
+#define PICONTROL_LED_RGB_A4_GREEN                      0x0400
+#define PICONTROL_LED_RGB_A4_BLUE                       0x0800
+#define PICONTROL_LED_RGB_A5_RED                        0x1000
+#define PICONTROL_LED_RGB_A5_GREEN                      0x2000
+#define PICONTROL_LED_RGB_A5_BLUE                       0x4000
+
 
 
 /******************************************************************************/
