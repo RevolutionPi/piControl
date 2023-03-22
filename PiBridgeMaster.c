@@ -821,7 +821,8 @@ int PiBridgeMaster_Run(void)
 
 	// set LEDs, Status and GPIOs
 	if (piDev_g.machine_type == REVPI_CONNECT ||
-	    piDev_g.machine_type == REVPI_CONNECT_SE) {
+	    piDev_g.machine_type == REVPI_CONNECT_SE ||
+	    piDev_g.machine_type == REVPI_CONNECT_4) {
 		if (gpiod_get_value_cansleep(piCore_g.gpio_x2di)) {
 			RevPiDevice_setStatus(0, PICONTROL_STATUS_X2_DIN);
 		} else {
