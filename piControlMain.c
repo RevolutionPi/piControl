@@ -119,14 +119,19 @@ tpiControlDev piDev_g = {
 	.power_red.name = "power_red",
 	.a1_green.name = "a1_green",
 	.a1_red.name = "a1_red",
+	.a1_blue.name = "a1_blue",
 	.a2_green.name = "a2_green",
 	.a2_red.name = "a2_red",
+	.a2_blue.name = "a2_blue",
 	.a3_green.name = "a3_green",
 	.a3_red.name = "a3_red",
+	.a3_blue.name = "a3_blue",
 	.a4_green.name = "a4_green",
 	.a4_red.name = "a4_red",
+	.a4_blue.name = "a4_blue",
 	.a5_green.name = "a5_green",
 	.a5_red.name = "a5_red",
+	.a5_blue.name = "a5_blue",
 };
 
 static dev_t piControlMajor;
@@ -272,20 +277,31 @@ static int __init piControlInit(void)
 	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_green)
 	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_red);
 
-	if ((piDev_g.machine_type == REVPI_CONNECT) ||
-	    (piDev_g.machine_type == REVPI_CONNECT_SE) ||
-	    (piDev_g.machine_type == REVPI_FLAT)) {
+	if (piDev_g.machine_type == REVPI_CONNECT ||
+	    piDev_g.machine_type == REVPI_CONNECT_SE ||
+	    piDev_g.machine_type == REVPI_CONNECT_4 ||
+	    piDev_g.machine_type == REVPI_FLAT) {
 		res = res
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a3_green)
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a3_red);
 	}
 
-	if (piDev_g.machine_type == REVPI_FLAT) {
+	if (piDev_g.machine_type == REVPI_FLAT ||
+	    piDev_g.machine_type == REVPI_CONNECT_4) {
 		res = res
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a4_green)
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a4_red)
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a5_green)
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a5_red);
+	}
+
+	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+		res = res
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_blue)
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_blue)
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a3_blue)
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a4_blue)
+		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a5_blue);
 	}
 
 	if (res) {
