@@ -14,6 +14,7 @@ enum revpi_power_led_mode {
 	REVPI_POWER_LED_ON_1000MS = 4,
 };
 
+void revpi_rgb_led_trigger_event(u16 led_prev, u16 led);
 void revpi_led_trigger_event(u16 led_prev, u16 led);
 void revpi_power_led_red_set(enum revpi_power_led_mode mode);
 void revpi_power_led_red_run(void);

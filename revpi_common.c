@@ -23,6 +23,64 @@
 
 #define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 
+void revpi_rgb_led_trigger_event(u16 led_prev, u16 led)
+{
+	u16 changed = led_prev ^ led;
+	if (changed == 0)
+		return;
+
+	// A1
+	if (changed & PICONTROL_LED_RGB_A1_RED) {
+		led_trigger_event(&piDev_g.a1_red, (led & PICONTROL_LED_RGB_A1_RED) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A1_GREEN) {
+		led_trigger_event(&piDev_g.a1_green, (led & PICONTROL_LED_RGB_A1_GREEN) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A1_BLUE) {
+		led_trigger_event(&piDev_g.a1_blue, (led & PICONTROL_LED_RGB_A1_BLUE) ? LED_FULL : LED_OFF);
+	}
+	// A2
+	if (changed & PICONTROL_LED_RGB_A2_RED) {
+		led_trigger_event(&piDev_g.a2_red, (led & PICONTROL_LED_RGB_A2_RED) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A2_GREEN) {
+		led_trigger_event(&piDev_g.a2_green, (led & PICONTROL_LED_RGB_A2_GREEN) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A2_BLUE) {
+		led_trigger_event(&piDev_g.a2_blue, (led & PICONTROL_LED_RGB_A2_BLUE) ? LED_FULL : LED_OFF);
+	}
+	// A3
+	if (changed & PICONTROL_LED_RGB_A3_RED) {
+		led_trigger_event(&piDev_g.a3_red, (led & PICONTROL_LED_RGB_A3_RED) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A3_GREEN) {
+		led_trigger_event(&piDev_g.a3_green, (led & PICONTROL_LED_RGB_A3_GREEN) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A3_BLUE) {
+		led_trigger_event(&piDev_g.a3_blue, (led & PICONTROL_LED_RGB_A3_BLUE) ? LED_FULL : LED_OFF);
+	}
+	// A4
+	if (changed & PICONTROL_LED_RGB_A4_RED) {
+		led_trigger_event(&piDev_g.a4_red, (led & PICONTROL_LED_RGB_A4_RED) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A4_GREEN) {
+		led_trigger_event(&piDev_g.a4_green, (led & PICONTROL_LED_RGB_A4_GREEN) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A4_BLUE) {
+		led_trigger_event(&piDev_g.a4_blue, (led & PICONTROL_LED_RGB_A4_BLUE) ? LED_FULL : LED_OFF);
+	}
+	// A5
+	if (changed & PICONTROL_LED_RGB_A5_RED) {
+		led_trigger_event(&piDev_g.a5_red, (led & PICONTROL_LED_RGB_A5_RED) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A5_GREEN) {
+		led_trigger_event(&piDev_g.a5_green, (led & PICONTROL_LED_RGB_A5_GREEN) ? LED_FULL : LED_OFF);
+	}
+	if (changed & PICONTROL_LED_RGB_A5_BLUE) {
+		led_trigger_event(&piDev_g.a5_blue, (led & PICONTROL_LED_RGB_A5_BLUE) ? LED_FULL : LED_OFF);
+	}
+}
+
 void revpi_led_trigger_event(u16 led_prev, u16 led)
 {
 	u16 changed = led_prev ^ led;
