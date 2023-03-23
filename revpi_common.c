@@ -43,6 +43,7 @@ void revpi_led_trigger_event(u16 led_prev, u16 led)
 	}
 
 	if ((piDev_g.machine_type == REVPI_CONNECT) ||
+	    (piDev_g.machine_type == REVPI_CONNECT_SE) ||
 	    (piDev_g.machine_type == REVPI_FLAT)) {
 		if (changed & PICONTROL_LED_A3_GREEN) {
 			led_trigger_event(&piDev_g.a3_green, (led & PICONTROL_LED_A3_GREEN) ? LED_FULL : LED_OFF);
