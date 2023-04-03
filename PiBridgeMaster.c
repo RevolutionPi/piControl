@@ -283,6 +283,7 @@ int PiBridgeMaster_Run(void)
 	static kbUT_Timer tConfigTimeoutTimer_s;
 	static int error_cnt;
 	static u16 last_led;
+	static u8 last_output;
 	static unsigned long last_update;
 	int ret = 0;
 	int i;
@@ -846,7 +847,13 @@ int PiBridgeMaster_Run(void)
 		}
 	}
 	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+		if ((last_output ^ piCore_g.image.usr.outputs) & PICONTROL_X2_DOUT_CONNECT4) {
+			gpiod_set_value(piCore_g.gpio_x2do, (piCore_g.image.usr.outputs & PICONTROL_X2_DOUT_CONNECT4) ? 1 : 0);
+		}
+	}
+	if (piDev_g.machine_type == REVPI_CONNECT_4) {
 		last_led = piCore_g.image.usr.rgb_leds;
+		last_output = piCore_g.image.usr.outputs;
 	} else {
 		last_led = piCore_g.image.usr.leds;
 	}
