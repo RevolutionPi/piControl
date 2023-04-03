@@ -227,6 +227,7 @@ typedef struct SConfigDataStr
 #define PICONTROL_LED_A3_RED                            0x0020
 /* RevPi Connect only */
 #define PICONTROL_X2_DOUT                               0x0040
+#define PICONTROL_X2_DOUT_CONNECT4                      0x0001
 #define PICONTROL_WD_TRIGGER                            0x0080
 /* Revpi Flat only */
 #define PICONTROL_LED_A4_GREEN                          0x0040
