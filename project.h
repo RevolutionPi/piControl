@@ -92,7 +92,14 @@
 #define DEBUG_DEVICE_IO
 
 #define RT_PRIO_UART    39
-#define RT_PRIO_BRIDGE  38
+/*
+ * The priority has to be at least 54 (same as SPI thread), otherwise lots
+ * of UART reception errors are observed. The reason for this effect is not
+ * yet completely clear, presumably the UART has to switch as quickly as
+ * possible from data transmission to data reception to avoid errors during
+ * piBridge communication.
+*/
+#define RT_PRIO_BRIDGE  54
 #define RT_PRIO_GATE    37
 
 #ifdef DEBUG_SERIALCOMM
