@@ -355,9 +355,11 @@ static int pibridge_probe(struct platform_device *pdev)
 	}
 
 	/* run thread */
-	ret = set_kthread_prios(revpi_core_kthread_prios);
-	if (ret)
-		goto err_release_fw;
+	if (piDev_g.revpi_gate_supported) {
+		ret = set_kthread_prios(revpi_core_kthread_prios);
+		if (ret)
+			goto err_release_fw;
+	}
 
 	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piControl I/O");
 	if (IS_ERR(piCore_g.pIoThread)) {
