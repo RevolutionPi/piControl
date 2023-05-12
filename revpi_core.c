@@ -360,9 +360,11 @@ static int pibridge_probe(struct platform_device *pdev)
 		goto err_release_fw;
 	}
 	/* run threads */
-	ret = set_kthread_prios(revpi_core_kthread_prios);
-	if (ret)
-		goto err_close_serial;
+	if (piDev_g.revpi_gate_supported) {
+		ret = set_kthread_prios(revpi_core_kthread_prios);
+		if (ret)
+			goto err_close_serial;
+	}
 
 	piCore_g.pUartThread = kthread_run(&UartThreadProc, (void *)NULL, "piControl Uart");
 	if (IS_ERR(piCore_g.pUartThread)) {
