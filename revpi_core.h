@@ -33,7 +33,7 @@ typedef enum {
 	piBridgeDummy = 99	// dummy value to force update of led state
 } enPiBridgeState;
 
-typedef struct _SRevPiCoreImage {
+typedef struct _SRevPiProcessImage {
 	struct {
 		u8 i8uStatus;
 		u8 i8uIOCycle;
@@ -46,10 +46,10 @@ typedef struct _SRevPiCoreImage {
 		u16 i16uRS485ErrorLimit1;
 		u16 i16uRS485ErrorLimit2;
 	} __attribute__ ((__packed__)) usr;	// 5 bytes
-} __attribute__ ((__packed__)) SRevPiCoreImage;
+} __attribute__ ((__packed__)) SRevPiProcessImage;
 
 typedef struct _SRevPiCore {
-	SRevPiCoreImage image;
+	SRevPiProcessImage image;
 	struct rpi_firmware *fw;
 
 	// piGate stuff
