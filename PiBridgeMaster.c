@@ -865,11 +865,11 @@ int PiBridgeMaster_Run(void)
 		//flip_process_image(&piCore_g.image, RevPiDevice_getCoreOffset());
 		if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 			INT8U *p1, *p2;
-			SRevPiCoreImage *pI1, *pI2;
+			SRevPiProcessImage *pI1, *pI2;
 			p1 = piDev_g.ai8uPI + RevPiDevice_getCoreOffset();
 			p2 = (INT8U *)&piCore_g.image;
-			pI1 = (SRevPiCoreImage *)p1;
-			pI2 = (SRevPiCoreImage *)p2;
+			pI1 = (SRevPiProcessImage *)p1;
+			pI2 = (SRevPiProcessImage *)p2;
 			my_rt_mutex_lock(&piDev_g.lockPI);
 			pI1->drv = pI2->drv;
 			pI2->usr = pI1->usr;
