@@ -429,8 +429,7 @@ void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
 
 void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p)
 {
-	if (piDev_g.machine_type == REVPI_CORE ||
-	    piDev_g.machine_type == REVPI_CORE_SE) {
+	if (!piDev_g.only_left_pibridge) {
 		piIoComm_writeSniff(piCore_g.gpio_sniff1b, eVal_p, eMode_p);
 #ifdef DEBUG_GPIO
 		pr_info("sniff1B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
@@ -448,8 +447,7 @@ void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p)
 
 void piIoComm_writeSniff2B(EGpioValue eVal_p, EGpioMode eMode_p)
 {
-	if (piDev_g.machine_type == REVPI_CORE ||
-	    piDev_g.machine_type == REVPI_CORE_SE) {
+	if (!piDev_g.only_left_pibridge) {
 		piIoComm_writeSniff(piCore_g.gpio_sniff2b, eVal_p, eMode_p);
 #ifdef DEBUG_GPIO
 		pr_info("sniff2B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
@@ -478,8 +476,7 @@ EGpioValue piIoComm_readSniff1A()
 
 EGpioValue piIoComm_readSniff1B()
 {
-	if (piDev_g.machine_type == REVPI_CORE ||
-	    piDev_g.machine_type == REVPI_CORE_SE) {
+	if (!piDev_g.only_left_pibridge) {
 		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1b);
 #ifdef DEBUG_GPIO
 		pr_info("sniff1B: input value %d\n", (int)v);
@@ -500,8 +497,7 @@ EGpioValue piIoComm_readSniff2A()
 
 EGpioValue piIoComm_readSniff2B()
 {
-	if (piDev_g.machine_type == REVPI_CORE ||
-	    piDev_g.machine_type == REVPI_CORE_SE) {
+	if (!piDev_g.only_left_pibridge) {
 		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2b);
 #ifdef DEBUG_GPIO
 		pr_info("sniff2B: input value %d\n", (int)v);
