@@ -4,6 +4,8 @@ piControl is a kernel module for interfacing with RevPi hardware. It provides a 
 
 ## Usage
 
+**NOTE**: Building the master branch requires a Linux kernel with support for the pibridge serdev driver (i.e. [revpi-6.1](https://github.com/RevolutionPi/linux/commits/devel/revpi-6.1)). The branch [`revpi-5.10`](https://github.com/RevolutionPi/linux/commits/revpi-5.10) does not require support for this and can be built against an earlier kernel version of the RevolutionPi kernel.
+
 ## Build the module
 
 All the following steps need to be executed on a RevPi device running the official image. It is also possible to compile the module on another system, but the instructions may vary.
