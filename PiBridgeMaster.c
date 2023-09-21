@@ -314,7 +314,17 @@ int PiBridgeMaster_Run(void)
 				piIoComm_writeSniff2A(enGpioValue_High, enGpioMode_Output);
 				piIoComm_writeSniff2B(enGpioValue_High, enGpioMode_Output);
 
-				usleep_range(9000, 9000);
+				/*
+				 * This delay defines the length of the high
+				 * pulse at the begin of the present signaling.
+				 * The module (at least the DIO module) expects
+				 * this pulse to be between 7.5 and 9.5 ms.
+				 * Pushing the delay to the upper limit might
+				 * cause issues. It might take some time to
+				 * switch the pin. Especially on devices which
+				 * use an io expander like the Connect 4.
+				 */
+				usleep_range(8500, 8500);
 
 				piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
 				piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
