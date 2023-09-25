@@ -10,6 +10,7 @@
 
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include "revpi_common.h"
 #include "revpi_core.h"
@@ -249,6 +250,16 @@ static int init_sniff_gpios(struct platform_device *pdev)
 		piCore_g.gpio_sniff1b = descs->desc[0];
 		piCore_g.gpio_sniff2b = descs->desc[1];
 	}
+
+	/*
+	 * The Sniff2A pin has no external pull-down. It can happen that the pin
+	 * keeps its capacity for a longer time after the pin has been driven high.
+	 * Thus we might detect a module even if none is connected. Configure a
+	 * pull-down on the pin to drain any capacity.
+	 */
+	gpiod_set_config(
+		piCore_g.gpio_sniff2a,
+		pinconf_to_config_packed(PIN_CONFIG_BIAS_PULL_DOWN, 0));
 
 	return 0;
 }
