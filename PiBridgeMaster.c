@@ -295,6 +295,18 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_info_master("Enter Init State\n");
 				bEntering_s = bFALSE;
+
+				/*
+				 * The Sniff2A pin has no external pull-down. It
+				 * can happen that the pin keeps its capacity
+				 * for a longer time after the pin has been
+				 * driven high. Thus we might detect a module
+				 * even if none is connected.
+				 * Configure a pull-down on the pin to drain any
+				 * capacity.
+				 */
+				gpiod_set_config(piCore_g.gpio_sniff2a, PIN_CONFIG_BIAS_PULL_DOWN);
+
 				// configure PiBridge Sniff lines as input
 				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
 				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
