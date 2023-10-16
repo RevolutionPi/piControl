@@ -319,11 +319,13 @@ u32 piAIOComm_sendCyclicTelegram(u8 devnum)
 	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA, snd_buf,
 			      AIO_OUTPUT_DATA_LEN, rcv_buf, AIO_INPUT_DATA_LEN);
 	if (ret != AIO_INPUT_DATA_LEN) {
-		if (ret > 0)
+		pr_warn_ratelimited("AIO addr %2d: communication failed (req:%zu,ret:%d)\n",
+			addr, AIO_INPUT_DATA_LEN, ret);
+
+		if (ret >= 0)
 			ret = -EIO;
-		pr_warn_ratelimited("addr %2d: io communication failed with AIO %d\n",
-			addr, ret);
-		return 1;
+
+		return ret;
 	}
 
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {

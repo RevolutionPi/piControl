@@ -208,11 +208,13 @@ INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
 
 	ret = pibridge_req_io(addr, cmd, snd_buf, snd_len, in_buf, rcv_len);
 	if (ret != rcv_len) {
-		if (ret > 0)
+		pr_warn_ratelimited("DIO addr %2d: communication failed (req:%u,ret:%d)\n",
+			addr, rcv_len, ret);
+
+		if (ret >= 0)
 			ret = -EIO;
-		pr_warn_ratelimited("addr %2d: io communication failed %d\n",
-			addr, ret);
-		return 1;
+
+		return ret;
 	}
 
 	memcpy(&data_in[0], in_buf, 3 * sizeof(u16));
