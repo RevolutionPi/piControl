@@ -45,7 +45,8 @@
 #define IOP_TYP1_CMD_DATA4      4
 #define IOP_TYP1_CMD_DATA5      5
 #define IOP_TYP1_CMD_DATA6      6
-#define IOP_TYP1_CMD_DATA7      7
+/* Only used in a response from a RevPi module */
+#define IOP_TYP1_CMD_ERR	7
 
 #define IOP_TYP2_CMD_UNDEF0                    0
 #define IOP_TYP2_CMD_UNDEF1                    1
