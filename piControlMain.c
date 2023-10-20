@@ -1335,8 +1335,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 							cnt++;
 							// update only one device per call
 							break;
-						} else {
-							status = cnt;
+						} else if (ret == -EOPNOTSUPP) {
+							status = 0;
 						}
 					}
 				}
