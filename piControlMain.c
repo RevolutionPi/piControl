@@ -1059,7 +1059,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EINVAL;
 			}
 
-			if (piDev_g.cl == 0 || piDev_g.cl->ent == 0 || piDev_g.cl->i16uNumEntries == 0)
+			if (piDev_g.cl == 0 || piDev_g.cl->i16uNumEntries == 0)
 				return 0;	// nothing to do
 
 			status = 0;
