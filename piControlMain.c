@@ -1054,7 +1054,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (!isRunning())
 				return -EFAULT;
 
-			if (file == 0 || usr_addr == 0) {
+			if (usr_addr == 0) {
 				pr_info("piControlIoctl: illegal parameter\n");
 				return -EINVAL;
 			}
