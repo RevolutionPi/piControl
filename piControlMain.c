@@ -1328,16 +1328,14 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					// -> update all others
 					pr_info("skip %d addr %d\n", i, RevPiDevice_getDev(i)->i8uAddress);
 				} else {
-					if (RevPiDevice_getDev(i)->sId.i16uModulType < PICONTROL_SW_OFFSET) {
-						ret = FWU_update(priv, RevPiDevice_getDev(i));
-						pr_info("update %d addr %d ret %d\n", i, RevPiDevice_getDev(i)->i8uAddress, ret);
-						if (ret > 0) {
-							cnt++;
-							// update only one device per call
-							break;
-						} else if (ret == -EOPNOTSUPP) {
-							status = 0;
-						}
+					ret = FWU_update(priv, RevPiDevice_getDev(i));
+					pr_info("update %d addr %d ret %d\n", i, RevPiDevice_getDev(i)->i8uAddress, ret);
+					if (ret > 0) {
+						cnt++;
+						// update only one device per call
+						break;
+					} else if (ret == -EOPNOTSUPP) {
+						status = 0;
 					}
 				}
 			}
