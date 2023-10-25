@@ -1319,6 +1319,10 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 						break;
 					} else if (ret == -EOPNOTSUPP) {
 						status = 0;
+					} else if (ret < 0) {
+						/* firmware update failed, return error code to user space  */
+						status = ret;
+						break;
 					}
 				}
 			}
