@@ -48,6 +48,7 @@
 #include <piDIOComm.h>
 #include <piAIOComm.h>
 #include <revpi_mio.h>
+#include <revpi_ro.h>
 #include "process_image.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
@@ -534,6 +535,22 @@ int PiBridgeMaster_Run(void)
 					case KUNBUS_FW_DESCR_TYP_PI_MIO:
 						revpi_pbm_cont_mio(i);
 						break;
+					case KUNBUS_FW_DESCR_TYP_PI_RO:
+						ret = revpi_ro_init(i);
+						pr_info("revpi_ro_init(%d) done %d\n",
+							RevPiDevice_getDev(i)->i8uAddress, ret);
+						if (ret != 0) {
+							// init failed -> deactivate module
+							if (ret == 4) {
+								pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
+									RevPiDevice_getDev(i)->i8uAddress);
+							} else {
+								pr_err("piAIOComm_Init(%d) failed, error %d\n",
+									RevPiDevice_getDev(i)->i8uAddress, ret);
+							}
+							RevPiDevice_getDev(i)->i8uActive = 0;
+						}
+						break;
 					}
 				}
 			}
@@ -647,6 +664,22 @@ int PiBridgeMaster_Run(void)
 							ret = revpi_mio_init(i);
 							if(ret) {
 								pr_err("mio init failed in status-EndConfig(ret:%d)\n", ret);
+								RevPiDevice_getDev(i)->i8uActive = 0;
+							}
+							break;
+						case KUNBUS_FW_DESCR_TYP_PI_RO:
+							ret = revpi_ro_init(i);
+							pr_info("revpi_ro_init(%d) done %d\n",
+								RevPiDevice_getDev(i)->i8uAddress, ret);
+							if (ret != 0) {
+								// init failed -> deactivate module
+								if (ret == 4) {
+									pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
+										RevPiDevice_getDev(i)->i8uAddress);
+								} else {
+									pr_err("piAIOComm_Init(%d) failed, error %d\n",
+										RevPiDevice_getDev(i)->i8uAddress, ret);
+								}
 								RevPiDevice_getDev(i)->i8uActive = 0;
 							}
 							break;

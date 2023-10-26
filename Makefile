@@ -21,6 +21,7 @@ piControl-objs += revpi_gate.o
 piControl-objs += revpi_flat.o
 piControl-objs += pt100.o
 piControl-objs += revpi_mio.o
+piControl-objs += revpi_ro.o
 
 ccflags-y := -O2
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT

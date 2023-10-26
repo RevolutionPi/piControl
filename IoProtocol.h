@@ -593,5 +593,84 @@ typedef struct {
 	INT8U  i8uCrc;
 } SMioAnalogResponse;
 
+
+//-----------------------------------------------------------------------------
+// ----------------- RO modules -------------------------------------
+//-----------------------------------------------------------------------------
+
+enum revpi_ro_num {
+	RELAY_1 = 0,
+	RELAY_2,
+	RELAY_3,
+	RELAY_4,
+	REVPI_RO_NUM_RELAYS,
+};
+
+#define REVPI_RO_RELAY_1_BIT 	(1 << RELAY_1)
+#define REVPI_RO_RELAY_2_BIT 	(1 << RELAY_2)
+#define REVPI_RO_RELAY_3_BIT 	(1 << RELAY_3)
+#define REVPI_RO_RELAY_4_BIT 	(1 << RELAY_4)
+
+/* Initial configuration request data */
+struct revpi_ro_config {
+	uint32_t thresh[REVPI_RO_NUM_RELAYS];
+} __attribute__((__packed__));
+
+/* Cyclic request data */
+struct revpi_ro_target_state {
+	/* Bitmask, 1 for active (closed), 0 for inactive (open) relais */
+	uint8_t mask;
+	uint8_t resv;
+} __attribute__((__packed__));
+
+/* Cyclic response data */
+struct revpi_ro_status {
+	/* Bitmask, 1 for pending warning */
+	uint8_t relays_warning;
+	uint8_t resv;
+} __attribute__((__packed__));
+
+/* Asynchronous response data */
+struct revpi_ro_counters {
+	uint32_t count[REVPI_RO_NUM_RELAYS];
+} __attribute__((__packed__));
+
+/* requests and responses */
+struct revpi_ro_config_request {
+	UIoProtocolHeader hdr;
+	struct revpi_ro_config config;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+struct revpi_ro_config_response {
+	UIoProtocolHeader hdr;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+struct revpi_ro_target_state_request {
+	UIoProtocolHeader hdr;
+	struct revpi_ro_target_state target_state;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+struct revpi_ro_status_response {
+	UIoProtocolHeader hdr;
+	struct revpi_ro_status status;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+/* Asynchronouse telegram */
+struct revpi_ro_counters_request { // IOP_TYP1_CMD_DATA2
+	UIoProtocolHeader hdr;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+struct revpi_ro_counters_response {
+	UIoProtocolHeader hdr;
+	struct revpi_ro_counters counters;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+
 #pragma pack(pop)
 #endif // IOPROTOCOL_H_INC
