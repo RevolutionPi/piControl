@@ -47,6 +47,7 @@
 /******************************************************************************/
 #ifndef WIN32
 #include <linux/ioctl.h>
+#include <linux/types.h>
 #endif //WIN32
 
 //#include <stdint.h>
@@ -111,6 +112,7 @@
 #define  KB_SET_OUTPUT_WATCHDOG             _IO(KB_IOC_MAGIC, 26 )  // activate a watchdog for this handle. If write is not called for a given period all outputs are set to 0
 #define  KB_SET_POS                         _IO(KB_IOC_MAGIC, 27 )  // set the f_pos, the unsigned int * is used to interpret the pos value
 #define  KB_AIO_CALIBRATE                   _IO(KB_IOC_MAGIC, 28 )
+#define  KB_RO_GET_COUNTER		    _IO(KB_IOC_MAGIC, 29 )
 
 #define  KB_WAIT_FOR_EVENT                  _IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET                     1       // piControl was reset, reload configuration
@@ -209,6 +211,14 @@ enum revpi_ro_num {
 	RELAY_4,
 	REVPI_RO_NUM_RELAYS,
 };
+
+/* Data for KB_RO_GET_COUNTER ioctl */
+struct revpi_ro_ioctl_counters {
+	/* Address of module in current configuration, set by userspace. */
+	__u8 addr;
+	/* Data returned from kernel */
+	__u32 counter[REVPI_RO_NUM_RELAYS];
+} __attribute__((__packed__));
 
 #define REVPI_RO_RELAY_1_BIT 	BIT(0)
 #define REVPI_RO_RELAY_2_BIT 	BIT(1)

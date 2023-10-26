@@ -1169,6 +1169,67 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			rt_mutex_unlock(&piCore_g.lockUserTel);
 		}
 		break;
+	case KB_RO_GET_COUNTER:
+		{
+			struct revpi_ro_ioctl_counters __user *ioctl_get_counters;
+			UIoProtocolHeader *hdr;
+			SDevice *sdev;
+			u8 addr;
+			int i;
+
+			if (!piDev_g.pibridge_supported)
+				return -EOPNOTSUPP;
+
+			if (!isRunning())
+				return -EIO;
+
+			ioctl_get_counters = (struct revpi_ro_ioctl_counters __user *) usr_addr;
+
+			/* copy device address */
+			if (copy_from_user(&addr, &ioctl_get_counters->addr,
+					   sizeof(addr))) {
+				pr_err("failed to copy device address from user\n");
+				return -EFAULT;
+			}
+
+			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+				sdev = RevPiDevice_getDev(i);
+
+				if ((sdev->i8uAddress == addr) &&
+				    sdev->i8uActive &&
+				    (sdev->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_RO))
+					break;
+			}
+
+			if (i == RevPiDevice_getDevCnt()) {
+				pr_err("Getting relay counters failed: device 0x%02x not found\n",
+				       addr);
+				return -EINVAL;
+			}
+
+			hdr = &piCore_g.requestUserTel.uHeader;
+
+			my_rt_mutex_lock(&piCore_g.lockUserTel);
+			hdr->sHeaderTyp1.bitAddress = addr;
+			hdr->sHeaderTyp1.bitIoHeaderType = 0;
+			hdr->sHeaderTyp1.bitReqResp = 0;
+			hdr->sHeaderTyp1.bitLength = 0;
+			hdr->sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA2;
+			piCore_g.pendingUserTel = true;
+			down(&piCore_g.semUserTel);
+			status = piCore_g.statusUserTel;
+
+			if (status) {
+				pr_err("Getting relay counters failed: %d\n", status);
+			} else {
+				if (copy_to_user(ioctl_get_counters->counter,
+						 &piCore_g.responseUserTel.ai8uData,
+						 sizeof(ioctl_get_counters->counter)))
+					status = -EFAULT;
+			}
+			rt_mutex_unlock(&piCore_g.lockUserTel);
+		}
+		break;
 	case KB_AIO_CALIBRATE:
 	{
 		int i;
