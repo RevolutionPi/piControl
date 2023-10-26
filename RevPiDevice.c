@@ -187,6 +187,54 @@ void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval)
 	}
 }
 
+
+static int send_pending_user_telegram(void)
+{
+	SIOGeneric *req = &piCore_g.requestUserTel;
+	SIOGeneric *resp = &piCore_g.responseUserTel;
+	UIoProtocolHeader *sndhdr = &req->uHeader;
+	UIoProtocolHeader rcvhdr;
+	int ret;
+
+	ret = pibridge_req_send_io(sndhdr->sHeaderTyp1.bitAddress,
+				   sndhdr->sHeaderTyp1.bitCommand,
+				   req->ai8uData,
+				   sndhdr->sHeaderTyp1.bitLength);
+	if (ret < 0) {
+		pr_err("Failed to send User Telegram: %d\n", ret);
+		return ret;
+	}
+
+	ret = pibridge_recv(&rcvhdr, sizeof(rcvhdr));
+	if (ret != sizeof(rcvhdr)) {
+		pr_err("Failed to receive User Telegram response header\n");
+		return ret;
+	}
+
+	ret = pibridge_recv(resp->ai8uData, sizeof(resp->ai8uData));
+	if (ret < 0) {
+		pr_err("Failed to receive User Telegram response data: %i\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void handle_pending_user_telegram(void)
+{
+	int ret;
+
+	if (piCore_g.pendingUserTel == false)
+		return;
+
+	ret = send_pending_user_telegram();
+
+	piCore_g.statusUserTel = ret > 0 ? 0 : ret;
+	piCore_g.pendingUserTel = false;
+	up(&piCore_g.semUserTel);
+}
+
+
 //*************************************************************************************************
 //| Function: RevPiDevice_run
 //|
@@ -264,24 +312,7 @@ int RevPiDevice_run(void)
 		}
 	}
 
-	// if the user-ioctl want to send a telegram, do it now
-	if (piCore_g.pendingUserTel == true) {
-		SIOGeneric *req = &piCore_g.requestUserTel;
-		SIOGeneric *resp = &piCore_g.responseUserTel;
-		UIoProtocolHeader *hdr = &req->uHeader;
-		int ret;
-
-		ret = pibridge_req_io(hdr->sHeaderTyp1.bitAddress,
-				      hdr->sHeaderTyp1.bitCommand,
-				      req->ai8uData,
-				      hdr->sHeaderTyp1.bitLength,
-				      resp->ai8uData,
-				      sizeof(resp->ai8uData));
-
-		piCore_g.statusUserTel = ret > 0 ? 0 : ret;
-		piCore_g.pendingUserTel = false;
-		up(&piCore_g.semUserTel);
-	}
+	handle_pending_user_telegram();
 
 	return retval;
 }
