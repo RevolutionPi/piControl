@@ -1161,12 +1161,71 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			my_rt_mutex_lock(&piCore_g.lockUserTel);
 			memcpy(&piCore_g.requestUserTel, &tel, sizeof(tel));
-
 			piCore_g.pendingUserTel = true;
 			down(&piCore_g.semUserTel);
 			status = piCore_g.statusUserTel;
-			pr_info("piControlIoctl: resetCounter result %d", status);
 			rt_mutex_unlock(&piCore_g.lockUserTel);
+		}
+		break;
+	case KB_RO_GET_COUNTER:
+		{
+			struct revpi_ro_counters_request tel;
+			SROGetCounters __user *usr_cmd_get_counters;
+			SDevice *sdev;
+			uint8_t addr;
+			int i;
+
+			if (!piDev_g.pibridge_supported)
+				return -EPERM;
+
+			if (!isRunning())
+				return -EFAULT;
+
+			/* copy device address */
+			if (copy_from_user(&addr, (const void __user *) usr_addr,
+					   sizeof(addr))) {
+				pr_err("failed to copy device address from user\n");
+				return -EFAULT;
+			}
+
+			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+				sdev = RevPiDevice_getDev(i);
+
+				if ((sdev->i8uAddress == addr) &&
+				    sdev->i8uActive &&
+				    (sdev->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_RO))
+					break;
+			}
+
+			if (i == RevPiDevice_getDevCnt()) {
+				pr_info("%s: get relay counters failed: device 0x%02x not found\n",
+					__func__, addr);
+				return -EINVAL;
+			}
+
+			tel.hdr.sHeaderTyp1.bitAddress = addr;
+			tel.hdr.sHeaderTyp1.bitIoHeaderType = 0;
+			tel.hdr.sHeaderTyp1.bitReqResp = 0;
+			tel.hdr.sHeaderTyp1.bitLength = 0;
+			tel.hdr.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA2;
+
+			my_rt_mutex_lock(&piCore_g.lockUserTel);
+			memcpy(&piCore_g.requestUserTel, &tel, sizeof(tel));
+			piCore_g.pendingUserTel = true;
+			down(&piCore_g.semUserTel);
+			status = piCore_g.statusUserTel;
+			rt_mutex_unlock(&piCore_g.lockUserTel);
+
+			if (status == 0) {
+				usr_cmd_get_counters = (SROGetCounters __user *) usr_addr;
+
+				if (copy_to_user(usr_cmd_get_counters->counter,
+						 &piCore_g.responseUserTel.ai8uData,
+						 sizeof(usr_cmd_get_counters->counter))) {
+					status = -EFAULT;
+					break;
+				}
+			}
 		}
 		break;
 	case KB_AIO_CALIBRATE:
