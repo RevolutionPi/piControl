@@ -46,6 +46,7 @@
 #include <piDIOComm.h>
 #include <piAIOComm.h>
 #include <revpi_mio.h>
+#include <revpi_ro.h>
 #include <revpi_compact.h>
 #include <revpi_flat.h>
 
@@ -933,6 +934,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	piDIOComm_InitStart();
 	piAIOComm_InitStart();
 	revpi_mio_reset();
+	revpi_ro_reset();
 
 	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
 		pr_info_config("device %d typ %d has %d entries. Offsets: Base=%3d"
@@ -959,6 +961,11 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_MIO:
 			revpi_mio_config((*devs)->dev[i].i8uAddress,
+				(*devs)->dev[i].i16uEntries,
+				&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_RO:
+			revpi_ro_config((*devs)->dev[i].i8uAddress,
 				(*devs)->dev[i].i16uEntries,
 				&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;

@@ -34,6 +34,7 @@
 #define IOPROTOCOL_H_INC
 
 #include <common_define.h>
+#include "piControl.h"
 
 #define IOPROTOCOL_MAXDATA_LENGTH 32
 #define IOPROTOCOL_HEADER_LENGTH 2
@@ -592,6 +593,70 @@ typedef struct {
 	SMioAnalogResponseData sData;				/* 17 bytes */
 	INT8U  i8uCrc;
 } SMioAnalogResponse;
+
+
+//-----------------------------------------------------------------------------
+// ----------------- RO modules -------------------------------------
+//-----------------------------------------------------------------------------
+
+/* Initial configuration request data */
+struct revpi_ro_config {
+	uint32_t thresh[REVPI_RO_NUM_RELAYS];
+} __attribute__((__packed__));
+
+/* Cyclic request data */
+struct revpi_ro_target_state {
+	/* Bitmask, 1 for active (closed), 0 for inactive (open) relais */
+	uint8_t mask;
+} __attribute__((__packed__));
+
+/* Cyclic response data */
+struct revpi_ro_status {
+	/* Bitmask, 1 for pending warning */
+	uint8_t relays_warning;
+} __attribute__((__packed__));
+
+/* Asynchronous response data */
+struct revpi_ro_counters {
+	uint32_t count[REVPI_RO_NUM_RELAYS];
+} __attribute__((__packed__));
+
+/* requests and responses */
+struct revpi_ro_config_request { // IOP_TYP1_CMD_CFG
+	UIoProtocolHeader hdr;
+	struct revpi_ro_config config;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+struct revpi_ro_config_response {
+	UIoProtocolHeader hdr;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+struct revpi_ro_target_state_request { // IOP_TYP1_CMD_DATA
+	UIoProtocolHeader hdr;
+	struct revpi_ro_target_state target_state;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+struct revpi_ro_status_response {
+	UIoProtocolHeader hdr;
+	struct revpi_ro_status status;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+/* Asynchronous telegram */
+struct revpi_ro_counters_request { // IOP_TYP1_CMD_DATA2
+	UIoProtocolHeader hdr;
+	uint8_t crc;
+} __attribute__((__packed__));
+
+struct revpi_ro_counters_response {
+	UIoProtocolHeader hdr;
+	struct revpi_ro_counters counters;
+	uint8_t crc;
+} __attribute__((__packed__));
+
 
 #pragma pack(pop)
 #endif // IOPROTOCOL_H_INC

@@ -202,6 +202,19 @@ typedef struct SConfigDataStr
     char        acData[CONFIG_DATA_SIZE];
 } SConfigData;
 
+enum revpi_ro_num {
+	RELAY_1 = 0,
+	RELAY_2,
+	RELAY_3,
+	RELAY_4,
+	REVPI_RO_NUM_RELAYS,
+};
+
+#define REVPI_RO_RELAY_1_BIT 	BIT(0)
+#define REVPI_RO_RELAY_2_BIT 	BIT(1)
+#define REVPI_RO_RELAY_3_BIT 	BIT(2)
+#define REVPI_RO_RELAY_4_BIT 	BIT(3)
+
 #define PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE         -10
 #define PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH        -11
 #define PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH       -12
