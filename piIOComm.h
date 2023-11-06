@@ -62,8 +62,6 @@ typedef enum _EGpioMode
 int piIoComm_send(INT8U *buf_p, INT16U i16uLen_p);
 int piIoComm_recv(INT8U *buf_p, INT16U i16uLen_p);	// using default timeout REV_PI_IO_TIMEOUT
 int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p);
-bool piIoComm_response_valid(SIOGeneric *resp, u8 expected_addr,
-			     u8 expected_len);
 INT8U piIoComm_Crc8(INT8U *pi8uFrame_p, INT16U i16uLen_p);
 
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p);
