@@ -36,7 +36,7 @@
 #include "common_define.h"
 #include "piControl.h"
 
-#define IOPROTOCOL_MAXDATA_LENGTH 32
+#define IOPROTOCOL_MAXDATA_LENGTH 31
 #define IOPROTOCOL_HEADER_LENGTH 2
 
 #define IOP_TYP1_CMD_DATA       0

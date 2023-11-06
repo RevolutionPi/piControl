@@ -269,7 +269,7 @@ int RevPiDevice_run(void)
 				      req->ai8uData,
 				      hdr->sHeaderTyp1.bitLength,
 				      resp->ai8uData,
-				      sizeof(resp->ai8uData));
+				      sizeof(resp->ai8uData) - 1);
 
 		piCore_g.statusUserTel = ret > 0 ? 0 : ret;
 		piCore_g.pendingUserTel = false;
