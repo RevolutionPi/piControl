@@ -261,6 +261,9 @@ int RevPiDevice_run(void)
 		UIoProtocolHeader *hdr = &req->uHeader;
 		int ret;
 
+		/* avoid leaking response of previous telegram to user space */
+		memset(resp, 0, sizeof(*resp));
+
 		ret = pibridge_req_io(hdr->sHeaderTyp1.bitAddress,
 				      hdr->sHeaderTyp1.bitCommand,
 				      req->ai8uData,
