@@ -13,7 +13,7 @@
 
 static const u16 ai16uPtTable_l[] =
     {
-#include <pt100_table.inc>
+#include "pt100_table.inc"
     };
 
 int GetPt100Temperature(unsigned int i16uResistance_p,

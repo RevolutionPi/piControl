@@ -32,10 +32,11 @@
 
 #pragma once
 
-#include <common_define.h>
-#include <IoProtocol.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
+
+#include "common_define.h"
+#include "IoProtocol.h"
 
 #define REV_PI_IO_TIMEOUT           10         // msec
 #define REV_PI_RECV_BUFFER_SIZE     100

@@ -32,11 +32,10 @@
 
 #include <linux/module.h>	// included for all kernel modules
 #include <linux/kernel.h>
-
-#include <project.h>
-#include <common_define.h>
 #include <linux/pibridge_comm.h>
 
+#include "project.h"
+#include "common_define.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
 

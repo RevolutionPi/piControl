@@ -35,8 +35,6 @@
 /******************************************************************************/
 //#define DEBUG
 
-#include <common_define.h>
-#include <project.h>
 
 #include <linux/module.h>	// included for all kernel modules
 #include <linux/kernel.h>	// included for KERN_INFO
@@ -44,8 +42,6 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <asm/uaccess.h>
-#include <asm/elf.h>
 #include <linux/semaphore.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
@@ -60,17 +56,20 @@
 #include <linux/miscdevice.h>
 #include <linux/thermal.h>
 #include <linux/of.h>
-#include <asm/div64.h>
 #include <linux/syscalls.h>
 #include <linux/slab.h>
+#include <asm/uaccess.h>
+#include <asm/elf.h>
+#include <asm/div64.h>
 
+#include "common_define.h"
+#include "project.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "revpi_compact.h"
 #include "revpi_flat.h"
 #include "compat.h"
 #include "revpi_mio.h"
-
 #include "piFirmwareUpdate.h"
 
 MODULE_LICENSE("GPL");

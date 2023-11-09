@@ -12,7 +12,6 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
-#include <soc/bcm2835/raspberrypi-firmware.h>
 
 #include "IoProtocol.h"
 #include "ModGateComMain.h"
@@ -20,10 +19,10 @@
 #include "ModGateRS485.h"
 #include "PiBridgeMaster.h"
 #include "RevPiDevice.h"
-
 #include "piControlMain.h"
 #include "piControl.h"
 #include "piIOComm.h"
+#include "soc/bcm2835/raspberrypi-firmware.h"
 
 
 typedef enum {

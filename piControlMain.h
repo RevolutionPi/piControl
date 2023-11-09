@@ -44,8 +44,9 @@
 #include <linux/leds.h>
 #include <linux/semaphore.h>
 #include <linux/wait.h>
-#include <piConfig.h>
-#include <IoProtocol.h>
+
+#include "piConfig.h"
+#include "IoProtocol.h"
 /******************************************************************************/
 /*********************************  Types  ************************************/
 /******************************************************************************/

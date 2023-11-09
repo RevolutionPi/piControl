@@ -8,7 +8,8 @@
 #define _REVPI_RO_H_
 
 #include <linux/types.h>
-#include <IoProtocol.h>
+
+#include "IoProtocol.h"
 #include "piControl.h"
 
 int revpi_ro_init(unsigned int devnum);

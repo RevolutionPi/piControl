@@ -33,7 +33,7 @@
 #ifndef MODGATEERROR_H_INC
 #define MODGATEERROR_H_INC
 
-#include <bsp/setjmp/BspSetJmp.h>
+#include "bsp/setjmp/BspSetJmp.h"
 
 // mGate errors 0x37xxxxxx
 typedef enum {

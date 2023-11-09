@@ -34,19 +34,17 @@
 #include <linux/delay.h>
 #include <linux/pibridge_comm.h>
 
-#include <project.h>
-
-#include <common_define.h>
-#include <kbUtilities.h>
-#include <ModGateRS485.h>
-#include <ModGateComMain.h>
-
+#include "project.h"
+#include "common_define.h"
+#include "kbUtilities.h"
+#include "ModGateRS485.h"
+#include "ModGateComMain.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
-#include <piDIOComm.h>
-#include <piAIOComm.h>
-#include <revpi_mio.h>
-#include <revpi_ro.h>
+#include "piDIOComm.h"
+#include "piAIOComm.h"
+#include "revpi_mio.h"
+#include "revpi_ro.h"
 
 static SDeviceConfig RevPiDevices_s;
 

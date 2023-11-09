@@ -32,8 +32,8 @@
 
 #pragma once
 
-#include <common_define.h>
-#include <IoProtocol.h>
+#include "common_define.h"
+#include "IoProtocol.h"
 
 #define AIO_OFFSET_InputValue_1			 0	//INT
 #define AIO_OFFSET_InputValue_2			 2	//INT

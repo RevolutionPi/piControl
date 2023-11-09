@@ -39,9 +39,9 @@
 #pragma warning (disable: 4200)
 #endif
 
-#include <kbUtilities.h>
+#include "kbUtilities.h"
 #ifndef __KUNBUSPI_KERNEL__
-#include <bsp/Ethernet/EthernetInterface.h>
+#include "bsp/Ethernet/EthernetInterface.h"
 #endif
 
 typedef enum
@@ -56,7 +56,7 @@ typedef enum
 // Link Layer
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     INT8U   i8uDestination[6];
@@ -67,14 +67,14 @@ struct
     INT8U   i8uCounter;
 #endif
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 MODGATECOM_LinkLayer;
 
 //**********************************************************************************************
 // Transport Layer
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
 #ifdef __KUNBUSPI_KERNEL__
@@ -87,7 +87,7 @@ struct
     INT8U   i8uVersion;
     INT8U   i8uReserved;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 MODGATECOM_TransportLayer;
 
 //**********************************************************************************************
@@ -137,7 +137,7 @@ typedef enum
 
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     INT32U  i32uSerialnumber;
@@ -150,12 +150,12 @@ struct
     INT16U  i16uFBS_OutputLength;
     INT16U  i16uFeatureDescriptor;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 MODGATECOM_IDResp;
 
 //**********************************************************************************************
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     INT8U   i8uFieldbusStatus;  // type MODGATECOM_FieldbusStatus
@@ -163,18 +163,18 @@ struct
     INT16U  i16uDataLen;
     INT8U   i8uData[0];     // dummy declaration for up to MODGATE_MAX_PD_DATALEN bytes
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 MODGATECOM_CyclicPD;
 
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     MODGATECOM_LinkLayer      strLinkLayer;
     MODGATECOM_TransportLayer strTransportLayer;
     INT8U                     i8uData[MODGATE_AL_MAX_LEN];
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 MODGATECOM_Packet;
 
 //**********************************************************************************************

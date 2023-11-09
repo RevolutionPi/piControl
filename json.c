@@ -41,8 +41,9 @@
 #include <linux/module.h>    // included for all kernel modules
 #include <linux/kernel.h>    // included for KERN_INFO
 #include <linux/slab.h>    // included for KERN_INFO
+
 #include "json.h"
-#include <project.h>
+#include "project.h"
 
 #ifdef VERBOSE
 #define TRACING(fmt, ...)	pr_info("tracing: " fmt, ##__VA_ARGS__)

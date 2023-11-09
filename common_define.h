@@ -133,7 +133,7 @@ typedef struct S_KUNBUS_REV_NUMBER {
 #define KUNBUS_FW_DESCR_MAC_ADDR_LEN                  6	//!< number of bytes in a MAC Address
 
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
     struct S_KUNBUS_FW_DESCR {
 
 	INT32U i32uLength;	///< number of bytes in struct, used to determine which elements are present
@@ -146,12 +146,12 @@ typedef
 	INT32U i32uApplStartAddr;	//!< Startaddress of application specific flash area
 	INT32U i32uApplEndAddr;	//!< Last address of application specific flash area
 }				///< Kunbus internal option bytes
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 T_KUNBUS_FW_DESCR;
 
 
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
     struct S_KUNBUS_APPL_DESCR {
 
 	INT32U i32uLength;	//!< number of bytes in struct, used to determine which elements are present
@@ -165,11 +165,11 @@ typedef
 	INT32U i32uSvnRevision;	///< SVN revision number (mainly for internal use);
 	INT32U i32uBootFlags;	///< Boot action flags
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 T_KUNBUS_APPL_DESCR;
 
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
     struct S_KUNBUS_CNFG_DATA_HDR {
 
 	INT8U ai8uIdent[4];	///< identification String 1 "KBCD"
@@ -180,7 +180,7 @@ typedef
 	INT8U i8uSwMajor;	///< major revision number; valid numbers 0-50, other numbers reserved
 	INT8U ai8uDummy[3];	///< padding
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 T_KUNBUS_CNFG_DATA_HDR;
 
 

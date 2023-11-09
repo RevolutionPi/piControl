@@ -32,8 +32,8 @@
 
 #pragma once
 
-#include <ModGateComMain.h>
-#include <piIOComm.h>
+#include "ModGateComMain.h"
+#include "piIOComm.h"
 
 typedef struct _SRevPiProcessImage SRevPiProcessImage;
 

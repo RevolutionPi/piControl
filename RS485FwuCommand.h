@@ -32,8 +32,8 @@
 
 #pragma once
 
-#include <common_define.h>
-#include <ModGateRS485.h>
+#include "common_define.h"
+#include "ModGateRS485.h"
 
 INT32S fwuEnterFwuMode (INT8U address);
 INT32S fwuWriteSerialNum (INT8U address, INT32U i32uSerNum_p);

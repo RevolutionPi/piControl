@@ -33,7 +33,7 @@
 #ifndef IOPROTOCOL_H_INC
 #define IOPROTOCOL_H_INC
 
-#include <common_define.h>
+#include "common_define.h"
 #include "piControl.h"
 
 #define IOPROTOCOL_MAXDATA_LENGTH 32
@@ -62,7 +62,7 @@ typedef enum
 
 // Header
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 union
 {
     INT8U ai8uHeader[IOPROTOCOL_HEADER_LENGTH];
@@ -83,19 +83,19 @@ union
 	INT8U bitDataPart1 : 3;
     }sHeaderTyp2;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 UIoProtocolHeader;
 
 //-----------------------------------------------------------------------------
 // generic data structure for request and response
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     UIoProtocolHeader uHeader;
     INT8U ai8uData[IOPROTOCOL_MAXDATA_LENGTH + 1];    // one more byte for CRC
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SIOGeneric;
 
 // ----------------- BROADCAST messages -------------------------------------
@@ -105,7 +105,7 @@ SIOGeneric;
 //-----------------------------------------------------------------------------
 // Request for Digital IO modules: Config
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_CFG
 {
     UIoProtocolHeader uHeader;
@@ -118,21 +118,21 @@ struct      // IOP_TYP1_CMD_CFG
     INT32U i32uInputMode;               // bitfield, 2 bits per channel: 00=direct, 01=counter, rising edge, 10=counter, falling edge, 11=encoder
     INT8U i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SDioConfig;
 
 
 //-----------------------------------------------------------------------------
 // Request for Digital IO modules: digital output only, no pwm
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA
 {
     UIoProtocolHeader uHeader;
     INT16U i16uOutput;
     INT8U  i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SDioRequest;
 
 // Request for Digital IO modules: output with variable number of pwm values
@@ -144,14 +144,14 @@ struct pwm_data {		// IOP_TYP1_CMD_DATA2
 
 // Request for Digital IO modules: reset counter values
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA3
 {
     UIoProtocolHeader uHeader;
     INT16U i16uChannels;    // bitfield counter channel
     INT8U  i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SDioCounterReset;
 
 
@@ -176,7 +176,7 @@ typedef struct
 
 // Answer if Digital IO modules: digital input and status, no counter or encoder values
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA
 {
     UIoProtocolHeader uHeader;
@@ -185,12 +185,12 @@ struct      // IOP_TYP1_CMD_DATA
     SDioModuleStatus sDioModuleStatus;
     INT8U i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SDioResponse;
 
 // Answer if Digital IO modules: digital input and status, with counter or encoder values
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA2
 {
     UIoProtocolHeader uHeader;
@@ -200,7 +200,7 @@ struct      // IOP_TYP1_CMD_DATA2
     INT32U ai32uCounters[16];           // dummy array, contains only values for the activated counters/encoders
     INT8U i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SDioCounterResponse;
 
 //-----------------------------------------------------------------------------
@@ -292,7 +292,7 @@ typedef enum
 
 // Output configuration
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     EAioOutputRange       eOutputRange : 4;
@@ -305,12 +305,12 @@ struct
     INT16U                i16uA2; // Scaling A2
     INT16S                i16sB;  // Scaling B
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioOutputConfig;
 
 // Input configuration
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     EAioInputRange      eInputRange : 4;
@@ -320,12 +320,12 @@ struct
     INT16U              i16uA2; // Scaling A2
     INT16S              i16sB;  // Scaling B
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioInputConfig;
 
 // RTD configuration, 7 Bytes
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     INT8U i8uSensorType : 1; // 0:PT100 1:PT1000
@@ -336,45 +336,45 @@ struct
     INT16U i16uA2;              // Scaling A2
     INT16S i16sB;               // Scaling B
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioRtdConfig;
 
 // AIO configuration, 31 Bytes
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_CFG
 {
     INT8U i8uInputSampleRate;
     SAioRtdConfig sAioRtdConfig[AIO_MAX_RTD];
     SAioOutputConfig sAioOutputConfig[AIO_MAX_OUTPUTS];
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioConfig;
 
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA2 (Input 1+2) or IOP_TYP1_CMD_DATA3 (Input 3+4)
 {
     SAioInputConfig sAioInputConfig[AIO_HALF_INPUTS];		// 16 Bytes
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioInConfig;
 
 //-----------------------------------------------------------------------------
 // Data request for Analog IO modules, 4 Bytes
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA
 {
     INT16S i16sOutputValue[AIO_MAX_OUTPUTS]; // Output value in mV or uA
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioRequest;
 
 //-----------------------------------------------------------------------------
 // Data response of Analog IO modules, 20 Bytes
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA
 {
     INT16S i16sInputValue[AIO_MAX_INPUTS];  // Input value in mV or uA
@@ -383,25 +383,25 @@ struct      // IOP_TYP1_CMD_DATA
     INT8U i8uRtdStatus[AIO_MAX_RTD];        // RTD status
     INT8U i8uOutputStatus[AIO_MAX_OUTPUTS]; // Output status
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioResponse;
 
 //-----------------------------------------------------------------------------
 // Data request for raw values of Analog IO modules, 0 Bytes
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA4
 {
     UIoProtocolHeader uHeader;
     INT8U  i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioRawRequest;
 
 //-----------------------------------------------------------------------------
 // Data response for raw values of Analog IO modules, 10 Bytes
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA4
 {
     UIoProtocolHeader uHeader;
@@ -411,13 +411,13 @@ struct      // IOP_TYP1_CMD_DATA4
     INT16U i16uRtdValue[AIO_MAX_RTD];
     INT8U  i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioRawResponse;
 
 //-----------------------------------------------------------------------------
 // Data request for rtd scaling values of Analog IO modules, 0 Bytes
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     INT16U i16uRtd3wireFactor[AIO_MAX_RTD];
@@ -425,31 +425,31 @@ struct
     INT16U i16uRtd4wireFactor[AIO_MAX_RTD];
     INT16S i16sRtd4wireOffset[AIO_MAX_RTD];
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioRtdScaling;
 
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA5
 {
     UIoProtocolHeader uHeader;
     SAioRtdScaling sRtdScaling;
     INT8U  i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioScalingRequest;
 
 //-----------------------------------------------------------------------------
 // Data response for rtd scaling values of Analog IO modules, 1 Byte
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct      // IOP_TYP1_CMD_DATA5
 {
     UIoProtocolHeader uHeader;
     INT8U  i8uSuccess; // 1: Success
     INT8U  i8uCrc;
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SAioScalingResponse;
 
 //-----------------------------------------------------------------------------

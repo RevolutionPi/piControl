@@ -34,7 +34,7 @@
 #define PRODUCTS_PIKERNELMOD_PICONFIG_H_
 
 #include "json.h"
-#include <piControl.h>
+#include "piControl.h"
 
 typedef struct _piEntries {
 	uint16_t i16uNumEntries;

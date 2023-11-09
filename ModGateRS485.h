@@ -33,7 +33,7 @@
 #ifndef MODGATERS485_H_INC
 #define MODGATERS485_H_INC
 
-#include <IoProtocol.h>
+#include "IoProtocol.h"
 
 #define MAX_TELEGRAM_DATA_SIZE 256
 #define MAX_FWU_DATA_SIZE      250
@@ -81,7 +81,7 @@ typedef enum
 } ERs485Protocol;
 
 typedef
-#include <COMP_packBegin.h>
+#include "COMP_packBegin.h"
 struct
 {
     INT8U i8uDstAddr;
@@ -91,7 +91,7 @@ struct
     INT8U i8uDataLen;
     INT8U ai8uData[MAX_TELEGRAM_DATA_SIZE];
 }
-#include <COMP_packEnd.h>
+#include "COMP_packEnd.h"
 SRs485Telegram;
 
 //-----------------------------------------------------------------------------

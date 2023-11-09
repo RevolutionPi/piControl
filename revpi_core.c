@@ -14,8 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <asm/uaccess.h>
-#include <asm/elf.h>
 #include <linux/semaphore.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
@@ -33,10 +31,12 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <asm/div64.h>
+#include <asm/uaccess.h>
+#include <asm/elf.h>
+
 
 #include "common_define.h"
 #include "project.h"
-
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "compat.h"

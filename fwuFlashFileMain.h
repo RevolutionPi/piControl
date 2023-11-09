@@ -28,7 +28,7 @@ extern "C" {
 
 
 typedef 
-#include <COMP_packBegin.h>     
+#include "COMP_packBegin.h"
 struct StrFileHeadData
 {
     INT16U usType;
@@ -39,21 +39,21 @@ struct StrFileHeadData
     INT32U ulFwuEntry;
     INT32U ulFlashCrc;
 } 
-#include <COMP_packEnd.h>     
+#include "COMP_packEnd.h"
 TFileHeadData;              // sizeof = 22
 
 typedef 
-#include <COMP_packBegin.h>     
+#include "COMP_packBegin.h"
 struct StrFPGAHeadData
 {
     unsigned long ulFPGALen;
     unsigned long ulFPGACrc;
 } 
-#include <COMP_packEnd.h>     
+#include "COMP_packEnd.h"
 TFPGAHeadData;              // sizeof = 8
 
 typedef 
-#include <COMP_packBegin.h>     
+#include "COMP_packBegin.h"
 struct StrFileHead
 {
     INT8U acSync[2];
@@ -61,7 +61,7 @@ struct StrFileHead
     TFileHeadData dat;
     TFPGAHeadData fpga;
 } 
-#include <COMP_packEnd.h>     
+#include "COMP_packEnd.h"
 TFileHead;                  // sizeof = 36
 
 

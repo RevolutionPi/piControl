@@ -34,9 +34,9 @@
 #include <linux/kernel.h>
 #include <linux/pibridge_comm.h>
 
-#include <project.h>
-#include <common_define.h>
-#include <RS485FwuCommand.h>
+#include "project.h"
+#include "common_define.h"
+#include "RS485FwuCommand.h"
 #include "compat.h"
 #include "revpi_common.h"
 #include "revpi_core.h"

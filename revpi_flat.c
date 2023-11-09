@@ -6,7 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "revpi_flat.h"
 
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -17,6 +16,7 @@
 #include <linux/gpio/consumer.h>
 #include <uapi/linux/sched/types.h>
 
+#include "revpi_flat.h"
 #include "revpi_common.h"
 #include "project.h"
 #include "piControlMain.h"

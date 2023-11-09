@@ -1,10 +1,11 @@
 #include <linux/sched.h>
 #include <linux/version.h>
-#include <soc/bcm2835/raspberrypi-firmware.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
 #include <linux/sched/task.h>
 #include <uapi/linux/sched/types.h>
 #endif
+
+#include "soc/bcm2835/raspberrypi-firmware.h"
 
 enum revpi_power_led_mode {
 	REVPI_POWER_LED_OFF = 0,

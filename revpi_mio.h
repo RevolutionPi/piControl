@@ -8,8 +8,8 @@
 #ifndef _REVPI_MIO_H_
 #define _REVPI_MIO_H_
 
-#include <common_define.h>
-#include <IoProtocol.h>
+#include "common_define.h"
+#include "IoProtocol.h"
 
 /************************************************/
 

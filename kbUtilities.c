@@ -31,10 +31,10 @@
  */
 
 #include <linux/string.h>
-#include "common_define.h"
-#include <bsp/systick/systick.h>
 
+#include "common_define.h"
 #include "kbUtilities.h"
+#include "bsp/systick/systick.h"
 
 //*************************************************************************************************
 //| Function: kbUT_getCurrentMs
