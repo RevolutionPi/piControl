@@ -55,10 +55,7 @@ typedef enum
 //**********************************************************************************************
 // Link Layer
 //**********************************************************************************************
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     INT8U   i8uDestination[6];
     INT8U   i8uSource[6];
     INT16U  i16uType;
@@ -66,17 +63,12 @@ struct
     INT8U   i8uACK;             //Acknowledge
     INT8U   i8uCounter;
 #endif
-}
-#include "COMP_packEnd.h"
-MODGATECOM_LinkLayer;
+} __attribute__((__packed__)) MODGATECOM_LinkLayer;
 
 //**********************************************************************************************
 // Transport Layer
 //**********************************************************************************************
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
 #ifdef __KUNBUSPI_KERNEL__
     INT8U   i8uACK;             //Acknowledge
     INT8U   i8uCounter;
@@ -86,9 +78,7 @@ struct
     INT32U  i32uError;
     INT8U   i8uVersion;
     INT8U   i8uReserved;
-}
-#include "COMP_packEnd.h"
-MODGATECOM_TransportLayer;
+} __attribute__((__packed__)) MODGATECOM_TransportLayer;
 
 //**********************************************************************************************
 // Application Layer
@@ -136,10 +126,7 @@ typedef enum
 #define MODGATE_LL_MAX_LEN                  ((MODGATE_TL_HEADER_LEN + MODGATE_AL_MAX_LEN + 3) & 0xfffffffc) // 544 bigger packet on the line, rounded up to the next multiple of 4
 
 //**********************************************************************************************
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     INT32U  i32uSerialnumber;
     INT16U  i16uModulType;
     INT16U  i16uHW_Revision;
@@ -149,33 +136,21 @@ struct
     INT16U  i16uFBS_InputLength;
     INT16U  i16uFBS_OutputLength;
     INT16U  i16uFeatureDescriptor;
-}
-#include "COMP_packEnd.h"
-MODGATECOM_IDResp;
+} __attribute__((__packed__)) MODGATECOM_IDResp;
 
 //**********************************************************************************************
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     INT8U   i8uFieldbusStatus;  // type MODGATECOM_FieldbusStatus
     INT16U  i16uOffset;
     INT16U  i16uDataLen;
     INT8U   i8uData[0];     // dummy declaration for up to MODGATE_MAX_PD_DATALEN bytes
-}
-#include "COMP_packEnd.h"
-MODGATECOM_CyclicPD;
+} __attribute__((__packed__)) MODGATECOM_CyclicPD;
 
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     MODGATECOM_LinkLayer      strLinkLayer;
     MODGATECOM_TransportLayer strTransportLayer;
     INT8U                     i8uData[MODGATE_AL_MAX_LEN];
-}
-#include "COMP_packEnd.h"
-MODGATECOM_Packet;
+} __attribute__((__packed__)) MODGATECOM_Packet;
 
 //**********************************************************************************************
 

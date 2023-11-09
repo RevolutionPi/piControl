@@ -80,19 +80,14 @@ typedef enum
     eIoProtocol,
 } ERs485Protocol;
 
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     INT8U i8uDstAddr;
     INT8U i8uSrcAddr;
     INT16U i16uCmd;
     INT16U i16uSequNr;
     INT8U i8uDataLen;
     INT8U ai8uData[MAX_TELEGRAM_DATA_SIZE];
-}
-#include "COMP_packEnd.h"
-SRs485Telegram;
+} __attribute__((__packed__)) SRs485Telegram;
 
 //-----------------------------------------------------------------------------
 

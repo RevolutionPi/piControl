@@ -61,10 +61,7 @@ typedef enum
 } EIoProtocolState;
 
 // Header
-typedef
-#include "COMP_packBegin.h"
-union
-{
+typedef union {
     INT8U ai8uHeader[IOPROTOCOL_HEADER_LENGTH];
     struct                              // Unicast
     {
@@ -82,21 +79,14 @@ union
 	INT8U bitLength : 5;
 	INT8U bitDataPart1 : 3;
     }sHeaderTyp2;
-}
-#include "COMP_packEnd.h"
-UIoProtocolHeader;
+} __attribute__((__packed__)) UIoProtocolHeader;
 
 //-----------------------------------------------------------------------------
 // generic data structure for request and response
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     UIoProtocolHeader uHeader;
     INT8U ai8uData[IOPROTOCOL_MAXDATA_LENGTH + 1];    // one more byte for CRC
-}
-#include "COMP_packEnd.h"
-SIOGeneric;
+} __attribute__((__packed__)) SIOGeneric;
 
 // ----------------- BROADCAST messages -------------------------------------
 
@@ -104,10 +94,7 @@ SIOGeneric;
 // ----------------- DIGITAL IO modules -------------------------------------
 //-----------------------------------------------------------------------------
 // Request for Digital IO modules: Config
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_CFG
-{
+typedef struct { // IOP_TYP1_CMD_CFG
     UIoProtocolHeader uHeader;
     INT16U i16uOutputPushPull;          // bitfield: 1=push-pull, 0=high side mode
     INT16U i16uOutputOpenLoadDetect;    // bitfield: 1=detect open load in high side mode
@@ -117,23 +104,16 @@ struct      // IOP_TYP1_CMD_CFG
     INT8U  i8uInputDebounce;            // 0=Off, 1=25us, 2=750us, 3=3ms, 4-255 not allowed
     INT32U i32uInputMode;               // bitfield, 2 bits per channel: 00=direct, 01=counter, rising edge, 10=counter, falling edge, 11=encoder
     INT8U i8uCrc;
-}
-#include "COMP_packEnd.h"
-SDioConfig;
+} __attribute__((__packed__)) SDioConfig;
 
 
 //-----------------------------------------------------------------------------
 // Request for Digital IO modules: digital output only, no pwm
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA
-{
+typedef struct { // IOP_TYP1_CMD_DATA
     UIoProtocolHeader uHeader;
     INT16U i16uOutput;
     INT8U  i8uCrc;
-}
-#include "COMP_packEnd.h"
-SDioRequest;
+} __attribute__((__packed__)) SDioRequest;
 
 // Request for Digital IO modules: output with variable number of pwm values
 struct pwm_data {		// IOP_TYP1_CMD_DATA2
@@ -143,16 +123,11 @@ struct pwm_data {		// IOP_TYP1_CMD_DATA2
 } __attribute__((__packed__));
 
 // Request for Digital IO modules: reset counter values
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA3
-{
+typedef struct { // IOP_TYP1_CMD_DATA3
     UIoProtocolHeader uHeader;
     INT16U i16uChannels;    // bitfield counter channel
     INT8U  i8uCrc;
-}
-#include "COMP_packEnd.h"
-SDioCounterReset;
+} __attribute__((__packed__)) SDioCounterReset;
 
 
 //-----------------------------------------------------------------------------
@@ -175,33 +150,23 @@ typedef struct
 }SDioModuleStatus;
 
 // Answer if Digital IO modules: digital input and status, no counter or encoder values
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA
-{
+typedef struct { // IOP_TYP1_CMD_DATA
     UIoProtocolHeader uHeader;
     INT16U i16uInput;                   // 0=low signal, 1=high signal
     INT16U i16uOutputStatus;            // 0=error on output pin (thermal shutdown, over load, open load in high side mode)
     SDioModuleStatus sDioModuleStatus;
     INT8U i8uCrc;
-}
-#include "COMP_packEnd.h"
-SDioResponse;
+} __attribute__((__packed__)) SDioResponse;
 
 // Answer if Digital IO modules: digital input and status, with counter or encoder values
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA2
-{
+typedef struct { // IOP_TYP1_CMD_DATA2
     UIoProtocolHeader uHeader;
     INT16U i16uInput;                   // 0=low signal, 1=high signal
     INT16U i16uOutputStatus;            // 0=error on output pin (thermal shutdown, over load, open load in high side mode)
     SDioModuleStatus sDioModuleStatus;
     INT32U ai32uCounters[16];           // dummy array, contains only values for the activated counters/encoders
     INT8U i8uCrc;
-}
-#include "COMP_packEnd.h"
-SDioCounterResponse;
+} __attribute__((__packed__)) SDioCounterResponse;
 
 //-----------------------------------------------------------------------------
 // ----------------- ANALOG IO modules -------------------------------------
@@ -291,10 +256,7 @@ typedef enum
 } EAioInputSampleRate;
 
 // Output configuration
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     EAioOutputRange       eOutputRange : 4;
     TBOOL                 bSlewRateEnabled : 1;
     EAioSlewRateStepSize  eSlewRateStepSize : 3;
@@ -304,30 +266,20 @@ struct
     INT16S                i16sA1; // Scaling A1
     INT16U                i16uA2; // Scaling A2
     INT16S                i16sB;  // Scaling B
-}
-#include "COMP_packEnd.h"
-SAioOutputConfig;
+} __attribute__((__packed__)) SAioOutputConfig;
 
 // Input configuration
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     EAioInputRange      eInputRange : 4;
     EAioInputSampleRate i8uReserve : 4;
     // Scaling input values val = A1/A2*x + B
     INT16S              i16sA1; // Scaling A1
     INT16U              i16uA2; // Scaling A2
     INT16S              i16sB;  // Scaling B
-}
-#include "COMP_packEnd.h"
-SAioInputConfig;
+} __attribute__((__packed__)) SAioInputConfig;
 
 // RTD configuration, 7 Bytes
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     INT8U i8uSensorType : 1; // 0:PT100 1:PT1000
     INT8U i8uMeasureMethod : 1; // 0:3-wire 1:4-wire
     INT8U i8uReserve : 6;
@@ -335,122 +287,75 @@ struct
     INT16S i16sA1;              // Scaling A1
     INT16U i16uA2;              // Scaling A2
     INT16S i16sB;               // Scaling B
-}
-#include "COMP_packEnd.h"
-SAioRtdConfig;
+} __attribute__((__packed__)) SAioRtdConfig;
 
 // AIO configuration, 31 Bytes
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_CFG
-{
+typedef struct { // IOP_TYP1_CMD_CFG
     INT8U i8uInputSampleRate;
     SAioRtdConfig sAioRtdConfig[AIO_MAX_RTD];
     SAioOutputConfig sAioOutputConfig[AIO_MAX_OUTPUTS];
-}
-#include "COMP_packEnd.h"
-SAioConfig;
+} __attribute__((__packed__)) SAioConfig;
 
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA2 (Input 1+2) or IOP_TYP1_CMD_DATA3 (Input 3+4)
-{
+typedef struct { // IOP_TYP1_CMD_DATA2 (Input 1+2) or IOP_TYP1_CMD_DATA3 (Input 3+4)
     SAioInputConfig sAioInputConfig[AIO_HALF_INPUTS];		// 16 Bytes
-}
-#include "COMP_packEnd.h"
-SAioInConfig;
+} __attribute__((__packed__)) SAioInConfig;
 
 //-----------------------------------------------------------------------------
 // Data request for Analog IO modules, 4 Bytes
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA
-{
+typedef struct { // IOP_TYP1_CMD_DATA
     INT16S i16sOutputValue[AIO_MAX_OUTPUTS]; // Output value in mV or uA
-}
-#include "COMP_packEnd.h"
-SAioRequest;
+} __attribute__((__packed__)) SAioRequest;
 
 //-----------------------------------------------------------------------------
 // Data response of Analog IO modules, 20 Bytes
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA
-{
+typedef struct { // IOP_TYP1_CMD_DATA
     INT16S i16sInputValue[AIO_MAX_INPUTS];  // Input value in mV or uA
     INT8U i8uInputStatus[AIO_MAX_INPUTS];   // Input status
     INT16S i16sRtdValue[AIO_MAX_RTD];       // RTD value in 0,1°C
     INT8U i8uRtdStatus[AIO_MAX_RTD];        // RTD status
     INT8U i8uOutputStatus[AIO_MAX_OUTPUTS]; // Output status
-}
-#include "COMP_packEnd.h"
-SAioResponse;
+} __attribute__((__packed__)) SAioResponse;
 
 //-----------------------------------------------------------------------------
 // Data request for raw values of Analog IO modules, 0 Bytes
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA4
-{
+typedef struct { // IOP_TYP1_CMD_DATA4
     UIoProtocolHeader uHeader;
     INT8U  i8uCrc;
-}
-#include "COMP_packEnd.h"
-SAioRawRequest;
+} __attribute__((__packed__)) SAioRawRequest;
 
 //-----------------------------------------------------------------------------
 // Data response for raw values of Analog IO modules, 10 Bytes
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA4
-{
+typedef struct { // IOP_TYP1_CMD_DATA4
     UIoProtocolHeader uHeader;
     INT16U i16uInternalCurrentSensor;
     INT16U i16uInternalVoltageSensor;
     INT16U i16uInternalTemperatureSensor;
     INT16U i16uRtdValue[AIO_MAX_RTD];
     INT8U  i8uCrc;
-}
-#include "COMP_packEnd.h"
-SAioRawResponse;
+} __attribute__((__packed__)) SAioRawResponse;
 
 //-----------------------------------------------------------------------------
 // Data request for rtd scaling values of Analog IO modules, 0 Bytes
-typedef
-#include "COMP_packBegin.h"
-struct
-{
+typedef struct {
     INT16U i16uRtd3wireFactor[AIO_MAX_RTD];
     INT16S i16sRtd3wireOffset[AIO_MAX_RTD];
     INT16U i16uRtd4wireFactor[AIO_MAX_RTD];
     INT16S i16sRtd4wireOffset[AIO_MAX_RTD];
-}
-#include "COMP_packEnd.h"
-SAioRtdScaling;
+}__attribute__((__packed__)) SAioRtdScaling;
 
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA5
-{
+typedef struct { // IOP_TYP1_CMD_DATA5
     UIoProtocolHeader uHeader;
     SAioRtdScaling sRtdScaling;
     INT8U  i8uCrc;
-}
-#include "COMP_packEnd.h"
-SAioScalingRequest;
+} __attribute__((__packed__)) SAioScalingRequest;
 
 //-----------------------------------------------------------------------------
 // Data response for rtd scaling values of Analog IO modules, 1 Byte
-typedef
-#include "COMP_packBegin.h"
-struct      // IOP_TYP1_CMD_DATA5
-{
+typedef struct { // IOP_TYP1_CMD_DATA5
     UIoProtocolHeader uHeader;
     INT8U  i8uSuccess; // 1: Success
     INT8U  i8uCrc;
-}
-#include "COMP_packEnd.h"
-SAioScalingResponse;
+} __attribute__((__packed__)) SAioScalingResponse;
 
 //-----------------------------------------------------------------------------
 
