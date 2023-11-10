@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include "common_define.h"
 #include "ModGateComMain.h"
 #include "piIOComm.h"
 

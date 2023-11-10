@@ -1,29 +1,13 @@
+#ifndef _REVPI_CORE_H
+#define _REVPI_CORE_H
 
-
-#include <linux/semaphore.h>
-#include <linux/cdev.h>
-#include <linux/device.h>
-#include <linux/kthread.h>
-#include <linux/hrtimer.h>
-#include <linux/delay.h>
-#include <linux/rtmutex.h>
-#include <linux/sem.h>
-#include <linux/gpio.h>
-#include <linux/wait.h>
-#include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/types.h>
 
-#include "IoProtocol.h"
-#include "ModGateComMain.h"
-#include "ModGateComError.h"
 #include "ModGateRS485.h"
+#include "piControlMain.h"
 #include "PiBridgeMaster.h"
 #include "RevPiDevice.h"
-#include "piControlMain.h"
-#include "piControl.h"
-#include "piIOComm.h"
-#include "soc/bcm2835/raspberrypi-firmware.h"
-
 
 typedef enum {
 	piBridgeStop = 0,
@@ -106,3 +90,4 @@ u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type);
 void revpi_core_gate_connected(SDevice *revpi_dev, bool connected);
 int revpi_core_init(void);
 void revpi_core_fini(void);
+#endif /* _REVPI_CORE_H */

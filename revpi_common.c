@@ -11,15 +11,11 @@
 #include <linux/kthread.h>
 #include <linux/leds.h>
 #include <linux/sched.h>
-#include <soc/bcm2835/raspberrypi-firmware.h>
+#include <linux/types.h>
 
-#include "revpi_common.h"
-#include "common_define.h"
-#include "project.h"
-#include "ModGateComMain.h"
-#include "RevPiDevice.h"
 #include "piControlMain.h"
-#include "piControl.h"
+#include "revpi_common.h"
+#include "RevPiDevice.h"
 
 #define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
 

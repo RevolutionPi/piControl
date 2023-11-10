@@ -5,12 +5,8 @@
  * it under the terms of the GNU General Public License (version 2) as
  * published by the Free Software Foundation.
  */
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/pibridge_comm.h>
 
-#include "project.h"
-#include "common_define.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "revpi_mio.h"

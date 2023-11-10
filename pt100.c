@@ -8,7 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/bug.h>
 #include <linux/kernel.h>
 
 static const u16 ai16uPtTable_l[] =

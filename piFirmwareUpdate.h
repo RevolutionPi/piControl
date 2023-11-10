@@ -33,10 +33,7 @@
 #ifndef PIFIRMWAREUPDATE_H
 #define PIFIRMWAREUPDATE_H
 
-#include <linux/limits.h>
-
-#include "PiBridgeMaster.h"
-#include "piConfig.h"
+#include "piControlMain.h"
 #include "RevPiDevice.h"
 
 #define FIRMWARE_PATH		"/lib/firmware/revpi"

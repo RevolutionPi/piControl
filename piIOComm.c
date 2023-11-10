@@ -30,17 +30,11 @@
  *=======================================================================================
  */
 
-#include <linux/module.h>	// included for all kernel modules
-#include <linux/kernel.h>
 #include <linux/pibridge_comm.h>
 
-#include "project.h"
 #include "common_define.h"
-#include "RS485FwuCommand.h"
-#include "compat.h"
-#include "revpi_common.h"
 #include "revpi_core.h"
-#include "piIOComm.h"
+#include "RS485FwuCommand.h"
 
 int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 {

@@ -39,8 +39,7 @@
  */
 
 #include <linux/module.h>    // included for all kernel modules
-#include <linux/kernel.h>    // included for KERN_INFO
-#include <linux/slab.h>    // included for KERN_INFO
+#include <linux/slab.h>
 
 #include "json.h"
 #include "project.h"

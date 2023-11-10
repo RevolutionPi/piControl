@@ -7,9 +7,11 @@
  * it under the terms of the GNU General Public License (version 2) as
  * published by the Free Software Foundation.
  */
+#ifndef _PROCESS_IMAGE_H
+#define _PROCESS_IMAGE_H
 
 #include <linux/hrtimer.h>
-#include <linux/math64.h>
+#include <linux/sched.h>
 
 struct cycletimer {
 	struct hrtimer_sleeper sleeper;
@@ -89,3 +91,4 @@ static __always_inline int test_bit_in_byte(u8 nr, u8 * addr)
 		rt_mutex_unlock(&piDev_g.lockPI);					\
 	}										\
 }
+#endif /* _PROCESS_IMAGE_H */

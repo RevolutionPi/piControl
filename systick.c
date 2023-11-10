@@ -30,11 +30,9 @@
  *=======================================================================================
  */
 
-#include <linux/ktime.h>
 #include <linux/hrtimer.h>
 
 #include "common_define.h"
-#include "bsp/systick/systick.h"
 
 //+=============================================================================================
 //|             Konstanten / constants

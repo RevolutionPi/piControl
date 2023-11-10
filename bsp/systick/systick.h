@@ -10,6 +10,8 @@
 #ifndef __SYSTICK_H
 #define __SYSTICK_H
 
+#include "../../common_define.h"
+
 #ifdef __cplusplus
 extern "C" { 
 #endif 

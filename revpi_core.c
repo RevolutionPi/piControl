@@ -8,38 +8,11 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>	// included for all kernel modules
-#include <linux/kernel.h>	// included for KERN_INFO
-#include <linux/init.h>		// included for __init and __exit macros
-#include <linux/interrupt.h>
-#include <linux/fs.h>
-#include <linux/types.h>
-#include <linux/semaphore.h>
-#include <linux/cdev.h>
-#include <linux/device.h>
-#include <linux/kthread.h>
-#include <linux/hrtimer.h>
-#include <linux/delay.h>
-#include <linux/rtmutex.h>
-#include <linux/sem.h>
-#include <linux/gpio.h>
-#include <linux/wait.h>
-#include <linux/list.h>
-#include <linux/miscdevice.h>
-#include <linux/thermal.h>
-#include <linux/of.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/machine.h>
-#include <asm/div64.h>
-#include <asm/uaccess.h>
-#include <asm/elf.h>
+#include <linux/platform_device.h>
 
-
-#include "common_define.h"
-#include "project.h"
+#include "compat.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
-#include "compat.h"
 
 static const struct kthread_prio revpi_core_kthread_prios[] = {
 	/* spi pump to RevPi Gateways */

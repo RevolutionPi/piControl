@@ -32,7 +32,7 @@
 
 #pragma once
 
-#include "IoProtocol.h"
+#include "common_define.h"
 
 typedef enum _EPiBridgeMasterStatus {
 	// states for IO Protocol

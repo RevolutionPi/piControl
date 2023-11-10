@@ -30,18 +30,13 @@
  *=======================================================================================
  */
 
-#include <linux/module.h>	// included for all kernel modules
-#include <linux/kernel.h>
+#include <linux/types.h>
 #include <linux/pibridge_comm.h>
 
-#include "project.h"
-#include "common_define.h"
+#include "piAIOComm.h"
+#include "piControlMain.h"
 #include "revpi_common.h"
 #include "RevPiDevice.h"
-#include "piControlMain.h"
-#include "IoProtocol.h"
-#include "piIOComm.h"
-#include "piAIOComm.h"
 
 #define AIO_MAX_DEVS			10
 #define AIO_OUTPUT_DATA_LEN		sizeof(SAioRequest)

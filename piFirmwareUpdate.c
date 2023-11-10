@@ -31,20 +31,9 @@
  */
 
 
-#include <linux/module.h>	// included for all kernel modules
-#include <linux/kernel.h>	// included for KERN_INFO
-#include <linux/slab.h>		// included for KERN_INFO
-#include <linux/fs.h>
-#include <linux/delay.h>
-#include <asm/uaccess.h>
-
-#include "project.h"
-#include "common_define.h"
-#include "compat.h"
-#include "revpi_common.h"
-#include "revpi_core.h"
-#include "piFirmwareUpdate.h"
 #include "fwuFlashFileMain.h"
+#include "piFirmwareUpdate.h"
+#include "revpi_core.h"
 
 
 // ret < 0: error

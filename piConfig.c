@@ -31,24 +31,19 @@
  */
 
 
-#include <linux/module.h>	// included for all kernel modules
-#include <linux/kernel.h>	// included for KERN_INFO
-#include <linux/slab.h>		// included for KERN_INFO
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/slab.h>
 
-#include "project.h"
-#include "common_define.h"
 #include "compat.h"
+#include "common_define.h"
 #include "json.h"
-#include "piControl.h"
+#include "piAIOComm.h"
 #include "piConfig.h"
 #include "piDIOComm.h"
-#include "piAIOComm.h"
+#include "project.h"
+#include "revpi_compact.h"
 #include "revpi_mio.h"
 #include "revpi_ro.h"
-#include "revpi_compact.h"
-#include "revpi_flat.h"
 
 #define TOKEN_DEVICES       "Devices"
 #define TOKEN_CONNECTIONS   "Connections"

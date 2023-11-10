@@ -12,6 +12,8 @@
 #ifndef BSPSETJMP_H_INC
 #define BSPSETJMP_H_INC
 
+#include "../../common_define.h"
+
 #if defined (_MSC_VER) || defined(__NIOS_GENERIC__) || defined(__SF2_GENERIC__) || defined (__KUNBUSPI__)
   #include <setjmp.h>
   

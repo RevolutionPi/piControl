@@ -66,6 +66,8 @@ CMN_ASSERT(checkLink(), "no link");
 #define CMN_ERROR				1
 #define CMN_WARNING			2
 
+#include "common_define.h"
+
 #ifndef  CMN_CHECK_LEVEL
 #ifdef _WIN32
 #define CMN_CHECK_LEVEL		3	// on Windows we do all debugging as default

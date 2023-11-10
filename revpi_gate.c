@@ -10,15 +10,9 @@
 
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
-#include <linux/rculist.h>
 
-#include "project.h"
-#include "common_define.h"
 #include "ModGateComError.h"
-#include "ModGateComMain.h"
-#include "RevPiDevice.h"
 #include "revpi_core.h"
-#include "piControlMain.h"
 
 #define ETH_P_KUNBUSGW	0x419C		/* KUNBUS Gateway [ NOT AN OFFICIALLY REGISTERED ID ] */
 #define MG_AL_TIMEOUT	msecs_to_jiffies(80)

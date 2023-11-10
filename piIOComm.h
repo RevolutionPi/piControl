@@ -33,7 +33,6 @@
 #pragma once
 
 #include <linux/gpio/consumer.h>
-#include <linux/gpio/machine.h>
 
 #include "common_define.h"
 #include "IoProtocol.h"

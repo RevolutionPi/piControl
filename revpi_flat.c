@@ -7,22 +7,19 @@
  */
 
 
-#include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/iio/consumer.h>
 #include <linux/iio/iio.h>
+#include <linux/kthread.h>
+#include <linux/sched.h>
 #include <linux/thermal.h>
 #include <linux/types.h>
-#include <linux/iio/consumer.h>
-#include <linux/gpio/consumer.h>
-#include <uapi/linux/sched/types.h>
 
-#include "revpi_flat.h"
-#include "revpi_common.h"
-#include "project.h"
 #include "piControlMain.h"
-#include "piControl.h"
-#include "RevPiDevice.h"
 #include "process_image.h"
+#include "revpi_common.h"
+#include "revpi_flat.h"
+#include "RevPiDevice.h"
 
 /* relais gpio num */
 #define REVPI_FLAT_RELAIS_GPIO			28

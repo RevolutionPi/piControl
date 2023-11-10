@@ -1,9 +1,10 @@
+#ifndef _REVPI_COMMON_H
+#define _REVPI_COMMON_H
+
 #include <linux/sched.h>
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
 #include <linux/sched/task.h>
+#include <linux/version.h>
 #include <uapi/linux/sched/types.h>
-#endif
 
 #include "soc/bcm2835/raspberrypi-firmware.h"
 
@@ -52,3 +53,4 @@ struct kthread_prio {
 };
 
 int set_kthread_prios(const struct kthread_prio *ktprios);
+#endif /* _REVPI_COMMON_H */

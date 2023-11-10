@@ -8,10 +8,6 @@
 #ifndef _REVPI_FLAT_H
 #define _REVPI_FLAT_H
 
-#include <linux/types.h>
-
-#include "piControl.h"
-
 int revpi_flat_init(void);
 void revpi_flat_fini(void);
 int revpi_flat_reset(void);

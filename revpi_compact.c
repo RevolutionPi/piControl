@@ -14,23 +14,17 @@
 #include <linux/iio/driver.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/machine.h>
-#include <linux/kthread.h>
+#include <linux/ktime.h>
 #include <linux/spi/max3191x.h>
 #include <linux/spi/spi.h>
-#include <linux/ktime.h>
 #include <linux/thermal.h>
-#include <soc/bcm2835/raspberrypi-firmware.h>
 
-#include "project.h"
-#include "common_define.h"
-#include "revpi_common.h"
-#include "ModGateComMain.h"
-#include "PiBridgeMaster.h"
 #include "piControlMain.h"
-#include "RevPiDevice.h"
 #include "process_image.h"
 #include "pt100.h"
+#include "revpi_common.h"
 #include "revpi_compact.h"
+#include "RevPiDevice.h"
 
 #define REVPI_COMPACT_IO_CYCLE		( 250 * NSEC_PER_USEC)		// 250 usec
 #define REVPI_COMPACT_AIN_CYCLE		( 125 * NSEC_PER_MSEC)		// 125 msec

@@ -30,25 +30,17 @@
  *=======================================================================================
  */
 
-#include <linux/module.h>	// included for all kernel modules
-#include <linux/kernel.h>	// included for KERN_INFO
-#include <linux/slab.h>		// included for KERN_INFO
-#include <linux/delay.h>
-#include <linux/gpio.h>
-#include <linux/jiffies.h>
 #include <linux/thermal.h>
 
-#include "project.h"
 #include "common_define.h"
+#include "piAIOComm.h"
+#include "piDIOComm.h"
+#include "PiBridgeMaster.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
 #include "revpi_gate.h"
-#include "ModGateRS485.h"
-#include "piDIOComm.h"
-#include "piAIOComm.h"
 #include "revpi_mio.h"
 #include "revpi_ro.h"
-#include "process_image.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules

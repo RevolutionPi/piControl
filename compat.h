@@ -1,3 +1,5 @@
+#ifndef _COMPAT_H
+#define _COMPAT_H
 #include <linux/version.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
@@ -26,3 +28,4 @@
 		ret;							\
 	})
 #endif
+#endif /* _COMPAT_H */

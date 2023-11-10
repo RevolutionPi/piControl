@@ -1,3 +1,10 @@
+#ifndef _REVPI_COMPACT_H
+#define _REVPI_COMPACT_H
+
+#include <linux/types.h>
+
+#include "common_define.h"
+#include "piControl.h"
 
 #define RevPi_Compact_OFFSET_CoreTemperatur		 0	//BYTE
 #define RevPi_Compact_OFFSET_CoreFrequency		 1	//BYTE
@@ -63,3 +70,4 @@ int revpi_compact_init(void);
 int revpi_compact_reset(void);
 void revpi_compact_fini(void);
 void revpi_compact_adjust_config(void);
+#endif /*_REVPI_COMPACT_H */

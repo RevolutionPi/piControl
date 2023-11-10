@@ -33,7 +33,7 @@
 #pragma once
 
 #include "common_define.h"
-#include "IoProtocol.h"
+#include "piControl.h"
 
 typedef enum
 {

@@ -12,15 +12,13 @@
 #ifndef FWUFLASHFILEMAIN_H_INC
 #define FWUFLASHFILEMAIN_H_INC
 
-
-
 #if defined(__STM32GENERIC__)
     #define FWU_CODE_SECTION    __attribute__ ((section(".firmwareUpdate")))
 #else // Common Define for Visual Studio / WIN32
     #define FWU_CODE_SECTION
 #endif
 
-
+#include "common_define.h"
 
 #ifdef __cplusplus
 extern "C" { 

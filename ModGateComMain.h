@@ -39,10 +39,8 @@
 #pragma warning (disable: 4200)
 #endif
 
+#include "common_define.h"
 #include "kbUtilities.h"
-#ifndef __KUNBUSPI_KERNEL__
-#include "bsp/Ethernet/EthernetInterface.h"
-#endif
 
 typedef enum
 {

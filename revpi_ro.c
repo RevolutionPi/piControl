@@ -5,14 +5,11 @@
  * Copyright (C) 2023 KUNBUS GmbH
  */
 #include <linux/pibridge_comm.h>
-#include <linux/printk.h>
-#include <linux/string.h>
 
-#include "project.h"
 #include "piControlMain.h"
-#include "RevPiDevice.h"
-#include "common_define.h"
+#include "revpi_common.h"
 #include "revpi_ro.h"
+#include "RevPiDevice.h"
 
 #define REVPI_RO_MAX		10
 

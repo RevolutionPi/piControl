@@ -34,19 +34,12 @@
 /******************************************************************************/
 /********************************  Includes  **********************************/
 /******************************************************************************/
-#include <linux/ioctl.h>
 #include <linux/cdev.h>
-#include <linux/device.h>
-#include <linux/rtmutex.h>
-#include <linux/sem.h>
-#include <linux/kthread.h>
-#include <linux/hrtimer.h>
 #include <linux/leds.h>
-#include <linux/semaphore.h>
-#include <linux/wait.h>
 
+#include "common_define.h"
 #include "piConfig.h"
-#include "IoProtocol.h"
+#include "project.h"
 /******************************************************************************/
 /*********************************  Types  ************************************/
 /******************************************************************************/

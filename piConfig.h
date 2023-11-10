@@ -33,7 +33,8 @@
 #ifndef PRODUCTS_PIKERNELMOD_PICONFIG_H_
 #define PRODUCTS_PIKERNELMOD_PICONFIG_H_
 
-#include "json.h"
+#include <linux/types.h>
+
 #include "piControl.h"
 
 typedef struct _piEntries {

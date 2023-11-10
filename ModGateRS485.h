@@ -33,7 +33,7 @@
 #ifndef MODGATERS485_H_INC
 #define MODGATERS485_H_INC
 
-#include "IoProtocol.h"
+#include "common_define.h"
 
 #define MAX_TELEGRAM_DATA_SIZE 256
 #define MAX_FWU_DATA_SIZE      250
