@@ -181,10 +181,9 @@ int revpi_mio_cycle(unsigned char devno)
 	return revpi_mio_cycle_aio(dev, &io_req_ex, ch_cnt, &img_in->aio);
 }
 
-int revpi_mio_reset()
+void revpi_mio_reset()
 {
 	mio_cnt = 0;
-	return 0;
 }
 
 int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
