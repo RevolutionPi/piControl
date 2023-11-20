@@ -36,8 +36,8 @@ typedef struct StrFileHeadData {
 } __attribute__((__packed__)) TFileHeadData; // sizeof = 22
 
 typedef struct StrFPGAHeadData {
-    unsigned long ulFPGALen;
-    unsigned long ulFPGACrc;
+    INT32U ulFPGALen;
+    INT32U ulFPGACrc;
 } __attribute__((__packed__)) TFPGAHeadData; // sizeof = 8
 
 typedef struct StrFileHead {
