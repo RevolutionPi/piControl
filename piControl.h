@@ -86,6 +86,7 @@
 #define PICONTROL_SW_REVPI_SEVEN            0x6007      // 24583
 #define PICONTROL_SW_REVPI_CLOUD            0x6008      // 24584
 #define PICONTROL_SW_OPCUA_REVPI_SERVER     0x6009      // 24585
+#define PICONTROL_SW_MQTT_REVPI_CLIENT      0x6010      // 24586
 
 #define PICONTROL_NOT_CONNECTED             0x8000
 #define PICONTROL_NOT_CONNECTED_MASK        0x7fff
