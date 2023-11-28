@@ -114,7 +114,7 @@
 #define  KB_SET_OUTPUT_WATCHDOG             _IO(KB_IOC_MAGIC, 26 )  // activate a watchdog for this handle. If write is not called for a given period all outputs are set to 0
 #define  KB_SET_POS                         _IO(KB_IOC_MAGIC, 27 )  // set the f_pos, the unsigned int * is used to interpret the pos value
 #define  KB_AIO_CALIBRATE                   _IO(KB_IOC_MAGIC, 28 )
-#define  KB_RO_GET_COUNTER		    _IO(KB_IOC_MAGIC, 29 )
+#define  KB_RO_GET_COUNTER                  _IO(KB_IOC_MAGIC, 29 )  // get counter values of a RO module
 
 #define  KB_WAIT_FOR_EVENT                  _IO(KB_IOC_MAGIC, 50 )  // wait for an event. This call is normally blocking
 #define  KB_EVENT_RESET                     1       // piControl was reset, reload configuration

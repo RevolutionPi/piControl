@@ -230,6 +230,32 @@ shorter periods for this file handle. If it is called within the period, all out
 .br
 The watchdog can be deactivated by setting the period to 0 or closing the file handle.
 
+.TP
+.BI "KB_RO_GET_COUNTER	struct revpi_ro_ioctl_counters *" argp
+.br
+Get the counter values for all relays of an RO module. The address of the RO module must be set in the
+.I addr
+field in the
+.I revpi_ro_ioctl_counters
+struct before calling. All relay counters will be written to the
+.I counter
+field of the struct.
+
+The struct
+.I revpi_ro_ioctl_counters
+used by this ioctl is defined as
+
+.in +4n
+.nf
+struct revpi_ro_ioctl_counters {
+	/* Address of module in current configuration, set by userspace. */
+	uint8_t addr;
+	/* Data returned from kernel */
+	uint32_t counter[REVPI_RO_NUM_RELAYS];
+} __attribute__((__packed__));
+.fi
+.in
+
 
 .LP
 .SS Driver Control
