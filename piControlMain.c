@@ -40,6 +40,7 @@
 #include <linux/list.h>
 #include <linux/semaphore.h>
 #include <linux/thermal.h>
+#include <linux/version.h>
 #include <linux/wait.h>
 
 #include "IoProtocol.h"
@@ -140,7 +141,11 @@ void piControlDummyReceive(INT8U i8uChar_p)
 
 #include "compiletime.h"
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
 static char *piControlClass_devnode(struct device *dev, umode_t * mode)
+#else
+static char *piControlClass_devnode(const struct device *dev, umode_t * mode)
+#endif
 {
 	if (mode)
 		*mode = S_IRUGO | S_IWUGO;
