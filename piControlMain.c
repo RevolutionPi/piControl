@@ -204,7 +204,11 @@ static int __init piControlInit(void)
 
 	pr_info("MAJOR-No.  : %d\n", MAJOR(piControlMajor));
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
 	piControlClass = class_create(THIS_MODULE, "piControl");
+#else
+	piControlClass = class_create("piControl");
+#endif
 	if (IS_ERR(piControlClass)) {
 		pr_err("cannot create class\n");
 		res = PTR_ERR(piControlClass);
