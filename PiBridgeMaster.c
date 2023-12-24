@@ -41,6 +41,7 @@
 #include "revpi_gate.h"
 #include "revpi_mio.h"
 #include "revpi_ro.h"
+#include "RS485FwuCommand.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
@@ -756,8 +757,8 @@ int PiBridgeMaster_Run(void)
 					i32uFWUAddress = 2;
 				}
 
-				i32sRetVal = piIoComm_gotoFWUMode(i32uFWUAddress);
-				pr_info("piIoComm_gotoFWUMode returned %d\n", i32sRetVal);
+				i32sRetVal = fwuEnterFwuMode(i32uFWUAddress);
+				pr_info("fwuEnterFwuMode returned %d\n", i32sRetVal);
 
 				if (i32uFWUAddress < REV_PI_DEV_FIRST_RIGHT) {
 					i32uFWUAddress = 1;	// address must be 1 in the following calls
@@ -774,16 +775,16 @@ int PiBridgeMaster_Run(void)
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_ProgramSerialNum) {
 			if (bEntering_s) {
-				i32sRetVal = piIoComm_fwuSetSerNum(i32uFWUAddress, i32uFWUSerialNum);
-				pr_info("piIoComm_fwuSetSerNum returned %d\n", i32sRetVal);
+				i32sRetVal = fwuWriteSerialNum(i32uFWUAddress, i32uFWUSerialNum);
+				pr_info("fwuWriteSerialNum returned %d\n", i32sRetVal);
 
 				ret = 0;	// do not return errors here
 				bEntering_s = bFALSE;
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUFlashErase) {
 			if (bEntering_s) {
-				i32sRetVal = piIoComm_fwuFlashErase(i32uFWUAddress);
-				pr_info("piIoComm_fwuFlashErase returned %d\n", i32sRetVal);
+				i32sRetVal = fwuEraseFlash(i32uFWUAddress);
+				pr_info("fwuEraseFlash returned %d\n", i32sRetVal);
 
 				ret = 0;	// do not return errors here
 				bEntering_s = bFALSE;
@@ -798,10 +799,9 @@ int PiBridgeMaster_Run(void)
 						len = MAX_FWU_DATA_SIZE;
 					else
 						len = i32uFWUlength;
-					i32sRetVal =
-					    piIoComm_fwuFlashWrite(i32uFWUAddress, i32uFWUFlashAddr + i32uOffset,
-								   pcFWUdata + i32uOffset, len);
-					pr_info("piIoComm_fwuFlashWrite(0x%08x, %x) returned %d\n",
+					i32sRetVal = fwuWrite(i32uFWUAddress, i32uFWUFlashAddr + i32uOffset,
+							      pcFWUdata + i32uOffset, len);
+					pr_info("fwuWrite(0x%08x, %x) returned %d\n",
 						i32uFWUFlashAddr + i32uOffset, len, i32sRetVal);
 					i32uOffset += len;
 					i32uFWUlength -= len;
@@ -812,8 +812,8 @@ int PiBridgeMaster_Run(void)
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUReset) {
 			if (bEntering_s) {
-				i32sRetVal = piIoComm_fwuReset(i32uFWUAddress);
-				pr_info("piIoComm_fwuReset returned %d\n", i32sRetVal);
+				i32sRetVal = fwuResetModule(i32uFWUAddress);
+				pr_info("fwuResetModule returned %d\n", i32sRetVal);
 
 				ret = 0;	// do not return errors here
 				bEntering_s = bFALSE;

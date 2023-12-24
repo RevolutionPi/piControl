@@ -34,7 +34,6 @@
 
 #include "common_define.h"
 #include "revpi_core.h"
-#include "RS485FwuCommand.h"
 
 int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 {
@@ -274,31 +273,6 @@ INT32S piIoComm_gotoGateProtocol(void)
 #endif
 	}
 	return 0;
-}
-
-INT32S piIoComm_gotoFWUMode(int address)
-{
-	return fwuEnterFwuMode(address);
-}
-
-INT32S piIoComm_fwuSetSerNum(int address, INT32U serNum)
-{
-	return fwuWriteSerialNum(address, serNum);
-}
-
-INT32S piIoComm_fwuFlashErase(int address)
-{
-	return fwuEraseFlash(address);
-}
-
-INT32S piIoComm_fwuFlashWrite(int address, INT32U flashAddr, char *data, INT32U length)
-{
-	return fwuWrite(address, flashAddr, data, length);
-}
-
-INT32S piIoComm_fwuReset(int address)
-{
-	return fwuResetModule(address);
 }
 
 void revpi_io_build_header(UIoProtocolHeader *hdr,

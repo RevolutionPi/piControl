@@ -80,11 +80,6 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
     INT8U *pi8uRecvData_p, INT16U *pi16uRecvDataLen_p);
 
 INT32S piIoComm_gotoGateProtocol(void);
-INT32S piIoComm_gotoFWUMode(int address);
-INT32S piIoComm_fwuSetSerNum(int address, INT32U serNum);
-INT32S piIoComm_fwuFlashErase(int address);
-INT32S piIoComm_fwuFlashWrite(int address, INT32U flashAddr, char *data, INT32U length);
-INT32S piIoComm_fwuReset(int address);
 
 void revpi_io_build_header(UIoProtocolHeader *hdr,
 		unsigned char addr, unsigned char len, unsigned char cmd);
