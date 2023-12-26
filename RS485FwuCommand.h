@@ -1,41 +1,14 @@
-/*=======================================================================================
- *
- *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
- *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
- *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
- *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
- *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
- *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
- *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
- *	|
- *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
- *	|             |
- *	+-------------+
- *
- *---------------------------------------------------------------------------------------
- *
- * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License V2 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *  For licencing details see COPYING
- *
- *=======================================================================================
+// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+//
+// SPDX-License-Identifier: MIT
+/*
+ * Firmware update of RevPi modules using gateway protocol over RS-485
  */
 
 #pragma once
 
-#include "common_define.h"
-
-INT32S fwuEnterFwuMode (INT8U address);
-INT32S fwuWriteSerialNum (INT8U address, INT32U i32uSerNum_p);
-INT32S fwuEraseFlash (INT8U address);
-INT32S fwuWrite(INT8U address, INT32U flashAddr, char *data, INT32U length);
-INT32S fwuResetModule (INT8U address);
+int fwuEnterFwuMode(u8 address);
+int fwuWriteSerialNum(u8 address, u32 i32uSerNum_p);
+int fwuEraseFlash (u8 address);
+int fwuWrite(u8 address, u32 flashAddr, char *data, u32 length);
+int fwuResetModule(u8 address);
