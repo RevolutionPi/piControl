@@ -35,7 +35,7 @@
 
 #include "common_define.h"
 
-#define MAX_TELEGRAM_DATA_SIZE 256
+#define MAX_TELEGRAM_DATA_SIZE 255
 #define MAX_FWU_DATA_SIZE      250
 
 #define RS485_HDRLEN (offsetof(SRs485Telegram, ai8uData))
