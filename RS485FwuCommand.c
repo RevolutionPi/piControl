@@ -37,8 +37,6 @@
 #include "RS485FwuCommand.h"
 
 
-#define TEL_MAX_BUF_LEN  300
-
 ////*************************************************************************************************
 INT32S fwuEnterFwuMode (INT8U address)
 {
@@ -121,10 +119,10 @@ INT32S fwuWrite(INT8U address, INT32U flashAddr, char *data, INT32U length)
 {
 	SRs485Telegram suRecvTelegram_l;
 	INT32S i32sErr_l;
-	INT8U ai8uSendBuf_l[TEL_MAX_BUF_LEN];
+	INT8U ai8uSendBuf_l[MAX_TELEGRAM_DATA_SIZE];
 
 	memcpy (ai8uSendBuf_l, &flashAddr, sizeof (flashAddr));
-	if (length <= 0 || length > TEL_MAX_BUF_LEN-sizeof(flashAddr))
+	if (length == 0 || length > MAX_TELEGRAM_DATA_SIZE - sizeof(flashAddr))
 		return -14;
 
 	memcpy (ai8uSendBuf_l + sizeof (flashAddr), data, length);
