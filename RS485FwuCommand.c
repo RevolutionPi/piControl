@@ -32,6 +32,7 @@
 
 
 #include <linux/delay.h>
+#include <linux/pibridge_comm.h>
 
 #include "piIOComm.h"
 #include "RS485FwuCommand.h"
@@ -40,12 +41,15 @@
 ////*************************************************************************************************
 INT32S fwuEnterFwuMode (INT8U address)
 {
-    fwuSendTel(address, eCmdSetFwUpdateMode, NULL, 0);
+	int ret;
 
-    msleep(100);
+	/* Ignore the response for this command */
+	ret = pibridge_req_send_gate(address, eCmdSetFwUpdateMode, NULL, 0);
+	if (ret)
+		return ret;
 
-    // there is no response for this command
-    return 0;
+	msleep(100);
+	return 0;
 }
 
 
@@ -55,71 +59,73 @@ INT32S fwuWriteSerialNum (
     INT32U i32uSerNum_p)
 
 {
-    SRs485Telegram suRecvTelegram_l;
-    INT32S i32sErr_l;
+	int ret;
+	u16 err;
 
-    fwuSendTel(address, eCmdWriteSerialNumber, (INT8U*)&i32uSerNum_p, sizeof (INT32U));
+	/*
+	 * Writing the serial number to flash takes time.
+	 * Allow an extra 100 msec before expecting a response.
+	 * The response consists of an error code which is 0 on success.
+	 */
+	ret = pibridge_req_gate_tmt(address, eCmdWriteSerialNumber,
+				    &i32uSerNum_p, sizeof(i32uSerNum_p),
+				    &err, sizeof(err),
+				    REV_PI_IO_TIMEOUT + 100);
+	if (ret < 0)
+		return ret;
 
-    msleep(100);
-
-    i32sErr_l = fwuReceiveTel(&suRecvTelegram_l);
-    if (i32sErr_l != 0)
-    {   // Error occurred
-	return i32sErr_l;
-    }
-
-    if (suRecvTelegram_l.i16uCmd & MODGATE_RS485_COMMAND_ANSWER_ERROR)
-    {
-	if (suRecvTelegram_l.i8uDataLen == 4)
-	{
-	    i32sErr_l = *((INT32S *)suRecvTelegram_l.ai8uData);
-	    pr_err("fwuWriteSerialNum: module reported error 0x%08x", i32sErr_l);
-	    return -12;
+	if (ret < sizeof(err)) {
+		pr_warn("Truncated WriteSerialNumber response (addr %hhu)\n",
+			address);
+		return -EIO;
 	}
-	else
-	{
-	    return -13;
+
+	if (err) {
+		pr_warn("Error in WriteSerialNumber response (addr %hhu: 0x%04x)\n",
+			address, err);
+		return -EIO;
 	}
-    }
-    return 0;
+
+	return 0;
 }
 
 
 INT32S fwuEraseFlash (INT8U address)
 {
-	SRs485Telegram suRecvTelegram_l;
-	INT32S i32sErr_l;
+	int ret;
+	u16 err;
 
-	fwuSendTel(address, eCmdEraseFwFlash, 0, 0);
+	/*
+	 * Allow 6 sec before expecting a response.
+	 * The response consists of an error code which is 0 on success.
+	 */
+	ret = pibridge_req_gate_tmt(address, eCmdEraseFwFlash,
+				    NULL, 0,
+				    &err, sizeof(err),
+				    6000);
+	if (ret < 0)
+		return ret;
 
-	i32sErr_l = fwuReceiveTelTimeout(&suRecvTelegram_l, 6000);
-	if (i32sErr_l != 0)
-	{
-		// Error occurred
-		return i32sErr_l;
+	if (ret < sizeof(err)) {
+		pr_warn("Truncated EraseFwFlash response (addr %hhu)\n",
+			address);
+		return -EIO;
 	}
 
-	if (suRecvTelegram_l.i16uCmd & MODGATE_RS485_COMMAND_ANSWER_ERROR)
-	{
-	    if (suRecvTelegram_l.i8uDataLen == 4)
-	    {
-		i32sErr_l = *((INT32S *)suRecvTelegram_l.ai8uData);
-		pr_err("fwuEraseFlash: module reported error 0x%08x", i32sErr_l);
-		return -12;
-	    }
-	    else
-	    {
-		return -13;
-	    }
+	if (err) {
+		pr_warn("Error in EraseFwFlash response (addr %hhu: 0x%04x)\n",
+			address, err);
+		return -EIO;
 	}
+
 	return 0;
 }
 
 INT32S fwuWrite(INT8U address, INT32U flashAddr, char *data, INT32U length)
 {
-	SRs485Telegram suRecvTelegram_l;
-	INT32S i32sErr_l;
 	INT8U ai8uSendBuf_l[MAX_TELEGRAM_DATA_SIZE];
+	int ret;
+	u16 err;
 
 	memcpy (ai8uSendBuf_l, &flashAddr, sizeof (flashAddr));
 	if (length == 0 || length > MAX_TELEGRAM_DATA_SIZE - sizeof(flashAddr))
@@ -127,59 +133,43 @@ INT32S fwuWrite(INT8U address, INT32U flashAddr, char *data, INT32U length)
 
 	memcpy (ai8uSendBuf_l + sizeof (flashAddr), data, length);
 
-	fwuSendTel(address, eCmdWriteFwFlash, ai8uSendBuf_l, sizeof (flashAddr) + length);
+	/*
+	 * Allow 1 sec before expecting a response.
+	 * The response consists of an error code which is 0 on success.
+	 */
+	ret = pibridge_req_gate_tmt(address, eCmdWriteFwFlash,
+				    ai8uSendBuf_l, sizeof(flashAddr) + length,
+				    &err, sizeof(err),
+				    1000);
+	if (ret < 0)
+		return ret;
 
-	i32sErr_l = fwuReceiveTelTimeout(&suRecvTelegram_l, 1000);
-	if (i32sErr_l != 0)
-	{   // Error occurred
-		return i32sErr_l;
+	if (ret < sizeof(err)) {
+		pr_warn("Truncated WriteFwFlash response (addr %hhu)\n",
+			address);
+		return -EIO;
 	}
 
-	if (suRecvTelegram_l.i16uCmd & MODGATE_RS485_COMMAND_ANSWER_ERROR)
-	{
-	    if (suRecvTelegram_l.i8uDataLen == 4)
-	    {
-		i32sErr_l = *((INT32S *)suRecvTelegram_l.ai8uData);
-		pr_err("fwuWrite: module reported error 0x%08x", i32sErr_l);
-		return -12;
-	    }
-	    else
-	    {
-		return -13;
-	    }
+	if (err) {
+		pr_warn("Error in WriteFwFlash response (addr %hhu: 0x%04x)\n",
+			address, err);
+		return -EIO;
 	}
+
 	return 0;
 }
 
 INT32S fwuResetModule (INT8U address)
 {
-    SRs485Telegram suRecvTelegram_l;
-    INT32S i32sErr_l;
+	int ret;
 
-    fwuSendTel(address, eCmdResetModule, NULL, 0);
+	/* There is no response for this command. */
+	ret = pibridge_req_send_gate(address, eCmdResetModule, NULL, 0);
+	if (ret)
+		return ret;
 
-    msleep(100);
-
-    i32sErr_l = fwuReceiveTelTimeout(&suRecvTelegram_l, 10000);
-    if (i32sErr_l != 0)
-    {   // Error occurred
-	return i32sErr_l;
-    }
-
-    if (suRecvTelegram_l.i16uCmd & MODGATE_RS485_COMMAND_ANSWER_ERROR)
-    {
-	if (suRecvTelegram_l.i8uDataLen == 4)
-	{
-	    i32sErr_l = *((INT32S *)suRecvTelegram_l.ai8uData);
-	    pr_err("fwuResetModule: module reported error 0x%08x", i32sErr_l);
-	    return -12;
-	}
-	else
-	{
-	    return -13;
-	}
-    }
-    return 0;
+	msleep(10000);
+	return 0;
 }
 
 
