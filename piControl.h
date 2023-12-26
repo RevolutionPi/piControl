@@ -122,6 +122,7 @@
 // the following call are for KUNBUS internal use only.
 #define  KB_INTERN_SET_SERIAL_NUM           _IO(KB_IOC_MAGIC, 100 )  // set serial num in piDIO, piDI or piDO (can be made only once)
 #define  KB_INTERN_IO_MSG                   _IO(KB_IOC_MAGIC, 101 )  // send an I/O-Protocol message and return response
+#define MAX_TELEGRAM_DATA_SIZE 255
 
 #endif //WIN32
 
@@ -197,13 +198,11 @@ struct pictl_calibrate {
 	signed short	y_val;
 };
 
-#define CONFIG_DATA_SIZE 256
-
 typedef struct SConfigDataStr
 {
     uint8_t     bLeft;
     uint16_t    i16uLen;
-    char        acData[CONFIG_DATA_SIZE];
+    char        acData[MAX_TELEGRAM_DATA_SIZE];
 } SConfigData;
 
 enum revpi_ro_num {

@@ -1465,6 +1465,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_CONFIG_SEND:	// for download of configuration to Master Gateway: download config data
 		{
 			SConfigData *pData = (SConfigData *) usr_addr;
+			u16 datalen;
 
 			if (!piDev_g.revpi_gate_supported) {
 				return -EPERM;
@@ -1472,6 +1473,12 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (isRunning()) {
 				return -ECANCELED;
 			}
+
+			if (get_user(datalen, &pData->i16uLen))
+				return -EFAULT;
+
+			if (datalen > MAX_TELEGRAM_DATA_SIZE)
+				return -EINVAL;
 
 			my_rt_mutex_lock(&piCore_g.lockGateTel);
 			if (copy_from_user(piCore_g.ai8uSendDataGateTel, pData->acData, pData->i16uLen)) {

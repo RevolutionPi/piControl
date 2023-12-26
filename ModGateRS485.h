@@ -34,8 +34,8 @@
 #define MODGATERS485_H_INC
 
 #include "common_define.h"
+#include "piControl.h"
 
-#define MAX_TELEGRAM_DATA_SIZE 255
 #define MAX_FWU_DATA_SIZE      250
 
 #define RS485_HDRLEN (offsetof(SRs485Telegram, ai8uData))
