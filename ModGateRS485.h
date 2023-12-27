@@ -33,17 +33,10 @@
 #ifndef MODGATERS485_H_INC
 #define MODGATERS485_H_INC
 
-#include "common_define.h"
 #include "piControl.h"
 
 #define MAX_FWU_DATA_SIZE      250
-
-#define RS485_HDRLEN (offsetof(SRs485Telegram, ai8uData))
-
 #define MODGATE_RS485_BROADCAST_ADDR            0xff
-#define MODGATE_RS485_COMMAND_ANSWER_OK         0x4000
-#define MODGATE_RS485_COMMAND_ANSWER_ERROR      0x8000
-#define MODGATE_RS485_COMMAND_ANSWER_FILTER     (~(MODGATE_RS485_COMMAND_ANSWER_OK | MODGATE_RS485_COMMAND_ANSWER_ERROR))
 
 typedef enum
 {
@@ -72,50 +65,5 @@ typedef enum
     eCmdPiIoConfigure         = 0x0016,     // The configuration data for the slave
     eCmdPiIoStartDataExchange = 0x0017,     // Slave have to start dataexchange
 } ERs485Command;
-
-typedef enum
-{
-    eIoConfig,
-    eGateProtocol,
-    eIoProtocol,
-} ERs485Protocol;
-
-typedef struct {
-    INT8U i8uDstAddr;
-    INT8U i8uSrcAddr;
-    INT16U i16uCmd;
-    INT16U i16uSequNr;
-    INT8U i8uDataLen;
-    INT8U ai8uData[MAX_TELEGRAM_DATA_SIZE];
-} __attribute__((__packed__)) SRs485Telegram;
-
-//-----------------------------------------------------------------------------
-
-extern void *REG_MOD_GATE_pvRs485TelegHeapHandle_g;
-extern void *pvRs485TelegHeapHandle_g;
-extern TBOOL bConfigurationComplete_g;  //!< Configuration from PiBridge master is completed
-
-extern INT8U i8uOwnAddress_g;
-
-//-----------------------------------------------------------------------------
-
-// Initialize RS485-Communication
-INT32U ModGateRs485Init(void);
-
-TBOOL ModGateRs485GetResponseState(void);
-void  ModGateRs485SetResponseState(TBOOL bResponseState_p);
-
-// Runtime function
-void  ModGateRs485Run(void);
-
-// Send telegram
-void  ModGateRs485InsertSendTelegram(SRs485Telegram *psuSendTelegram_p);
-
-// Change protocol
-void  ModGateRs485SetProtocol(ERs485Protocol eRs485Protocol_p);
-
-
-TBOOL ModGateRs485IsRunning(void);
-
 
 #endif // MODGATERS485_H_INC
