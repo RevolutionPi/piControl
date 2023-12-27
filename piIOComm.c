@@ -35,6 +35,7 @@
 #include "common_define.h"
 #include "revpi_core.h"
 
+
 int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 {
 	int written;
@@ -79,38 +80,6 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 	return 0;
 }
 
-int piIoComm_recv(INT8U * buf_p, INT16U i16uLen_p)
-{
-#ifdef DEBUG_SERIALCOMM
-	if (i16uLen_p == 1) {
-		pr_info("recv %d: %02x\n", i16uLen_p, buf_p[0]);
-	} else if (i16uLen_p == 2) {
-		pr_info("recv %d: %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1]);
-	} else if (i16uLen_p == 3) {
-		pr_info("recv %d: %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2]);
-	} else if (i16uLen_p == 4) {
-		pr_info("recv %d: %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3]);
-	} else if (i16uLen_p == 5) {
-		pr_info("recv %d: %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4]);
-	} else if (i16uLen_p == 6) {
-		pr_info("recv %d: %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5]);
-	} else if (i16uLen_p == 7) {
-		pr_info("recv %d: %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6]);
-	} else if (i16uLen_p == 8) {
-		pr_info("recv %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1],
-			buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7]);
-	} else {
-		pr_info("recv %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0],
-			buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
-	}
-#endif
-	return piIoComm_recv_timeout(buf_p, i16uLen_p, REV_PI_IO_TIMEOUT);
-}
-
-int piIoComm_recv_timeout(INT8U * buf_p, INT16U i16uLen_p, INT16U timeout_p)
-{
-	return pibridge_recv_timeout(buf_p, i16uLen_p, timeout_p);
-}
 
 INT8U piIoComm_Crc8(INT8U * pi8uFrame_p, INT16U i16uLen_p)
 {
