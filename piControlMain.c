@@ -1464,43 +1464,52 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_CONFIG_SEND:	// for download of configuration to Master Gateway: download config data
 		{
-			SConfigData *pData = (SConfigData *) usr_addr;
+			SConfigData __user *usr_cfg = (SConfigData *) usr_addr;
 			u16 datalen;
+			u8 is_left;
 
-			if (!piDev_g.revpi_gate_supported) {
+			if (!piDev_g.revpi_gate_supported)
 				return -EPERM;
-			}
-			if (isRunning()) {
-				return -ECANCELED;
-			}
 
-			if (get_user(datalen, &pData->i16uLen))
+			if (isRunning())
+				return -ECANCELED;
+
+			if (get_user(datalen, &usr_cfg->i16uLen))
 				return -EFAULT;
 
 			if (datalen > MAX_TELEGRAM_DATA_SIZE)
 				return -EINVAL;
 
+			if (get_user(is_left, &usr_cfg->bLeft))
+				return -EFAULT;
+
 			my_rt_mutex_lock(&piCore_g.lockGateTel);
-			if (copy_from_user(piCore_g.ai8uSendDataGateTel, pData->acData, pData->i16uLen)) {
+			if (copy_from_user(piCore_g.ai8uSendDataGateTel,
+					   usr_cfg->acData, datalen)) {
 				rt_mutex_unlock(&piCore_g.lockGateTel);
 				status = -EFAULT;
 				break;
 			}
-			piCore_g.i8uSendDataLenGateTel = pData->i16uLen;
+			piCore_g.i8uSendDataLenGateTel = datalen;
 
-			if (pData->bLeft) {
-				piCore_g.i8uAddressGateTel = RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
-			} else {
-				piCore_g.i8uAddressGateTel = RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
-			}
+			if (is_left)
+				piCore_g.i8uAddressGateTel =
+					RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
+			else
+				piCore_g.i8uAddressGateTel =
+					RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
+
 			piCore_g.i16uCmdGateTel = eCmdRAPIMessage;
 
 			piCore_g.pendingGateTel = true;
 			down(&piCore_g.semGateTel);
 			status = piCore_g.statusGateTel;
 
-			pData->i16uLen = piCore_g.i16uRecvDataLenGateTel;
-			if (copy_to_user(pData->acData, &piCore_g.ai8uRecvDataGateTel, pData->i16uLen)) {
+			put_user(piCore_g.i16uRecvDataLenGateTel, &usr_cfg->i16uLen);
+
+			if (copy_to_user(usr_cfg->acData,
+					 &piCore_g.ai8uRecvDataGateTel,
+					 piCore_g.i16uRecvDataLenGateTel)) {
 				rt_mutex_unlock(&piCore_g.lockGateTel);
 				status = -EFAULT;
 				break;
