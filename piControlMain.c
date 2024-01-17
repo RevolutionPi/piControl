@@ -1121,7 +1121,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
 				if (RevPiDevice_getDev(i)->i8uAddress == res_cnt.i8uAddress
 				    && RevPiDevice_getDev(i)->i8uActive
-				    && (RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
+				    && (RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_MIO
+					|| RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
 					|| RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DI_16)) {
 					found = true;
 					break;
