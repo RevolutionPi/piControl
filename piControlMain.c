@@ -124,35 +124,6 @@ static struct class *piControlClass;
 
 bool waitRunning(int timeout);	// ms
 
-/******************************************************************************/
-/***************************** CS Functions  **********************************/
-/******************************************************************************/
-
-static void showPADS(void)
-{
-	void __iomem *base;
-
-	base = devm_ioremap(piDev_g.dev, 0x3f10002c, 12);
-	if (IS_ERR(base)) {
-		pr_err("cannot map PADS");
-	} else {
-		u32 v;
-		int i;
-
-		for (i=0; i<3; i++)
-		{
-			v = readl(base + 4*i);
-			pr_info("PADS %d = %#x   slew=%d  hyst=%d  drive=%d",
-			       i,
-			       v,
-			       (v & 0x10) ? 1 : 0,
-			       (v & 0x08) ? 1 : 0,
-			       (v & 0x07));
-		}
-		devm_iounmap(piDev_g.dev, base);
-	}
-}
-
 /*****************************************************************************/
 /*       I N I T                                                             */
 /*****************************************************************************/
@@ -323,8 +294,6 @@ static int __init piControlInit(void)
 	if (res)
 		goto err_free_config;
 
-	showPADS();
-
 	piDev_g.thermal_zone = thermal_zone_get_zone_by_name(BCM2835_THERMAL_ZONE);
 	if (IS_ERR(piDev_g.thermal_zone)) {
 		pr_err("cannot find thermal zone\n");
@@ -405,8 +374,6 @@ static int piControlReset(tpiControlInst * priv)
 	} else if (piDev_g.pibridge_supported) {
 		PiBridgeMaster_Reset();
 	}
-
-	showPADS();
 
 	if (!waitRunning(timeout)) {
 		status = -ETIMEDOUT;
