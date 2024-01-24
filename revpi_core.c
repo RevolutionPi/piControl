@@ -328,8 +328,8 @@ static int pibridge_probe(struct platform_device *pdev)
 		goto err_deinit_gpios;
 	}
 
-	/* run thread */
-	if (piDev_g.revpi_gate_supported) {
+	/* set rt prio for spi PiBridge interfaces on RevPi Core or Connect */
+	if (piDev_g.revpi_gate_supported && (piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT )) {
 		ret = set_kthread_prios(revpi_core_kthread_prios);
 		if (ret)
 			goto err_release_fw;
