@@ -31,8 +31,7 @@ u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 {
 	int i;
 
-	if (piDev_g.machine_type == REVPI_CORE &&
-	    !strcmp(dev_name(netdev->dev.parent), "spi0.1")) {
+	if (!strcmp(netdev->name, "piright")) {
 		if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF) {
 			/*
 			 * The gateway was not discoverable via RS-485,
@@ -53,10 +52,7 @@ u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 		return piCore_g.i8uRightMGateIdx;
 	}
 
-	if ((piDev_g.machine_type == REVPI_CORE &&
-	     !strcmp(dev_name(netdev->dev.parent), "spi0.0")) ||
-	    (piDev_g.machine_type == REVPI_CONNECT &&
-	     !strcmp(dev_name(netdev->dev.parent), "spi0.1"))) {
+	if (!strcmp(netdev->name, "pileft")) {
 		if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF) {
 			pr_info("search for left mGate %d\n", module_type);
 			i = RevPiDevice_find_by_side_and_type(false,
