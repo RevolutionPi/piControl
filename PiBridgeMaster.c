@@ -110,7 +110,7 @@ int PiBridgeMaster_Adjust(void)
 			if (RevPiDevice_getDev(j)->i8uAddress == piDev_g.devs->dev[i].i8uAddress) {
 				// Außerdem muss ModuleType, InputLength und OutputLength gleich sein.
 				if (RevPiDevice_getDev(j)->sId.i16uModulType != piDev_g.devs->dev[i].i16uModuleType) {
-					pr_info("## address %d: incorrect module type %d != %d\n",
+					pr_warn("## address %d: incorrect module type %d != %d\n",
 						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uModulType,
 						piDev_g.devs->dev[i].i16uModuleType);
 					result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
@@ -119,7 +119,7 @@ int PiBridgeMaster_Adjust(void)
 					break;
 				}
 				if (RevPiDevice_getDev(j)->sId.i16uFBS_InputLength != piDev_g.devs->dev[i].i16uInputLength) {
-					pr_info("## address %d: incorrect input length %d != %d\n",
+					pr_warn("## address %d: incorrect input length %d != %d\n",
 						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uFBS_InputLength,
 						piDev_g.devs->dev[i].i16uInputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
@@ -128,7 +128,7 @@ int PiBridgeMaster_Adjust(void)
 					break;
 				}
 				if (RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength != piDev_g.devs->dev[i].i16uOutputLength) {
-					pr_info("## address %d: incorrect output length %d != %d\n",
+					pr_warn("## address %d: incorrect output length %d != %d\n",
 						RevPiDevice_getDev(j)->i8uAddress,
 						RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength,
 						piDev_g.devs->dev[i].i16uOutputLength);

@@ -1003,7 +1003,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EFAULT;
 
 			if (usr_addr == 0) {
-				pr_info("piControlIoctl: illegal parameter\n");
+				pr_err("piControlIoctl: illegal parameter\n");
 				return -EINVAL;
 			}
 
@@ -1097,7 +1097,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			if (!found || res_cnt.i16uBitfield == 0) {
-				pr_info("piControlIoctl: resetCounter failed bitfield 0x%x", res_cnt.i16uBitfield);
+				pr_err("piControlIoctl: resetCounter failed bitfield 0x%x", res_cnt.i16uBitfield);
 				return -EINVAL;
 			}
 
@@ -1211,7 +1211,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		}
 
 		if (!found || cali.channels == 0) {
-			pr_info("calibrate failed, channel 0x%x\n",
+			pr_err("calibrate failed, channel 0x%x\n",
 						cali.channels);
 			return -EINVAL;
 		}
