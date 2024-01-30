@@ -26,6 +26,7 @@
 
 /* button gpio num */
 #define REVPI_FLAT_BUTTON_GPIO			13
+#define REVPI_FLAT_S_BUTTON_GPIO		23
 
 #define REVPI_FLAT_DOUT_THREAD_PRIO		(MAX_RT_PRIO / 2 + 8)
 #define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_RT_PRIO / 2 + 6)
@@ -285,6 +286,7 @@ int revpi_flat_init(void)
 {
 	struct revpi_flat *flat;
 	struct sched_param param = { };
+	unsigned int button_gpio;
 	struct device *dev;
 	int ret;
 
@@ -307,7 +309,10 @@ int revpi_flat_init(void)
 		return -ENXIO;
 	}
 
-	flat->button_desc = gpio_to_desc(REVPI_FLAT_BUTTON_GPIO);
+	button_gpio = of_machine_is_compatible("kunbus,revpi-flat-s-2022") ?
+		REVPI_FLAT_S_BUTTON_GPIO : REVPI_FLAT_BUTTON_GPIO;
+
+	flat->button_desc = gpio_to_desc(button_gpio);
 	if (!flat->button_desc) {
 		dev_err(piDev_g.dev, "no gpio desc for button found\n");
 		return -ENXIO;
