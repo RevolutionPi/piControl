@@ -169,13 +169,6 @@ int revpi_mio_cycle(unsigned char devno)
 		ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
 						&img_out->aio.i16uOutputVoltage,
 						io_req_ex.i8uChannels, 2);
-
-		pr_info("copy bits,bitmap:0x%x,force:0x%x,len:%d,data:%*ph\n",
-						io_req_ex.i8uChannels,
-						img_out->aio.i8uChannels,
-						ch_cnt,
-						17,
-						&io_req_ex);
 	}
 	rt_mutex_unlock(&piDev_g.lockPI);
 	return revpi_mio_cycle_aio(dev, &io_req_ex, ch_cnt, &img_in->aio);
