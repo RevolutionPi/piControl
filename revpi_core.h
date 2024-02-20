@@ -82,9 +82,15 @@ typedef struct _SRevPiCore {
 	struct task_struct *pIoThread;
 	struct hrtimer ioTimer;
 	struct semaphore ioSem;
+
+	// cycle time measurement
+	unsigned int cycle_min; /* usecs */
+	unsigned int cycle_max; /* usecs */
+	bool data_exchange_running;
 } SRevPiCore;
 
 extern SRevPiCore piCore_g;
+extern unsigned int picontrol_max_cycle_deviation;
 
 u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type);
 void revpi_core_gate_connected(SDevice *revpi_dev, bool connected);

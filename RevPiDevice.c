@@ -37,6 +37,7 @@
 #include "revpi_core.h"
 #include "revpi_mio.h"
 #include "revpi_ro.h"
+#include "picontrol_trace.h"
 
 static SDeviceConfig RevPiDevices_s;
 
@@ -193,12 +194,17 @@ int RevPiDevice_run(void)
 	INT8U i8uDevice = 0;
 	INT32U r;
 	int retval = 0;
+	SDevice *dev;
 
 	RevPiDevices_s.i16uErrorCnt = 0;
 
 	for (i8uDevice = 0; i8uDevice < RevPiDevice_getDevCnt(); i8uDevice++) {
-		if (RevPiDevice_getDev(i8uDevice)->i8uActive) {
-			switch (RevPiDevice_getDev(i8uDevice)->sId.i16uModulType) {
+		dev = RevPiDevice_getDev(i8uDevice);
+
+		if (dev->i8uActive) {
+			trace_picontrol_cyclic_device_data_start(dev->i8uAddress);
+
+			switch (dev->sId.i16uModulType) {
 			case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
 			case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 			case KUNBUS_FW_DESCR_TYP_PI_DO_16:
@@ -238,10 +244,10 @@ int RevPiDevice_run(void)
 			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_TCP:
 			case KUNBUS_FW_DESCR_TYP_MG_DMX:
 				if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
-				    && RevPiDevice_getDev(i8uDevice)->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
+				    && dev->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
 					piCore_g.i8uRightMGateIdx = i8uDevice;
 				} else if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
-					   && RevPiDevice_getDev(i8uDevice)->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
+					   && dev->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
 					piCore_g.i8uLeftMGateIdx = i8uDevice;
 				}
 				break;
@@ -251,6 +257,7 @@ int RevPiDevice_run(void)
 				// user devices are ignored here
 				break;
 			}
+			trace_picontrol_cyclic_device_data_stop(dev->i8uAddress);
 		}
 	}
 

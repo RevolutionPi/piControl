@@ -30,7 +30,7 @@ KBUILD_CFLAGS += -g
 
 PWD   	:= $(shell pwd)
 
-EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__
+EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__ -I$(src)
 
 .PHONY: compiletime.h
 

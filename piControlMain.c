@@ -71,6 +71,11 @@ MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ti-dac082s085 "		/* compact aout */
 	       "ad5446");		/* flat aout */
 
+unsigned int picontrol_max_cycle_deviation;
+
+module_param(picontrol_max_cycle_deviation, uint, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(picontrol_max_cycle_deviation, "Specify the max deviation from an io-cyle in usecs.");
+
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
 /******************************************************************************/

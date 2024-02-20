@@ -680,6 +680,8 @@ int PiBridgeMaster_Run(void)
 				}
 				bEntering_s = bFALSE;
 				ret = 0;
+			} else {
+				piCore_g.data_exchange_running = true;
 			}
 
 			if (RevPiDevice_run()) {
@@ -750,6 +752,7 @@ int PiBridgeMaster_Run(void)
 			ret = piIoComm_gotoGateProtocol();
 			pr_info("piIoComm_gotoGateProtocol returned %d\n", ret);
 			eRunStatus_s = enPiBridgeMasterStatus_Init;
+			piCore_g.data_exchange_running = false;
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUMode) {
 			if (bEntering_s) {
 				if (i8uFWUScanned == 0) {

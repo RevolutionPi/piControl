@@ -14,6 +14,11 @@
 #include "revpi_common.h"
 #include "revpi_core.h"
 
+#define CREATE_TRACE_POINTS
+#include "picontrol_trace.h"
+
+extern unsigned int picontrol_max_cycle_deviation;
+
 static const struct kthread_prio revpi_core_kthread_prios[] = {
 	/* spi pump to RevPi Gateways */
 	{ .comm = "spi0",		.prio = MAX_RT_PRIO/2 + 4 },
@@ -105,7 +110,10 @@ static int piIoThread(void *data)
 	//TODO int value = 0;
 	ktime_t time;
 	ktime_t now;
+	ktime_t cycle_start;
+	unsigned int cycle_duration;
 	s64 tDiff;
+	u64 cycle_num = 0;
 
 	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	piCore_g.ioTimer.function = piIoTimer;
@@ -116,7 +124,15 @@ static int piIoThread(void *data)
 
 	PiBridgeMaster_Reset();
 
+	/* Initialize with the highest possible value to make sure it is
+	   overwritten with the next measured time span */
+	piCore_g.cycle_min = UINT_MAX;
+	piCore_g.cycle_max = 0;
+
 	while (!kthread_should_stop()) {
+		trace_picontrol_cycle_start(cycle_num);
+		cycle_start = ktime_get();
+
 		if (PiBridgeMaster_Run() < 0)
 			break;
 
@@ -178,9 +194,32 @@ static int piIoThread(void *data)
 
 		hrtimer_start(&piCore_g.ioTimer, time, HRTIMER_MODE_ABS);
 		down(&piCore_g.ioSem);	// wait for timer
+
+		if (piCore_g.data_exchange_running) {
+			cycle_duration = ktime_to_us(ktime_get() - cycle_start);
+			trace_picontrol_cycle_end(cycle_num, cycle_duration);
+
+			if (piCore_g.cycle_min > cycle_duration)
+				piCore_g.cycle_min = cycle_duration;
+
+			if (piCore_g.cycle_max < cycle_duration)
+				piCore_g.cycle_max = cycle_duration;
+
+			if (picontrol_max_cycle_deviation &&
+			   (cycle_duration > (piCore_g.cycle_min +
+					      picontrol_max_cycle_deviation))) {
+				trace_picontrol_cycle_exceeded(cycle_duration,
+							       piCore_g.cycle_min);
+			}
+			cycle_num++;
+		}
 	}
 
 	pr_info("piIO exit\n");
+	pr_info("Number of cycles: %llu \n", cycle_num);
+	pr_info("Cycle min: %u usecs\n", piCore_g.cycle_min);
+	pr_info("Cycle max: %u usecs\n", piCore_g.cycle_max);
+
 	return 0;
 }
 
