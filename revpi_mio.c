@@ -177,6 +177,7 @@ int revpi_mio_cycle(unsigned char devno)
 void revpi_mio_reset()
 {
 	mio_cnt = 0;
+	memset(mio_aio_request_last, 0, sizeof(mio_aio_request_last));
 }
 
 int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
