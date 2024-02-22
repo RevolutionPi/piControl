@@ -299,7 +299,7 @@ static int __init piControlInit(void)
 	if (res)
 		goto err_free_config;
 
-	piDev_g.thermal_zone = thermal_zone_get_zone_by_name(BCM2835_THERMAL_ZONE);
+	piDev_g.thermal_zone = thermal_zone_get_zone_by_name("cpu-thermal");
 	if (IS_ERR(piDev_g.thermal_zone)) {
 		pr_err("cannot find thermal zone\n");
 		piDev_g.thermal_zone = NULL;

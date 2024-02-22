@@ -2,12 +2,6 @@
 #define _COMPAT_H
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 13, 0)
-#define BCM2835_THERMAL_ZONE "bcm2835_thermal"
-#else
-#define BCM2835_THERMAL_ZONE "cpu-thermal"
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
 #define kernel_read(file, buf, count, pos)				\
 	({								\
