@@ -124,7 +124,7 @@ static int piIoThread(void *data)
 		if (PiBridgeMaster_Run() < 0)
 			break;
 
-		if (!ktime_equal(piDev_g.tLastOutput1, piDev_g.tLastOutput2)) {
+		if (piDev_g.tLastOutput1 != piDev_g.tLastOutput2) {
 			tDiff = ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
 			tDiff = tDiff << 1;	// multiply by 2
 			if (ktime_to_ns(ktime_sub(cycle_start, piDev_g.tLastOutput1)) > tDiff && isRunning()) {
