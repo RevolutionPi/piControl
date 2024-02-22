@@ -42,7 +42,6 @@
 #include <linux/thermal.h>
 #include <linux/wait.h>
 
-#include "compat.h"
 #include "IoProtocol.h"
 #include "ModGateRS485.h"
 #include "piConfig.h"

@@ -34,7 +34,6 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 
-#include "compat.h"
 #include "common_define.h"
 #include "json.h"
 #include "piAIOComm.h"

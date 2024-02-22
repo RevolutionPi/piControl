@@ -10,7 +10,6 @@
 
 #include <linux/platform_device.h>
 
-#include "compat.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
 
