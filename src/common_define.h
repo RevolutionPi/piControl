@@ -98,6 +98,7 @@ typedef struct S_KUNBUS_REV_NUMBER {
 #define KUNBUS_FW_DESCR_TYP_PI_FLAT                               135
 #define KUNBUS_FW_DESCR_TYP_PI_CONNECT_4                          136
 #define KUNBUS_FW_DESCR_TYP_PI_RO                                 137
+#define KUNBUS_FW_DESCR_TYP_PI_CONNECT_5                          138
 
 #define KUNBUS_FW_DESCR_TYP_PI_REVPI_GENERIC_PB                     0xfffe
 #define KUNBUS_FW_DESCR_TYP_INTERN                                  0xffff

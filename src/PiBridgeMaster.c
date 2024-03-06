@@ -841,7 +841,8 @@ int PiBridgeMaster_Run(void)
 	}
 	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();
 
-	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+	if (piDev_g.machine_type == REVPI_CONNECT_4 ||
+	    piDev_g.machine_type == REVPI_CONNECT_5) {
 		revpi_rgb_led_trigger_event(last_led, piCore_g.image.usr.rgb_leds);
 	} else {
 		revpi_led_trigger_event(last_led, piCore_g.image.usr.leds);
@@ -860,7 +861,8 @@ int PiBridgeMaster_Run(void)
 			gpiod_set_value(piCore_g.gpio_x2do, (piCore_g.image.usr.outputs & PICONTROL_X2_DOUT_CONNECT4) ? 1 : 0);
 		}
 	}
-	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+	if (piDev_g.machine_type == REVPI_CONNECT_4 ||
+            piDev_g.machine_type == REVPI_CONNECT_5) {
 		last_led = piCore_g.image.usr.rgb_leds;
 		last_output = piCore_g.image.usr.outputs;
 	} else {

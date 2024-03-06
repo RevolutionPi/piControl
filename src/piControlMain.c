@@ -151,6 +151,11 @@ static int __init piControlInit(void)
 		piDev_g.machine_type = REVPI_CONNECT_4;
 		piDev_g.pibridge_supported = 1;
 		pr_info("RevPi Connect 4\n");
+	} else if (of_machine_is_compatible("kunbus,revpi-connect5")) {
+		piDev_g.machine_type = REVPI_CONNECT_5;
+		piDev_g.pibridge_supported = 1;
+		piDev_g.revpi_gate_supported = 1;
+		pr_info("RevPi Connect 5\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-pibridge")) {
 		piDev_g.machine_type = REVPI_GENERIC_PB;
 		piDev_g.pibridge_supported = 1;
@@ -220,6 +225,7 @@ static int __init piControlInit(void)
 	if (piDev_g.machine_type == REVPI_CONNECT ||
 	    piDev_g.machine_type == REVPI_CONNECT_SE ||
 	    piDev_g.machine_type == REVPI_CONNECT_4 ||
+	    piDev_g.machine_type == REVPI_CONNECT_5 ||
 	    piDev_g.machine_type == REVPI_FLAT) {
 		res = res
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a3_green)
@@ -227,7 +233,8 @@ static int __init piControlInit(void)
 	}
 
 	if (piDev_g.machine_type == REVPI_FLAT ||
-	    piDev_g.machine_type == REVPI_CONNECT_4) {
+	    piDev_g.machine_type == REVPI_CONNECT_4 ||
+	    piDev_g.machine_type == REVPI_CONNECT_5) {
 		res = res
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a4_green)
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a4_red)
@@ -235,7 +242,8 @@ static int __init piControlInit(void)
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a5_red);
 	}
 
-	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+	if (piDev_g.machine_type == REVPI_CONNECT_4 ||
+	    piDev_g.machine_type == REVPI_CONNECT_5) {
 		res = res
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_blue)
 		   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a2_blue)

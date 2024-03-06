@@ -28,6 +28,7 @@ enum revpi_machine {
 	REVPI_CONNECT_SE = 5,
 	REVPI_CORE_SE = 6,
 	REVPI_CONNECT_4 = 7,
+	REVPI_CONNECT_5 = 8,
 	REVPI_GENERIC_PB = 255,
 };
 
@@ -78,7 +79,7 @@ typedef struct spiControlDev {
 	struct led_trigger a4_red;
 	struct led_trigger a5_green;
 	struct led_trigger a5_red;
-	/* RevPi Connect 4 only */
+	/* RevPi Connect 4, 5 */
 	struct led_trigger a1_blue;
 	struct led_trigger a2_blue;
 	struct led_trigger a3_blue;
