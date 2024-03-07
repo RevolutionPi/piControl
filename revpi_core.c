@@ -330,24 +330,18 @@ static int pibridge_probe(struct platform_device *pdev)
 
 	rt_mutex_init(&piCore_g.lockBridgeState);
 
-	piCore_g.fw = revpi_get_firmware();
-	if (!piCore_g.fw) {
-		dev_err(piDev_g.dev, "Failed to get revpi firmware\n");
-		goto err_deinit_gpios;
-	}
-
 	/* set rt prio for spi PiBridge interfaces on RevPi Core or Connect */
 	if (piDev_g.revpi_gate_supported && (piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT )) {
 		ret = set_kthread_prios(revpi_core_kthread_prios);
 		if (ret)
-			goto err_release_fw;
+			goto err_deinit_gpios;
 	}
 
 	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piControl I/O");
 	if (IS_ERR(piCore_g.pIoThread)) {
 		pr_err("kthread_run(io) failed\n");
 		ret = PTR_ERR(piCore_g.pIoThread);
-		goto err_release_fw;
+		goto err_deinit_gpios;
 	}
 	param.sched_priority = RT_PRIO_BRIDGE;
 	ret = sched_setscheduler(piCore_g.pIoThread, SCHED_FIFO, &param);
@@ -360,8 +354,6 @@ static int pibridge_probe(struct platform_device *pdev)
 
 err_stop_io_thread:
 	kthread_stop(piCore_g.pIoThread);
-err_release_fw:
-	revpi_release_firmware(piCore_g.fw);
 err_deinit_gpios:
 	deinit_gpios();
 
@@ -371,7 +363,6 @@ err_deinit_gpios:
 static int pibridge_remove(struct platform_device *pdev)
 {
 	kthread_stop(piCore_g.pIoThread);
-	revpi_release_firmware(piCore_g.fw);
 	deinit_gpios();
 
 	return 0;

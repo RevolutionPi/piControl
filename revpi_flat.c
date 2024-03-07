@@ -65,7 +65,6 @@ struct revpi_flat_image {
 } __attribute__ ((__packed__));
 
 struct revpi_flat {
-	struct rpi_firmware *fw;
 	struct revpi_flat_image image;
 	struct task_struct *dout_thread;
 	struct task_struct *ain_thread;
@@ -330,18 +329,11 @@ int revpi_flat_init(void)
 		return -ENXIO;
 	}
 
-	flat->fw = revpi_get_firmware();
-	if (!flat->fw) {
-		dev_err(piDev_g.dev, "Failed to get revpi firmware\n");
-		return -ENXIO;
-	}
-
 	dev = bus_find_device(&iio_bus_type, NULL, "mcp3550-50",
 			      revpi_flat_match_iio_name);
 	if (!dev) {
 		dev_err(piDev_g.dev, "cannot find analog input device\n");
-		ret = -ENODEV;
-		goto err_put_fw;
+		return -ENODEV;
 	}
 
 	flat->ain.indio_dev = dev_to_iio_dev(dev);
@@ -404,8 +396,6 @@ err_put_aout:
 	iio_device_put(flat->aout.indio_dev);
 err_put_ain:
 	iio_device_put(flat->ain.indio_dev);
-err_put_fw:
-	revpi_release_firmware(flat->fw);
 
 	return ret;
 }
@@ -418,5 +408,4 @@ void revpi_flat_fini(void)
 	kthread_stop(flat->dout_thread);
 	iio_device_put(flat->aout.indio_dev);
 	iio_device_put(flat->ain.indio_dev);
-	revpi_release_firmware(flat->fw);
 }

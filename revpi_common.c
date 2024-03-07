@@ -233,26 +233,6 @@ void revpi_power_led_red_run(void)
 	}
 }
 
-struct rpi_firmware *revpi_get_firmware(void)
-{
-	char *fwpath = "/soc/firmware";
-	struct rpi_firmware *fw = NULL;
-	struct device_node *node;
-
-	node = of_find_node_by_path(fwpath);
-	if (node) {
-		fw = rpi_firmware_get(node);
-		of_node_put(node);
-	}
-
-	return fw;
-}
-
-void revpi_release_firmware(struct rpi_firmware *fw)
-{
-	rpi_firmware_put(fw);
-}
-
 /**
  * set_kthread_prios - assign realtime priority to specific kthreads
  * @ktprios: null-terminated array of kthread/priority tuples

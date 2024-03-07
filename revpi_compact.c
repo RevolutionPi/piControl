@@ -40,7 +40,6 @@ static const struct kthread_prio revpi_compact_kthread_prios[] = {
 };
 
 typedef struct _SRevPiCompact {
-	struct rpi_firmware *fw;
 	SRevPiCompactImage image;
 	SRevPiCompactConfig config;
 	struct task_struct *io_thread;
@@ -525,11 +524,6 @@ int revpi_compact_init(void)
 		return -ENOMEM;
 
 	piDev_g.machine = machine;
-	machine->fw = revpi_get_firmware();
-	if (!machine->fw) {
-		pr_err("cannot acquire RPI firmware\n");
-		return -ENXIO;
-	}
 
 	machine->config = revpi_compact_config_g;
 	machine->ain_should_reset = true;
@@ -693,7 +687,6 @@ err_put_din:
 	gpiod_put_array(machine->din);
 err_remove_table:
 	gpiod_remove_lookup_table(&revpi_compact_gpios);
-	revpi_release_firmware(machine->fw);
 	piDev_g.machine = NULL;
 	return ret;
 }
@@ -720,7 +713,6 @@ void revpi_compact_fini(void)
 	gpiod_put_array(machine->dout);
 	gpiod_put_array(machine->din);
 	gpiod_remove_lookup_table(&revpi_compact_gpios);
-	revpi_release_firmware(machine->fw);
 	piDev_g.machine = NULL;
 }
 

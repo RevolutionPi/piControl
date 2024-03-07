@@ -37,7 +37,6 @@ typedef struct _SRevPiProcessImage {
 
 typedef struct _SRevPiCore {
 	SRevPiProcessImage image;
-	struct rpi_firmware *fw;
 
 	// piGate stuff
 	INT8U i8uLeftMGateIdx;	// index of left GateModule in RevPiDevice_asDevice_m

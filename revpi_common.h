@@ -6,8 +6,6 @@
 #include <linux/version.h>
 #include <uapi/linux/sched/types.h>
 
-#include "soc/bcm2835/raspberrypi-firmware.h"
-
 enum revpi_power_led_mode {
 	REVPI_POWER_LED_OFF = 0,
 	REVPI_POWER_LED_ON = 1,
@@ -20,9 +18,6 @@ void revpi_rgb_led_trigger_event(u16 led_prev, u16 led);
 void revpi_led_trigger_event(u16 led_prev, u16 led);
 void revpi_power_led_red_set(enum revpi_power_led_mode mode);
 void revpi_power_led_red_run(void);
-struct rpi_firmware *revpi_get_firmware(void);
-void revpi_release_firmware(struct rpi_firmware *fw);
-
 void revpi_check_timeout(void);
 
 extern char *lock_file;
