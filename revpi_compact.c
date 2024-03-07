@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cpufreq.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/iio/consumer.h>
@@ -322,7 +323,11 @@ next_chan:
 					pr_err("could not read cpu temperature");
 			}
 
-			freq = bcm2835_cpufreq_get_clock(machine->fw);
+			/*
+			   Get the CPU clock from CPU0 in kHz
+			   and divide it down to MHz.
+			*/
+			freq = cpufreq_quick_get(0);
 
 			my_rt_mutex_lock(&piDev_g.lockPI);
 			if (piDev_g.thermal_zone != NULL && !ret)

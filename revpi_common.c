@@ -253,42 +253,6 @@ void revpi_release_firmware(struct rpi_firmware *fw)
 	rpi_firmware_put(fw);
 }
 
-static int bcm2835_cpufreq_clock_property(struct rpi_firmware * fw, u32 tag, u32 id, u32 * val)
-{
-	struct {
-		u32 id;
-		u32 val;
-	} packet;
-	int ret;
-
-	packet.id = id;
-	packet.val = 0;
-	ret = rpi_firmware_property(fw, tag, &packet, sizeof(packet));
-	if (ret)
-		return ret;
-
-	*val = packet.val;
-
-	return 0;
-}
-
-uint32_t bcm2835_cpufreq_get_clock(struct rpi_firmware *fw)
-{
-	u32 rate;
-	int ret;
-
-	ret = bcm2835_cpufreq_clock_property(fw, RPI_FIRMWARE_GET_CLOCK_RATE,
-					     VCMSG_ID_ARM_CLOCK, &rate);
-	if (ret) {
-		pr_err("Failed to get clock (%d)\n", ret);
-		return 0;
-	}
-
-	rate /= 1000 * 1000;	//convert to MHz
-
-	return rate;
-}
-
 /**
  * set_kthread_prios - assign realtime priority to specific kthreads
  * @ktprios: null-terminated array of kthread/priority tuples

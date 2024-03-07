@@ -30,6 +30,7 @@
  *=======================================================================================
  */
 
+#include <linux/cpufreq.h>
 #include <linux/thermal.h>
 
 #include "common_define.h"
@@ -908,8 +909,13 @@ int PiBridgeMaster_Run(void)
 			}
 		}
 
+		/*
+		   Get the CPU clock from CPU0 in kHz
+		   and divide it down to fit into 8 bits.
+		*/
 		piCore_g.image.drv.i8uCPUFrequency =
-			bcm2835_cpufreq_get_clock(piCore_g.fw) / 10;
+			cpufreq_quick_get(0) / 10000;
+
 
 		last_update = kbUT_getCurrentMs();
 	}
