@@ -1,0 +1,5 @@
+picontrol-dkms (2.0.0-1+revpi12+1) bookworm; urgency=medium
+
+  * Initial piControl debian package
+
+ -- Lino Sanfilippo <l.sanfilippo@kunbus.com>  Fri, 1 Mar 2024 15:02:39 +0100
