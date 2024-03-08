@@ -289,21 +289,15 @@ static int __init piControlInit(void)
 		// ignore errors
 	}
 
-	if (piDev_g.machine_type == REVPI_CORE) {
+	if (piDev_g.pibridge_supported) {
 		res = revpi_core_init();
-	} if (piDev_g.machine_type == REVPI_CORE_SE) {
-		res = revpi_core_init();
-	} else if (piDev_g.machine_type == REVPI_CONNECT) {
-		res = revpi_core_init();
-	} else if (piDev_g.machine_type == REVPI_CONNECT_SE) {
-		res = revpi_core_init();
-	} else if (piDev_g.machine_type == REVPI_CONNECT_4) {
-		res = revpi_core_init();
-	} else if (piDev_g.machine_type == REVPI_COMPACT) {
-		res = revpi_compact_init();
-	} else if (piDev_g.machine_type == REVPI_FLAT) {
-		res = revpi_flat_init();
+	} else { // standalone device
+		if (piDev_g.machine_type == REVPI_COMPACT)
+			res = revpi_compact_init();
+		else if (piDev_g.machine_type == REVPI_FLAT)
+			res = revpi_flat_init();
 	}
+
 	if (res)
 		goto err_free_config;
 
@@ -323,18 +317,15 @@ static int __init piControlInit(void)
 	return 0;
 
 err_revpi_fini:
-	if (piDev_g.machine_type == REVPI_CORE) {
+	if (piDev_g.pibridge_supported) {
+		if (isRunning())
+			PiBridgeMaster_Stop();
 		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CORE_SE) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CONNECT) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CONNECT_SE) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CONNECT_4) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_COMPACT) {
-		revpi_compact_fini();
+	} else { // standalone devices
+		if (piDev_g.machine_type == REVPI_COMPACT)
+			revpi_compact_fini();
+		else if (piDev_g.machine_type == REVPI_FLAT)
+			revpi_flat_fini();
 	}
 err_free_config:
 	kfree(piDev_g.ent);
@@ -440,23 +431,15 @@ static void __exit piControlCleanup(void)
 
 	cdev_del(&piDev_g.cdev);
 
-	if (piDev_g.pibridge_supported && isRunning())
-		PiBridgeMaster_Stop();
-
-	if (piDev_g.machine_type == REVPI_CORE) {
+	if (piDev_g.pibridge_supported) {
+		if (isRunning())
+			PiBridgeMaster_Stop();
 		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CORE_SE) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CONNECT) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CONNECT_SE) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_CONNECT_4) {
-		revpi_core_fini();
-	} else if (piDev_g.machine_type == REVPI_COMPACT) {
-		revpi_compact_fini();
-	} else if (piDev_g.machine_type == REVPI_FLAT) {
-		revpi_flat_fini();
+	} else { // standalone devices
+		if (piDev_g.machine_type == REVPI_COMPACT)
+			revpi_compact_fini();
+		else if (piDev_g.machine_type == REVPI_FLAT)
+			revpi_flat_fini();
 	}
 
 	kfree(piDev_g.ent);
