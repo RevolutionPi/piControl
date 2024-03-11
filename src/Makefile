@@ -32,13 +32,8 @@ PWD   	:= $(shell pwd)
 
 EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__ -I$(src)
 
-.PHONY: compiletime.h
-
-all: compiletime.h
+all:
 	$(MAKE) -C $(KDIR) M=$(PWD)  modules
-
-compiletime.h:
-	echo "#define COMPILETIME \""`date`"\"" > compiletime.h
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean

@@ -139,8 +139,6 @@ void piControlDummyReceive(INT8U i8uChar_p)
 }
 #endif
 
-#include "compiletime.h"
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
 static char *piControlClass_devnode(struct device *dev, umode_t * mode)
 #else
@@ -160,8 +158,6 @@ static int __init piControlInit(void)
 	int res;
 
 	wait_for_device_probe();
-
-	pr_info("built: %s\n", COMPILETIME);
 
 	if (of_machine_is_compatible("kunbus,revpi-compact")) {
 		piDev_g.machine_type = REVPI_COMPACT;
