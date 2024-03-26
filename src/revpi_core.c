@@ -8,9 +8,10 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/mod_devicetable.h>
-#include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/mod_devicetable.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/platform_device.h>
 
 #include "revpi_common.h"
 #include "revpi_core.h"
