@@ -30,11 +30,13 @@
  *=======================================================================================
  */
 
-
+#include <linux/firmware.h>
 #include "fwuFlashFileMain.h"
 #include "piFirmwareUpdate.h"
+#include "RS485FwuCommand.h"
 #include "revpi_core.h"
 
+#define TFPGA_HEAD_DATA_OFFSET			6
 
 // ret < 0: error
 // ret == 0: no update needed
@@ -160,5 +162,159 @@ laError:
 	close_filename(input);
 	if (ret < 0)
 		printUserMsg(priv, "update firmware fail");
+	return ret;
+}
+
+static bool firmware_is_newer(unsigned int major_a, unsigned int minor_a,
+			      unsigned int major_b, unsigned int minor_b)
+{
+	if (major_a < major_b)
+		return false;
+	if (major_a > major_b)
+		return true;
+	if (minor_a > minor_b)
+		return true;
+	return false;
+}
+
+static int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
+			  unsigned char *upload_data, unsigned int upload_len)
+{
+	unsigned int upload_offset = 0;
+	unsigned int chunk_len;
+	int ret = 0;
+
+	while (upload_len) {
+		if (upload_len > MAX_FWU_DATA_SIZE)
+			chunk_len = MAX_FWU_DATA_SIZE;
+		else
+			chunk_len = upload_len;
+
+		if (fwuWrite(dev_addr, flash_addr + upload_offset,
+			       upload_data + upload_offset, chunk_len)) {
+			/* A failure of above function may result from a
+			   protocol communication error. The firmware upload
+			   task may still succeed, though. So do not bail out
+			   here but send the rest of the firmware.
+			*/
+			pr_err("Error transmitting firmware for flash addr 0x%08x, len %x\n",
+				flash_addr + upload_offset, chunk_len);
+			ret = -1;
+		}
+		upload_offset += chunk_len;
+		upload_len -= chunk_len;
+	}
+
+	return ret;
+}
+
+int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
+{
+	T_KUNBUS_APPL_DESCR *desc;
+	unsigned int flash_offset;
+	unsigned int upload_len;
+	unsigned int dev_addr;
+	bool force_upload;
+	TFileHead *hdr;
+	bool update;
+	int ret = 0;
+
+	force_upload  = !!(mask & PICONTROL_FIRMWARE_FORCE_UPLOAD);
+
+	if (sdev->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
+		pr_err("Virtual modules don't have firmware to update");
+		return -EOPNOTSUPP;
+	}
+
+	dev_addr = sdev->i8uAddress;
+	if (!dev_addr) {
+		pr_err("RevPi has no firmware to update");
+		return -EOPNOTSUPP;
+	}
+
+	hdr = (TFileHead *) &fw->data[0];
+	if (hdr->dat.usType != sdev->sId.i16uModulType) {
+		if (hdr->dat.usType != KUNBUS_FW_DESCR_TYP_PI_DIO_14)
+			return -EIO;
+		if ((sdev->sId.i16uModulType != KUNBUS_FW_DESCR_TYP_PI_DO_16) &&
+		    (sdev->sId.i16uModulType != KUNBUS_FW_DESCR_TYP_PI_DI_16))
+			return -EIO;
+	}
+
+	if (hdr->dat.usHwRev != sdev->sId.i16uHW_Revision) {
+		pr_err("HW revision %u in FW does not match HW revision %u of device\n",
+			hdr->dat.usHwRev, sdev->sId.i16uHW_Revision);
+		return -EIO;
+	}
+	/* Flashing starts with an offset to the "fpga" element of the
+	   TFileHead structure */
+	flash_offset = hdr->ulLength + TFPGA_HEAD_DATA_OFFSET;
+
+	if (fw->size <= flash_offset) {
+		pr_err("firmware corrupted: invalid header length %u in firmware with size %zu\n",
+			hdr->ulLength, fw->size);
+		return -EIO;
+	}
+	desc = (T_KUNBUS_APPL_DESCR *) &fw->data[flash_offset];
+	update = firmware_is_newer(desc->i8uSwMajor,
+				   desc->i16uSwMinor,
+				   sdev->sId.i16uSW_Major,
+				   sdev->sId.i16uSW_Minor);
+	if (update) {
+		pr_info("Updating firmware from %u.%u to %u.%u\n",
+			sdev->sId.i16uSW_Major, sdev->sId.i16uSW_Minor,
+			desc->i8uSwMajor, desc->i16uSwMinor);
+	} else if (force_upload) {
+		pr_info("Forced replacement of firmware %u.%u to %u.%u\n",
+			sdev->sId.i16uSW_Major, sdev->sId.i16uSW_Minor,
+			desc->i8uSwMajor, desc->i16uSwMinor);
+	} else {
+		pr_info("Firmware %u.%u already up to date. Use forced upload to override with firmware %u.%u\n",
+			sdev->sId.i16uSW_Major, sdev->sId.i16uSW_Minor,
+			desc->i8uSwMajor, desc->i16uSwMinor);
+		return 1;
+	}
+
+	upload_len = fw->size - flash_offset;
+
+	if (fwuEnterFwuMode(dev_addr) < 0) {
+		pr_err("error entering firmware update mode\n");
+		return -EIO;
+	}
+
+	/* Old mGates always use 2 as device address */
+	if (!sdev->i8uScan)
+		dev_addr = 2;
+
+	if (dev_addr < REV_PI_DEV_FIRST_RIGHT) {
+		dev_addr = 1;
+	} else {
+		if (dev_addr == RevPiDevice_getAddrRight() - 1)
+			dev_addr = 2;
+		else
+			dev_addr = 1;
+	}
+
+	msleep(500);
+
+	if (fwuEraseFlash(dev_addr) < 0) {
+		pr_err("failed to erase flash\n");
+		ret = -EIO;
+		goto reset;
+	}
+	if (flash_firmware(dev_addr, hdr->dat.ulFlashStart,
+			   (unsigned char *) desc, upload_len) < 0) {
+		pr_err("Errors while flashing firmware\n");
+		ret = -EIO;
+		goto reset;
+	}
+
+	pr_info("Firmware upload successful.");
+reset:
+	if (fwuResetModule(dev_addr) < 0) {
+		pr_err("failed to reset after firmware update\n");
+		ret = -EIO;
+	}
+
 	return ret;
 }

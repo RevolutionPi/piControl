@@ -42,6 +42,7 @@
 #include <linux/thermal.h>
 #include <linux/version.h>
 #include <linux/wait.h>
+#include <linux/firmware.h>
 
 #include "IoProtocol.h"
 #include "ModGateRS485.h"
@@ -53,6 +54,8 @@
 #include "revpi_compact.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
+
+#define FIRMWARE_FILENAME_LEN		32
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
@@ -710,6 +713,59 @@ static loff_t piControlSeek(struct file *file, loff_t off, int whence)
 	return newpos;
 }
 
+static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
+				     tpiControlInst *priv)
+{
+	const struct firmware *fw;
+	char fw_filename[FIRMWARE_FILENAME_LEN];
+	SDevice *sdev;
+	int ret;
+	int i;
+
+	if (!isRunning()) {
+		pr_err("PiBridge communication halted, not updating firmware\n");
+		return -ENXIO;
+	}
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		sdev = RevPiDevice_getDev(i);
+		if (fwu->addr == sdev->i8uAddress)
+			break;
+	}
+	if (i == RevPiDevice_getDevCnt())
+		return -ENODEV;
+
+	snprintf(fw_filename, sizeof(fw_filename), "revpi/fw_%05d_%03d.fwu",
+		 sdev->sId.i16uModulType, sdev->sId.i16uHW_Revision);
+
+	ret = request_firmware(&fw, fw_filename, piDev_g.dev);
+	if (ret) {
+		pr_err("Failed to load firmware %s: %i\n", fw_filename, ret);
+		return -EIO;
+	}
+
+	PiBridgeMaster_Stop();
+	msleep(50);
+
+	pr_info("Uploading firmware %s to module %u\n", fw_filename,
+		sdev->i8uAddress);
+	ret = upload_firmware(sdev, fw, fwu->mask);
+	release_firmware(fw);
+
+	/* firmware already up to date */
+	if (ret == 1) {
+		PiBridgeMaster_Continue();
+		return 0;
+	}
+	if (ret < 0)
+		pr_err("Errors during firmware upload\n");
+
+	if (piControlReset(priv) < 0)
+		pr_err("Failed to reset piControl\n");
+
+	return ret;
+}
+
 /*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
@@ -1283,6 +1339,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			INT32U *pData = NULL;	// pData is null or points to the module address
 
 
+			pr_notice("Note: ioctl KB_UPDATE_DEVICE_FIRMWARE is deprecated. Use PICONTROL_UPLOAD_FIRMWARE instead\n");
+
 			if (!piDev_g.pibridge_supported) {
 				return -EPERM;
 			}
@@ -1335,6 +1393,25 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			} else {
 				PiBridgeMaster_Continue();
 			}
+			rt_mutex_unlock(&piDev_g.lockIoctl);
+		}
+		break;
+
+	case PICONTROL_UPLOAD_FIRMWARE:
+		{
+			struct picontrol_firmware_upload fwu;
+
+			if (!piDev_g.pibridge_supported)
+				return -EOPNOTSUPP;
+
+			if (copy_from_user(&fwu, (const void __user *) usr_addr,
+					   sizeof(fwu))) {
+				pr_err("failed to copy firmware upload request from user\n");
+				return -EFAULT;
+			}
+
+			rt_mutex_lock(&piDev_g.lockIoctl);
+			status = picontrol_upload_firmware(&fwu, priv);
 			rt_mutex_unlock(&piDev_g.lockIoctl);
 		}
 		break;

@@ -94,6 +94,13 @@
 #define PICONTROL_USER_MODULE_TYPE          0x8000  // old definition, will be removed soon
 #define PICONTROL_USER_MODULE_MASK          0x7fff  // old definition, will be removed soon
 
+#define PICONTROL_FIRMWARE_FORCE_UPLOAD     0x0001
+
+struct picontrol_firmware_upload {
+	__u32 addr;
+	__u32 mask;
+};
+
 #define KB_IOC_MAGIC  'K'
 #define  KB_CMD1                            _IO(KB_IOC_MAGIC, 10 )  // for test only
 #define  KB_CMD2                            _IO(KB_IOC_MAGIC, 11 )  // for test only
@@ -104,6 +111,7 @@
 #define  KB_SET_VALUE                       _IO(KB_IOC_MAGIC, 16 )  // set the value of one bit in the process image
 #define  KB_FIND_VARIABLE                   _IO(KB_IOC_MAGIC, 17 )  // find a varible defined in piCtory
 #define  KB_SET_EXPORTED_OUTPUTS            _IO(KB_IOC_MAGIC, 18 )  // copy the exported outputs from a application process image to the real process image
+/* Deprecated. Use PICONTROL_UPLOAD_FIRMWARE instead. */
 #define  KB_UPDATE_DEVICE_FIRMWARE          _IO(KB_IOC_MAGIC, 19 )  // try to update the firmware of connected devices
 #define  KB_DIO_RESET_COUNTER               _IO(KB_IOC_MAGIC, 20 )  // set a counter or endocder to 0
 #define  KB_GET_LAST_MESSAGE                _IO(KB_IOC_MAGIC, 21 )  // copy the last error message
@@ -122,6 +130,8 @@
 // the following call are for KUNBUS internal use only.
 #define  KB_INTERN_SET_SERIAL_NUM           _IO(KB_IOC_MAGIC, 100 )  // set serial num in piDIO, piDI or piDO (can be made only once)
 #define  KB_INTERN_IO_MSG                   _IO(KB_IOC_MAGIC, 101 )  // send an I/O-Protocol message and return response
+/* new ioctl to upload firmware */
+#define PICONTROL_UPLOAD_FIRMWARE           _IOW(KB_IOC_MAGIC, 200, struct picontrol_firmware_upload )
 #define MAX_TELEGRAM_DATA_SIZE 255
 
 #endif //WIN32
