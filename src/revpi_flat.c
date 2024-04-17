@@ -44,6 +44,11 @@
 #define REVPI_FLAT_CONFIG_OFFSET_AOUT		REVPI_FLAT_CONFIG_OFFSET(aout)
 #define REVPI_FLAT_CONFIG_OFFSET_DOUT		REVPI_FLAT_CONFIG_OFFSET(dout)
 #define REVPI_FLAT_CONFIG_OFFSET_AIN_MODE	REVPI_FLAT_CONFIG_OFFSET(ain_mode_current)
+/*
+ * Delay in usecs before the next AIN value can safely be retrieved (see tCSHSD
+ * in MCP datasheet)
+ */
+#define REVPI_FLAT_AIN_DELAY			10
 
 struct revpi_flat_image {
 	struct {
@@ -177,7 +182,11 @@ static int revpi_flat_poll_ain(void *data)
 		ret = revpi_flat_handle_ain(flat, ain_mode_current);
 		if (ret)
 			msleep(REVPI_FLAT_AIN_POLL_INTERVAL);
-
+		/*
+		 * Wait a minimum timespan before requesting the next AIN
+		 * value.
+		 */
+		usleep_range(REVPI_FLAT_AIN_DELAY, REVPI_FLAT_AIN_DELAY + 10);
 		/* read cpu temperature */
 		if (piDev_g.thermal_zone != NULL) {
 			ret = thermal_zone_get_temp(piDev_g.thermal_zone,
