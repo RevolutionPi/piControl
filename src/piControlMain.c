@@ -180,6 +180,11 @@ static int __init piControlInit(void)
 		piDev_g.machine_type = REVPI_CONNECT_4;
 		piDev_g.pibridge_supported = 1;
 		pr_info("RevPi Connect 4\n");
+	} else if (of_machine_is_compatible("kunbus,revpi-pibridge")) {
+		piDev_g.machine_type = REVPI_GENERIC_PB;
+		piDev_g.pibridge_supported = 1;
+		piDev_g.revpi_gate_supported = 1;
+		pr_info("RevPi Generic PiBridge\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-flat")) {
 		piDev_g.machine_type = REVPI_FLAT;
 		pr_info("RevPi Flat\n");
