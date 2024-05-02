@@ -753,10 +753,6 @@ static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 	release_firmware(fw);
 
 	/* firmware already up to date */
-	if (ret == 1) {
-		PiBridgeMaster_Continue();
-		return 0;
-	}
 	if (ret < 0)
 		pr_err("Errors during firmware upload\n");
 
