@@ -221,17 +221,6 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
 
 	force_upload  = !!(mask & PICONTROL_FIRMWARE_FORCE_UPLOAD);
 
-	if (sdev->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
-		pr_err("Virtual modules don't have firmware to update");
-		return -EOPNOTSUPP;
-	}
-
-	dev_addr = sdev->i8uAddress;
-	if (!dev_addr) {
-		pr_err("RevPi has no firmware to update");
-		return -EOPNOTSUPP;
-	}
-
 	hdr = (TFileHead *) &fw->data[0];
 	if (hdr->dat.usType != sdev->sId.i16uModulType) {
 		if (hdr->dat.usType != KUNBUS_FW_DESCR_TYP_PI_DIO_14)

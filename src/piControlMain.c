@@ -735,6 +735,11 @@ static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 	if (i == RevPiDevice_getDevCnt())
 		return -ENODEV;
 
+	if (sdev->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
+		pr_err("Virtual modules don't have firmware to update");
+		return -EOPNOTSUPP;
+	}
+
 	snprintf(fw_filename, sizeof(fw_filename), "revpi/fw_%05d_%03d.fwu",
 		 sdev->sId.i16uModulType, sdev->sId.i16uHW_Revision);
 
@@ -1404,6 +1409,11 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					   sizeof(fwu))) {
 				pr_err("failed to copy firmware upload request from user\n");
 				return -EFAULT;
+			}
+
+			if (!fwu.addr) {
+				pr_err("Module with address 0 has no firmware to update");
+				return -EOPNOTSUPP;
 			}
 
 			rt_mutex_lock(&piDev_g.lockIoctl);
