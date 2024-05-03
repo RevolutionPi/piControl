@@ -98,7 +98,7 @@
 
 struct picontrol_firmware_upload {
 	__u32 addr;
-	__u32 mask;
+	__u32 flags;
 	/* Memory is cheap, so reserve a few bytes for future extensions */
 	__u32 padding[4];
 };

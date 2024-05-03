@@ -749,7 +749,7 @@ static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 
 	pr_info("Uploading firmware %s to module %u\n", fw_filename,
 		sdev->i8uAddress);
-	ret = upload_firmware(sdev, fw, fwu->mask);
+	ret = upload_firmware(sdev, fw, fwu->flags);
 	release_firmware(fw);
 
 	/* firmware already up to date */
