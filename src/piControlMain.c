@@ -767,6 +767,49 @@ static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 	return ret;
 }
 
+static void picontrol_set_device_info(SDeviceInfo *out, SDevice *dev)
+{
+	out->i8uAddress = dev->i8uAddress;
+	out->i8uActive = dev->i8uActive;
+	out->i32uSerialnumber = dev->sId.i32uSerialnumber;
+	out->i16uModuleType = dev->sId.i16uModulType;
+	out->i16uHW_Revision = dev->sId.i16uHW_Revision;
+	out->i16uSW_Major = dev->sId.i16uSW_Major;
+	out->i16uSW_Minor = dev->sId.i16uSW_Minor;
+	out->i32uSVN_Revision = dev->sId.i32uSVN_Revision;
+	out->i16uInputLength = dev->sId.i16uFBS_InputLength;
+	out->i16uInputOffset = dev->i16uInputOffset;
+	out->i16uOutputLength = dev->sId.i16uFBS_OutputLength;
+	out->i16uOutputOffset = dev->i16uOutputOffset;
+	out->i16uConfigLength = dev->i16uConfigLength;
+	out->i16uConfigOffset = dev->i16uConfigOffset;
+	out->i8uModuleState = dev->i8uModuleState;
+}
+
+static int picontrol_get_device_info(SDeviceInfo *dev_info)
+{
+	int i;
+	bool found;
+	SDevice *dev;
+
+	for (i = 0, found = false; i < RevPiDevice_getDevCnt(); i++) {
+		dev = RevPiDevice_getDev(i);
+		if ((dev_info->i8uAddress == dev->i8uAddress) ||
+		    (dev_info->i16uModuleType == dev->sId.i16uModulType)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		picontrol_set_device_info(dev_info, dev);
+		return i;
+	}
+
+	/* nothing found */
+	return -ENXIO;
+}
+
 /*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
@@ -802,50 +845,22 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_GET_DEVICE_INFO:
 		{
 			SDeviceInfo dev_info;
-			int i, found;
+			int ret;
 
 			if (copy_from_user(&dev_info, (const void __user *) usr_addr, sizeof(dev_info))) {
 				pr_err("failed to copy dev info from user\n");
 				return -EFAULT;
 			}
 
-			for (i = 0, found = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (dev_info.i8uAddress != 0 && dev_info.i8uAddress == RevPiDevice_getDev(i)->i8uAddress) {
-					found = 1;
-					break;
-				}
-				if (dev_info.i16uModuleType != 0 && dev_info.i16uModuleType == RevPiDevice_getDev(i)->sId.i16uModulType) {
-					found = 1;
-					break;
-				}
-			}
-			if (found) {
-				dev_info.i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
-				dev_info.i8uActive = RevPiDevice_getDev(i)->i8uActive;
-				dev_info.i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
-				dev_info.i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
-				dev_info.i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
-				dev_info.i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
-				dev_info.i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
-				dev_info.i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
-				dev_info.i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
-				dev_info.i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
-				dev_info.i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
-				dev_info.i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
-				dev_info.i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
-				dev_info.i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-				dev_info.i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+			ret = picontrol_get_device_info(&dev_info);
+			if (ret < 0)
+				return ret;
 
-				if (copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
-					pr_err("failed to copy dev info to user\n");
-					return -EFAULT;
-				}
-
-				status = i;
-				break;
+			status = ret;
+			if (copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
+				pr_err("failed to copy dev info to user\n");
+				return -EFAULT;
 			}
-			/* nothing found */
-			return -ENXIO;
 		}
 		break;
 
