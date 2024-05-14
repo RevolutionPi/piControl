@@ -12,6 +12,5 @@ Package: picontrol-dkms
 Architecture: all
 Depends: ${misc:Depends}
 Description: piControl driver for Revolution Pi extension modules
- .
  Revolution Pi is a set of IoT products based on the Raspberry Pi and
  geared towards industrial usage.
