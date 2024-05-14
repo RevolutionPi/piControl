@@ -1,3 +1,53 @@
+picontrol-dkms (2.1.3-1+revpi12+1) bookworm; urgency=medium
+
+  [ Nicolai Buchwitz ]
+  * README: Fix path in build instructions
+
+  [ Philipp Rosenberger ]
+  * fix: Add missing header pinconf-generic.h to revpi_core.c
+
+  [ Thomas Böhler ]
+  * feat(deb): autoload picontrol kernel module
+
+  [ Lino Sanfilippo ]
+  * piControl: add new ioctl for firmware upload
+
+  [ Nicolai Buchwitz ]
+  * ci: Add checkpatch linter
+
+  [ Philipp Rosenberger ]
+  * Release PiControl v2.1.0
+
+  [ Lino Sanfilippo ]
+  * piControl: flat: add delay between analog input data requests
+
+  [ Philipp Rosenberger ]
+  * Release PiControl v2.1.1
+
+  [ Lino Sanfilippo ]
+  * Revert "piControl: remove useless io timer handling"
+
+  [ Ramiro Gsponer ]
+  * Release PiControl v2.1.2
+
+  [ Nicolai Buchwitz ]
+  * fix(deb): Use modules-load.d for module autoload
+
+  [ Lino Sanfilippo ]
+  * piControl: add padding bytes to picontrol_firmware_upload struct
+  * Fix typo in manpage
+  * piControl: set return value to 1 if firmware is already up to update
+  * piControl: rename element in picontrol_firmware_upload struct
+  * piControl: for firmware upload perform sanity checks as early as possible
+
+  [ Thomas Böhler ]
+  * Return info for address 0 with KB_GET_DEVICE_INFO
+  * Use picontrol_write_device_info to avoid duplicated code
+  * Release piControl v2.1.3
+  * fix(deb): Remove empty description paragraph
+
+ -- Thomas Böhler <t.boehler@kunbus.com>  Tue, 14 May 2024 09:58:43 +0200
+
 picontrol-dkms (2.0.0-1+revpi12+1) bookworm; urgency=medium
 
   * Initial piControl debian package
