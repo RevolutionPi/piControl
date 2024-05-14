@@ -79,6 +79,8 @@ typedef struct _SRevPiCore {
 
 	// piIO thread
 	struct task_struct *pIoThread;
+	struct hrtimer ioTimer;
+	struct semaphore ioSem;
 
 	// cycle time measurement
 	unsigned int cycle_min; /* usecs */

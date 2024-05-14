@@ -40,5 +40,7 @@
 
 
 int FWU_update(tpiControlInst *priv, SDevice *pDev_p);
+int upload_firmware(SDevice *sdev, const struct firmware *fw,
+		    u32 mask);
 
 #endif // PIFIRMWAREUPDATE_H

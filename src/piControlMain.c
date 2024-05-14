@@ -42,6 +42,7 @@
 #include <linux/thermal.h>
 #include <linux/version.h>
 #include <linux/wait.h>
+#include <linux/firmware.h>
 
 #include "IoProtocol.h"
 #include "ModGateRS485.h"
@@ -54,10 +55,12 @@
 #include "revpi_common.h"
 #include "revpi_core.h"
 
+#define FIRMWARE_FILENAME_LEN		32
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.0.0");
+MODULE_VERSION("2.1.3");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
@@ -710,6 +713,103 @@ static loff_t piControlSeek(struct file *file, loff_t off, int whence)
 	return newpos;
 }
 
+static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
+				     tpiControlInst *priv)
+{
+	const struct firmware *fw;
+	char fw_filename[FIRMWARE_FILENAME_LEN];
+	SDevice *sdev;
+	int ret;
+	int i;
+
+	if (!isRunning()) {
+		pr_err("PiBridge communication halted, not updating firmware\n");
+		return -ENXIO;
+	}
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		sdev = RevPiDevice_getDev(i);
+		if (fwu->addr == sdev->i8uAddress)
+			break;
+	}
+	if (i == RevPiDevice_getDevCnt())
+		return -ENODEV;
+
+	if (sdev->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
+		pr_err("Virtual modules don't have firmware to update");
+		return -EOPNOTSUPP;
+	}
+
+	snprintf(fw_filename, sizeof(fw_filename), "revpi/fw_%05d_%03d.fwu",
+		 sdev->sId.i16uModulType, sdev->sId.i16uHW_Revision);
+
+	ret = request_firmware(&fw, fw_filename, piDev_g.dev);
+	if (ret) {
+		pr_err("Failed to load firmware %s: %i\n", fw_filename, ret);
+		return -EIO;
+	}
+
+	PiBridgeMaster_Stop();
+	msleep(50);
+
+	pr_info("Uploading firmware %s to module %u\n", fw_filename,
+		sdev->i8uAddress);
+	ret = upload_firmware(sdev, fw, fwu->flags);
+	release_firmware(fw);
+
+	/* firmware already up to date */
+	if (ret < 0)
+		pr_err("Errors during firmware upload\n");
+
+	if (piControlReset(priv) < 0)
+		pr_err("Failed to reset piControl\n");
+
+	return ret;
+}
+
+static void picontrol_set_device_info(SDeviceInfo *out, SDevice *dev)
+{
+	out->i8uAddress = dev->i8uAddress;
+	out->i8uActive = dev->i8uActive;
+	out->i32uSerialnumber = dev->sId.i32uSerialnumber;
+	out->i16uModuleType = dev->sId.i16uModulType;
+	out->i16uHW_Revision = dev->sId.i16uHW_Revision;
+	out->i16uSW_Major = dev->sId.i16uSW_Major;
+	out->i16uSW_Minor = dev->sId.i16uSW_Minor;
+	out->i32uSVN_Revision = dev->sId.i32uSVN_Revision;
+	out->i16uInputLength = dev->sId.i16uFBS_InputLength;
+	out->i16uInputOffset = dev->i16uInputOffset;
+	out->i16uOutputLength = dev->sId.i16uFBS_OutputLength;
+	out->i16uOutputOffset = dev->i16uOutputOffset;
+	out->i16uConfigLength = dev->i16uConfigLength;
+	out->i16uConfigOffset = dev->i16uConfigOffset;
+	out->i8uModuleState = dev->i8uModuleState;
+}
+
+static int picontrol_get_device_info(SDeviceInfo *dev_info)
+{
+	int i;
+	bool found;
+	SDevice *dev;
+
+	for (i = 0, found = false; i < RevPiDevice_getDevCnt(); i++) {
+		dev = RevPiDevice_getDev(i);
+		if ((dev_info->i8uAddress == dev->i8uAddress) ||
+		    (dev_info->i16uModuleType == dev->sId.i16uModulType)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		picontrol_set_device_info(dev_info, dev);
+		return i;
+	}
+
+	/* nothing found */
+	return -ENXIO;
+}
+
 /*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
@@ -745,50 +845,22 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_GET_DEVICE_INFO:
 		{
 			SDeviceInfo dev_info;
-			int i, found;
+			int ret;
 
 			if (copy_from_user(&dev_info, (const void __user *) usr_addr, sizeof(dev_info))) {
 				pr_err("failed to copy dev info from user\n");
 				return -EFAULT;
 			}
 
-			for (i = 0, found = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (dev_info.i8uAddress != 0 && dev_info.i8uAddress == RevPiDevice_getDev(i)->i8uAddress) {
-					found = 1;
-					break;
-				}
-				if (dev_info.i16uModuleType != 0 && dev_info.i16uModuleType == RevPiDevice_getDev(i)->sId.i16uModulType) {
-					found = 1;
-					break;
-				}
-			}
-			if (found) {
-				dev_info.i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
-				dev_info.i8uActive = RevPiDevice_getDev(i)->i8uActive;
-				dev_info.i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
-				dev_info.i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
-				dev_info.i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
-				dev_info.i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
-				dev_info.i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
-				dev_info.i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
-				dev_info.i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
-				dev_info.i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
-				dev_info.i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
-				dev_info.i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
-				dev_info.i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
-				dev_info.i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-				dev_info.i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+			ret = picontrol_get_device_info(&dev_info);
+			if (ret < 0)
+				return ret;
 
-				if (copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
-					pr_err("failed to copy dev info to user\n");
-					return -EFAULT;
-				}
-
-				status = i;
-				break;
+			status = ret;
+			if (copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
+				pr_err("failed to copy dev info to user\n");
+				return -EFAULT;
 			}
-			/* nothing found */
-			return -ENXIO;
 		}
 		break;
 
@@ -805,35 +877,29 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -ENOMEM;
 
 			for (i = 0; i < num_devs; i++) {
-				dev_infos[i].i8uAddress = RevPiDevice_getDev(i)->i8uAddress;
-				dev_infos[i].i8uActive = RevPiDevice_getDev(i)->i8uActive;
-				dev_infos[i].i32uSerialnumber = RevPiDevice_getDev(i)->sId.i32uSerialnumber;
-				dev_infos[i].i16uModuleType = RevPiDevice_getDev(i)->sId.i16uModulType;
-				dev_infos[i].i16uHW_Revision = RevPiDevice_getDev(i)->sId.i16uHW_Revision;
-				dev_infos[i].i16uSW_Major = RevPiDevice_getDev(i)->sId.i16uSW_Major;
-				dev_infos[i].i16uSW_Minor = RevPiDevice_getDev(i)->sId.i16uSW_Minor;
-				dev_infos[i].i32uSVN_Revision = RevPiDevice_getDev(i)->sId.i32uSVN_Revision;
-				dev_infos[i].i16uInputLength = RevPiDevice_getDev(i)->sId.i16uFBS_InputLength;
-				dev_infos[i].i16uInputOffset = RevPiDevice_getDev(i)->i16uInputOffset;
-				dev_infos[i].i16uOutputLength = RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength;
-				dev_infos[i].i16uOutputOffset = RevPiDevice_getDev(i)->i16uOutputOffset;
-				dev_infos[i].i16uConfigLength = RevPiDevice_getDev(i)->i16uConfigLength;
-				dev_infos[i].i16uConfigOffset = RevPiDevice_getDev(i)->i16uConfigOffset;
-				dev_infos[i].i8uModuleState = RevPiDevice_getDev(i)->i8uModuleState;
+				picontrol_set_device_info(&dev_infos[i], RevPiDevice_getDev(i));
 
-				if (	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
-				||	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16
-				||	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DI_16) {
-					// DIO with firmware older than 1.4 should be updated
-					if (	dev_infos[i].i16uSW_Major < 1
-					    || (dev_infos[i].i16uSW_Major == 1 && dev_infos[i].i16uSW_Minor < 4)) {
+				if ((dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14) ||
+				    (dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16) ||
+				    (dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DI_16)) {
+					/*
+					 * DIO with firmware older than 1.4
+					 * should be updated
+					 */
+					if ((dev_infos[i].i16uSW_Major < 1) ||
+					    ((dev_infos[i].i16uSW_Major == 1) &&
+					     (dev_infos[i].i16uSW_Minor < 4))) {
 						firmware_update = true;
 					}
 				}
-				if (	dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
-					// AIO with firmware older than 1.3 should be updated
-					if (	dev_infos[i].i16uSW_Major < 1
-					    || (dev_infos[i].i16uSW_Major == 1 && dev_infos[i].i16uSW_Minor < 3)) {
+				if (dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
+					/*
+					 * AIO with firmware older than 1.3
+					 * should be updated
+					 */
+					if ((dev_infos[i].i16uSW_Major < 1) ||
+					    ((dev_infos[i].i16uSW_Major == 1) &&
+					     (dev_infos[i].i16uSW_Minor < 3))) {
 						firmware_update = true;
 					}
 				}
@@ -1283,6 +1349,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			INT32U *pData = NULL;	// pData is null or points to the module address
 
 
+			pr_notice("Note: ioctl KB_UPDATE_DEVICE_FIRMWARE is deprecated. Use PICONTROL_UPLOAD_FIRMWARE instead\n");
+
 			if (!piDev_g.pibridge_supported) {
 				return -EPERM;
 			}
@@ -1335,6 +1403,30 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			} else {
 				PiBridgeMaster_Continue();
 			}
+			rt_mutex_unlock(&piDev_g.lockIoctl);
+		}
+		break;
+
+	case PICONTROL_UPLOAD_FIRMWARE:
+		{
+			struct picontrol_firmware_upload fwu;
+
+			if (!piDev_g.pibridge_supported)
+				return -EOPNOTSUPP;
+
+			if (copy_from_user(&fwu, (const void __user *) usr_addr,
+					   sizeof(fwu))) {
+				pr_err("failed to copy firmware upload request from user\n");
+				return -EFAULT;
+			}
+
+			if (!fwu.addr) {
+				pr_err("Module with address 0 has no firmware to update");
+				return -EOPNOTSUPP;
+			}
+
+			rt_mutex_lock(&piDev_g.lockIoctl);
+			status = picontrol_upload_firmware(&fwu, priv);
 			rt_mutex_unlock(&piDev_g.lockIoctl);
 		}
 		break;

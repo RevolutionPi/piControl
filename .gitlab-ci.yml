@@ -1,0 +1,10 @@
+include:
+  - project: "revolutionpi/infrastructure/ci-templates"
+    file: "base.yml"
+  - project: "revolutionpi/infrastructure/ci-templates"
+    file: "kernel/linter-checkpatch.yml"
+
+checkpatch:
+  variables:
+    CHECKPATCH_ARGS: "--no-tree"
+  allow_failure: true

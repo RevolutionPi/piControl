@@ -35,7 +35,7 @@ Checkout repository and switch working directory:
 
 ```
 git clone https://gitlab.com/revolutionpi/piControl.git
-cd piControl
+cd piControl/src
 ```
 
 Compile module sources for current kernel and architecture:

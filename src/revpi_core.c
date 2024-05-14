@@ -8,9 +8,10 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/mod_devicetable.h>
-#include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/mod_devicetable.h>
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/platform_device.h>
 
 #include "revpi_common.h"
 #include "revpi_core.h"
@@ -100,16 +101,28 @@ void revpi_core_gate_connected(SDevice *revpi_dev, bool connected)
 		RevPiDevice_setStatus(status, 0);
 }
 
+static enum hrtimer_restart piIoTimer(struct hrtimer *pTimer)
+{
+	up(&piCore_g.ioSem);
+	return HRTIMER_NORESTART;
+}
+
 static int piIoThread(void *data)
 {
 	//TODO int value = 0;
+	ktime_t time;
+	ktime_t now;
 	ktime_t cycle_start;
-	ktime_t cycle_duration;
-	unsigned int cycle_duration_us;
+	unsigned int cycle_duration;
 	s64 tDiff;
 	u64 cycle_num = 0;
 
+	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	piCore_g.ioTimer.function = piIoTimer;
+
 	pr_info("piIO thread started\n");
+
+	now = hrtimer_cb_get_time(&piCore_g.ioTimer);
 
 	PiBridgeMaster_Reset();
 
@@ -125,10 +138,16 @@ static int piIoThread(void *data)
 		if (PiBridgeMaster_Run() < 0)
 			break;
 
+		time = now;
+		now = hrtimer_cb_get_time(&piCore_g.ioTimer);
+
+		time = ktime_sub(now, time);
+		piCore_g.image.drv.i8uIOCycle = ktime_to_ms(time);
+
 		if (piDev_g.tLastOutput1 != piDev_g.tLastOutput2) {
 			tDiff = ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
 			tDiff = tDiff << 1;	// multiply by 2
-			if (ktime_to_ns(ktime_sub(cycle_start, piDev_g.tLastOutput1)) > tDiff && isRunning()) {
+			if (ktime_to_ns(ktime_sub(now, piDev_g.tLastOutput1)) > tDiff && isRunning()) {
 				int i;
 				// the outputs were not written by logiCAD for more than twice the normal period
 				// the logiRTS must have been stopped or crashed
@@ -162,27 +181,39 @@ static int piIoThread(void *data)
 
 		revpi_check_timeout();
 
+		if (piCore_g.eBridgeState == piBridgeInit) {
+			time = ktime_add_ns(time, INTERVAL_RS485);
+		} else {
+			time = ktime_add_ns(time, INTERVAL_IO_COMM);
+		}
+
+		if (ktime_after(now, time)) {
+			// the call of PiBridgeMaster_Run() needed more time than the INTERVAL
+			// -> wait an additional ms
+			//pr_info("%d ms too late, state %d\n", (int)((now.tv64 - time.tv64) >> 20), piCore_g.eBridgeState);
+			time = ktime_add_ns(now, INTERVAL_ADDITIONAL);
+		}
+
+		hrtimer_start(&piCore_g.ioTimer, time, HRTIMER_MODE_ABS);
+		down(&piCore_g.ioSem);	// wait for timer
+
 		if (piCore_g.data_exchange_running) {
-			cycle_duration = ktime_get() - cycle_start;
-			cycle_duration_us = ktime_to_us(cycle_duration);
+			cycle_duration = ktime_to_us(ktime_get() - cycle_start);
+			trace_picontrol_cycle_end(cycle_num, cycle_duration);
 
-			trace_picontrol_cycle_end(cycle_num, cycle_duration_us);
+			if (piCore_g.cycle_min > cycle_duration)
+				piCore_g.cycle_min = cycle_duration;
 
-			if (piCore_g.cycle_min > cycle_duration_us)
-				piCore_g.cycle_min = cycle_duration_us;
-
-			if (piCore_g.cycle_max < cycle_duration_us)
-				piCore_g.cycle_max = cycle_duration_us;
+			if (piCore_g.cycle_max < cycle_duration)
+				piCore_g.cycle_max = cycle_duration;
 
 			if (picontrol_max_cycle_deviation &&
-			   (cycle_duration_us > (piCore_g.cycle_min +
+			   (cycle_duration > (piCore_g.cycle_min +
 					      picontrol_max_cycle_deviation))) {
-				trace_picontrol_cycle_exceeded(cycle_duration_us,
+				trace_picontrol_cycle_exceeded(cycle_duration,
 							       piCore_g.cycle_min);
 			}
 			cycle_num++;
-
-			piCore_g.image.drv.i8uIOCycle = ktime_to_ms(cycle_duration);
 		}
 	}
 
@@ -340,6 +371,7 @@ static int pibridge_probe(struct platform_device *pdev)
 	piCore_g.pendingGateTel = false;
 
 	rt_mutex_init(&piCore_g.lockBridgeState);
+	sema_init(&piCore_g.ioSem, 0);
 
 	/* set rt prio for spi PiBridge interfaces on RevPi Core or Connect */
 	if (piDev_g.revpi_gate_supported && (piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT )) {
