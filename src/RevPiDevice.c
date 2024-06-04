@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
+#include <linux/of.h>
 
 #include "piAIOComm.h"
 #include "piDIOComm.h"
@@ -13,7 +14,7 @@
 static SDeviceConfig RevPiDevices_s;
 
 const MODGATECOM_IDResp RevPiCore_ID_g = {
-	.i32uSerialnumber = 1,
+	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CORE,
 	.i16uHW_Revision = 1,
 	.i16uSW_Major = 1,
@@ -25,7 +26,7 @@ const MODGATECOM_IDResp RevPiCore_ID_g = {
 };
 
 const MODGATECOM_IDResp RevPiCompact_ID_g = {
-	.i32uSerialnumber = 1,
+	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_COMPACT,
 	.i16uHW_Revision = 1,
 	.i16uSW_Major = 1,
@@ -37,7 +38,7 @@ const MODGATECOM_IDResp RevPiCompact_ID_g = {
 };
 
 const MODGATECOM_IDResp RevPiConnect_ID_g = {
-	.i32uSerialnumber = 1,
+	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT,
 	.i16uHW_Revision = 1,
 	.i16uSW_Major = 1,
@@ -49,7 +50,7 @@ const MODGATECOM_IDResp RevPiConnect_ID_g = {
 };
 
 const MODGATECOM_IDResp RevPiConnect4_ID_g = {
-	.i32uSerialnumber = 1,	 // TODO: Read from HAT EEPROM ?
+	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT_4,
 	.i16uHW_Revision = 1,
 	.i16uSW_Major = 1,
@@ -61,7 +62,7 @@ const MODGATECOM_IDResp RevPiConnect4_ID_g = {
 };
 
 const MODGATECOM_IDResp RevPiFlat_ID_g = {
-	.i32uSerialnumber = 1,
+	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_FLAT,
 	.i16uHW_Revision = 1,
 	.i16uSW_Major = 1,
@@ -73,7 +74,7 @@ const MODGATECOM_IDResp RevPiFlat_ID_g = {
 };
 
 const MODGATECOM_IDResp RevPiGeneric_ID_g = {
-	.i32uSerialnumber = 1,
+	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_REVPI_GENERIC_PB,
 	.i16uHW_Revision = 1,
 	.i16uSW_Major = 1,
@@ -83,6 +84,35 @@ const MODGATECOM_IDResp RevPiGeneric_ID_g = {
 	.i16uFBS_OutputLength = 0,
 	.i16uFeatureDescriptor = 0
 };
+
+int RevPiDevice_hat_serial(void)
+{
+	struct device_node *np;
+	const char *property;
+	int len, serial;
+
+	np = of_find_node_by_path("/hat");
+	if (!np) {
+		pr_warn("No HAT eeprom detected: Fallback to default serial\n");
+		return REV_PI_DEV_DEFAULT_SERIAL;
+	}
+
+	property = of_get_property(np, "custom_1", &len);
+	if (!property) {
+		of_node_put(np);
+		pr_warn("Invalid HAT eeprom: Fallback to default serial\n");
+		return REV_PI_DEV_DEFAULT_SERIAL;
+	}
+
+	if (kstrtoint(property, 10, &serial)) {
+		of_node_put(np);
+		pr_warn("Unable to parse serial from HAT eeprom: Fallback to default serial\n");
+		return REV_PI_DEV_DEFAULT_SERIAL;
+	}
+
+	of_node_put(np);
+	return serial;
+}
 
 void RevPiDevice_init(void)
 {
@@ -142,6 +172,10 @@ void RevPiDevice_init(void)
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiGeneric_ID_g.i16uFBS_InputLength;
 			break;
 	}
+
+	// Set device serial number from HAT eeprom (with fallback to default)
+	RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i32uSerialnumber =
+		RevPiDevice_hat_serial();
 
 	RevPiDevice_incDevCnt();
 }
