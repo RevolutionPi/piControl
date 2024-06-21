@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+	remove)
+		;;
+	purge)
+		delgroup --quiet --system picontrol >/dev/null 2>&1
+		;;
+esac
+
+#DEBHELPER#
+
+exit 0

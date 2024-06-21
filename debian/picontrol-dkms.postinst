@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+	configure)
+		if ! getent group picontrol >/dev/null 2>&1; then
+			addgroup --quiet --system picontrol
+		fi
+		;;
+	abort-upgrade|abort-remove|abort-deconfigure)
+		;;
+esac
+
+#DEBHELPER#
+
+exit 0

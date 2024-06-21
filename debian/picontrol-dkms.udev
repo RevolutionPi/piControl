@@ -1,0 +1,1 @@
+KERNEL=="piControl0", SUBSYSTEM=="piControl", MODE="0660", GROUP="picontrol"
