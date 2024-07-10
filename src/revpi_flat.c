@@ -15,6 +15,7 @@
 #include <linux/sched.h>
 #include <linux/thermal.h>
 #include <linux/types.h>
+#include <linux/version.h>
 
 #include "piControlMain.h"
 #include "process_image.h"
@@ -22,12 +23,19 @@
 #include "revpi_flat.h"
 #include "RevPiDevice.h"
 
+#if KERNEL_VERSION(6, 6, 0) > LINUX_VERSION_CODE
+/* kernel before 6.6 has a custom RPi patch, so offset started at 0 */
+#define GPIOCHIP0_OFFSET	0
+#else
+#define GPIOCHIP0_OFFSET	512
+#endif
+
 /* relais gpio num */
-#define REVPI_FLAT_RELAIS_GPIO			28
+#define REVPI_FLAT_RELAIS_GPIO			(28 + GPIOCHIP0_OFFSET)
 
 /* button gpio num */
-#define REVPI_FLAT_BUTTON_GPIO			13
-#define REVPI_FLAT_S_BUTTON_GPIO		23
+#define REVPI_FLAT_BUTTON_GPIO			(13 + GPIOCHIP0_OFFSET)
+#define REVPI_FLAT_S_BUTTON_GPIO		(23 + GPIOCHIP0_OFFSET)
 
 #define REVPI_FLAT_DOUT_THREAD_PRIO		(MAX_RT_PRIO / 2 + 8)
 #define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_RT_PRIO / 2 + 6)
