@@ -4,7 +4,7 @@ Upstream-Contact: KUNBUS GmbH <support@kunbus.com>
 Source: https://github.com/RevolutionPi/piControl
 
 Files:     *
-Copyright: 2016-2024 Kunbus GmbH
+Copyright: 2016-2024 KUNBUS GmbH
 License:   GPL-2+
 
 Files:     src/RS485FwuCommand.*

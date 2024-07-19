@@ -1,0 +1,44 @@
+# piControl Debian Packages
+
+The piControl Debian packages provide a way to install the piControl kernel
+module on Debian systems.
+
+## The Packages
+
+The following packages are part of this debianization:
+    - `picontrol`
+    - `picontrol-common`
+    - `picontrol-${kernel_append}`
+
+The `picontrol` package is a meta package which depends on the
+`picontrol-common` and a `picontrol-${kernel_append}` package.
+
+The `picontrol-common` package contains the modules-load.d configuration
+and the udev rules.
+
+The `picontrol-${kernel_append}` package contains the actual piControl
+kernel module.
+
+The `debian/control` file needs to be generated with the script
+`debian/bin/gencontrol.sh`. This is needed as the `debian/control` file contains
+the kernel package version as a dependency. To ease the process of matching the
+versions correctly the `./debian/bin/gencontrol.sh` script generates the whole
+control file. It also adds an entry to the `debian/changelog` file. If the
+release is based on a new upstream version, the version of the piControl
+packages is set to `${upstream_version}-1+deb12+1`. If the piControl packages
+are only rebuilt for a new kernel the number after the last `+` is increased by
+one.
+
+**_NOTE_**: If only the upstream version changes, the `control` file will remain
+unchanged as only dependencies to the kernel version are reflected in the
+control file.
+
+For a new release the following steps should be done:
+
+1. merge the upstream tag (only needed for new upstream versions)
+2. execute `./debian/bin/gencontrol.sh $UPSTREAM_VERSION $KERNEL_PKG_VERSION`
+3. run `gbp dch -RD bookworm` (check the changelog file for the correct distro version)
+4. commit the changes:
+   - `git add debian/{control,changelog}`
+   - `git commit -seF commit-msg.txt && rm commit-msg.txt`
+5. create the `debian/...` tag with `gbp --git-tag ...` the usual way

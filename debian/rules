@@ -1,18 +1,27 @@
 #!/usr/bin/make -f
 
 include /usr/share/dpkg/pkg-info.mk
+include debian/rules.vars
+
+SRC_PKG_DIR = $(shell pwd)
+make-opts = -C /lib/modules/$(KERNELRELEASE)/build M=$(SRC_PKG_DIR)/src
+
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+    MAKEFLAGS += -j$(NUMJOBS)
+endif
 
 %:
-	dh $@ --with dkms
+	dh $@
 
-override_dh_install:
-	dh_install src/* usr/src/picontrol-$(DEB_VERSION_UPSTREAM)/
-
-override_dh_dkms:
-	dh_dkms -V $(DEB_VERSION_UPSTREAM)
-
-override_dh_auto_configure:
 override_dh_auto_build:
-override_dh_auto_test:
-override_dh_auto_install:
+	$(MAKE) $(make-opts) modules
+
+
 override_dh_auto_clean:
+	$(MAKE) $(make-opts) clean
+	dh_auto_clean
+
+override_dh_auto_install:
+	$(MAKE) $(make-opts) INSTALL_MOD_PATH=$(SRC_PKG_DIR)/debian/picontrol-$(KERNELRELEASE) INSTALL_MOD_STRIP=1 modules_install
+	dh_auto_install
