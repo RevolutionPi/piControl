@@ -1,3 +1,9 @@
+picontrol (2.1.3-2+deb12+1) bookworm; urgency=medium
+
+  * build(deb)!: Replace the picontrol-dkms debianization
+
+ -- Philipp Rosenberger <p.rosenberger@kunbus.com>  Fri, 19 Jul 2024 15:07:13 +0200
+
 picontrol-dkms (2.1.3-1+revpi12+2) bookworm; urgency=medium
 
   * feat(deb): add permissions for piControl dev
