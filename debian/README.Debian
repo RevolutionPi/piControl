@@ -39,6 +39,6 @@ For a new release the following steps should be done:
 2. execute `./debian/bin/gencontrol.sh $UPSTREAM_VERSION $KERNEL_PKG_VERSION`
 3. run `gbp dch -RD bookworm` (check the changelog file for the correct distro version)
 4. commit the changes:
-   - `git add debian/{control,changelog}`
+   - `git add debian/{control,changelog,rules.vars}`
    - `git commit -seF commit-msg.txt && rm commit-msg.txt`
 5. create the `debian/...` tag with `gbp --git-tag ...` the usual way
