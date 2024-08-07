@@ -162,6 +162,7 @@ cat <<- EOF > "$debdir/control"
 	Architecture: any
 	Depends:
 	  linux-image-${pkg_append} (= ${kernel_pkg_ver}),
+	  picontrol-common,
 	  \${misc:Depends},
 	Conflicts: picontrol-dkms
 	Description: RevPi piControl kernel module package
