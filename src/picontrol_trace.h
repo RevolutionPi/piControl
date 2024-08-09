@@ -125,6 +125,59 @@ DEFINE_EVENT(picontrol_cyclic_device_data_class, picontrol_cyclic_device_data_st
 	TP_ARGS(addr)
 );
 
+DECLARE_EVENT_CLASS(picontrol_sniffpin_value_class,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value),
+	TP_STRUCT__entry(
+		__field(unsigned int, value)
+	),
+	TP_fast_assign(
+		__entry->value = value;
+	),
+	TP_printk("Sniff-Pin value: %u",
+		__entry->value
+	)
+);
+
+DEFINE_EVENT(picontrol_sniffpin_value_class, picontrol_sniffpin_1a_read,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value)
+);
+
+DEFINE_EVENT(picontrol_sniffpin_value_class, picontrol_sniffpin_2a_read,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value)
+);
+
+DEFINE_EVENT(picontrol_sniffpin_value_class, picontrol_sniffpin_1b_read,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value)
+);
+
+DEFINE_EVENT(picontrol_sniffpin_value_class, picontrol_sniffpin_2b_read,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value)
+);
+
+DEFINE_EVENT(picontrol_sniffpin_value_class, picontrol_sniffpin_1a_set,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value)
+);
+
+DEFINE_EVENT(picontrol_sniffpin_value_class, picontrol_sniffpin_2a_set,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value)
+);
+
+DEFINE_EVENT(picontrol_sniffpin_value_class, picontrol_sniffpin_1b_set,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value)
+);
+
+DEFINE_EVENT(picontrol_sniffpin_value_class, picontrol_sniffpin_2b_set,
+	TP_PROTO(unsigned int value),
+	TP_ARGS(value)
+);
 
 #endif /* _PICONTROL_TRACE_H */
 
