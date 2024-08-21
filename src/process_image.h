@@ -14,21 +14,22 @@
 #include <linux/sched.h>
 
 struct cycletimer {
-	struct hrtimer_sleeper sleeper;
+	struct hrtimer timer;
+	struct task_struct *task;
 	ktime_t cycletime;
+
 };
 
 static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 {
-	struct hrtimer_sleeper *sleeper = container_of(timer, struct hrtimer_sleeper, timer);
-
-	wake_up_process(sleeper->task);
+	struct cycletimer *ct = container_of(timer, struct cycletimer, timer);
+	wake_up_process(ct->task);
 	return HRTIMER_NORESTART;
 }
 
 static inline void cycletimer_sleep(struct cycletimer *ct)
 {
-	struct hrtimer *timer = &ct->sleeper.timer;
+	struct hrtimer *timer = &ct->timer;
 	u64 missed_cycles = hrtimer_forward_now(timer, ct->cycletime);
 
 	if (missed_cycles == 0)
@@ -44,7 +45,7 @@ static inline void cycletimer_sleep(struct cycletimer *ct)
 
 static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
 {
-	struct hrtimer *timer = &ct->sleeper.timer;
+	struct hrtimer *timer = &ct->timer;
 
 	ct->cycletime = ns_to_ktime(cycletime);
 	hrtimer_cancel(timer);
@@ -53,18 +54,18 @@ static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
 
 static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime)
 {
-	struct hrtimer *timer = &ct->sleeper.timer;
+	struct hrtimer *timer = &ct->timer;
 
 	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->function = wake_up_sleeper;
-	ct->sleeper.task = current;
+	ct->task = current;
 	cycletimer_change(ct, cycletime);
 }
 
 static inline void cycletimer_destroy(struct cycletimer *ct)
 {
-	hrtimer_cancel(&ct->sleeper.timer);
-	destroy_hrtimer_on_stack(&ct->sleeper.timer);
+	hrtimer_cancel(&ct->timer);
+	destroy_hrtimer_on_stack(&ct->timer);
 }
 
 static __always_inline void assign_bit_in_byte(u8 nr, u8 * addr, bool value)
