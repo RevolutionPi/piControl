@@ -15,15 +15,17 @@
 
 struct cycletimer {
 	struct hrtimer timer;
-	struct task_struct *task;
 	ktime_t cycletime;
+	wait_queue_head_t wq;
+	bool is_expired;
 
 };
 
 static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 {
 	struct cycletimer *ct = container_of(timer, struct cycletimer, timer);
-	wake_up_process(ct->task);
+	ct->is_expired = true;
+	wake_up(&ct->wq);
 	return HRTIMER_NORESTART;
 }
 
@@ -32,15 +34,15 @@ static inline void cycletimer_sleep(struct cycletimer *ct)
 	struct hrtimer *timer = &ct->timer;
 	u64 missed_cycles = hrtimer_forward_now(timer, ct->cycletime);
 
-	if (missed_cycles == 0)
+	if (missed_cycles == 0) /* should never happen (TM) */
 		pr_warn("%s: premature cycle\n", current->comm);
 	else if (missed_cycles > 1)
 		pr_warn("%s: missed %lld cycles\n", current->comm,
 			missed_cycles - 1);
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
+	ct->is_expired = false;
 	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_HARD);
-	schedule();
+	wait_event(ct->wq, ct->is_expired);
 }
 
 static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
@@ -58,7 +60,7 @@ static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime
 
 	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->function = wake_up_sleeper;
-	ct->task = current;
+	init_waitqueue_head(&ct->wq);
 	cycletimer_change(ct, cycletime);
 }
 
