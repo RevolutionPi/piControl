@@ -10,6 +10,8 @@
 #ifndef _PROCESS_IMAGE_H
 #define _PROCESS_IMAGE_H
 
+#define REVPI_COMPACT_WARN_MISSED_CYCLES           10
+
 #include <linux/hrtimer.h>
 #include <linux/sched.h>
 
@@ -36,9 +38,10 @@ static inline void cycletimer_sleep(struct cycletimer *ct)
 
 	if (missed_cycles == 0) /* should never happen (TM) */
 		pr_warn("%s: premature cycle\n", current->comm);
-	else if (missed_cycles > 1)
+	else if (missed_cycles > REVPI_COMPACT_WARN_MISSED_CYCLES) {
 		pr_warn("%s: missed %lld cycles\n", current->comm,
 			missed_cycles - 1);
+	}
 
 	ct->is_expired = false;
 	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_HARD);
