@@ -1,3 +1,10 @@
+picontrol (2.1.3-2+deb12+4) bookworm; urgency=medium
+
+  * Build for linux-image-6.6.0-revpi1-rpi-v8 (= 6.6.46-rt39-revpi1-
+    1+deb12+1)
+
+ -- Philipp Rosenberger <p.rosenberger@kunbus.com>  Wed, 21 Aug 2024 06:51:15 +0000
+
 picontrol (2.1.3-2+deb12+3) bookworm; urgency=medium
 
   * Build for linux-image-6.6.0-revpi0-rpi-v8 (= 6.6.43-rt38-revpi0-
