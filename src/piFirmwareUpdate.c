@@ -265,6 +265,7 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
 	}
 
 	upload_len = fw->size - flash_offset;
+	dev_addr = sdev->i8uAddress;
 
 	if (fwuEnterFwuMode(dev_addr) < 0) {
 		pr_err("error entering firmware update mode\n");
@@ -274,8 +275,7 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
 	/* Old mGates always use 2 as device address */
 	if (!sdev->i8uScan)
 		dev_addr = 2;
-
-	if (dev_addr < REV_PI_DEV_FIRST_RIGHT) {
+	else if (dev_addr < REV_PI_DEV_FIRST_RIGHT) {
 		dev_addr = 1;
 	} else {
 		if (dev_addr == RevPiDevice_getAddrRight() - 1)
