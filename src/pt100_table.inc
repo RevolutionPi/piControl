@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-FileCopyrightText: 2017 KUNBUS GmbH
+ */
+
 // Berechnung:
 //
 // for temperature range t = 0 … 850 °C

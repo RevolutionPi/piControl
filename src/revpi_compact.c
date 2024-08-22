@@ -1,12 +1,7 @@
-/*
- * revpi_compact.c - RevPi Compact specific handling
- *
- * Copyright (C) 2017 KUNBUS GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2) as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+
+// revpi_compact.c - RevPi Compact specific handling
 
 #include <linux/cpufreq.h>
 #include <linux/gpio/consumer.h>

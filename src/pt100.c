@@ -1,12 +1,7 @@
-/*
- * pt100.c - PT100 resistance to temperature conversion
- *
- * Copyright (C) 2017 KUNBUS GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2) as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-FileCopyrightText: 2017 KUNBUS GmbH
+
+// pt100.c - PT100 resistance to temperature conversion
 
 #include <linux/kernel.h>
 

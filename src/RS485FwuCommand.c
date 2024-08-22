@@ -1,9 +1,7 @@
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
-//
 // SPDX-License-Identifier: MIT
-/*
- * Firmware update of RevPi modules using gateway protocol over RS-485
- */
+// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+
+// Firmware update of RevPi modules using gateway protocol over RS-485
 
 #include <linux/delay.h>
 #include <linux/pibridge_comm.h>

@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+ */
+
 #ifndef _REVPI_CORE_H
 #define _REVPI_CORE_H
 

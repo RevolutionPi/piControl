@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-FileCopyrightText: 2017-2023 KUNBUS GmbH
+ */
+
 //+=============================================================================================
 //|
 //!		\file fwuMain.h
