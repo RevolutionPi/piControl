@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2017-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
  */
 
 #pragma once
@@ -7,7 +7,7 @@
 #include <linux/types.h>
 
 #include "common_define.h"
-#include "piControl.h"
+#include "picontrol_intern.h"
 
 #define AIO_OFFSET_InputValue_1			 0	//INT
 #define AIO_OFFSET_InputValue_2			 2	//INT

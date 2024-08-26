@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
  */
 
 #ifndef PRODUCTS_PIKERNELMOD_PICONFIG_H_
@@ -7,7 +7,7 @@
 
 #include <linux/types.h>
 
-#include "piControl.h"
+#include "picontrol_intern.h"
 
 typedef struct _piEntries {
 	uint16_t i16uNumEntries;
