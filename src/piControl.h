@@ -48,6 +48,7 @@ struct picontrol_firmware_upload {
 typedef struct SDeviceInfoStr {
 	/* Address of module in current configuration */
 	__u8 i8uAddress;
+	__u8 pad[3];
 	/* serial number of module */
 	__u32 i32uSerialnumber;
 	/* Type identifier of module */
@@ -102,6 +103,7 @@ typedef struct SPIVariableStr {
 	__u16 i16uAddress;
 	/* 0-7 bit position, >= 8 whole byte */
 	__u8 i8uBit;
+	__u8 pad;
 	/* length in bits, possible values are 1, 8, 16 and 32 */
 	__u16 i16uLength;		
 } SPIVariable;
@@ -158,6 +160,7 @@ typedef struct SPIVariableStr {
 typedef struct SDIOResetCounterStr {
 	/* Address of module in current configuration */
 	__u8 i8uAddress;
+	__u8 pad;
 	/* bitfield, if bit n is 1, reset counter/encoder on input */
 	__u16 i16uBitfield;
 } SDIOResetCounter;
@@ -199,6 +202,7 @@ struct pictl_calibrate {
 
 typedef struct SConfigDataStr {
 	__u8 bLeft;
+	__u8 pad;
 	__u16 i16uLen;
 	__u8 acData[MAX_TELEGRAM_DATA_SIZE];
 } SConfigData;
