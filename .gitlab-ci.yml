@@ -6,6 +6,8 @@ include:
     file: "base.yml"
   - project: "revolutionpi/infrastructure/ci-templates"
     file: "kernel/linter-checkpatch.yml"
+  - project: "revolutionpi/infrastructure/ci-templates"
+    file: "reuse-lint.yml"
 
 checkpatch:
   variables:
