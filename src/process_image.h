@@ -10,41 +10,55 @@
 #ifndef _PROCESS_IMAGE_H
 #define _PROCESS_IMAGE_H
 
+#define REVPI_COMPACT_WARN_MISSED_CYCLES           10
+
 #include <linux/hrtimer.h>
 #include <linux/sched.h>
+#include "revpi_compact.h"
 
 struct cycletimer {
-	struct hrtimer_sleeper sleeper;
+	struct hrtimer timer;
 	ktime_t cycletime;
+	wait_queue_head_t wq;
+	bool is_expired;
+
 };
 
 static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 {
-	struct hrtimer_sleeper *sleeper = container_of(timer, struct hrtimer_sleeper, timer);
-
-	wake_up_process(sleeper->task);
+	struct cycletimer *ct = container_of(timer, struct cycletimer, timer);
+	ct->is_expired = true;
+	wake_up(&ct->wq);
 	return HRTIMER_NORESTART;
 }
 
-static inline void cycletimer_sleep(struct cycletimer *ct)
+static inline void cycletimer_sleep(struct cycletimer *ct,
+				    struct revpi_compact_stats *stats)
 {
-	struct hrtimer *timer = &ct->sleeper.timer;
+	struct hrtimer *timer = &ct->timer;
 	u64 missed_cycles = hrtimer_forward_now(timer, ct->cycletime);
 
-	if (missed_cycles == 0)
+	if (missed_cycles == 0) /* should never happen (TM) */
 		pr_warn("%s: premature cycle\n", current->comm);
-	else if (missed_cycles > 1)
-		pr_warn("%s: missed %lld cycles\n", current->comm,
-			missed_cycles - 1);
+	else if (missed_cycles > 1) {
+		write_seqlock(&stats->lock);
+		stats->lost_cycles += (missed_cycles - 1);
+		write_sequnlock(&stats->lock);
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
+		if (missed_cycles > REVPI_COMPACT_WARN_MISSED_CYCLES) {
+			pr_warn("%s: missed %lld cycles\n", current->comm,
+				missed_cycles - 1);
+		}
+	}
+
+	ct->is_expired = false;
 	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_HARD);
-	schedule();
+	wait_event(ct->wq, ct->is_expired);
 }
 
 static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
 {
-	struct hrtimer *timer = &ct->sleeper.timer;
+	struct hrtimer *timer = &ct->timer;
 
 	ct->cycletime = ns_to_ktime(cycletime);
 	hrtimer_cancel(timer);
@@ -53,18 +67,18 @@ static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
 
 static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime)
 {
-	struct hrtimer *timer = &ct->sleeper.timer;
+	struct hrtimer *timer = &ct->timer;
 
 	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->function = wake_up_sleeper;
-	ct->sleeper.task = current;
+	init_waitqueue_head(&ct->wq);
 	cycletimer_change(ct, cycletime);
 }
 
 static inline void cycletimer_destroy(struct cycletimer *ct)
 {
-	hrtimer_cancel(&ct->sleeper.timer);
-	destroy_hrtimer_on_stack(&ct->sleeper.timer);
+	hrtimer_cancel(&ct->timer);
+	destroy_hrtimer_on_stack(&ct->timer);
 }
 
 static __always_inline void assign_bit_in_byte(u8 nr, u8 * addr, bool value)

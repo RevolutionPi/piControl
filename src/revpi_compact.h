@@ -64,6 +64,10 @@ typedef struct _SRevPiCompactImage {
 	} __attribute__ ((__packed__)) usr;	// 6 bytes
 } __attribute__ ((__packed__)) SRevPiCompactImage;
 
+struct revpi_compact_stats {
+	u64 lost_cycles;
+	seqlock_t lock;
+};
 
 INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt);
 int revpi_compact_init(void);

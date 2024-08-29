@@ -53,6 +53,7 @@ typedef struct _SRevPiCompact {
 	struct iio_channel *aout[2];
 	bool ain_should_reset;
 	struct completion ain_reset;
+	struct revpi_compact_stats stats;
 } SRevPiCompact;
 
 static SRevPiCompactConfig revpi_compact_config_g;
@@ -104,6 +105,28 @@ static const struct iio_map revpi_compact_aout[] = {
 	{ }
 };
 
+#define revpi_compact_descriptor_attr(field, format_string)		\
+static ssize_t								\
+field##_show(struct device *dev, struct device_attribute *attr,		\
+               char *buf)						\
+{									\
+       struct revpi_compact_stats *stats;				\
+       unsigned int seq;						\
+       u64 lost_cycles;							\
+									\
+       stats = &((struct _SRevPiCompact*) piDev_g.machine)->stats;	\
+									\
+       do {								\
+               seq = read_seqbegin(&stats->lock);			\
+               lost_cycles = stats->lost_cycles;			\
+       } while (read_seqretry(&stats->lock, seq));			\
+									\
+       return sysfs_emit(buf, format_string, lost_cycles);		\
+}
+
+revpi_compact_descriptor_attr(lost_cycles, "%llu\n");
+
+static DEVICE_ATTR(lost_cycles, S_IRUGO, lost_cycles_show, NULL);
 //#define BENCH
 
 static int revpi_compact_poll_io(void *data)
@@ -206,7 +229,7 @@ static int revpi_compact_poll_io(void *data)
 		}
 		loop++;
 #endif
-		cycletimer_sleep(&ct);
+		cycletimer_sleep(&ct, &machine->stats);
 	}
 
 	cycletimer_destroy(&ct);
@@ -335,7 +358,7 @@ next_chan:
 			rt_mutex_unlock(&piDev_g.lockPI);
 		}
 
-		cycletimer_sleep(&ct);
+		cycletimer_sleep(&ct, &machine->stats);
 	}
 
 	cycletimer_destroy(&ct);
@@ -656,6 +679,12 @@ int revpi_compact_init(void)
 	if (ret)
 		goto err_stop_ain_thread;
 
+	ret = device_create_file(piDev_g.dev, &dev_attr_lost_cycles);
+	if (ret) {
+		pr_err("failed to create device file: %i\n", ret);
+		goto err_stop_ain_thread;
+	}
+
 	revpi_compact_reset();
 
 	wake_up_process(machine->io_thread);
@@ -697,6 +726,8 @@ void revpi_compact_fini(void)
 
 	if (!machine)
 		return;
+
+	device_remove_file(piDev_g.dev, &dev_attr_lost_cycles);
 
 	if (!IS_ERR_OR_NULL(machine->ain_thread))
 		kthread_stop(machine->ain_thread);
