@@ -1,3 +1,29 @@
+picontrol (2.2.0-1+deb12+1) bookworm; urgency=medium
+
+  [ Thomas Böhler ]
+  * Build for linux-image-6.6.0-revpi2-rpi-v8 (= 6.6.46-rt39-revpi2-
+    1+deb12+1)
+
+  [ Markus Kaupert ]
+  * Generic PiBridge Device: Add FW type id
+  * RevPi Generic PiBridge: Add new base device
+
+  [ Nicolai Buchwitz ]
+  * Use correct offset for gpiochip0 on flat
+
+  [ Lino Sanfilippo ]
+  * piControl: Add tracing for sniffpins
+  * piControl: fix device address handling in upload_firmware()
+  * piControl: compact: get rid of useless hrtimer_sleeper struct
+  * piControl: compact: reimplement sleep of cycle timer
+  * piControl: compact: use threshold for missed cycles warning
+  * piControl: compact: create sysfs entry for lost cycles statistics
+
+  [ Thomas Böhler ]
+  * Release v2.2.0
+
+ -- Thomas Böhler <t.boehler@kunbus.com>  Thu, 29 Aug 2024 13:08:56 +0200
+
 picontrol (2.1.3-2+deb12+4) bookworm; urgency=medium
 
   * Build for linux-image-6.6.0-revpi1-rpi-v8 (= 6.6.46-rt39-revpi1-
