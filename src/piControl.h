@@ -74,7 +74,7 @@ struct picontrol_firmware_upload {
 #define  KB_GET_DEVICE_INFO                 _IO(KB_IOC_MAGIC, 14 )  // get the device info of one device
 #define  KB_GET_VALUE                       _IO(KB_IOC_MAGIC, 15 )  // get the value of one bit in the process image
 #define  KB_SET_VALUE                       _IO(KB_IOC_MAGIC, 16 )  // set the value of one bit in the process image
-#define  KB_FIND_VARIABLE                   _IO(KB_IOC_MAGIC, 17 )  // find a varible defined in piCtory
+#define  KB_FIND_VARIABLE                   _IO(KB_IOC_MAGIC, 17 )  // find a variable defined in PiCtory
 #define  KB_SET_EXPORTED_OUTPUTS            _IO(KB_IOC_MAGIC, 18 )  // copy the exported outputs from a application process image to the real process image
 /* Deprecated. Use PICONTROL_UPLOAD_FIRMWARE instead. */
 #define  KB_UPDATE_DEVICE_FIRMWARE          _IO(KB_IOC_MAGIC, 19 )  // try to update the firmware of connected devices

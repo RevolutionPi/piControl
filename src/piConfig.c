@@ -282,7 +282,7 @@ static int do_tree(json_config *config,
 	if (!ret) {
 		if (parser.state == 0 && parser.stack_offset == 0)
 			pr_err("config.rsc is empty! "
-				"Probably needs to be configured in piCtory\n");
+				"Probably needs to be configured in PiCtory\n");
 		else
 			pr_err("syntax error: offset %d  state %d\n",
 					parser.stack_offset, parser.state);
