@@ -27,13 +27,12 @@ piControl-y += src/revpi_ro.o
 
 ccflags-y := -O2
 ccflags-y += -I$(src)/src
+ccflags-y += -D__KUNBUSPI_KERNEL__ -I$(src)
 ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
 KBUILD_CFLAGS += -g
 
 PWD := $(shell pwd)
-
-EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__ -I$(src)
 
 all:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules
