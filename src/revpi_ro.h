@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/*
- * RevPi RO module (Relais Output)
+/* SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-FileCopyrightText: 2023 KUNBUS GmbH
  *
- * Copyright (C) 2023 KUNBUS GmbH
+ * RevPi RO module (Relais Output)
  */
+
 #ifndef _REVPI_RO_H_
 #define _REVPI_RO_H_
 

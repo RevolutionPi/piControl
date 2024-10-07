@@ -1,34 +1,5 @@
-/*=======================================================================================
- *
- *	       KK    KK   UU    UU   NN    NN   BBBBBB    UU    UU    SSSSSS
- *	       KK   KK    UU    UU   NNN   NN   BB   BB   UU    UU   SS
- *	       KK  KK     UU    UU   NNNN  NN   BB   BB   UU    UU   SS
- *	+----- KKKKK      UU    UU   NN NN NN   BBBBB     UU    UU    SSSSS
- *	|      KK  KK     UU    UU   NN  NNNN   BB   BB   UU    UU        SS
- *	|      KK   KK    UU    UU   NN   NNN   BB   BB   UU    UU        SS
- *	|      KK    KKK   UUUUUU    NN    NN   BBBBBB     UUUUUU    SSSSSS     GmbH
- *	|
- *	|            [#]  I N D U S T R I A L   C O M M U N I C A T I O N
- *	|             |
- *	+-------------+
- *
- *---------------------------------------------------------------------------------------
- *
- * (C) KUNBUS GmbH, Heerweg 15C, 73770 Denkendorf, Germany
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License V2 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *  For licencing details see COPYING
- *
- *=======================================================================================
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
 
 #include <linux/cpufreq.h>
 #include <linux/thermal.h>
@@ -501,7 +472,7 @@ int PiBridgeMaster_Run(void)
 						if (ret != 0) {
 							// init failed -> deactive module
 							if (ret == 4) {
-								pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
+								pr_err("piDIOComm_Init(%d): Module not configured in PiCtory\n",
 									RevPiDevice_getDev(i)->i8uAddress);
 							} else {
 								pr_err("piDIOComm_Init(%d) failed, error %d\n",
@@ -516,7 +487,7 @@ int PiBridgeMaster_Run(void)
 						if (ret != 0) {
 							// init failed -> deactive module
 							if (ret == 4) {
-								pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
+								pr_err("piAIOComm_Init(%d): Module not configured in PiCtory\n",
 									RevPiDevice_getDev(i)->i8uAddress);
 							} else {
 								pr_err("piAIOComm_Init(%d) failed, error %d\n",
@@ -535,7 +506,7 @@ int PiBridgeMaster_Run(void)
 						if (ret != 0) {
 							// init failed -> deactivate module
 							if (ret == 4) {
-								pr_err("revpi_ro_init(%d): Module not configured in pictory\n",
+								pr_err("revpi_ro_init(%d): Module not configured in PiCtory\n",
 									RevPiDevice_getDev(i)->i8uAddress);
 							} else {
 								pr_err("revpi_ro_init(%d) failed, error %d\n",
@@ -629,7 +600,7 @@ int PiBridgeMaster_Run(void)
 							if (ret != 0) {
 								// init failed -> deactive module
 								if (ret == 4) {
-									pr_err("piDIOComm_Init(%d): Module not configured in pictory\n",
+									pr_err("piDIOComm_Init(%d): Module not configured in PiCtory\n",
 										RevPiDevice_getDev(i)->i8uAddress);
 								} else {
 									pr_err("piDIOComm_Init(%d) failed, error %d\n",
@@ -644,7 +615,7 @@ int PiBridgeMaster_Run(void)
 							if (ret != 0) {
 								// init failed -> deactive module
 								if (ret == 4) {
-									pr_err("piAIOComm_Init(%d): Module not configured in pictory\n",
+									pr_err("piAIOComm_Init(%d): Module not configured in PiCtory\n",
 										RevPiDevice_getDev(i)->i8uAddress);
 								} else {
 									pr_err("piAIOComm_Init(%d) failed, error %d\n",
@@ -667,7 +638,7 @@ int PiBridgeMaster_Run(void)
 							if (ret != 0) {
 								// init failed -> deactivate module
 								if (ret == 4) {
-									pr_err("revpi_ro_init(%d): Module not configured in pictory\n",
+									pr_err("revpi_ro_init(%d): Module not configured in PiCtory\n",
 										RevPiDevice_getDev(i)->i8uAddress);
 								} else {
 									pr_err("revpi_ro_init(%d) failed, error %d\n",

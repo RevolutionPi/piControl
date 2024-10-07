@@ -1,8 +1,13 @@
+# SPDX-FileCopyrightText: 2024 KUNBUS GmbH
+# SPDX-License-Identifier: GPL-2.0-only
+
 include:
   - project: "revolutionpi/infrastructure/ci-templates"
     file: "base.yml"
   - project: "revolutionpi/infrastructure/ci-templates"
     file: "kernel/linter-checkpatch.yml"
+  - project: "revolutionpi/infrastructure/ci-templates"
+    file: "reuse-lint.yml"
 
 checkpatch:
   variables:

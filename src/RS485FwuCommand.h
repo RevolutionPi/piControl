@@ -1,7 +1,6 @@
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
-//
-// SPDX-License-Identifier: MIT
-/*
+/* SPDX-License-Identifier: MIT
+ * SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+ *
  * Firmware update of RevPi modules using gateway protocol over RS-485
  */
 

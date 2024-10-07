@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only
+ * SPDX-FileCopyrightText: 2024 KUNBUS GmbH
+ */
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM picontrol
 

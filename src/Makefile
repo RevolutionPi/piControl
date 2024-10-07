@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
 
 obj-m   := piControl.o
 
