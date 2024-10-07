@@ -4,26 +4,26 @@
 obj-m   := piControl.o
 
 #add other objects e.g. test.o
-piControl-objs  = src/piControlMain.o
-piControl-objs += src/piIOComm.o
-piControl-objs += src/piDIOComm.o
-piControl-objs += src/piAIOComm.o
-piControl-objs += src/RevPiDevice.o
-piControl-objs += src/json.o
-piControl-objs += src/piConfig.o
-piControl-objs += src/RS485FwuCommand.o
-piControl-objs += src/piFirmwareUpdate.o
-piControl-objs += src/PiBridgeMaster.o
-piControl-objs += src/kbUtilities.o
-piControl-objs += src/systick.o
-piControl-objs += src/revpi_common.o
-piControl-objs += src/revpi_compact.o
-piControl-objs += src/revpi_core.o
-piControl-objs += src/revpi_gate.o
-piControl-objs += src/revpi_flat.o
-piControl-objs += src/pt100.o
-piControl-objs += src/revpi_mio.o
-piControl-objs += src/revpi_ro.o
+piControl-y  = src/piControlMain.o
+piControl-y += src/piIOComm.o
+piControl-y += src/piDIOComm.o
+piControl-y += src/piAIOComm.o
+piControl-y += src/RevPiDevice.o
+piControl-y += src/json.o
+piControl-y += src/piConfig.o
+piControl-y += src/RS485FwuCommand.o
+piControl-y += src/piFirmwareUpdate.o
+piControl-y += src/PiBridgeMaster.o
+piControl-y += src/kbUtilities.o
+piControl-y += src/systick.o
+piControl-y += src/revpi_common.o
+piControl-y += src/revpi_compact.o
+piControl-y += src/revpi_core.o
+piControl-y += src/revpi_gate.o
+piControl-y += src/revpi_flat.o
+piControl-y += src/pt100.o
+piControl-y += src/revpi_mio.o
+piControl-y += src/revpi_ro.o
 
 ccflags-y := -O2
 ccflags-y += -I$(src)/src
@@ -40,4 +40,4 @@ all:
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	rm -f $(piControl-objs)
+	rm -f $(piControl-y)
