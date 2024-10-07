@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
 
-obj-m   := piControl.o
+obj-m := piControl.o
 
 #add other objects e.g. test.o
 piControl-y  = src/piControlMain.o
@@ -31,12 +31,12 @@ ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
 KBUILD_CFLAGS += -g
 
-PWD   	:= $(shell pwd)
+PWD := $(shell pwd)
 
 EXTRA_CFLAGS += -D__KUNBUSPI_KERNEL__ -I$(src)
 
 all:
-	$(MAKE) -C $(KDIR) M=$(PWD)  modules
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
