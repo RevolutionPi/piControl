@@ -32,6 +32,11 @@ enum revpi_machine {
 	REVPI_GENERIC_PB = 255,
 };
 
+enum {
+	REVPI_PIBRIDGE_ETHERNET_GPIO_MPX = 0,
+	REVPI_PIBRIDGE_ETHERNET_GPIO_DETECT
+};
+
 typedef struct spiControlDev {
 	// device driver stuff
 	enum revpi_machine machine_type;
