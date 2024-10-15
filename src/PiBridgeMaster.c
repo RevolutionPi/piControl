@@ -242,6 +242,24 @@ static inline void revpi_pbm_cont_mio(unsigned char i)
 	}
 }
 
+static void handle_pibridge_ethernet(void)
+{
+	piDev_g.pibridge_mode_ethernet_left = false;
+	piDev_g.pibridge_mode_ethernet_right = false;
+
+	if (piCore_g.gpio_pbswitch_detect_left &&
+	    !gpiod_get_value_cansleep(piCore_g.gpio_pbswitch_detect_left)) {
+		gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_left, 1);
+		piDev_g.pibridge_mode_ethernet_left = true;
+	}
+
+	if (piCore_g.gpio_pbswitch_detect_right &&
+	    !gpiod_get_value_cansleep(piCore_g.gpio_pbswitch_detect_right)) {
+		gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_right, 1);
+		piDev_g.pibridge_mode_ethernet_right = true;
+	}
+}
+
 int PiBridgeMaster_Run(void)
 {
 	static kbUT_Timer tTimeoutTimer_s;
@@ -259,6 +277,7 @@ int PiBridgeMaster_Run(void)
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
 			if (bEntering_s) {
 				pr_info_master("Enter Init State\n");
+				handle_pibridge_ethernet();
 				bEntering_s = bFALSE;
 				// configure PiBridge Sniff lines as input
 				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
@@ -310,6 +329,11 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_InitialSlaveDetectionRight:
+			if (piDev_g.pibridge_mode_ethernet_right) {
+				eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
+				break;
+			}
+
 			if (bEntering_s) {
 				pr_info_master("Enter InitialSlaveDetectionRight State\n");
 				bEntering_s = bFALSE;
@@ -382,6 +406,11 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_InitialSlaveDetectionLeft:
+			if (piDev_g.pibridge_mode_ethernet_left) {
+				eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
+				break;
+			}
+
 			if (bEntering_s) {
 				pr_info_master("Enter InitialSlaveDetectionLeft State\n");
 				bEntering_s = bFALSE;

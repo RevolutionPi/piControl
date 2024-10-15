@@ -90,6 +90,9 @@ typedef struct spiControlDev {
 	struct led_trigger a3_blue;
 	struct led_trigger a4_blue;
 	struct led_trigger a5_blue;
+	/* Gigabit ethernet on PiBridge */
+	bool pibridge_mode_ethernet_left;
+	bool pibridge_mode_ethernet_right;
 } tpiControlDev;
 
 typedef struct spiEventEntry {
