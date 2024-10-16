@@ -275,16 +275,14 @@ int PiBridgeMaster_Run(void)
 	if (piCore_g.eBridgeState != piBridgeStop) {
 		switch (eRunStatus_s) {
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
-			if (bEntering_s) {
-				pr_info_master("Enter Init State\n");
-				handle_pibridge_ethernet();
-				bEntering_s = bFALSE;
-				// configure PiBridge Sniff lines as input
-				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
-				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-				piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
-				piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-			}
+			pr_info_master("Enter Init State\n");
+			handle_pibridge_ethernet();
+			// configure PiBridge Sniff lines as input
+			piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+			piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+			piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
+			piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
+
 			eRunStatus_s = enPiBridgeMasterStatus_MasterIsPresentSignalling1;
 			bEntering_s = bTRUE;
 			break;
@@ -329,24 +327,20 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_InitialSlaveDetectionRight:
+			pr_info_master("Enter InitialSlaveDetectionRight State\n");
+
 			if (piDev_g.pibridge_mode_ethernet_right) {
 				eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
-				break;
-			}
-
-			if (bEntering_s) {
-				pr_info_master("Enter InitialSlaveDetectionRight State\n");
-				bEntering_s = bFALSE;
+			} else {
 				piIoComm_readSniff1A();
 				piIoComm_readSniff1B();
+
+				if (piIoComm_readSniff2B() == enGpioValue_High)
+					eRunStatus_s = enPiBridgeMasterStatus_ConfigRightStart;
+				else
+					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
 			}
-			if (piIoComm_readSniff2B() == enGpioValue_High) {
-				eRunStatus_s = enPiBridgeMasterStatus_ConfigRightStart;
-				bEntering_s = bTRUE;
-			} else {
-				eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
-				bEntering_s = bTRUE;
-			}
+			bEntering_s = bTRUE;
 			break;
 			// *****************************************************************************************
 
@@ -406,25 +400,22 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_InitialSlaveDetectionLeft:
+			pr_info_master("Enter InitialSlaveDetectionLeft State\n");
+
 			if (piDev_g.pibridge_mode_ethernet_left) {
 				eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
-				break;
-			}
-
-			if (bEntering_s) {
-				pr_info_master("Enter InitialSlaveDetectionLeft State\n");
-				bEntering_s = bFALSE;
-				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-			}
-			if (piIoComm_readSniff2A() == enGpioValue_High) {
-				// configure first left slave
-				eRunStatus_s = enPiBridgeMasterStatus_ConfigLeftStart;
-				bEntering_s = bTRUE;
 			} else {
-				// no slave on the left side
-				eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
-				bEntering_s = bTRUE;
+				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+
+				if (piIoComm_readSniff2A() == enGpioValue_High) {
+					// configure first left slave
+					eRunStatus_s = enPiBridgeMasterStatus_ConfigLeftStart;
+				} else {
+					// no slave on the left side
+					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
+				}
 			}
+			bEntering_s = bTRUE;
 			break;
 			// *****************************************************************************************
 
