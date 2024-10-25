@@ -68,7 +68,7 @@ const MODGATECOM_IDResp RevPiConnect5_ID_g = {
 	.i16uSW_Major = 1,
 	.i16uSW_Minor = 0,
 	.i32uSVN_Revision = 0,
-	.i16uFBS_InputLength = 5,
+	.i16uFBS_InputLength = 6,
 	.i16uFBS_OutputLength = 7,
 	.i16uFeatureDescriptor = 0
 };
