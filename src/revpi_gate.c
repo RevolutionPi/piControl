@@ -425,6 +425,9 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 	struct sk_buff *skb;
 	int ret;
 
+	if (!netif_carrier_ok(dev))
+		goto drop;
+
 	if (!conn) {
 		pr_info("%s: id request\n", dev->name);
 		rcv_tl = (MODGATECOM_TransportLayer *)skb_network_header(rcv);
