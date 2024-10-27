@@ -40,11 +40,13 @@ u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 			 * but the PiBridge Ethernet communication is up.
 			 * Search for the gateway's config entry.
 			 */
-			pr_info("search for right mGate %d\n", module_type);
+			pr_info("%s: found uninitialized gateway of type %d, try to find configuration\n",
+				netdev->name, module_type);
 			i = RevPiDevice_find_by_side_and_type(true,
 				     module_type | PICONTROL_NOT_CONNECTED);
 			if (i != REV_PI_DEV_UNDEF) {
-				pr_info("found mGate %d\n", i);
+				pr_info("%s: found configuration for uninitialized gateway\n",
+					netdev->name);
 				piCore_g.i8uRightMGateIdx = i;
 				RevPiDevice_getDev(i)->i8uActive = 1;
 				RevPiDevice_getDev(i)->sId.i16uModulType &=
@@ -56,11 +58,13 @@ u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 
 	if (!strcmp(netdev->name, "pileft")) {
 		if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF) {
-			pr_info("search for left mGate %d\n", module_type);
+			pr_info("%s: found uninitialized gateway of type %d, try to find configuration\n",
+				netdev->name, module_type);
 			i = RevPiDevice_find_by_side_and_type(false,
 				    module_type | PICONTROL_NOT_CONNECTED);
 			if (i != REV_PI_DEV_UNDEF) {
-				pr_info("found mGate %d\n", i);
+				pr_info("%s: found configuration for uninitialized gateway\n",
+					netdev->name);
 				piCore_g.i8uLeftMGateIdx = i;
 				RevPiDevice_getDev(i)->i8uActive = 1;
 				RevPiDevice_getDev(i)->sId.i16uModulType &=
