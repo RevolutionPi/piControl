@@ -247,16 +247,26 @@ static void handle_pibridge_ethernet(void)
 	piDev_g.pibridge_mode_ethernet_left = false;
 	piDev_g.pibridge_mode_ethernet_right = false;
 
-	if (piCore_g.gpio_pbswitch_detect_left &&
-	    !gpiod_get_value_cansleep(piCore_g.gpio_pbswitch_detect_left)) {
-		gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_left, 1);
-		piDev_g.pibridge_mode_ethernet_left = true;
+	if (piCore_g.gpio_pbswitch_detect_left) {
+		if (gpiod_get_value_cansleep(piCore_g.gpio_pbswitch_detect_left)) {
+			gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_left, 1);
+			piDev_g.pibridge_mode_ethernet_left = true;
+			pr_info("pileft: Set to ethernet mode\n");
+		} else {
+			gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_left, 0);
+			pr_info("pileft: Set to backplane mode\n");
+		}
 	}
 
-	if (piCore_g.gpio_pbswitch_detect_right &&
-	    !gpiod_get_value_cansleep(piCore_g.gpio_pbswitch_detect_right)) {
-		gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_right, 1);
-		piDev_g.pibridge_mode_ethernet_right = true;
+	if (piCore_g.gpio_pbswitch_detect_right) {
+		if (gpiod_get_value_cansleep(piCore_g.gpio_pbswitch_detect_right)) {
+			gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_right, 1);
+			piDev_g.pibridge_mode_ethernet_right = true;
+			pr_info("piright: Set to ethernet mode\n");
+		} else {
+			gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_right, 0);
+			pr_info("piright: Set to backplane mode\n");
+		}
 	}
 }
 
