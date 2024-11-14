@@ -61,6 +61,12 @@ typedef struct _SRevPiCore {
 	struct gpio_desc *gpio_x2do;
 	struct gpio_desc *gpio_wdtrigger;
 
+	// piBridge multiplex, Connect 5 only
+	struct gpio_desc *gpio_pbswitch_mpx_left;
+	struct gpio_desc *gpio_pbswitch_detect_left;
+	struct gpio_desc *gpio_pbswitch_mpx_right;
+	struct gpio_desc *gpio_pbswitch_detect_right;
+
 	// handle user telegrams
 	struct rt_mutex lockUserTel;
 	struct semaphore semUserTel;

@@ -237,6 +237,57 @@ static void deinit_gpios(void)
 	deinit_sniff_gpios();
 }
 
+static int init_pbswitch_gpios(struct platform_device *pdev)
+{
+	struct gpio_desc *desc;
+
+	desc = devm_gpiod_get_index_optional(&pdev->dev, "left-pbswitch",
+					     REVPI_PIBRIDGE_ETHERNET_GPIO_MPX,
+					     GPIOD_OUT_LOW);
+	if (desc) {
+		if (IS_ERR(desc)) {
+			dev_err(&pdev->dev,
+				"cannot acquire left pbswitch-mpx gpio\n");
+			return PTR_ERR(desc);
+		}
+		piCore_g.gpio_pbswitch_mpx_left = desc;
+
+		desc = devm_gpiod_get_index(&pdev->dev, "left-pbswitch",
+					    REVPI_PIBRIDGE_ETHERNET_GPIO_DETECT,
+					    GPIOD_IN);
+		if (IS_ERR(desc)) {
+			dev_err(&pdev->dev,
+				"cannot acquire left pbswitch-detect gpio\n");
+			return PTR_ERR(desc);
+		}
+		piCore_g.gpio_pbswitch_detect_left = desc;
+	}
+
+	desc = devm_gpiod_get_index_optional(&pdev->dev, "right-pbswitch",
+					     REVPI_PIBRIDGE_ETHERNET_GPIO_MPX,
+					     GPIOD_OUT_LOW);
+	if (desc) {
+		if (IS_ERR(desc)) {
+			dev_err(&pdev->dev,
+				"cannot acquire right pbswitch-mpx gpio\n");
+			return PTR_ERR(desc);
+		}
+		piCore_g.gpio_pbswitch_mpx_right = desc;
+
+		desc = devm_gpiod_get_index(&pdev->dev, "right-pbswitch",
+					    REVPI_PIBRIDGE_ETHERNET_GPIO_DETECT,
+					    GPIOD_IN);
+		if (IS_ERR(desc)) {
+			dev_err(&pdev->dev,
+				"cannot acquire right pbswitch-detect gpio\n");
+			return PTR_ERR(desc);
+		}
+		piCore_g.gpio_pbswitch_detect_right = desc;
+	}
+
+	return 0;
+}
+
 static int init_sniff_gpios(struct platform_device *pdev)
 {
 	struct gpio_descs *descs;
@@ -336,6 +387,13 @@ static int init_gpios(struct platform_device *pdev)
 			goto err_deinit_sniff_gpios;
 		}
 	}
+
+	ret = init_pbswitch_gpios(pdev);
+	if (ret) {
+		dev_err(piDev_g.dev, "Failed to init pbswitch gpios: %i\n", ret);
+		goto err_deinit_sniff_gpios;
+	}
+
 	return 0;
 
 err_deinit_sniff_gpios:

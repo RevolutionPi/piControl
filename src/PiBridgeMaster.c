@@ -242,6 +242,34 @@ static inline void revpi_pbm_cont_mio(unsigned char i)
 	}
 }
 
+static void handle_pibridge_ethernet(void)
+{
+	piDev_g.pibridge_mode_ethernet_left = false;
+	piDev_g.pibridge_mode_ethernet_right = false;
+
+	if (piCore_g.gpio_pbswitch_detect_left) {
+		if (gpiod_get_value_cansleep(piCore_g.gpio_pbswitch_detect_left)) {
+			gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_left, 1);
+			piDev_g.pibridge_mode_ethernet_left = true;
+			pr_info("pileft: Set to ethernet mode\n");
+		} else {
+			gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_left, 0);
+			pr_info("pileft: Set to backplane mode\n");
+		}
+	}
+
+	if (piCore_g.gpio_pbswitch_detect_right) {
+		if (gpiod_get_value_cansleep(piCore_g.gpio_pbswitch_detect_right)) {
+			gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_right, 1);
+			piDev_g.pibridge_mode_ethernet_right = true;
+			pr_info("piright: Set to ethernet mode\n");
+		} else {
+			gpiod_set_value_cansleep(piCore_g.gpio_pbswitch_mpx_right, 0);
+			pr_info("piright: Set to backplane mode\n");
+		}
+	}
+}
+
 int PiBridgeMaster_Run(void)
 {
 	static kbUT_Timer tTimeoutTimer_s;
@@ -257,15 +285,14 @@ int PiBridgeMaster_Run(void)
 	if (piCore_g.eBridgeState != piBridgeStop) {
 		switch (eRunStatus_s) {
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
-			if (bEntering_s) {
-				pr_info_master("Enter Init State\n");
-				bEntering_s = bFALSE;
-				// configure PiBridge Sniff lines as input
-				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
-				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-				piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
-				piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-			}
+			pr_info_master("Enter Init State\n");
+			handle_pibridge_ethernet();
+			// configure PiBridge Sniff lines as input
+			piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+			piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+			piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
+			piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
+
 			eRunStatus_s = enPiBridgeMasterStatus_MasterIsPresentSignalling1;
 			bEntering_s = bTRUE;
 			break;
@@ -310,19 +337,20 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_InitialSlaveDetectionRight:
-			if (bEntering_s) {
-				pr_info_master("Enter InitialSlaveDetectionRight State\n");
-				bEntering_s = bFALSE;
+			pr_info_master("Enter InitialSlaveDetectionRight State\n");
+
+			if (piDev_g.pibridge_mode_ethernet_right) {
+				eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
+			} else {
 				piIoComm_readSniff1A();
 				piIoComm_readSniff1B();
+
+				if (piIoComm_readSniff2B() == enGpioValue_High)
+					eRunStatus_s = enPiBridgeMasterStatus_ConfigRightStart;
+				else
+					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
 			}
-			if (piIoComm_readSniff2B() == enGpioValue_High) {
-				eRunStatus_s = enPiBridgeMasterStatus_ConfigRightStart;
-				bEntering_s = bTRUE;
-			} else {
-				eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
-				bEntering_s = bTRUE;
-			}
+			bEntering_s = bTRUE;
 			break;
 			// *****************************************************************************************
 
@@ -382,20 +410,22 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_InitialSlaveDetectionLeft:
-			if (bEntering_s) {
-				pr_info_master("Enter InitialSlaveDetectionLeft State\n");
-				bEntering_s = bFALSE;
-				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-			}
-			if (piIoComm_readSniff2A() == enGpioValue_High) {
-				// configure first left slave
-				eRunStatus_s = enPiBridgeMasterStatus_ConfigLeftStart;
-				bEntering_s = bTRUE;
-			} else {
-				// no slave on the left side
+			pr_info_master("Enter InitialSlaveDetectionLeft State\n");
+
+			if (piDev_g.pibridge_mode_ethernet_left) {
 				eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
-				bEntering_s = bTRUE;
+			} else {
+				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+
+				if (piIoComm_readSniff2A() == enGpioValue_High) {
+					// configure first left slave
+					eRunStatus_s = enPiBridgeMasterStatus_ConfigLeftStart;
+				} else {
+					// no slave on the left side
+					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
+				}
 			}
+			bEntering_s = bTRUE;
 			break;
 			// *****************************************************************************************
 
@@ -841,7 +871,8 @@ int PiBridgeMaster_Run(void)
 	}
 	piCore_g.image.drv.i8uStatus = RevPiDevice_getStatus();
 
-	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+	if (piDev_g.machine_type == REVPI_CONNECT_4 ||
+	    piDev_g.machine_type == REVPI_CONNECT_5) {
 		revpi_rgb_led_trigger_event(last_led, piCore_g.image.usr.rgb_leds);
 	} else {
 		revpi_led_trigger_event(last_led, piCore_g.image.usr.leds);
@@ -860,7 +891,8 @@ int PiBridgeMaster_Run(void)
 			gpiod_set_value(piCore_g.gpio_x2do, (piCore_g.image.usr.outputs & PICONTROL_X2_DOUT_CONNECT4) ? 1 : 0);
 		}
 	}
-	if (piDev_g.machine_type == REVPI_CONNECT_4) {
+	if (piDev_g.machine_type == REVPI_CONNECT_4 ||
+            piDev_g.machine_type == REVPI_CONNECT_5) {
 		last_led = piCore_g.image.usr.rgb_leds;
 		last_output = piCore_g.image.usr.outputs;
 	} else {

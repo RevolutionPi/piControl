@@ -233,7 +233,7 @@ struct revpi_ro_ioctl_counters {
 #define PICONTROL_LED_A4_RED                            0x0080
 #define PICONTROL_LED_A5_GREEN                          0x0100
 #define PICONTROL_LED_A5_RED                            0x0200
-/* RevPi Connect 4 only */
+/* RevPi Connect 4, 5 */
 #define PICONTROL_LED_RGB_A1_RED                        0x0001
 #define PICONTROL_LED_RGB_A1_GREEN                      0x0002
 #define PICONTROL_LED_RGB_A1_BLUE                       0x0004

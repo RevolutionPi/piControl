@@ -61,6 +61,18 @@ const MODGATECOM_IDResp RevPiConnect4_ID_g = {
 	.i16uFeatureDescriptor = 0
 };
 
+const MODGATECOM_IDResp RevPiConnect5_ID_g = {
+	.i32uSerialnumber = 1,
+	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT_5,
+	.i16uHW_Revision = 1,
+	.i16uSW_Major = 1,
+	.i16uSW_Minor = 0,
+	.i32uSVN_Revision = 0,
+	.i16uFBS_InputLength = 6,
+	.i16uFBS_OutputLength = 7,
+	.i16uFeatureDescriptor = 0
+};
+
 const MODGATECOM_IDResp RevPiFlat_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_FLAT,
@@ -161,6 +173,11 @@ void RevPiDevice_init(void)
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiConnect4_ID_g.i16uFBS_InputLength;
 			break;
+		case REVPI_CONNECT_5:
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiConnect5_ID_g;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
+			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset = RevPiConnect5_ID_g.i16uFBS_InputLength;
+			break;
 		case REVPI_FLAT:
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId = RevPiFlat_ID_g;
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
@@ -247,20 +264,15 @@ int RevPiDevice_run(void)
 				break;
 
 			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN:
-			case KUNBUS_FW_DESCR_TYP_MG_CCLINK:
 			case KUNBUS_FW_DESCR_TYP_MG_DEV_NET:
 			case KUNBUS_FW_DESCR_TYP_MG_ETHERCAT:
 			case KUNBUS_FW_DESCR_TYP_MG_ETHERNET_IP:
 			case KUNBUS_FW_DESCR_TYP_MG_POWERLINK:
 			case KUNBUS_FW_DESCR_TYP_MG_PROFIBUS:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_RT:
 			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_IRT:
 			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN_MASTER:
 			case KUNBUS_FW_DESCR_TYP_MG_SERCOS3:
 			case KUNBUS_FW_DESCR_TYP_MG_SERIAL:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_SITARA:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_IRT_MASTER:
-			case KUNBUS_FW_DESCR_TYP_MG_ETHERCAT_MASTER:
 			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_RTU:
 			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_TCP:
 			case KUNBUS_FW_DESCR_TYP_MG_DMX:
