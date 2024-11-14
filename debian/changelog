@@ -1,3 +1,33 @@
+picontrol (2.3.0-1+deb12+1) bookworm; urgency=medium
+
+  [ Lino Sanfilippo ]
+  * Build for linux-image-6.6.0-revpi4-rpi-v8 (= 6.6.46-rt39-revpi4-
+    1+deb12)
+
+  [ Thomas Böhler ]
+  * build: Move Makefile from src/ to root
+  * build: adhere to Kbuild doc for external module
+  * build: remove spurious whitespace in Makefile
+  * build: use ccflags-y instead of EXTRA_CFLAGS
+
+  [ Nicolau Buchwitz ]
+  * piControl: Remove obsolete gateways
+
+  [ Lino Sanfilippo ]
+  * piControl: add support for RevPi Connect 5
+  * piControl: Init PiBridge ethernet mode GPIOs on connect 5
+  * piControl: add support for gigabit ethernet switch on PiBridge
+  * piControl: remove unnecessary substates from state machine
+
+  [ Nicolai Buchwitz ]
+  * piControl: Fix input length for Connect 5
+  * piControl: Fix gigabit detection on PiBridge
+
+  [ Lino Sanfilippo ]
+  * Release v2.3.0
+
+ -- Lino Sanfilippo <l.sanfilippo@kunbus.com>  Thu, 14 Nov 2024 15:21:36 +0000
+
 picontrol (2.2.1-1+deb12+1) bookworm; urgency=medium
 
   [ Thomas Böhler ]
