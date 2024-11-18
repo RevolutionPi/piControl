@@ -1,3 +1,18 @@
+picontrol (2.3.1-1+deb12+1) bookworm; urgency=medium
+
+  [ Lino Sanfilippo ]
+  * Build for linux-image-6.6.0-revpi4-rpi-v8 (= 6.6.46-rt39-revpi4-
+    1+deb12+1)
+
+  [ Nicolai Buchwitz ]
+  * piControl: Drop gate packages if carrier is down
+  * piControl: Make gate log messages more useful
+
+  [ Lino Sanfilippo ]
+  * Release v2.3.1
+
+ -- Lino Sanfilippo <l.sanfilippo@kunbus.com>  Mon, 18 Nov 2024 09:13:29 +0000
+
 picontrol (2.3.0-1+deb12+1) bookworm; urgency=medium
 
   [ Lino Sanfilippo ]
