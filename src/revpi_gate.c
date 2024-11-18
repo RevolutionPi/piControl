@@ -376,7 +376,11 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 
 	i = revpi_core_find_gate(dev, rcv_al->i16uModulType);
 	if (i == REV_PI_DEV_UNDEF) {
-		pr_warn("%s: no process image synchronization\n", dev->name);
+		/*
+		 * Gateway is either not configured or module type
+		 * does not match configured module type.
+		 */
+		pr_warn("%s: gateway missing in configuration, data will be ignored\n", dev->name);
 	} else {
 		conn->revpi_dev = RevPiDevice_getDev(i);
 		conn->revpi_dev->sId = *rcv_al;
@@ -424,6 +428,9 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 	MODGATECOM_TransportLayer *rcv_tl;
 	struct sk_buff *skb;
 	int ret;
+
+	if (!netif_carrier_ok(dev))
+		goto drop;
 
 	if (!conn) {
 		pr_info("%s: id request\n", dev->name);
