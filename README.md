@@ -43,8 +43,10 @@ Install kernel headers:
 
 ```
 sudo apt update
-sudo apt install raspberrypi-kernel-headers
+sudo apt install linux-headers-revpi-v8
 ```
+
+The package `linux-headers-revpi-v8` is available through our Debian repository.
 
 Checkout repository and switch working directory:
 
