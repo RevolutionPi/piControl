@@ -20,7 +20,6 @@ override_dh_auto_build:
 
 override_dh_auto_clean:
 	$(MAKE) $(make-opts) clean
-	dh_auto_clean
 
 override_dh_auto_install:
 	$(MAKE) $(make-opts) INSTALL_MOD_PATH=$(SRC_PKG_DIR)/debian/picontrol-$(KERNELRELEASE) INSTALL_MOD_STRIP=1 modules_install
