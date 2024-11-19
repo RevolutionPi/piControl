@@ -4,7 +4,7 @@ include /usr/share/dpkg/pkg-info.mk
 include debian/rules.vars
 
 SRC_PKG_DIR = $(shell pwd)
-make-opts = -C /lib/modules/$(KERNELRELEASE)/build M=$(SRC_PKG_DIR)/src
+make-opts = -C /lib/modules/$(KERNELRELEASE)/build M=$(SRC_PKG_DIR)
 
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
