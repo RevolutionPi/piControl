@@ -1,3 +1,15 @@
+picontrol (2.3.1-1+deb12+2) bookworm; urgency=medium
+
+  [ Lino Sanfilippo ]
+  * Build for linux-image-6.6.0-revpi5-rpi-v8 (= 6.6.46-rt39-revpi5-
+    1+deb12+1)
+
+  [ Thomas Böhler ]
+  * fix(deb): change path to module
+  * fix(deb): don't run dh_auto_clean in debian/rules
+
+ -- Lino Sanfilippo <l.sanfilippo@kunbus.com>  Tue, 26 Nov 2024 06:32:38 +0000
+
 picontrol (2.3.1-1+deb12+1) bookworm; urgency=medium
 
   [ Lino Sanfilippo ]
