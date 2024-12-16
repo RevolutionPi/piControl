@@ -8,6 +8,7 @@
 #include "revpi_core.h"
 
 #define DIO_OUTPUT_DATA_LEN		18
+#define DIO_MAX_COUNTERS		6
 
 static INT8U i8uConfigured_s = 0;
 static SDioConfig dioConfig_s[10];
@@ -73,6 +74,13 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 			}
 		}
 	}
+
+	if (i8uNumCounter[i8uAddress] > DIO_MAX_COUNTERS) {
+		pr_err("invalid number of counters: %u (max: %u)\n",
+			i8uNumCounter[i8uAddress], DIO_MAX_COUNTERS);
+		return -1;
+	}
+
 	dioConfig_s[i8uConfigured_s].i8uCrc =
 	    piIoComm_Crc8((INT8U *) & dioConfig_s[i8uConfigured_s], sizeof(SDioConfig) - 1);
 
