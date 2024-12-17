@@ -9,6 +9,7 @@
 
 #define DIO_OUTPUT_DATA_LEN		18
 #define DIO_MAX_COUNTERS		6
+#define DIO_PWM_DATA_LEN		sizeof(struct pwm_data)
 
 static INT8U i8uConfigured_s = 0;
 static SDioConfig dioConfig_s[10];
@@ -115,7 +116,8 @@ INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
 	static u8 last_out[40][DIO_OUTPUT_DATA_LEN];
 	u8 in_buf[IOPROTOCOL_MAXDATA_LENGTH];
 	u8 out_buf[DIO_OUTPUT_DATA_LEN];
-	u8 snd_buf[DIO_OUTPUT_DATA_LEN];
+	/* out_buf and additional 2 bytes for calculated channel mask */
+	u8 snd_buf[DIO_PWM_DATA_LEN];
 	SDevice *revpi_dev;
 	u8 data_in[70];
 	u8 snd_len;
