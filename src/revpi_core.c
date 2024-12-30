@@ -469,12 +469,18 @@ err_deinit_gpios:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 11, 0) <= LINUX_VERSION_CODE
+static void pibridge_remove(struct platform_device *pdev)
+#else
 static int pibridge_remove(struct platform_device *pdev)
+#endif
 {
 	kthread_stop(piCore_g.pIoThread);
 	deinit_gpios();
 
+#if KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct of_device_id of_pibridge_match[] = {
