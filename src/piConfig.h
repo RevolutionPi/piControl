@@ -7,6 +7,7 @@
 
 #include <linux/types.h>
 
+#include "json.h"
 #include "picontrol_intern.h"
 
 typedef struct _piEntries {
@@ -49,5 +50,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 struct file *open_filename(const char *filename, int flags);
 void close_filename(struct file *file);
 void revpi_set_defaults(unsigned char *mem, piEntries *entries);
+int process_file(json_parser * parser, struct file *input, int *retlines, int *retcols);
 
 #endif

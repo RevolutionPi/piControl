@@ -4,6 +4,7 @@
 #include <linux/pibridge_comm.h>
 #include <linux/of.h>
 
+#include "RevPiDevice.h"
 #include "piAIOComm.h"
 #include "piDIOComm.h"
 #include "revpi_core.h"

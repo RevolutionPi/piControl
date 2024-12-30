@@ -3,6 +3,7 @@
 
 #include <linux/pibridge_comm.h>
 
+#include "piIOComm.h"
 #include "common_define.h"
 #include "revpi_core.h"
 

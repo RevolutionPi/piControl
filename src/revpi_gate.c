@@ -8,6 +8,7 @@
 
 #include "ModGateComError.h"
 #include "revpi_core.h"
+#include "revpi_gate.h"
 
 #define ETH_P_KUNBUSGW	0x419C		/* KUNBUS Gateway [ NOT AN OFFICIALLY REGISTERED ID ] */
 #define MG_AL_TIMEOUT	msecs_to_jiffies(80)

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "common_define.h"
+#include "picontrol_intern.h"
 #include "piControl.h"
 
 typedef enum

@@ -3,6 +3,7 @@
 
 // pt100.c - PT100 resistance to temperature conversion
 
+#include "pt100.h"
 #include <linux/kernel.h>
 
 static const u16 ai16uPtTable_l[] =
