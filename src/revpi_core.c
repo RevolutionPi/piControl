@@ -14,6 +14,15 @@
 #define CREATE_TRACE_POINTS
 #include "picontrol_trace.h"
 
+/*
+ * The priority has to be at least 54 (same as SPI thread), otherwise lots
+ * of UART reception errors are observed. The reason for this effect is not
+ * yet completely clear, presumably the UART has to switch as quickly as
+ * possible from data transmission to data reception to avoid errors during
+ * piBridge communication.
+ */
+#define RT_PRIO_BRIDGE  (MAX_RT_PRIO/2 + 4)
+
 extern unsigned int picontrol_max_cycle_deviation;
 
 static const struct kthread_prio revpi_core_kthread_prios[] = {
