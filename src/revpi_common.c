@@ -228,6 +228,20 @@ void revpi_power_led_red_run(void)
 	}
 }
 
+int set_rt_priority(struct task_struct *task, int priority)
+{
+	struct sched_attr attr;
+
+	if (!task || priority < 0 || priority > MAX_RT_PRIO - 1)
+		return -EINVAL;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.sched_policy = SCHED_FIFO;
+	attr.sched_priority = priority;
+
+	return sched_setattr_nocheck(task, &attr);
+}
+
 /**
  * set_kthread_prios - assign realtime priority to specific kthreads
  * @ktprios: null-terminated array of kthread/priority tuples
@@ -242,7 +256,6 @@ void revpi_power_led_red_run(void)
 int set_kthread_prios(const struct kthread_prio *ktprios)
 {
 	const struct kthread_prio *ktprio;
-	struct sched_param param = { };
 	struct task_struct *child;
 	int ret = 0;
 
@@ -254,9 +267,7 @@ int set_kthread_prios(const struct kthread_prio *ktprios)
 			if (!strncmp(child->comm, ktprio->comm,
 				     TASK_COMM_LEN)) {
 				found = true;
-				param.sched_priority = ktprio->prio;
-				ret = sched_setscheduler(child, SCHED_FIFO,
-							 &param);
+				ret = set_rt_priority(child, ktprio->prio);
 				if (ret) {
 					pr_err("cannot set priority of %s\n",
 					       ktprio->comm);

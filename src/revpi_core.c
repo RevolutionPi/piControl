@@ -415,7 +415,6 @@ err_deinit_sniff_gpios:
 
 static int pibridge_probe(struct platform_device *pdev)
 {
-	struct sched_param param;
 	int ret;
 
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
@@ -451,8 +450,7 @@ static int pibridge_probe(struct platform_device *pdev)
 		ret = PTR_ERR(piCore_g.pIoThread);
 		goto err_deinit_gpios;
 	}
-	param.sched_priority = RT_PRIO_BRIDGE;
-	ret = sched_setscheduler(piCore_g.pIoThread, SCHED_FIFO, &param);
+	ret = set_rt_priority(piCore_g.pIoThread, RT_PRIO_BRIDGE);
 	if (ret) {
 		pr_err("cannot set rt prio of io thread\n");
 		goto err_stop_io_thread;

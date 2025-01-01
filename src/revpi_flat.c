@@ -300,7 +300,6 @@ int revpi_flat_reset()
 int revpi_flat_init(void)
 {
 	struct revpi_flat *flat;
-	struct sched_param param = { };
 	unsigned int button_gpio;
 	struct device *dev;
 	int ret;
@@ -370,8 +369,7 @@ int revpi_flat_init(void)
 		goto err_put_aout;
 	}
 
-	param.sched_priority = REVPI_FLAT_DOUT_THREAD_PRIO;
-	ret = sched_setscheduler(flat->dout_thread, SCHED_FIFO, &param);
+	ret = set_rt_priority(flat->dout_thread, REVPI_FLAT_DOUT_THREAD_PRIO);
 	if (ret) {
 		dev_err(piDev_g.dev, "cannot upgrade dout thread priority\n");
 		goto err_stop_dout_thread;
@@ -385,8 +383,7 @@ int revpi_flat_init(void)
 		goto err_stop_dout_thread;
 	}
 
-	param.sched_priority = REVPI_FLAT_AIN_THREAD_PRIO;
-	ret = sched_setscheduler(flat->ain_thread, SCHED_FIFO, &param);
+	ret = set_rt_priority(flat->ain_thread, REVPI_FLAT_AIN_THREAD_PRIO);
 	if (ret) {
 		dev_err(piDev_g.dev, "cannot upgrade ain thread priority\n");
 		goto err_stop_ain_thread;

@@ -51,4 +51,5 @@ struct kthread_prio {
 };
 
 int set_kthread_prios(const struct kthread_prio *ktprios);
+int set_rt_priority(struct task_struct *task, int priority);
 #endif /* _REVPI_COMMON_H */
