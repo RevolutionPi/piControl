@@ -31,7 +31,7 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 	ret = pibridge_req_io(dev->i8uAddress, IOP_TYP1_CMD_DATA,
 			      &req, sizeof(req), &resp, sizeof(resp));
 	if (ret != sizeof(resp)) {
-		pr_warn_ratelimited("MIO addr %2d: dio communication failed (req:%zu,ret:%d)\n",
+		pr_debug("MIO addr %2d: dio communication failed (req:%zu,ret:%d)\n",
 			dev->i8uAddress, sizeof(resp), ret);
 
 		if (ret >= 0)
@@ -59,7 +59,7 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 			      req_data, sizeof(*req_data) - compressed,
 			      &resp, sizeof(resp));
 	if (ret != sizeof(resp)) {
-		pr_warn_ratelimited("MIO addr %2d: aio communication failed (req:%zd,ret:%d)\n",
+		pr_debug("MIO addr %2d: aio communication failed (req:%zd,ret:%d)\n",
 			dev->i8uAddress, sizeof(resp), ret);
 
 		if (ret >= 0)

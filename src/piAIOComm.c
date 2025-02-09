@@ -283,7 +283,7 @@ u32 piAIOComm_sendCyclicTelegram(u8 devnum)
 	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA, snd_buf,
 			      AIO_OUTPUT_DATA_LEN, rcv_buf, AIO_INPUT_DATA_LEN);
 	if (ret != AIO_INPUT_DATA_LEN) {
-		pr_warn_ratelimited("AIO addr %2d: communication failed (req:%zu,ret:%d)\n",
+		pr_debug("AIO addr %2d: communication failed (req:%zu,ret:%d)\n",
 			addr, AIO_INPUT_DATA_LEN, ret);
 
 		if (ret >= 0)
