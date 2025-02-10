@@ -266,10 +266,11 @@ static int __init piControlInit(void)
 	piDev_g.tLastOutput2 = ktime_set(0, 0);
 
 	/* start application */
-	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
-		// file not found, try old location
-		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
-		// ignore errors
+	res = piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent,
+			    &piDev_g.cl, &piDev_g.connl);
+	if (res) {
+		pr_err("Error parsing config!\n");
+		goto err_dev_destroy;
 	}
 
 	if (piDev_g.pibridge_supported) {
@@ -328,30 +329,23 @@ err_unreg_chrdev_region:
 static int piControlReset(tpiControlInst * priv)
 {
 	int status = -EFAULT;
-	void *vptr;
 	int timeout = 10000;	// ms
-
-	if (piDev_g.ent != NULL) {
-		vptr = piDev_g.ent;
-		piDev_g.ent = NULL;
-		kfree(vptr);
-	}
-	if (piDev_g.devs != NULL) {
-		vptr = piDev_g.devs;
-		piDev_g.devs = NULL;
-		kfree(vptr);
-	}
-	if (piDev_g.cl != NULL) {
-		vptr = piDev_g.cl;
-		piDev_g.cl = NULL;
-		kfree(vptr);
-	}
+	piDevices *devs;
+	piEntries *ent;
+	piCopylist *cl;
+	piConnectionList *connl;
 
 	/* start application */
-	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
-		// file not found, try old location
-		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
-		// ignore errors
+	if (piConfigParse(PICONFIG_FILE, &devs, &ent, &cl, &connl)) {
+		pr_err("\n\nError parsing config!\n\n");
+	} else {
+		kfree(piDev_g.devs);
+		kfree(piDev_g.ent);
+		kfree(piDev_g.cl);
+
+		piDev_g.devs = devs;
+		piDev_g.ent = ent;
+		piDev_g.cl = cl;
 	}
 
 	if (piDev_g.machine_type == REVPI_COMPACT) {
