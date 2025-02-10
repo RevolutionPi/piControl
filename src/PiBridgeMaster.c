@@ -19,6 +19,11 @@
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
 
+/* The number of cycles after which the comm error counter is decreased */
+#define COMM_ERROR_CYCLES		(1<<3) /* must be power of 2! */
+/* The number of errors that result in an error message log */
+#define COMM_ERROR_MAX			10
+
 static int init_retry = MAX_INIT_RETRIES;
 static volatile TBOOL bEntering_s = bTRUE;
 EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
@@ -687,6 +692,15 @@ int PiBridgeMaster_Run(void)
 			}
 
 			if (RevPiDevice_run()) {
+				if (piCore_g.cycle_num & (COMM_ERROR_CYCLES - 1))
+					piCore_g.comm_errors++;
+				else
+					piCore_g.comm_errors--;
+
+				if (piCore_g.comm_errors > COMM_ERROR_MAX) {
+					pr_warn_ratelimited("Error during piBridge communication\n");
+					piCore_g.comm_errors = 0;
+				}
 				// an error occured, check error limits
 				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
 				    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {

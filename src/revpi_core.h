@@ -96,6 +96,8 @@ typedef struct _SRevPiCore {
 	unsigned int cycle_min; /* usecs */
 	unsigned int cycle_max; /* usecs */
 	u64 cycle_num;
+	/* Number of communication errors */
+	u32 comm_errors;
 	bool data_exchange_running;
 } SRevPiCore;
 
