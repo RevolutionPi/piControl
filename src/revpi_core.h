@@ -95,6 +95,7 @@ typedef struct _SRevPiCore {
 	// cycle time measurement
 	unsigned int cycle_min; /* usecs */
 	unsigned int cycle_max; /* usecs */
+	u64 cycle_num;
 	bool data_exchange_running;
 } SRevPiCore;
 
