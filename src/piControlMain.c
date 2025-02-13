@@ -254,6 +254,7 @@ static int __init piControlInit(void)
 
 	if (res) {
 		pr_err("cannot register LED triggers\n");
+		res = -ENXIO;
 		goto err_dev_destroy;
 	}
 
@@ -270,6 +271,7 @@ static int __init piControlInit(void)
 			    &piDev_g.cl, &piDev_g.connl);
 	if (res) {
 		pr_err("Error parsing config!\n");
+		res = -ENXIO;
 		goto err_dev_destroy;
 	}
 
