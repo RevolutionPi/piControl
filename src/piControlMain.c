@@ -267,13 +267,8 @@ static int __init piControlInit(void)
 	piDev_g.tLastOutput2 = ktime_set(0, 0);
 
 	/* start application */
-	res = piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent,
-			    &piDev_g.cl, &piDev_g.connl);
-	if (res) {
-		pr_err("Error parsing config!\n");
-		res = -ENXIO;
-		goto err_dev_destroy;
-	}
+	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl,
+		      &piDev_g.connl);
 
 	if (piDev_g.pibridge_supported) {
 		res = revpi_core_init();
@@ -337,18 +332,18 @@ static int piControlReset(tpiControlInst * priv)
 	piCopylist *cl;
 	piConnectionList *connl;
 
-	/* start application */
-	if (piConfigParse(PICONFIG_FILE, &devs, &ent, &cl, &connl)) {
-		pr_err("\n\nError parsing config!\n\n");
-	} else {
-		kfree(piDev_g.devs);
-		kfree(piDev_g.ent);
-		kfree(piDev_g.cl);
 
-		piDev_g.devs = devs;
-		piDev_g.ent = ent;
-		piDev_g.cl = cl;
-	}
+	kfree(piDev_g.ent);
+	piDev_g.ent = NULL;
+
+	kfree(piDev_g.devs);
+	piDev_g.devs = NULL;
+
+	kfree(piDev_g.cl);
+	piDev_g.cl = NULL;
+
+	/* start application */
+	piConfigParse(PICONFIG_FILE, &devs, &ent, &cl, &connl);
 
 	if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_reset();
