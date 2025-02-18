@@ -3,6 +3,7 @@
 
 #include <linux/pibridge_comm.h>
 
+#include "piIOComm.h"
 #include "common_define.h"
 #include "revpi_core.h"
 
@@ -205,20 +206,18 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 INT32S piIoComm_gotoGateProtocol(void)
 {
 	SIOGeneric sRequest_l;
-	INT8U len_l;
 	int ret;
-
-	len_l = 0;
 
 	sRequest_l.uHeader.sHeaderTyp2.bitCommand = IOP_TYP2_CMD_GOTO_GATE_PROTOCOL;
 	sRequest_l.uHeader.sHeaderTyp2.bitIoHeaderType = 1;
 	sRequest_l.uHeader.sHeaderTyp2.bitReqResp = 0;
-	sRequest_l.uHeader.sHeaderTyp2.bitLength = len_l;
+	sRequest_l.uHeader.sHeaderTyp2.bitLength = 0;
 	sRequest_l.uHeader.sHeaderTyp2.bitDataPart1 = 0;
 
-	sRequest_l.ai8uData[len_l] = piIoComm_Crc8((INT8U *) & sRequest_l, IOPROTOCOL_HEADER_LENGTH + len_l);
+	sRequest_l.ai8uData[0] = piIoComm_Crc8((INT8U *) &sRequest_l,
+						IOPROTOCOL_HEADER_LENGTH);
 
-	ret = piIoComm_send((INT8U *) & sRequest_l, IOPROTOCOL_HEADER_LENGTH + len_l + 1);
+	ret = piIoComm_send((INT8U *) &sRequest_l, IOPROTOCOL_HEADER_LENGTH + 1);
 	if (ret == 0) {
 		// there is no reply
 	} else {

@@ -72,5 +72,6 @@ SDevice *RevPiDevice_getDev(INT8U idx);
 void RevPiDevice_setCoreOffset(unsigned int offset);
 unsigned int RevPiDevice_getCoreOffset(void);
 
-
+int RevPiDevice_hat_serial(void);
+void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval);
 

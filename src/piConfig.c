@@ -912,28 +912,32 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
 		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			piDIOComm_Config((*devs)->dev[i].i8uAddress, (*devs)->dev[i].i16uEntries,
+			piDIOComm_Config((*devs)->dev[i].i8uAddress,
+					 (*devs)->dev[i].i16uEntries,
 					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			piAIOComm_Config((*devs)->dev[i].i8uAddress, (*devs)->dev[i].i16uEntries,
+			piAIOComm_Config((*devs)->dev[i].i8uAddress,
+					 (*devs)->dev[i].i16uEntries,
 					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
-			revpi_compact_config((*devs)->dev[i].i8uAddress, (*devs)->dev[i].i16uEntries,
-					&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
+			revpi_compact_config((*devs)->dev[i].i8uAddress,
+					     (*devs)->dev[i].i16uEntries,
+					     &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_MIO:
 			revpi_mio_config((*devs)->dev[i].i8uAddress,
-				(*devs)->dev[i].i16uEntries,
-				&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
+					 (*devs)->dev[i].i16uEntries,
+					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_RO:
 			revpi_ro_config((*devs)->dev[i].i8uAddress,
-				(*devs)->dev[i].i16uEntries,
-				&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
+					(*devs)->dev[i].i16uEntries,
+					&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
 			break;
 		}
+
 	}
 
 	// now correct the offsets with the base offset of the module

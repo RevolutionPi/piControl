@@ -14,6 +14,15 @@
 #define CREATE_TRACE_POINTS
 #include "picontrol_trace.h"
 
+/*
+ * The priority has to be at least 54 (same as SPI thread), otherwise lots
+ * of UART reception errors are observed. The reason for this effect is not
+ * yet completely clear, presumably the UART has to switch as quickly as
+ * possible from data transmission to data reception to avoid errors during
+ * piBridge communication.
+ */
+#define RT_PRIO_BRIDGE  (MAX_RT_PRIO/2 + 4)
+
 extern unsigned int picontrol_max_cycle_deviation;
 
 static const struct kthread_prio revpi_core_kthread_prios[] = {
@@ -114,7 +123,6 @@ static int piIoThread(void *data)
 	ktime_t cycle_start;
 	unsigned int cycle_duration;
 	s64 tDiff;
-	u64 cycle_num = 0;
 
 	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	piCore_g.ioTimer.function = piIoTimer;
@@ -131,7 +139,7 @@ static int piIoThread(void *data)
 	piCore_g.cycle_max = 0;
 
 	while (!kthread_should_stop()) {
-		trace_picontrol_cycle_start(cycle_num);
+		trace_picontrol_cycle_start(piCore_g.cycle_num);
 		cycle_start = ktime_get();
 
 		if (PiBridgeMaster_Run() < 0)
@@ -198,7 +206,7 @@ static int piIoThread(void *data)
 
 		if (piCore_g.data_exchange_running) {
 			cycle_duration = ktime_to_us(ktime_get() - cycle_start);
-			trace_picontrol_cycle_end(cycle_num, cycle_duration);
+			trace_picontrol_cycle_end(piCore_g.cycle_num, cycle_duration);
 
 			if (piCore_g.cycle_min > cycle_duration)
 				piCore_g.cycle_min = cycle_duration;
@@ -212,12 +220,12 @@ static int piIoThread(void *data)
 				trace_picontrol_cycle_exceeded(cycle_duration,
 							       piCore_g.cycle_min);
 			}
-			cycle_num++;
+			piCore_g.cycle_num++;
 		}
 	}
 
 	pr_info("piIO exit\n");
-	pr_info("Number of cycles: %llu \n", cycle_num);
+	pr_info("Number of cycles: %llu\n", piCore_g.cycle_num);
 	pr_info("Cycle min: %u usecs\n", piCore_g.cycle_min);
 	pr_info("Cycle max: %u usecs\n", piCore_g.cycle_max);
 
@@ -460,12 +468,18 @@ err_deinit_gpios:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 11, 0) <= LINUX_VERSION_CODE
+static void pibridge_remove(struct platform_device *pdev)
+#else
 static int pibridge_remove(struct platform_device *pdev)
+#endif
 {
 	kthread_stop(piCore_g.pIoThread);
 	deinit_gpios();
 
+#if KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct of_device_id of_pibridge_match[] = {

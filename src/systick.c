@@ -3,6 +3,7 @@
 
 #include <linux/hrtimer.h>
 
+#include "bsp/systick/systick.h"
 #include "common_define.h"
 
 //+=============================================================================================

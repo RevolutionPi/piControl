@@ -67,7 +67,7 @@ typedef struct {
 //-----------------------------------------------------------------------------
 // Request for Digital IO modules: Config
 typedef struct { // IOP_TYP1_CMD_CFG
-    UIoProtocolHeader uHeader;
+    INT8U i8uAddr;
     INT16U i16uOutputPushPull;          // bitfield: 1=push-pull, 0=high side mode
     INT16U i16uOutputOpenLoadDetect;    // bitfield: 1=detect open load in high side mode
     INT16U i16uOutputPWM;               // bitfield: 1=generate pwm signal
@@ -75,7 +75,6 @@ typedef struct { // IOP_TYP1_CMD_CFG
 
     INT8U  i8uInputDebounce;            // 0=Off, 1=25us, 2=750us, 3=3ms, 4-255 not allowed
     INT32U i32uInputMode;               // bitfield, 2 bits per channel: 00=direct, 01=counter, rising edge, 10=counter, falling edge, 11=encoder
-    INT8U i8uCrc;
 } __attribute__((__packed__)) SDioConfig;
 
 

@@ -59,15 +59,6 @@
 #define DEBUG_DEVICE
 #define DEBUG_DEVICE_IO
 
-/*
- * The priority has to be at least 54 (same as SPI thread), otherwise lots
- * of UART reception errors are observed. The reason for this effect is not
- * yet completely clear, presumably the UART has to switch as quickly as
- * possible from data transmission to data reception to avoid errors during
- * piBridge communication.
-*/
-#define RT_PRIO_BRIDGE  54
-
 #ifdef DEBUG_SERIALCOMM
 // use longer intervals to reduce the number of messages
 #define INTERVAL_RS485      ( 1*1000*1000)     //  100 ms    piRs485

@@ -31,7 +31,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.3.1");
+MODULE_VERSION("2.3.2");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
@@ -254,6 +254,7 @@ static int __init piControlInit(void)
 
 	if (res) {
 		pr_err("cannot register LED triggers\n");
+		res = -ENXIO;
 		goto err_dev_destroy;
 	}
 
@@ -266,11 +267,8 @@ static int __init piControlInit(void)
 	piDev_g.tLastOutput2 = ktime_set(0, 0);
 
 	/* start application */
-	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
-		// file not found, try old location
-		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
-		// ignore errors
-	}
+	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl,
+		      &piDev_g.connl);
 
 	if (piDev_g.pibridge_supported) {
 		res = revpi_core_init();
@@ -328,31 +326,20 @@ err_unreg_chrdev_region:
 static int piControlReset(tpiControlInst * priv)
 {
 	int status = -EFAULT;
-	void *vptr;
 	int timeout = 10000;	// ms
 
-	if (piDev_g.ent != NULL) {
-		vptr = piDev_g.ent;
-		piDev_g.ent = NULL;
-		kfree(vptr);
-	}
-	if (piDev_g.devs != NULL) {
-		vptr = piDev_g.devs;
-		piDev_g.devs = NULL;
-		kfree(vptr);
-	}
-	if (piDev_g.cl != NULL) {
-		vptr = piDev_g.cl;
-		piDev_g.cl = NULL;
-		kfree(vptr);
-	}
+	kfree(piDev_g.ent);
+	piDev_g.ent = NULL;
+
+	kfree(piDev_g.devs);
+	piDev_g.devs = NULL;
+
+	kfree(piDev_g.cl);
+	piDev_g.cl = NULL;
 
 	/* start application */
-	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl) == 2) {
-		// file not found, try old location
-		piConfigParse(PICONFIG_FILE_WHEEZY, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl, &piDev_g.connl);
-		// ignore errors
-	}
+	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl,
+		      &piDev_g.connl);
 
 	if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_reset();

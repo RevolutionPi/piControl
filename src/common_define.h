@@ -5,9 +5,6 @@
 #ifndef _COMMON_DEFINE_H_
 #define _COMMON_DEFINE_H_
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
-
 #define _32BIT_U_CONTROLLER_
 #undef  _MSC_VER
 

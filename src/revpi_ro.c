@@ -120,7 +120,7 @@ int revpi_ro_cycle(unsigned int devnum)
 			      &status_in, sizeof(status_in));
 
 	if (ret != sizeof(status_in)) {
-		pr_warn_ratelimited("RO addr %2d: communication failed (req:%zu,ret:%d)\n",
+		pr_debug("RO addr %2d: communication failed (req:%zu,ret:%d)\n",
 			dev->i8uAddress, sizeof(status_in), ret);
 
 		if (ret >= 0)

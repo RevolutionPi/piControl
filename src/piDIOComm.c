@@ -3,10 +3,13 @@
 
 #include <linux/pibridge_comm.h>
 
+#include "piDIOComm.h"
 #include "common_define.h"
 #include "revpi_core.h"
 
 #define DIO_OUTPUT_DATA_LEN		18
+#define DIO_MAX_COUNTERS		6
+#define DIO_PWM_DATA_LEN		sizeof(struct pwm_data)
 
 static INT8U i8uConfigured_s = 0;
 static SDioConfig dioConfig_s[10];
@@ -30,11 +33,7 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 	pr_info_dio("piDIOComm_Config addr %d entries %d  num %d\n", i8uAddress, i16uNumEntries, i8uConfigured_s);
 	memset(&dioConfig_s[i8uConfigured_s], 0, sizeof(SDioConfig));
 
-	dioConfig_s[i8uConfigured_s].uHeader.sHeaderTyp1.bitAddress = i8uAddress;
-	dioConfig_s[i8uConfigured_s].uHeader.sHeaderTyp1.bitIoHeaderType = 0;
-	dioConfig_s[i8uConfigured_s].uHeader.sHeaderTyp1.bitReqResp = 0;
-	dioConfig_s[i8uConfigured_s].uHeader.sHeaderTyp1.bitLength = sizeof(SDioConfig) - IOPROTOCOL_HEADER_LENGTH - 1;
-	dioConfig_s[i8uConfigured_s].uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_CFG;
+	dioConfig_s[i8uConfigured_s].i8uAddr = i8uAddress;
 
 	i8uNumCounter[i8uAddress] = 0;
 	i16uCounterAct[i8uAddress] = 0;
@@ -72,8 +71,12 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 			}
 		}
 	}
-	dioConfig_s[i8uConfigured_s].i8uCrc =
-	    piIoComm_Crc8((INT8U *) & dioConfig_s[i8uConfigured_s], sizeof(SDioConfig) - 1);
+
+	if (i8uNumCounter[i8uAddress] > DIO_MAX_COUNTERS) {
+		pr_err("invalid number of counters: %u (max: %u)\n",
+			i8uNumCounter[i8uAddress], DIO_MAX_COUNTERS);
+		return -1;
+	}
 
 	pr_info_dio("piDIOComm_Config done addr %d input mode %08x  numCnt %d\n", i8uAddress,
 		    dioConfig_s[i8uConfigured_s].i32uInputMode, i8uNumCounter[i8uAddress]);
@@ -84,9 +87,8 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 
 INT32U piDIOComm_Init(INT8U i8uDevice_p)
 {
-	u8 snd_len = sizeof(SDioConfig) - IOPROTOCOL_HEADER_LENGTH - 1;
 	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
-	UIoProtocolHeader *hdr;
+	u8 snd_len = sizeof(SDioConfig);
 	u8 *snd_buf;
 	int ret;
 	int i;
@@ -97,11 +99,8 @@ INT32U piDIOComm_Init(INT8U i8uDevice_p)
 	ret = 4;  // unknown device
 
 	for (i = 0; i < i8uConfigured_s; i++) {
-		hdr = &dioConfig_s[i].uHeader;
-
-		if (hdr->sHeaderTyp1.bitAddress == addr) {
-			snd_buf = ((u8 *) &dioConfig_s[i]) +
-				  IOPROTOCOL_HEADER_LENGTH;
+		if (dioConfig_s[i].i8uAddr == addr) {
+			snd_buf = (u8 *) &dioConfig_s[i].i16uOutputPushPull;
 
 			ret = pibridge_req_io(addr, IOP_TYP1_CMD_CFG, snd_buf,
 					      snd_len, NULL, 0);
@@ -117,7 +116,8 @@ INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
 	static u8 last_out[40][DIO_OUTPUT_DATA_LEN];
 	u8 in_buf[IOPROTOCOL_MAXDATA_LENGTH];
 	u8 out_buf[DIO_OUTPUT_DATA_LEN];
-	u8 snd_buf[DIO_OUTPUT_DATA_LEN];
+	/* out_buf and additional 2 bytes for calculated channel mask */
+	u8 snd_buf[DIO_PWM_DATA_LEN];
 	SDevice *revpi_dev;
 	u8 data_in[70];
 	u8 snd_len;
@@ -174,7 +174,7 @@ INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
 
 	ret = pibridge_req_io(addr, cmd, snd_buf, snd_len, in_buf, rcv_len);
 	if (ret != rcv_len) {
-		pr_warn_ratelimited("DIO addr %2d: communication failed (req:%u,ret:%d)\n",
+		pr_debug("DIO addr %2d: communication failed (req:%u,ret:%d)\n",
 			addr, rcv_len, ret);
 
 		if (ret >= 0)

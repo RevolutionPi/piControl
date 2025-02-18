@@ -51,3 +51,4 @@ INT32S piIoComm_gotoGateProtocol(void);
 
 void revpi_io_build_header(UIoProtocolHeader *hdr,
 		unsigned char addr, unsigned char len, unsigned char cmd);
+int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p);
