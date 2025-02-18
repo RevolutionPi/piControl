@@ -7,17 +7,17 @@ Priority: optional
 Maintainer: KUNBUS GmbH <support@kunbus.com>
 Build-Depends:
   debhelper-compat (= 13),
-  linux-headers-6.6.0-revpi6-rpi-v8 (= 6.6.46-rt39-revpi6-1+deb12+1),
+  linux-headers-6.6.0-revpi7-rpi-v8 (= 6.6.46-rt39-revpi7-1+deb12+1),
 Standards-Version: 4.6.2
 Homepage: https://revolutionpi.com/
 Rules-Requires-Root: no
 Vcs-Git: https://gitlab.com/revolutionpi/piControl.git -b debian/bookworm
 Vcs-Browser: https://gitlab.com/revolutionpi/piControl/
 
-Package: picontrol-6.6.0-revpi6-rpi-v8
+Package: picontrol-6.6.0-revpi7-rpi-v8
 Architecture: any
 Depends:
-  linux-image-6.6.0-revpi6-rpi-v8 (= 6.6.46-rt39-revpi6-1+deb12+1),
+  linux-image-6.6.0-revpi7-rpi-v8 (= 6.6.46-rt39-revpi7-1+deb12+1),
   picontrol-common,
   ${misc:Depends},
 Conflicts: picontrol-dkms
@@ -26,8 +26,8 @@ Description: RevPi piControl kernel module package
  provides a common interface to all RevPi related IOs, which a user can
  consume via /dev/piControl0.
  .
- This package is build for linux-image-6.6.0-revpi6-rpi-v8
- (= 6.6.46-rt39-revpi6-1+deb12+1).
+ This package is build for linux-image-6.6.0-revpi7-rpi-v8
+ (= 6.6.46-rt39-revpi7-1+deb12+1).
 
 Package: picontrol-common
 Architecture: all
@@ -43,7 +43,7 @@ Description: RevPi piControl kernel module package (common files)
 Package: picontrol
 Architecture: any
 Depends:
-  picontrol-6.6.0-revpi6-rpi-v8 (= ${binary:Version}),
+  picontrol-6.6.0-revpi7-rpi-v8 (= ${binary:Version}),
   ${misc:Depends},
 Description: RevPi piControl kernel module package (metapackage)
  piControl is a kernel module for interfacing with RevPi hardware. It

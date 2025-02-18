@@ -1,3 +1,43 @@
+picontrol (2.3.2-1+deb12+1) bookworm; urgency=medium
+
+  [ Ramiro Gsponer ]
+  * Build for linux-image-6.6.0-revpi7-rpi-v8 (= 6.6.46-rt39-revpi7-
+    1+deb12+1)
+
+  [ Lino Sanfilippo ]
+  * piControl: move code used only by kernel into extra header file
+  * piControl: make padding explicit in structures
+
+  [ Thomas Böhler ]
+  * style(README): wrap on 80 characters
+  * doc(README): update kernel header package
+
+  [ Nicolai Buchwitz ]
+  * piControl: remove custom MIN and MAX macros and use kernel-provided macros
+  * piControl: Fix -Wmissing-prototypes errors
+  * piControl: Move pibridge rt prio to revpi_core.c
+  * piControl: Fix driver remove for kernel 6.11+
+
+  [ Lino Sanfilippo ]
+  * piControl: remove unneeded variable
+  * piControl: add sanity check for DIO counters
+  * Remove header and CRC from SDioConfig struct
+  * piControl: avoid buffer overflow
+  * Do not ignore the return value of config functions
+  * Evaluate return value of piConfigParse()
+  * piControl: Use dynamic debug messages instead of warnings
+  * piControl: make counter of cycle numbers globally available
+  * piControl: use metric to print warnings in case of communication errors
+  * Do not return positive value in piControlInit()
+  * Do not stop RevPi module initialization in case of invalid module config
+  * Ignore failure of piConfigParse()
+  * At piControl reset do not forget to store parsing results
+
+  [ Ramiro Gsponer ]
+  * Release v2.3.2
+
+ -- Ramiro Gsponer <r.gsponer@kunbus.com>  Tue, 18 Feb 2025 22:19:47 +0100
+
 picontrol (2.3.1-1+deb12+3) bookworm; urgency=medium
 
   * Build for linux-image-6.6.0-revpi6-rpi-v8 (= 6.6.46-rt39-revpi6-
