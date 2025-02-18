@@ -327,11 +327,6 @@ static int piControlReset(tpiControlInst * priv)
 {
 	int status = -EFAULT;
 	int timeout = 10000;	// ms
-	piDevices *devs;
-	piEntries *ent;
-	piCopylist *cl;
-	piConnectionList *connl;
-
 
 	kfree(piDev_g.ent);
 	piDev_g.ent = NULL;
@@ -343,7 +338,8 @@ static int piControlReset(tpiControlInst * priv)
 	piDev_g.cl = NULL;
 
 	/* start application */
-	piConfigParse(PICONFIG_FILE, &devs, &ent, &cl, &connl);
+	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl,
+		      &piDev_g.connl);
 
 	if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_reset();
