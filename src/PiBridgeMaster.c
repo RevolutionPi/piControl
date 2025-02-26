@@ -22,8 +22,8 @@
 /* The number of cycles after which the comm error counter is decreased */
 #define COMM_ERROR_CYCLES		(1<<3) /* must be power of 2! */
 #define COMM_ERROR_CYCLES_MASK		(COMM_ERROR_CYCLES - 1)
-/* The number of errors that result in an error message log */
-#define COMM_ERROR_MAX			10
+/* Error limit for error log message */
+#define COMM_ERROR_LOG_LIMIT		10
 
 static int init_retry = MAX_INIT_RETRIES;
 static volatile TBOOL bEntering_s = bTRUE;
@@ -704,7 +704,7 @@ int PiBridgeMaster_Run(void)
 			if (RevPiDevice_run()) {
 				piCore_g.comm_errors++;
 
-				if (piCore_g.comm_errors > COMM_ERROR_MAX) {
+				if (piCore_g.comm_errors > COMM_ERROR_LOG_LIMIT) {
 					pr_warn_ratelimited("Error during piBridge communication\n");
 					piCore_g.comm_errors = 0;
 				}
