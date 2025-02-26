@@ -21,6 +21,7 @@
 
 /* The number of cycles after which the comm error counter is decreased */
 #define COMM_ERROR_CYCLES		(1<<3) /* must be power of 2! */
+#define COMM_ERROR_CYCLES_MASK		(COMM_ERROR_CYCLES - 1)
 /* The number of errors that result in an error message log */
 #define COMM_ERROR_MAX			10
 
@@ -691,11 +692,17 @@ int PiBridgeMaster_Run(void)
 				piCore_g.data_exchange_running = true;
 			}
 
+			/*
+			 * Decrease error counter after each COMM_ERROR_CYCLES
+			 * to let the accumulated errors 'drain out' if there
+			 * are not more errors at this time.
+			 */
+			if (piCore_g.comm_errors &&
+			    (!(piCore_g.cycle_num & COMM_ERROR_CYCLES_MASK)))
+				piCore_g.comm_errors--;
+
 			if (RevPiDevice_run()) {
-				if (piCore_g.cycle_num & (COMM_ERROR_CYCLES - 1))
-					piCore_g.comm_errors++;
-				else
-					piCore_g.comm_errors--;
+				piCore_g.comm_errors++;
 
 				if (piCore_g.comm_errors > COMM_ERROR_MAX) {
 					pr_warn_ratelimited("Error during piBridge communication\n");
