@@ -95,7 +95,7 @@ int fwuWrite(u8 address, u32 flashAddr, char *data, u32 length)
 
 	memcpy (sendbuf, &flashAddr, sizeof (flashAddr));
 	if (length == 0 || length > MAX_TELEGRAM_DATA_SIZE - sizeof(flashAddr))
-		return -14;
+		return -EINVAL;
 
 	memcpy (sendbuf + sizeof (flashAddr), data, length);
 
