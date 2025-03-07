@@ -462,6 +462,8 @@ void printUserMsg(tpiControlInst *priv, const char *s, ...)
 
 	vsnprintf(priv->pcErrorMessage, sizeof(priv->pcErrorMessage), s, argp);
 
+	va_end(argp);
+
 	pr_info("%s", priv->pcErrorMessage);
 }
 
