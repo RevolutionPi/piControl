@@ -5,6 +5,7 @@
 #ifndef PIFIRMWAREUPDATE_H
 #define PIFIRMWAREUPDATE_H
 
+#include <linux/firmware.h>
 #include "piControlMain.h"
 #include "RevPiDevice.h"
 
