@@ -177,8 +177,8 @@ static int flash_chunk(unsigned int dev_addr, unsigned int chunk_addr,
 	return ret;
 }
 
-static int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
-			  unsigned char *upload_data, unsigned int upload_len)
+int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
+		   unsigned char *upload_data, unsigned int upload_len)
 {
 	unsigned int upload_offset = 0;
 	unsigned int total_retrans = 0;

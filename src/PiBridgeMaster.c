@@ -14,6 +14,7 @@
 #include "revpi_mio.h"
 #include "revpi_ro.h"
 #include "RS485FwuCommand.h"
+#include "piFirmwareUpdate.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
@@ -817,22 +818,10 @@ int PiBridgeMaster_Run(void)
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUFlashWrite) {
 			if (bEntering_s) {
-				INT32U i32uOffset = 0, len;
-				i32sRetVal = 0;
-
-				while (i32sRetVal == 0 && i32uFWUlength > 0) {
-					if (i32uFWUlength > MAX_FWU_DATA_SIZE)
-						len = MAX_FWU_DATA_SIZE;
-					else
-						len = i32uFWUlength;
-					i32sRetVal = fwuWrite(i32uFWUAddress, i32uFWUFlashAddr + i32uOffset,
-							      pcFWUdata + i32uOffset, len);
-					pr_info("fwuWrite(0x%08x, %x) returned %d\n",
-						i32uFWUFlashAddr + i32uOffset, len, i32sRetVal);
-					i32uOffset += len;
-					i32uFWUlength -= len;
-				}
-
+				i32sRetVal = flash_firmware(i32uFWUAddress,
+							    i32uFWUFlashAddr,
+							    pcFWUdata,
+							    i32uFWUlength);
 				ret = 0;	// do not return errors here
 				bEntering_s = bFALSE;
 			}

@@ -13,6 +13,8 @@
 
 
 int FWU_update(tpiControlInst *priv, SDevice *pDev_p);
+int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
+		   unsigned char *upload_data, unsigned int upload_len);
 int upload_firmware(SDevice *sdev, const struct firmware *fw,
 		    u32 mask);
 
