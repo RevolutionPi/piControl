@@ -480,6 +480,11 @@ static int piControlOpen(struct inode *inode, struct file *file)
 {
 	tpiControlInst *priv;
 
+	if (!waitRunning(3000)) {
+		pr_err("Failed to open piControl device: piControl not running\n");
+		return -ENXIO;
+	}
+
 	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
 	file->private_data = priv;
 
@@ -494,22 +499,6 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	rt_mutex_init(&priv->lockEventList);
 
 	init_waitqueue_head(&priv->wq);
-
-	//pr_info("piControlOpen");
-	if (!waitRunning(3000)) {
-		int status;
-		pr_err("problem at driver initialization\n");
-		if(eRunStatus_s != enPiBridgeMasterStatus_FWUMode){
-			pr_err("no piControl reset possible, a firmware update is running\n");
-			kfree(priv);
-			return -EINVAL;
-		}
-		status = piControlReset(priv);
-		if (status) {
-			kfree(priv);
-			return status;
-		}
-	}
 
 	my_rt_mutex_lock(&piDev_g.lockListCon);
 	list_add(&priv->list, &piDev_g.listCon);
