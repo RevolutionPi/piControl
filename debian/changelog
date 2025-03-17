@@ -1,3 +1,28 @@
+picontrol (2.3.3-1+deb12+1) bookworm; urgency=medium
+
+  [ Ramiro Gsponer ]
+  * Build for linux-image-6.6.0-revpi7-rpi-v8 (= 6.6.46-rt39-revpi7-
+    1+deb12+1)
+
+  [ Lino Sanfilippo ]
+  * Correct logic for error counter
+  * Rename COMM_ERROR_MAX to COMM_ERROR_LOG_LIMIT
+  * Do not try to stop kernel thread that does not exist
+  * Adjust return value in fwuWrite()
+  * Retry flash write at firmware update
+  * Add missing include in piFirmwareUpdate.h
+  * Retry flash write also for legacy firmware update
+
+  [ Thomas Böhler ]
+  * compact: avoid leak in revpi_compact_adjust_config
+  * piControlMain: add missing va_end() call
+  * piConfig: return JSON_ERROR_NO_MEMORY on OOM
+
+  [ Ramiro Gsponer ]
+  * Release v2.3.3
+
+ -- Ramiro Gsponer <r.gsponer@kunbus.com>  Tue, 17 Mar 2025 11:19:04 +0100
+
 picontrol (2.3.2-1+deb12+1) bookworm; urgency=medium
 
   [ Ramiro Gsponer ]
