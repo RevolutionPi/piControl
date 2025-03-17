@@ -626,15 +626,19 @@ static struct packet_type revpi_gate_packet_type __read_mostly = {
 
 void revpi_gate_init(void)
 {
+	struct task_struct *th;
+
 	skb_queue_head_init(&revpi_gate_rcvq);
 
-	revpi_gate_rcv_thread = kthread_run(&revpi_gate_rcv_loop, NULL,
-					    "revpi_gate_rcv");
-	if(IS_ERR(revpi_gate_rcv_thread)) {
+	revpi_gate_rcv_thread = NULL;
+
+	th = kthread_run(&revpi_gate_rcv_loop, NULL, "revpi_gate_rcv");
+	if (IS_ERR(th)) {
 		pr_err("piControl: cannot run revpi_gate_rcv_thread (%ld), reset driver to retry\n",
-		       PTR_ERR(revpi_gate_rcv_thread));
+		       PTR_ERR(th));
 		return;
 	}
+	revpi_gate_rcv_thread = th;
 
 	sched_set_fifo(revpi_gate_rcv_thread);
 
@@ -649,7 +653,8 @@ void revpi_gate_fini(void)
 
 	dev_remove_pack(&revpi_gate_packet_type);
 
-	kthread_stop(revpi_gate_rcv_thread);
+	if (revpi_gate_rcv_thread)
+		kthread_stop(revpi_gate_rcv_thread);
 	while (!skb_queue_empty(&revpi_gate_rcvq)) {
 		skb = skb_dequeue(&revpi_gate_rcvq);
 		dev_kfree_skb(skb);

@@ -92,7 +92,7 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 	buffer = kmalloc(BUFFLEN, GFP_KERNEL);
 	if (buffer == NULL) {
 		pr_err("process file: out of memory\n");
-		return -1;
+		return JSON_ERROR_NO_MEMORY;
 	}
 
 	lines = 1;

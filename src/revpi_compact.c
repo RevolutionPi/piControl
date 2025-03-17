@@ -528,6 +528,8 @@ void revpi_compact_adjust_config(void)
 			RevPiDevice_incDevCnt();
 		}
 	}
+
+	kfree(state);
 }
 
 int revpi_compact_init(void)

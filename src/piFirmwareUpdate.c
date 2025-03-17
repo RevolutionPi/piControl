@@ -8,6 +8,7 @@
 #include "revpi_core.h"
 
 #define TFPGA_HEAD_DATA_OFFSET			6
+#define	CHUNK_TRANSMISSION_ATTEMPTS		100
 
 // ret < 0: error
 // ret == 0: no update needed
@@ -148,11 +149,41 @@ static bool firmware_is_newer(unsigned int major_a, unsigned int minor_a,
 	return false;
 }
 
-static int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
-			  unsigned char *upload_data, unsigned int upload_len)
+static int flash_chunk(unsigned int dev_addr, unsigned int chunk_addr,
+		       unsigned char *chunk_data, unsigned int chunk_len,
+		       unsigned int *retrans)
+
+{
+	unsigned int attempts = CHUNK_TRANSMISSION_ATTEMPTS;
+	int ret;
+
+	do {
+		ret = fwuWrite(dev_addr, chunk_addr, chunk_data, chunk_len);
+		if (ret) {
+			/*
+			 * A failure may result from a protocol communication
+			 * error. Retry to submit the chunk a if attempts are
+			 * left.
+			 */
+			usleep_range(1000, 2000);
+			attempts--;
+			pr_debug("Error transmitting firmware for flash addr 0x%08x, len %u: %i (left attempts: %u)\n",
+				chunk_addr, chunk_len, ret, attempts);
+		}
+	} while (ret && attempts);
+
+	*retrans = CHUNK_TRANSMISSION_ATTEMPTS - attempts;
+
+	return ret;
+}
+
+int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
+		   unsigned char *upload_data, unsigned int upload_len)
 {
 	unsigned int upload_offset = 0;
+	unsigned int total_retrans = 0;
 	unsigned int chunk_len;
+	unsigned int retrans;
 	int ret = 0;
 
 	while (upload_len) {
@@ -161,20 +192,20 @@ static int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
 		else
 			chunk_len = upload_len;
 
-		if (fwuWrite(dev_addr, flash_addr + upload_offset,
-			       upload_data + upload_offset, chunk_len)) {
-			/* A failure of above function may result from a
-			   protocol communication error. The firmware upload
-			   task may still succeed, though. So do not bail out
-			   here but send the rest of the firmware.
-			*/
-			pr_err("Error transmitting firmware for flash addr 0x%08x, len %x\n",
-				flash_addr + upload_offset, chunk_len);
-			ret = -1;
-		}
+		ret = flash_chunk(dev_addr, flash_addr + upload_offset,
+				  upload_data + upload_offset, chunk_len,
+				  &retrans);
+		total_retrans += retrans;
+		if (ret)
+			break;
+
 		upload_offset += chunk_len;
 		upload_len -= chunk_len;
 	}
+
+	if (total_retrans)
+		pr_warn("%u retransmissions during firmware update required\n",
+			total_retrans);
 
 	return ret;
 }

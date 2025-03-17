@@ -31,7 +31,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.3.2");
+MODULE_VERSION("2.3.3");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
@@ -461,6 +461,8 @@ void printUserMsg(tpiControlInst *priv, const char *s, ...)
 	va_start(argp, s);
 
 	vsnprintf(priv->pcErrorMessage, sizeof(priv->pcErrorMessage), s, argp);
+
+	va_end(argp);
 
 	pr_info("%s", priv->pcErrorMessage);
 }

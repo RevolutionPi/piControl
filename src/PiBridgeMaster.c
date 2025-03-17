@@ -14,6 +14,7 @@
 #include "revpi_mio.h"
 #include "revpi_ro.h"
 #include "RS485FwuCommand.h"
+#include "piFirmwareUpdate.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
@@ -21,8 +22,9 @@
 
 /* The number of cycles after which the comm error counter is decreased */
 #define COMM_ERROR_CYCLES		(1<<3) /* must be power of 2! */
-/* The number of errors that result in an error message log */
-#define COMM_ERROR_MAX			10
+#define COMM_ERROR_CYCLES_MASK		(COMM_ERROR_CYCLES - 1)
+/* Error limit for error log message */
+#define COMM_ERROR_LOG_LIMIT		10
 
 static int init_retry = MAX_INIT_RETRIES;
 static volatile TBOOL bEntering_s = bTRUE;
@@ -691,13 +693,19 @@ int PiBridgeMaster_Run(void)
 				piCore_g.data_exchange_running = true;
 			}
 
-			if (RevPiDevice_run()) {
-				if (piCore_g.cycle_num & (COMM_ERROR_CYCLES - 1))
-					piCore_g.comm_errors++;
-				else
-					piCore_g.comm_errors--;
+			/*
+			 * Decrease error counter after each COMM_ERROR_CYCLES
+			 * to let the accumulated errors 'drain out' if there
+			 * are not more errors at this time.
+			 */
+			if (piCore_g.comm_errors &&
+			    (!(piCore_g.cycle_num & COMM_ERROR_CYCLES_MASK)))
+				piCore_g.comm_errors--;
 
-				if (piCore_g.comm_errors > COMM_ERROR_MAX) {
+			if (RevPiDevice_run()) {
+				piCore_g.comm_errors++;
+
+				if (piCore_g.comm_errors > COMM_ERROR_LOG_LIMIT) {
 					pr_warn_ratelimited("Error during piBridge communication\n");
 					piCore_g.comm_errors = 0;
 				}
@@ -810,22 +818,10 @@ int PiBridgeMaster_Run(void)
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUFlashWrite) {
 			if (bEntering_s) {
-				INT32U i32uOffset = 0, len;
-				i32sRetVal = 0;
-
-				while (i32sRetVal == 0 && i32uFWUlength > 0) {
-					if (i32uFWUlength > MAX_FWU_DATA_SIZE)
-						len = MAX_FWU_DATA_SIZE;
-					else
-						len = i32uFWUlength;
-					i32sRetVal = fwuWrite(i32uFWUAddress, i32uFWUFlashAddr + i32uOffset,
-							      pcFWUdata + i32uOffset, len);
-					pr_info("fwuWrite(0x%08x, %x) returned %d\n",
-						i32uFWUFlashAddr + i32uOffset, len, i32sRetVal);
-					i32uOffset += len;
-					i32uFWUlength -= len;
-				}
-
+				i32sRetVal = flash_firmware(i32uFWUAddress,
+							    i32uFWUFlashAddr,
+							    pcFWUdata,
+							    i32uFWUlength);
 				ret = 0;	// do not return errors here
 				bEntering_s = bFALSE;
 			}
