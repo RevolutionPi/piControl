@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-or-later
-# SPDX-FileCopyrightText: 2024 KUNBUS GmbH
+# SPDX-FileCopyrightText: 2024-2025 KUNBUS GmbH
 #
 # This script generates the ./debian/control file and some extra files for the
 # piControl debianization. It should be used to update the debianization for
@@ -151,6 +151,7 @@ cat <<- EOF > "$debdir/control"
 	Maintainer: KUNBUS GmbH <support@kunbus.com>
 	Build-Depends:
 	  debhelper-compat (= 13),
+	  dh-sequence-dkms,
 	  linux-headers-${pkg_append} (= ${kernel_pkg_ver}),
 	Standards-Version: 4.6.2
 	Homepage: https://revolutionpi.com/
@@ -193,6 +194,16 @@ cat <<- EOF > "$debdir/control"
 	 piControl is a kernel module for interfacing with RevPi hardware. It
 	 provides a common interface to all RevPi related IOs, which a user can
 	 consume via /dev/piControl0.
+
+	Package: picontrol-dkms
+	Architecture: all
+	Depends:
+	  picontrol-common,
+	  \${misc:Depends},
+	Conflicts: picontrol
+	Description: piControl driver for Revolution Pi extension modules
+	 Revolution Pi is a set of IoT products based on the Raspberry Pi and
+	 geared towards industrial usage.
 EOF
 
 cat <<- EOF > "$debdir/rules.vars"

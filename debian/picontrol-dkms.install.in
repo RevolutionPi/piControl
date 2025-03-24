@@ -1,0 +1,2 @@
+Makefile usr/src/picontrol-@VERSION@/
+src/* usr/src/picontrol-@VERSION@/src/

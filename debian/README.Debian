@@ -9,6 +9,7 @@ The following packages are part of this debianization:
     - `picontrol`
     - `picontrol-common`
     - `picontrol-${kernel_append}`
+    - `picontrol-dkms`
 
 The `picontrol` package is a meta package which depends on the
 `picontrol-common` and a `picontrol-${kernel_append}` package.
@@ -18,6 +19,12 @@ and the udev rules.
 
 The `picontrol-${kernel_append}` package contains the actual piControl
 kernel module.
+
+The `picontrol-dkms` package contains the source code for piControl and
+a dkms file that ensures the module is rebuilt with every kernel update.
+The dkms package is typically utilized during development or when as
+customer needs to manage their own kernel tree and prefers not to rebuild
+the module for every release.
 
 The `debian/control` file needs to be generated with the script
 `debian/bin/gencontrol.sh`. This is needed as the `debian/control` file contains

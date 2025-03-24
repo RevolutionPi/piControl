@@ -3,6 +3,8 @@
 include /usr/share/dpkg/pkg-info.mk
 include debian/rules.vars
 
+export DEB_VERSION_UPSTREAM := $(shell dpkg-parsechangelog -SVersion | sed 's/-.*//')
+
 SRC_PKG_DIR = $(shell pwd)
 make-opts = -C /lib/modules/$(KERNELRELEASE)/build M=$(SRC_PKG_DIR)
 
@@ -17,10 +19,16 @@ endif
 override_dh_auto_build:
 	$(MAKE) $(make-opts) modules
 
-
 override_dh_auto_clean:
 	$(MAKE) $(make-opts) clean
 
 override_dh_auto_install:
 	$(MAKE) $(make-opts) INSTALL_MOD_PATH=$(SRC_PKG_DIR)/debian/picontrol-$(KERNELRELEASE) INSTALL_MOD_STRIP=1 modules_install
 	dh_auto_install
+
+override_dh_dkms:
+	dh_dkms -V $(DEB_VERSION_UPSTREAM)
+
+override_dh_install:
+	sed "s/@VERSION@/$(DEB_VERSION_UPSTREAM)/" debian/picontrol-dkms.install.in > debian/picontrol-dkms.install
+	dh_install --exclude=.o
