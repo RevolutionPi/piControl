@@ -427,11 +427,16 @@ static void __exit piControlCleanup(void)
 // false: system is not operational
 bool isRunning(void)
 {
-	if (piDev_g.pibridge_supported &&
-	    piCore_g.eBridgeState != piBridgeRun) {
-		return false;
-	}
-	return true;
+	bool running;
+
+	if (!piDev_g.pibridge_supported)
+		return true;
+
+	rt_mutex_lock(&piCore_g.lockBridgeState);
+	running = (piCore_g.eBridgeState == piBridgeRun) ? true : false;
+	rt_mutex_unlock(&piCore_g.lockBridgeState);
+
+	return running;
 }
 
 // true: system is running
@@ -444,10 +449,14 @@ bool waitRunning(int timeout)	// ms
 	timeout /= 100;
 	timeout++;
 
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	while (timeout > 0 && piCore_g.eBridgeState != piBridgeRun) {
+		rt_mutex_unlock(&piCore_g.lockBridgeState);
 		msleep(100);
 		timeout--;
+		rt_mutex_lock(&piCore_g.lockBridgeState);
 	}
+	rt_mutex_unlock(&piCore_g.lockBridgeState);
 	if (timeout <= 0)
 		return false;
 
