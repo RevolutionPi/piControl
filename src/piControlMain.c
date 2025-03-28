@@ -101,7 +101,7 @@ static struct class *piControlClass;
 /*******************************  Functions  **********************************/
 /******************************************************************************/
 
-bool waitRunning(int timeout);	// ms
+static bool waitRunning(int timeout);	// ms
 
 /*****************************************************************************/
 /*       I N I T                                                             */
@@ -438,7 +438,7 @@ bool isRunning(void)
 
 // true: system is running
 // false: system is not operational
-bool waitRunning(int timeout)	// ms
+static bool waitRunning(int timeout)	// ms
 {
 	if (!piDev_g.pibridge_supported)
 		return true;
