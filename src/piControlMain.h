@@ -68,7 +68,6 @@ typedef struct spiControlDev {
 	ktime_t tLastOutput1, tLastOutput2;
 
 	// handle open connections and notification
-	u8 PnAppCon;		// counter of open connections
 	struct list_head listCon;
 	struct rt_mutex lockListCon;
 
@@ -101,7 +100,6 @@ typedef struct spiEventEntry {
 } tpiEventEntry;
 
 typedef struct spiControlInst {
-	u8 instNum;		// number of instance
 	struct device *dev;
 	wait_queue_head_t wq;
 	struct list_head piEventList;	// head of the event list for this instance

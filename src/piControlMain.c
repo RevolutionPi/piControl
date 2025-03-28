@@ -199,7 +199,6 @@ static int __init piControlInit(void)
 	/* create device node */
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor) + devindex);
 
-	piDev_g.PnAppCon = 0;
 	INIT_LIST_HEAD(&piDev_g.listCon);
 	rt_mutex_init(&piDev_g.lockListCon);
 
@@ -376,10 +375,8 @@ static int piControlReset(tpiControlInst * priv)
 				if (!found) {
 					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
 					pEntry->event = piEvReset;
-					pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum, (unsigned int)pEntry);
 					list_add_tail(&pEntry->list, &pos_inst->piEventList);
 					rt_mutex_unlock(&pos_inst->lockEventList);
-					pr_info_drv("reset(%d): inform instance %d\n", priv->instNum, pos_inst->instNum);
 					wake_up(&pos_inst->wq);
 				} else {
 					rt_mutex_unlock(&pos_inst->lockEventList);
@@ -514,14 +511,9 @@ static int piControlOpen(struct inode *inode, struct file *file)
 		}
 	}
 
-	piDev_g.PnAppCon++;
-	priv->instNum = piDev_g.PnAppCon;
-
 	my_rt_mutex_lock(&piDev_g.lockListCon);
 	list_add(&priv->list, &piDev_g.listCon);
 	rt_mutex_unlock(&piDev_g.lockListCon);
-
-	pr_info_drv("opened instance %d\n", piDev_g.PnAppCon);
 
 	return 0;
 }
@@ -547,9 +539,6 @@ static int piControlRelease(struct inode *inode, struct file *file)
 		}
 		rt_mutex_unlock(&piDev_g.lockPI);
 	}
-
-	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
-	piDev_g.PnAppCon--;
 
 	my_rt_mutex_lock(&piDev_g.lockListCon);
 	list_del(&priv->list);
@@ -595,10 +584,6 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 	}
 
 	pPd = piDev_g.ai8uPI + *ppos;
-
-#ifdef VERBOSE
-	pr_info("piControlRead inst %d Count=%zu, Pos=%llu: %02x %02x\n", priv->instNum, count, *ppos, pPd[0], pPd[1]);
-#endif
 
 	my_rt_mutex_lock(&piDev_g.lockPI);
 	if (copy_to_user(pBuf, pPd, nread) != 0) {
@@ -1447,12 +1432,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			tpiEventEntry *pEntry;
 
-			pr_info_drv("wait(%d)\n", priv->instNum);
 			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
 				my_rt_mutex_lock(&priv->lockEventList);
 				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
-
-				pr_info_drv("wait(%d): got event %d\n", priv->instNum, pEntry->event);
 
 				list_del(&pEntry->list);
 				rt_mutex_unlock(&priv->lockEventList);
