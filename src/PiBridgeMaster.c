@@ -810,7 +810,7 @@ int PiBridgeMaster_Run(void)
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUFlashErase) {
 			if (bEntering_s) {
-				i32sRetVal = fwuEraseFlash(i32uFWUAddress);
+				i32sRetVal = erase_flash(i32uFWUAddress);
 				pr_info("fwuEraseFlash returned %d\n", i32sRetVal);
 
 				ret = 0;	// do not return errors here
