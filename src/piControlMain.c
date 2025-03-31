@@ -486,12 +486,10 @@ static int piControlOpen(struct inode *inode, struct file *file)
 	}
 
 	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
-	file->private_data = priv;
+	if (!priv)
+		return -ENOMEM;
 
-	if (priv == NULL) {
-		pr_err("Private Allocation failed");
-		return -EINVAL;
-	}
+	file->private_data = priv;
 
 	/* initalize instance variables */
 	priv->dev = piDev_g.dev;
