@@ -11,21 +11,19 @@
 
 #include <linux/hrtimer.h>
 #include <linux/sched.h>
+#include <linux/completion.h>
 #include "revpi_compact.h"
 
 struct cycletimer {
 	struct hrtimer timer;
 	ktime_t cycletime;
-	wait_queue_head_t wq;
-	bool is_expired;
-
+	struct completion timer_expired;
 };
 
 static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 {
 	struct cycletimer *ct = container_of(timer, struct cycletimer, timer);
-	ct->is_expired = true;
-	wake_up(&ct->wq);
+	complete(&ct->timer_expired);
 	return HRTIMER_NORESTART;
 }
 
@@ -48,9 +46,9 @@ static inline void cycletimer_sleep(struct cycletimer *ct,
 		}
 	}
 
-	ct->is_expired = false;
 	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_HARD);
-	wait_event(ct->wq, ct->is_expired);
+	reinit_completion(&ct->timer_expired);
+	wait_for_completion(&ct->timer_expired);
 }
 
 static inline void cycletimer_change(struct cycletimer *ct, u32 cycletime)
@@ -68,7 +66,7 @@ static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime
 
 	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->function = wake_up_sleeper;
-	init_waitqueue_head(&ct->wq);
+	init_completion(&ct->timer_expired);
 	cycletimer_change(ct, cycletime);
 }
 

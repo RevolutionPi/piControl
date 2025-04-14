@@ -31,7 +31,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.3.3");
+MODULE_VERSION("2.3.5");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
@@ -101,7 +101,7 @@ static struct class *piControlClass;
 /*******************************  Functions  **********************************/
 /******************************************************************************/
 
-bool waitRunning(int timeout);	// ms
+static bool waitRunning(int timeout);	// ms
 
 /*****************************************************************************/
 /*       I N I T                                                             */
@@ -199,7 +199,6 @@ static int __init piControlInit(void)
 	/* create device node */
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor) + devindex);
 
-	piDev_g.PnAppCon = 0;
 	INIT_LIST_HEAD(&piDev_g.listCon);
 	rt_mutex_init(&piDev_g.lockListCon);
 
@@ -376,10 +375,8 @@ static int piControlReset(tpiControlInst * priv)
 				if (!found) {
 					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
 					pEntry->event = piEvReset;
-					pr_info_drv("reset(%d): add tail %d %x", priv->instNum, pos_inst->instNum, (unsigned int)pEntry);
 					list_add_tail(&pEntry->list, &pos_inst->piEventList);
 					rt_mutex_unlock(&pos_inst->lockEventList);
-					pr_info_drv("reset(%d): inform instance %d\n", priv->instNum, pos_inst->instNum);
 					wake_up(&pos_inst->wq);
 				} else {
 					rt_mutex_unlock(&pos_inst->lockEventList);
@@ -427,16 +424,21 @@ static void __exit piControlCleanup(void)
 // false: system is not operational
 bool isRunning(void)
 {
-	if (piDev_g.pibridge_supported &&
-	    piCore_g.eBridgeState != piBridgeRun) {
-		return false;
-	}
-	return true;
+	bool running;
+
+	if (!piDev_g.pibridge_supported)
+		return true;
+
+	rt_mutex_lock(&piCore_g.lockBridgeState);
+	running = (piCore_g.eBridgeState == piBridgeRun) ? true : false;
+	rt_mutex_unlock(&piCore_g.lockBridgeState);
+
+	return running;
 }
 
 // true: system is running
 // false: system is not operational
-bool waitRunning(int timeout)	// ms
+static bool waitRunning(int timeout)	// ms
 {
 	if (!piDev_g.pibridge_supported)
 		return true;
@@ -444,10 +446,14 @@ bool waitRunning(int timeout)	// ms
 	timeout /= 100;
 	timeout++;
 
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	while (timeout > 0 && piCore_g.eBridgeState != piBridgeRun) {
+		rt_mutex_unlock(&piCore_g.lockBridgeState);
 		msleep(100);
 		timeout--;
+		rt_mutex_lock(&piCore_g.lockBridgeState);
 	}
+	rt_mutex_unlock(&piCore_g.lockBridgeState);
 	if (timeout <= 0)
 		return false;
 
@@ -474,13 +480,16 @@ static int piControlOpen(struct inode *inode, struct file *file)
 {
 	tpiControlInst *priv;
 
-	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
-	file->private_data = priv;
-
-	if (priv == NULL) {
-		pr_err("Private Allocation failed");
-		return -EINVAL;
+	if (!waitRunning(3000)) {
+		pr_err("Failed to open piControl device: piControl not running\n");
+		return -ENXIO;
 	}
+
+	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	file->private_data = priv;
 
 	/* initalize instance variables */
 	priv->dev = piDev_g.dev;
@@ -489,30 +498,9 @@ static int piControlOpen(struct inode *inode, struct file *file)
 
 	init_waitqueue_head(&priv->wq);
 
-	//pr_info("piControlOpen");
-	if (!waitRunning(3000)) {
-		int status;
-		pr_err("problem at driver initialization\n");
-		if(eRunStatus_s != enPiBridgeMasterStatus_FWUMode){
-			pr_err("no piControl reset possible, a firmware update is running\n");
-			kfree(priv);
-			return -EINVAL;
-		}
-		status = piControlReset(priv);
-		if (status) {
-			kfree(priv);
-			return status;
-		}
-	}
-
-	piDev_g.PnAppCon++;
-	priv->instNum = piDev_g.PnAppCon;
-
 	my_rt_mutex_lock(&piDev_g.lockListCon);
 	list_add(&priv->list, &piDev_g.listCon);
 	rt_mutex_unlock(&piDev_g.lockListCon);
-
-	pr_info_drv("opened instance %d\n", piDev_g.PnAppCon);
 
 	return 0;
 }
@@ -538,9 +526,6 @@ static int piControlRelease(struct inode *inode, struct file *file)
 		}
 		rt_mutex_unlock(&piDev_g.lockPI);
 	}
-
-	pr_info_drv("close instance %d/%d\n", priv->instNum, piDev_g.PnAppCon);
-	piDev_g.PnAppCon--;
 
 	my_rt_mutex_lock(&piDev_g.lockListCon);
 	list_del(&priv->list);
@@ -586,10 +571,6 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 	}
 
 	pPd = piDev_g.ai8uPI + *ppos;
-
-#ifdef VERBOSE
-	pr_info("piControlRead inst %d Count=%zu, Pos=%llu: %02x %02x\n", priv->instNum, count, *ppos, pPd[0], pPd[1]);
-#endif
 
 	my_rt_mutex_lock(&piDev_g.lockPI);
 	if (copy_to_user(pBuf, pPd, nread) != 0) {
@@ -1438,12 +1419,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			tpiEventEntry *pEntry;
 
-			pr_info_drv("wait(%d)\n", priv->instNum);
 			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
 				my_rt_mutex_lock(&priv->lockEventList);
 				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
-
-				pr_info_drv("wait(%d): got event %d\n", priv->instNum, pEntry->event);
 
 				list_del(&pEntry->list);
 				rt_mutex_unlock(&priv->lockEventList);

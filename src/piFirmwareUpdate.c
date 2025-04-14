@@ -9,6 +9,7 @@
 
 #define TFPGA_HEAD_DATA_OFFSET			6
 #define	CHUNK_TRANSMISSION_ATTEMPTS		100
+#define	FLASH_ERASE_ATTEMPTS			50
 
 // ret < 0: error
 // ret == 0: no update needed
@@ -210,6 +211,31 @@ int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
 	return ret;
 }
 
+int erase_flash(unsigned int dev_addr)
+{
+	unsigned int attempts = FLASH_ERASE_ATTEMPTS;
+	int ret;
+
+	do {
+		ret = fwuEraseFlash(dev_addr);
+		if (ret) {
+			/*
+			 * A failure may result from a protocol communication
+			 * error. Retry to erase flash if attempts are left.
+			 */
+			usleep_range(1000, 2000);
+			attempts--;
+			pr_debug("Error erasing flash: %i (left attempts: %u)\n",
+				ret, attempts);
+		}
+	} while (ret && attempts);
+
+	if (attempts != FLASH_ERASE_ATTEMPTS)
+		pr_warn("%u attempts to erase flash required\n",
+			FLASH_ERASE_ATTEMPTS - attempts);
+	return ret;
+}
+
 int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
 {
 	T_KUNBUS_APPL_DESCR *desc;
@@ -288,7 +314,7 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
 
 	msleep(500);
 
-	if (fwuEraseFlash(dev_addr) < 0) {
+	if (erase_flash(dev_addr)) {
 		pr_err("failed to erase flash\n");
 		ret = -EIO;
 		goto reset;
