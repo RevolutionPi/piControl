@@ -1,3 +1,30 @@
+picontrol (2.3.5-1+deb12+1) bookworm; urgency=medium
+
+  [ Lino Sanfilippo ]
+  * Build for linux-image-6.6.0-revpi8-rpi-v8 (= 6.6.84-rt52-revpi8-
+    1+deb12+1)
+
+  [ Nicolai Buchwitz ]
+  * feat(deb): Re-add dkms packages
+
+  [ Lino Sanfilippo ]
+  * Use lock to check pibridge state
+  * Remove unused counter for open instances
+  * Make function waitRunning() static
+  * In piControlOpen() do not reset piControl
+  * Return correct error code if memory allocation failed in piControlOpen
+  * Retry if flash erase during firmware update failed
+  * compact: in cycle timer use completion instead of work queue
+
+  [ Ramiro Gsponer ]
+  * Release v2.3.4
+  * piControl: Fix RevPi MQTT Client device type value
+
+  [ Lino Sanfilippo ]
+  * Release v2.3.5
+
+ -- Lino Sanfilippo <l.sanfilippo@kunbus.com>  Mon, 14 Apr 2025 09:02:39 +0000
+
 picontrol (2.3.3-1+deb12+1) bookworm; urgency=medium
 
   [ Ramiro Gsponer ]
