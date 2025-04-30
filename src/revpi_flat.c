@@ -116,10 +116,10 @@ static int revpi_flat_poll_dout(void *data)
 		if (aout_val != -1) {
 			int ret;
 
-			raw_out = (image->usr.aout << 12) / 10000;
+			raw_out = (image->usr.aout * 4095) / 10000;
 
 			ret = iio_write_channel_raw(&flat->aout,
-						    min(raw_out, 4096));
+						    min(raw_out, 4095));
 			if (ret)
 				dev_err(piDev_g.dev, "failed to write value to "
 					"analog ouput: %i\n", ret);
