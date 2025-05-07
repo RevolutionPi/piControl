@@ -419,7 +419,7 @@ INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryI
 
 void revpi_compact_adjust_config(void)
 {
-	int i, j, done;
+	int i, j;
 	int result = 0, found;
 	uint8_t *state;
 
@@ -435,7 +435,7 @@ void revpi_compact_adjust_config(void)
 	// Schleife über alle Module die automatisch erkannt wurden
 	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
 		// Suche diese Module in der Konfigurationsdatei
-		for (i = 0, found = 0, done = 0; found == 0 && i < piDev_g.devs->i16uNumDevices && !done; i++) {
+		for (i = 0, found = 0; found == 0 && i < piDev_g.devs->i16uNumDevices; i++) {
 			// Grundvoraussetzung ist, dass die Adresse gleich ist.
 			if (RevPiDevice_getDev(j)->i8uAddress == piDev_g.devs->dev[i].i8uAddress) {
 				// Außerdem muss ModuleType, InputLength und OutputLength gleich sein.
@@ -445,7 +445,6 @@ void revpi_compact_adjust_config(void)
 						piDev_g.devs->dev[i].i16uModuleType);
 					result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
-					done = 1;
 					break;
 				}
 				if (RevPiDevice_getDev(j)->sId.i16uFBS_InputLength != piDev_g.devs->dev[i].i16uInputLength) {
@@ -454,7 +453,6 @@ void revpi_compact_adjust_config(void)
 						piDev_g.devs->dev[i].i16uInputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
-					done = 1;
 					break;
 				}
 				if (RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength != piDev_g.devs->dev[i].i16uOutputLength) {
@@ -464,7 +462,6 @@ void revpi_compact_adjust_config(void)
 						piDev_g.devs->dev[i].i16uOutputLength);
 					result = PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
-					done = 1;
 					break;
 				}
 				// we found the device in the configuration file
