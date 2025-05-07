@@ -13,3 +13,41 @@ checkpatch:
   variables:
     CHECKPATCH_ARGS: "--no-tree"
   allow_failure: true
+
+coverity-submit:
+  stage: publish
+  image: registry.gitlab.com/revolutionpi/infrastructure/docker-images/build-container/build-container-bookworm:arm64-latest
+  tags:
+    - self-hosted
+    - host-arm64
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+  variables:
+    DEBIAN_FRONTEND: noninteractive
+  script:
+    - apt update && apt-get build-dep -y picontrol
+    - |
+      curl \
+        -sSfLo /tmp/cov-analysis-linux-arm64.tar.gz \
+        --form project=$CI_PROJECT_NAME \
+        --form token=$COVERITY_SCAN_TOKEN \
+        "https://scan.coverity.com/download/cxx/linux-ARM64"
+    - tar -xzf /tmp/cov-analysis-linux-arm64.tar.gz
+    - |
+      headers_ver="$(dpkg-query \
+        -Wf'${Package}\n' linux-headers-*-rpi-v8 \
+        | sort -u \
+        | head -n1 \
+        | grep -Eo '([[:digit:]]+\.){2}[[:digit:]]-revpi[[:digit:]]+-rpi-v[[:digit:]]+')"
+    - ./cov-analysis-linux-arm64*/bin/cov-build
+        --dir cov-int
+        make -j$(nproc) KDIR=/usr/src/linux-headers-"${headers_ver}"/
+    - tar -czf picontrol.tar.gz cov-int
+    - |
+      curl -sSfL \
+        --form token=$COVERITY_SCAN_TOKEN \
+        --form email=$CI_EMAIL \
+        --form file=@picontrol.tar.gz \
+        --form version="$CI_COMMIT_TAG" \
+        --form description="Automated release submit for $CI_COMMIT_TAG" \
+        https://scan.coverity.com/builds?project=$CI_PROJECT_NAME
