@@ -46,8 +46,8 @@ static inline void cycletimer_sleep(struct cycletimer *ct,
 		}
 	}
 
-	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_HARD);
 	reinit_completion(&ct->timer_expired);
+	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_HARD);
 	wait_for_completion(&ct->timer_expired);
 }
 
