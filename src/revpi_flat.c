@@ -287,7 +287,7 @@ static void revpi_flat_set_defaults(void)
 
 int revpi_flat_reset()
 {
-	dev_debug(piDev_g.dev, "Resetting RevPi Flat control\n");
+	dev_dbg(piDev_g.dev, "Resetting RevPi Flat control\n");
 
 	RevPiDevice_init();
 
