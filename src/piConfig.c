@@ -285,6 +285,8 @@ static int do_tree(json_config *config,
 					parser.stack_offset, parser.state);
 		goto free_parser;
 	}
+	/* all ok */
+	ret = 0;
 
 	if (root_structure)
 		*root_structure = dom.root_structure;
