@@ -258,24 +258,21 @@ static int do_tree(json_config *config,
 	if (ret) {
 		pr_err("error: initializing helper failed: [code=%d] %s\n",
 						ret, string_of_errors[ret]);
-		close_filename(input);
-		return ret;
+		goto close_file;
 	}
 
 	ret = json_parser_init(&parser, config, json_parser_dom_callback, &dom);
 	if (ret) {
 		pr_err("error: initializing parser failed: [code=%d] %s\n",
 						ret, string_of_errors[ret]);
-		close_filename(input);
-		return ret;
+		goto free_dom;
 	}
 
 	ret = process_file(&parser, input, &lines, &col);
 	if (ret) {
 		pr_err("line %d, col %d: [code=%d] %s\n",
 					lines, col, ret, string_of_errors[ret]);
-		close_filename(input);
-		return 1;
+		goto free_parser;
 	}
 
 	ret = json_parser_is_done(&parser);
@@ -286,19 +283,24 @@ static int do_tree(json_config *config,
 		else
 			pr_err("syntax error: offset %d  state %d\n",
 					parser.stack_offset, parser.state);
-		close_filename(input);
-		return 1;
+		goto free_parser;
 	}
+	/* all ok */
+	ret = 0;
 
 	if (root_structure)
 		*root_structure = dom.root_structure;
 
 	/* cleanup */
+free_parser:
 	json_parser_free(&parser);
+free_dom:
 	json_parser_dom_free(&dom);
 
+close_file:
 	close_filename(input);
-	return 0;
+
+	return ret;
 }
 
 static int free_tree(json_val_t * element)
