@@ -1,3 +1,34 @@
+picontrol (2.3.6-1+deb12+1) bookworm; urgency=medium
+
+  [ Ramiro Gsponer ]
+  * Build for linux-image-6.6.0-revpi8-rpi-v8 (= 6.6.84-rt52-revpi8-
+    1+deb12+1)
+
+  [ Nicolai Buchwitz ]
+  * piControl: use sched_setattr_nocheck for RT prio
+  * piControl: fix RevPi Flat DAC output scaling
+  * piControl: Make Flat reset less verbose
+
+  [ Thomas Böhler ]
+  * piConfig: free alloc'd resources in do_tree on err
+  * piControl: remove unused variable "done"
+
+  [ Lino Sanfilippo ]
+  * compact: fix race condition in cycle timer
+
+  [ Thomas Böhler ]
+  * ci: automatically submit new releases to coverity
+
+  [ Lino Sanfilippo ]
+  * flat: fix compiler error
+  * Fix compiler warning concerning missing prototypes
+  * Set correct return value in do_tree()
+
+  [ Ramiro Gsponer ]
+  * Release v2.3.6
+
+ -- Ramiro Gsponer <r.gsponer@kunbus.com>  Tue, 20 May 2025 14:00:04 +0200
+
 picontrol (2.3.5-1+deb12+1) bookworm; urgency=medium
 
   [ Lino Sanfilippo ]
