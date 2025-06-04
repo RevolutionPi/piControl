@@ -29,8 +29,8 @@ coverity-submit:
     - |
       curl \
         -sSfLo /tmp/cov-analysis-linux-arm64.tar.gz \
-        --form project=$CI_PROJECT_NAME \
-        --form token=$COVERITY_SCAN_TOKEN \
+        --form project="$CI_PROJECT_NAME" \
+        --form token="$COVERITY_SCAN_TOKEN" \
         "https://scan.coverity.com/download/cxx/linux-ARM64"
     - tar -xzf /tmp/cov-analysis-linux-arm64.tar.gz
     - |
@@ -45,9 +45,9 @@ coverity-submit:
     - tar -czf picontrol.tar.gz cov-int
     - |
       curl -sSfL \
-        --form token=$COVERITY_SCAN_TOKEN \
-        --form email=$CI_EMAIL \
+        --form token="$COVERITY_SCAN_TOKEN" \
+        --form email="$CI_EMAIL" \
         --form file=@picontrol.tar.gz \
         --form version="$CI_COMMIT_TAG" \
         --form description="Automated release submit for $CI_COMMIT_TAG" \
-        https://scan.coverity.com/builds?project=$CI_PROJECT_NAME
+        "https://scan.coverity.com/builds?project=$CI_PROJECT_NAME"
