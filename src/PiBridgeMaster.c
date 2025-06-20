@@ -235,17 +235,6 @@ void PiBridgeMaster_setDefaults(void)
 	}
 }
 
-static inline void revpi_pbm_cont_mio(unsigned char i)
-{
-	int ret;
-
-	ret = revpi_mio_init(i);
-	if(ret) {
-		pr_err("mio init failed in status-Continue(ret:%d)\n", ret);
-		RevPiDevice_getDev(i)->i8uActive = 0;
-	}
-}
-
 static void handle_pibridge_ethernet(void)
 {
 	piDev_g.pibridge_mode_ethernet_left = false;
@@ -531,7 +520,11 @@ int PiBridgeMaster_Run(void)
 						}
 						break;
 					case KUNBUS_FW_DESCR_TYP_PI_MIO:
-						revpi_pbm_cont_mio(i);
+						ret = revpi_mio_init(i);
+						if (ret) {
+							pr_err("mio init failed in status-Continue(ret:%d)\n", ret);
+							RevPiDevice_getDev(i)->i8uActive = 0;
+						}
 						break;
 					case KUNBUS_FW_DESCR_TYP_PI_RO:
 						ret = revpi_ro_init(i);
