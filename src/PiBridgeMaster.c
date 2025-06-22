@@ -640,9 +640,8 @@ int PiBridgeMaster_Run(void)
 				PiBridgeMaster_Configure();
 
 				bEntering_s = bFALSE;
-				ret = 0;
-			} else {
 				piCore_g.data_exchange_running = true;
+				ret = 0;
 			}
 
 			/*
