@@ -8,12 +8,6 @@
 #include "picontrol_intern.h"
 #include "piControl.h"
 
-typedef enum
-{
-    DIOSTATE_OFFLINE   = 0x00, // Physikalisch nicht verbunden
-    DIOSTATE_CYCLIC_IO = 0x01, // Zyklischer Datenaustausch ist aktiv
-} DioCommStatus;
-
 void piDIOComm_InitStart(void);
 
 INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt);
