@@ -275,18 +275,16 @@ static int do_tree(json_config *config,
 		goto free_parser;
 	}
 
-	ret = json_parser_is_done(&parser);
-	if (!ret) {
+	if (!json_parser_is_done(&parser)) { /* parsing incomplete */
 		if (parser.state == 0 && parser.stack_offset == 0)
 			pr_err("config.rsc is empty! "
 				"Probably needs to be configured in PiCtory\n");
 		else
 			pr_err("syntax error: offset %d  state %d\n",
 					parser.stack_offset, parser.state);
+		ret = 1;
 		goto free_parser;
 	}
-	/* all ok */
-	ret = 0;
 
 	if (root_structure)
 		*root_structure = dom.root_structure;
