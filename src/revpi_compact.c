@@ -545,6 +545,7 @@ int revpi_compact_init(void)
 	machine->ain_should_reset = true;
 	init_completion(&machine->ain_reset);
 	gpiod_add_lookup_table(&revpi_compact_gpios);
+	seqlock_init(&machine->stats.lock);
 
 	machine->din =  gpiod_get_array(piDev_g.dev, "din", GPIOD_ASIS);
 	if (IS_ERR(machine->din)) {
