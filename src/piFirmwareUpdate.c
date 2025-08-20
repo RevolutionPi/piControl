@@ -9,7 +9,7 @@
 
 #define TFPGA_HEAD_DATA_OFFSET			6
 #define	CHUNK_TRANSMISSION_ATTEMPTS		100
-#define	FLASH_ERASE_ATTEMPTS			50
+#define	FLASH_ERASE_ATTEMPTS			5
 
 // ret < 0: error
 // ret == 0: no update needed
