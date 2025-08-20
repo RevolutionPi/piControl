@@ -230,10 +230,14 @@ int erase_flash(unsigned int dev_addr)
 		}
 	} while (ret && attempts);
 
+	/* failure */
+	if (ret)
+		return ret;
+
 	if (attempts != FLASH_ERASE_ATTEMPTS)
 		pr_warn("%u attempts to erase flash required\n",
 			FLASH_ERASE_ATTEMPTS - attempts);
-	return ret;
+	return 0;
 }
 
 int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
