@@ -1109,7 +1109,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			if (!found || res_cnt.i16uBitfield == 0) {
-				pr_err("piControlIoctl: resetCounter failed bitfield 0x%x", res_cnt.i16uBitfield);
+				pr_err("%s: resetCounter failed, bitfield: 0x%x\n",
+					__func__,
+					res_cnt.i16uBitfield);
 				return -EINVAL;
 			}
 
@@ -1126,7 +1128,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			piCore_g.pendingUserTel = true;
 			down(&piCore_g.semUserTel);
 			status = piCore_g.statusUserTel;
-			pr_info("piControlIoctl: resetCounter result %d", status);
+			pr_info("%s: resetCounter result %d\n", __func__, status);
 			rt_mutex_unlock(&piCore_g.lockUserTel);
 		}
 		break;
