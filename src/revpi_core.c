@@ -117,7 +117,6 @@ static enum hrtimer_restart piIoTimer(struct hrtimer *pTimer)
 
 static int piIoThread(void *data)
 {
-	//TODO int value = 0;
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
 	unsigned int last_cycle;
 	unsigned int min_cycle;

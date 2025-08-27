@@ -54,7 +54,6 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void);
 TBOOL RevPiDevice_writeNextConfigurationLeft(void);
 void RevPiDevice_startDataexchange(void);
 void RevPiDevice_stopDataexchange(void);
-void RevPiDevice_checkFirmwareUpdate(void);
 u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type);
 INT8U RevPiDevice_setStatus(INT8U clr, INT8U set);
 INT8U RevPiDevice_getStatus(void);

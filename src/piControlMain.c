@@ -572,7 +572,7 @@ static void __exit piControlCleanup(void)
 {
 	dev_t curdev;
 
-	pr_info_drv("piControlCleanup\n");
+	pr_debug("piControlCleanup\n");
 
 	cdev_del(&piDev_g.cdev);
 
@@ -595,8 +595,8 @@ static void __exit piControlCleanup(void)
 	class_destroy(piControlClass);
 	unregister_chrdev_region(piControlMajor, 2);
 
-	pr_info_drv("driver stopped with MAJOR-No. %d\n\n ", MAJOR(piControlMajor));
-	pr_info_drv("piControlCleanup done\n");
+	pr_debug("driver stopped with MAJOR-No. %d\n\n ", MAJOR(piControlMajor));
+	pr_debug("piControlCleanup done\n");
 }
 
 // true: system is running
@@ -797,9 +797,6 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 		return -EFAULT;
 	}
 	rt_mutex_unlock(&piDev_g.lockPI);
-#ifdef VERBOSE
-	pr_info("piControlWrite Count=%u, Pos=%llu: %02x %02x\n", count, *ppos, pPd[0], pPd[1]);
-#endif
 	*ppos += nwrite;
 
 	if (priv->tTimeoutDurationMs > 0) {
@@ -1127,10 +1124,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
 				}
 
-#ifdef VERBOSE
-				pr_info("piControlIoctl Addr=%u, bit=%u: %02x %02x\n", spi_val.i16uAddress, spi_val.i8uBit, spi_val.i8uValue, i8uValue_l);
-#endif
-
 				status = 0;
 			}
 		}
@@ -1167,7 +1160,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			spi_var.i16uLength = 0xffff;
 
 			for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
-				//pr_info("strcmp(%s, %s)\n", piDev_g.ent->ent[i].strVarName, var->strVarName);
 				if (strcmp(piDev_g.ent->ent[i].strVarName, spi_var.strVarName) == 0) {
 					spi_var.i16uAddress = piDev_g.ent->ent[i].i16uOffset;
 					spi_var.i8uBit = piDev_g.ent->ent[i].i8uBitPos;
@@ -1234,19 +1226,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 					val2 &= ~mask;
 					val2 |= val1;
 					piDev_g.ai8uPI[addr] = val2;
-
-					//pr_info("piControlIoctl copy mask %02x at offset %d\n", mask, addr);
 				}
-#if 0
-				pr_info("piControlIoctl inst %d time %5d: copy %d bits at offset %d: %x %x %x %x\n",
-					priv->instNum,
-					(int)(ktime_to_ms(now)) % 10000,
-					len, addr,
-					((unsigned char *)(usr_addr + addr))[0],
-					((unsigned char *)(usr_addr + addr))[1],
-					((unsigned char *)(usr_addr + addr))[2],
-					((unsigned char *)(usr_addr + addr))[3]);
-#endif
 			}
 			rt_mutex_unlock(&piDev_g.lockPI);
 

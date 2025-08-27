@@ -14,30 +14,6 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 {
 	int written;
 
-#ifdef DEBUG_SERIALCOMM
-	if (i16uLen_p == 1) {
-		pr_info("send %d: %02x\n", i16uLen_p, buf_p[0]);
-	} else if (i16uLen_p == 2) {
-		pr_info("send %d: %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1]);
-	} else if (i16uLen_p == 3) {
-		pr_info("send %d: %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2]);
-	} else if (i16uLen_p == 4) {
-		pr_info("send %d: %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3]);
-	} else if (i16uLen_p == 5) {
-		pr_info("send %d: %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4]);
-	} else if (i16uLen_p == 6) {
-		pr_info("send %d: %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5]);
-	} else if (i16uLen_p == 7) {
-		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6]);
-	} else if (i16uLen_p == 8) {
-		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
-			buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7]);
-	} else {
-		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0], buf_p[1],
-			buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
-	}
-	//pr_info("vfs_write(%d, %d, %d)\n", (int)piIoComm_fd_m, i16uLen_p, (int)piIoComm_fd_m->f_pos);
-#endif
 	/* First clear receive FIFO to remove stale data */
 	pibridge_clear_fifo();
 

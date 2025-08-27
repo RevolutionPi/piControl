@@ -132,7 +132,6 @@ void revpi_power_led_red_set(enum revpi_power_led_mode mode)
 			|| power_led_mode_s == REVPI_POWER_LED_ON_500MS
 			|| power_led_mode_s == REVPI_POWER_LED_ON_1000MS)
 			return; // nothing to do
-		//pr_info("power led green\n");
 		power_led_red_state_s = false;
 		led_trigger_event(&piDev_g.power_red, LED_OFF);
 		break;
@@ -140,7 +139,6 @@ void revpi_power_led_red_set(enum revpi_power_led_mode mode)
 	case REVPI_POWER_LED_ON:
 		if (power_led_mode_s == REVPI_POWER_LED_ON)
 			return; // nothing to do
-		//pr_info("power led red\n");
 		power_led_red_state_s = true;
 		led_trigger_event(&piDev_g.power_red, LED_FULL);
 		break;
@@ -153,7 +151,6 @@ void revpi_power_led_red_set(enum revpi_power_led_mode mode)
 		break;
 	case REVPI_POWER_LED_ON_500MS:
 	case REVPI_POWER_LED_ON_1000MS:
-		//pr_info("power led pulse\n");
 		power_led_red_state_s = true;
 		led_trigger_event(&piDev_g.power_red, LED_FULL);
 		power_led_timer_s = jiffies;

@@ -339,17 +339,6 @@ TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *
 		pr_info("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
 	}
 
-#if 0
-	ret_l = piIoComm_sendRS485Tel(eCmdPiIoConfigure, i8uAddress_p, NULL, 0, NULL, 0);
-	msleep(3);		// wait a while
-	if (ret_l) {
-#ifdef DEBUG_DEVICE
-		pr_err("piIoComm_sendRS485Tel(PiIoConfigure) failed %d\n", ret_l);
-#endif
-		return bFALSE;
-	}
-#endif
-
 	ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
 	msleep(3);		// wait a while
 	if (ret_l) {
@@ -462,17 +451,6 @@ void RevPiDevice_stopDataexchange(void)
 #ifdef DEBUG_DEVICE
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
 #endif
-	}
-}
-
-void RevPiDevice_checkFirmwareUpdate(void)
-{
-	int j;
-	// Schleife über alle Module die automatisch erkannt wurden
-	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
-		if (RevPiDevice_getDev(j)->i8uAddress != 0 && RevPiDevice_getDev(j)->sId.i16uModulType < PICONTROL_SW_OFFSET) {
-
-		}
 	}
 }
 

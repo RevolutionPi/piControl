@@ -5,8 +5,6 @@
 #ifndef BSPCONFIG_H_INC
 #define BSPCONFIG_H_INC
 
-//#define ENDTEST_DIO
-
 #if 0
 #define DEBUG_CONFIG
 #define pr_info_config(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
@@ -41,19 +39,7 @@
 #define pr_info_aio(fmt, ...)
 #endif
 
-#if 0
-#define DEBUG_LINUX_DRV
-#define pr_info_drv(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-#else
-#define pr_info_drv(fmt, ...)
-#endif
-
-#if 0
-#define DEBUG_SERIALCOMM
 #define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-#else
-#define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-#endif
 
 //#define DEBUG_GPIO
 #define DEBUG_DEVICE
@@ -61,8 +47,6 @@
 
 #define KB_PD_LEN       (u16)512
 #define KB_PI_LEN       4096
-
-//#define VERBOSE
 
 #undef pr_fmt
 #define pr_fmt(fmt)     KBUILD_MODNAME ": " fmt
