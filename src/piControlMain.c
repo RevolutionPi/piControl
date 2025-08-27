@@ -352,7 +352,7 @@ static int __init piControlInit(void)
 	 */
 	piDev_g.cycle.min = UINT_MAX;
 
-	pr_info("MAJOR-No.  : %d\n", MAJOR(piControlMajor));
+	pr_debug("MAJOR-No.  : %d\n", MAJOR(piControlMajor));
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
 	piControlClass = class_create(THIS_MODULE, "piControl");
@@ -383,7 +383,7 @@ static int __init piControlInit(void)
 		goto err_class_destroy;
 	}
 
-	pr_info("MAJOR-No.  : %d  MINOR-No.  : %d\n", MAJOR(curdev), MINOR(curdev));
+	pr_debug("MAJOR-No.  : %d  MINOR-No.  : %d\n", MAJOR(curdev), MINOR(curdev));
 
 	res = piControl_init_sysfs();
 	if (res) {
@@ -469,7 +469,7 @@ static int __init piControlInit(void)
 		goto err_revpi_fini;
 	}
 
-	pr_info("piControlInit done\n");
+	pr_debug("piControlInit done\n");
 	return 0;
 
 err_revpi_fini:

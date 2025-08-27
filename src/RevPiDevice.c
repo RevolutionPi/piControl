@@ -129,7 +129,7 @@ int RevPiDevice_hat_serial(void)
 
 void RevPiDevice_init(void)
 {
-	pr_info("RevPiDevice_init()\n");
+	pr_debug("RevPiDevice_init()\n");
 
 	piCore_g.cycle_num = 0;
 	piCore_g.comm_errors = 0;
@@ -336,7 +336,7 @@ TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *
 #endif
 		return bFALSE;
 	} else {
-		pr_info("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
+		pr_debug("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
 	}
 
 	ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
@@ -378,9 +378,9 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 		pr_info("found %d. device on right side. Moduletype %d. Designated address %d\n",
 			RevPiDevice_getDevCnt() + 1, RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType,
 			RevPiDevices_s.i8uAddressRight);
-		pr_info("input offset  %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
+		pr_debug("input offset  %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
-		pr_info("output offset %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
+		pr_debug("output offset %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
 #endif
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
@@ -414,10 +414,10 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 		pr_info("found %d. device on left side. Moduletype %d. Designated address %d\n",
 			RevPiDevice_getDevCnt() + 1,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType, RevPiDevices_s.i8uAddressLeft);
-		pr_info("input offset  %5d  len %3d\n",
+		pr_debug("input offset  %5d  len %3d\n",
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
-		pr_info("output offset %5d  len %3d\n",
+		pr_debug("output offset %5d  len %3d\n",
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
 #endif

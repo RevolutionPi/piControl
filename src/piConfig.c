@@ -107,7 +107,7 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 			break;
 		}
 		if (read == 0) {
-			pr_info("read file finished, f_pos=%lld\n",
+			pr_debug("read file finished, f_pos=%lld\n",
 							input->f_pos);
 			break;
 		}
@@ -776,7 +776,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		    );
 		cnt += (*devs)->dev[i].i16uEntries;
 	}
-	pr_info("%d entries in total\n", cnt);
+	pr_debug("%d entries in total\n", cnt);
 
 	*ent = kmalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
 	memset(*ent, 0, sizeof(piEntries) + cnt * sizeof(SEntryInfo));
@@ -977,7 +977,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
 		} else {
 			// gehe zum nächsten Eintrag
-			pr_info("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
+			pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
 				       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
 
 			i++;
@@ -987,7 +987,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		}
 	}
 	if (exported_outputs > 0) {
-		pr_info("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
+		pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
 			       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
 		i++;
 	}

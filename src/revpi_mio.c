@@ -199,7 +199,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 	/*1=output(Fixed Output)*/
 	conf->aio_o.i8uDirection = 1;
 
-	pr_info("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd)\n",
+	pr_debug("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd)\n",
 		addr, e_cnt, mio_cnt, MIO_CONF_BASE);
 
 	for (i = 0; i < e_cnt; i++) {
@@ -256,9 +256,9 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		}
 	}
 
-	pr_info("dio  :%*ph\n", (int) sizeof(conf->dio), &conf->dio);
-	pr_info("aio-i:%*ph\n", (int) sizeof(conf->aio_i), &conf->aio_i);
-	pr_info("aio-o:%*ph\n", (int) sizeof(conf->aio_o), &conf->aio_o);
+	pr_debug("dio  :%*ph\n", (int) sizeof(conf->dio), &conf->dio);
+	pr_debug("aio-i:%*ph\n", (int) sizeof(conf->aio_i), &conf->aio_i);
+	pr_debug("aio-o:%*ph\n", (int) sizeof(conf->aio_o), &conf->aio_o);
 
 	mio_cnt++;
 
@@ -274,11 +274,11 @@ int revpi_mio_init(unsigned char devno)
 
 	addr = RevPiDevice_getDev(devno)->i8uAddress;
 
-	pr_info("MIO Initializing...(devno:%d, addr:%d, conf-base:%zd)\n",
+	pr_debug("MIO Initializing...(devno:%d, addr:%d, conf-base:%zd)\n",
 						devno, addr, MIO_CONF_BASE);
 
 	for (i = 0; i < mio_cnt; i++) {
-		pr_info("search mio conf(index:%d, addr:%d)\n", i,
+		pr_debug("search mio conf(index:%d, addr:%d)\n", i,
 			mio_list[i].addr);
 
 		if (mio_list[i].addr == addr) {
@@ -315,7 +315,7 @@ int revpi_mio_init(unsigned char devno)
 		pr_err("talk with mio for conf aio_o err(devno:%d, ret:%d)\n",
 		       devno, ret);
 
-	pr_info("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
+	pr_debug("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
 
 	return 0;
 }

@@ -131,7 +131,7 @@ static int piIoThread(void *data)
 
 	piCore_g.ioTimer.function = piIoTimer;
 
-	pr_info("piIO thread started\n");
+	pr_debug("piIO thread started\n");
 
 	PiBridgeMaster_Reset();
 

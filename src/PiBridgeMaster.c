@@ -88,7 +88,7 @@ static void PiBridgeMaster_Configure(void)
 		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
 			ret = piDIOComm_Init(i);
 
-			pr_info("piDIOComm_Init(%d) done %d\n",
+			pr_debug("piDIOComm_Init(%d) done %d\n",
 				sdev->i8uAddress, ret);
 
 			if (ret != 0) {
@@ -106,7 +106,7 @@ static void PiBridgeMaster_Configure(void)
 		case KUNBUS_FW_DESCR_TYP_PI_AIO:
 			ret = piAIOComm_Init(i);
 
-			pr_info("piAIOComm_Init(%d) done %d\n", sdev->i8uAddress, ret);
+			pr_debug("piAIOComm_Init(%d) done %d\n", sdev->i8uAddress, ret);
 
 			if (ret != 0) {
 				// init failed -> deactive module
@@ -132,7 +132,7 @@ static void PiBridgeMaster_Configure(void)
 		case KUNBUS_FW_DESCR_TYP_PI_RO:
 			ret = revpi_ro_init(i);
 
-			pr_info("revpi_ro_init(%d) done %d\n", sdev->i8uAddress, ret);
+			pr_debug("revpi_ro_init(%d) done %d\n", sdev->i8uAddress, ret);
 
 			if (ret != 0) {
 				// init failed -> deactivate module
@@ -197,7 +197,7 @@ int PiBridgeMaster_Adjust(void)
 				}
 				// we found the device in the configuration file
 				// -> adjust offsets
-				pr_info_master("Adjust: base %d in %d out %d conf %d\n",
+				pr_debug("Adjust: base %d in %d out %d conf %d\n",
 					       piDev_g.devs->dev[i].i16uBaseOffset,
 					       piDev_g.devs->dev[i].i16uInputOffset,
 					       piDev_g.devs->dev[i].i16uOutputOffset,
@@ -359,7 +359,7 @@ int PiBridgeMaster_Run(void)
 	if (piCore_g.eBridgeState != piBridgeStop) {
 		switch (eRunStatus_s) {
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
-			pr_info_master("Enter Init State\n");
+			pr_debug("Enter Init State\n");
 			handle_pibridge_ethernet();
 			// configure PiBridge Sniff lines as input
 			piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
@@ -374,7 +374,7 @@ int PiBridgeMaster_Run(void)
 
 		case enPiBridgeMasterStatus_MasterIsPresentSignalling1:
 			if (bEntering_s) {
-				pr_info_master("Enter PresentSignalling1 State\n");
+				pr_debug("Enter PresentSignalling1 State\n");
 
 				bEntering_s = bFALSE;
 				piIoComm_writeSniff2A(enGpioValue_High, enGpioMode_Output);
@@ -411,7 +411,7 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_InitialSlaveDetectionRight:
-			pr_info_master("Enter InitialSlaveDetectionRight State\n");
+			pr_debug("Enter InitialSlaveDetectionRight State\n");
 
 			if (piDev_g.pibridge_mode_ethernet_right) {
 				eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
@@ -430,7 +430,7 @@ int PiBridgeMaster_Run(void)
 
 		case enPiBridgeMasterStatus_ConfigRightStart:
 			if (bEntering_s) {
-				pr_info_master("Enter ConfigRightStart State\n");
+				pr_debug("Enter ConfigRightStart State\n");
 				bEntering_s = bFALSE;
 				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Output);
 				kbUT_TimerStart(&tTimeoutTimer_s, 10);
@@ -444,7 +444,7 @@ int PiBridgeMaster_Run(void)
 
 		case enPiBridgeMasterStatus_ConfigDialogueRight:
 			if (bEntering_s) {
-				pr_info_master("Enter ConfigDialogueRight State\n");
+				pr_debug("Enter ConfigDialogueRight State\n");
 				error_cnt = 0;
 				bEntering_s = bFALSE;
 			}
@@ -465,7 +465,7 @@ int PiBridgeMaster_Run(void)
 
 		case enPiBridgeMasterStatus_SlaveDetectionRight:
 			if (bEntering_s) {
-				pr_info_master("Enter SlaveDetectionRight State\n");
+				pr_debug("Enter SlaveDetectionRight State\n");
 				bEntering_s = bFALSE;
 				kbUT_TimerStart(&tTimeoutTimer_s, 10);
 			}
@@ -484,7 +484,7 @@ int PiBridgeMaster_Run(void)
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_InitialSlaveDetectionLeft:
-			pr_info_master("Enter InitialSlaveDetectionLeft State\n");
+			pr_debug("Enter InitialSlaveDetectionLeft State\n");
 
 			if (piDev_g.pibridge_mode_ethernet_left) {
 				eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
@@ -505,7 +505,7 @@ int PiBridgeMaster_Run(void)
 
 		case enPiBridgeMasterStatus_ConfigLeftStart:
 			if (bEntering_s) {
-				pr_info_master("Enter ConfigLeftStart State\n");
+				pr_debug("Enter ConfigLeftStart State\n");
 				bEntering_s = bFALSE;
 				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Output);
 				kbUT_TimerStart(&tTimeoutTimer_s, 10);
@@ -519,7 +519,7 @@ int PiBridgeMaster_Run(void)
 
 		case enPiBridgeMasterStatus_ConfigDialogueLeft:
 			if (bEntering_s) {
-				pr_info_master("Enter ConfigDialogueLeft State\n");
+				pr_debug("Enter ConfigDialogueLeft State\n");
 				error_cnt = 0;
 				bEntering_s = bFALSE;
 			}
@@ -540,7 +540,7 @@ int PiBridgeMaster_Run(void)
 
 		case enPiBridgeMasterStatus_SlaveDetectionLeft:
 			if (bEntering_s) {
-				pr_info_master("Enter SlaveDetectionLeft State\n");
+				pr_debug("Enter SlaveDetectionLeft State\n");
 				bEntering_s = bFALSE;
 				kbUT_TimerStart(&tTimeoutTimer_s, 10);
 			}
@@ -575,28 +575,28 @@ int PiBridgeMaster_Run(void)
 		case enPiBridgeMasterStatus_EndOfConfig:
 			if (bEntering_s) {
 #ifdef DEBUG_MASTER_STATE
-				pr_info_master("Enter EndOfConfig State\n\n");
+				pr_debug("Enter EndOfConfig State\n\n");
 				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-					pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
+					pr_debug("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
 						       i,
 						       RevPiDevice_getDev(i)->i8uAddress,
 						       RevPiDevice_getDev(i)->sId.i16uModulType,
 						       RevPiDevice_getDev(i)->i8uActive,
 						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength,
 						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-					pr_info_master("           input offset  %5d  len %3d\n",
+					pr_debug("           input offset  %5d  len %3d\n",
 						       RevPiDevice_getDev(i)->i16uInputOffset,
 						       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength);
-					pr_info_master("           output offset %5d  len %3d\n",
+					pr_debug("           output offset %5d  len %3d\n",
 						       RevPiDevice_getDev(i)->i16uOutputOffset,
 						       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-					pr_info_master("           serial number %d  version %d.%d\n",
+					pr_debug("           serial number %d  version %d.%d\n",
 						       RevPiDevice_getDev(i)->sId.i32uSerialnumber,
 						       RevPiDevice_getDev(i)->sId.i16uSW_Major,
 						       RevPiDevice_getDev(i)->sId.i16uSW_Minor);
 				}
 
-				pr_info_master("\n");
+				pr_debug("\n");
 #endif
 
 				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
@@ -604,7 +604,7 @@ int PiBridgeMaster_Run(void)
 				PiBridgeMaster_Adjust();
 
 #ifdef DEBUG_MASTER_STATE
-				pr_info_master("After Adjustment\n");
+				pr_debug("After Adjustment\n");
 				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 					pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
 						       i,
