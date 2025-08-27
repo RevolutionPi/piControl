@@ -763,7 +763,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		return 3;
 	}
 
-	pr_info("%d devices found\n", (*devs)->i16uNumDevices);
+	pr_info("found %d devices in configuration file\n", (*devs)->i16uNumDevices);
 
 	cnt = 0;
 	for (i = 0; i < (*devs)->i16uNumDevices; i++) {

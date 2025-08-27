@@ -295,44 +295,44 @@ static int __init piControlInit(void)
 
 	if (of_machine_is_compatible("kunbus,revpi-compact")) {
 		piDev_g.machine_type = REVPI_COMPACT;
-		pr_info("RevPi Compact\n");
+		pr_info("running on RevPi Compact\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-connect")) {
 		piDev_g.machine_type = REVPI_CONNECT;
 		piDev_g.pibridge_supported = 1;
 		piDev_g.only_left_pibridge = 1;
 		piDev_g.revpi_gate_supported = 1;
-		pr_info("RevPi Connect\n");
+		pr_info("running on RevPi Connect\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-connect-se")) {
 		piDev_g.machine_type = REVPI_CONNECT_SE;
 		piDev_g.pibridge_supported = 1;
 		piDev_g.only_left_pibridge = 1;
-		pr_info("RevPi Connect SE\n");
+		pr_info("running on RevPi Connect SE\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-connect4")) {
 		piDev_g.machine_type = REVPI_CONNECT_4;
 		piDev_g.pibridge_supported = 1;
-		pr_info("RevPi Connect 4\n");
+		pr_info("running on RevPi Connect 4\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-connect5")) {
 		piDev_g.machine_type = REVPI_CONNECT_5;
 		piDev_g.pibridge_supported = 1;
 		piDev_g.revpi_gate_supported = 1;
-		pr_info("RevPi Connect 5\n");
+		pr_info("running on RevPi Connect 5\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-pibridge")) {
 		piDev_g.machine_type = REVPI_GENERIC_PB;
 		piDev_g.pibridge_supported = 1;
 		piDev_g.revpi_gate_supported = 1;
-		pr_info("RevPi Generic PiBridge\n");
+		pr_info("running on RevPi Generic PiBridge\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-flat")) {
 		piDev_g.machine_type = REVPI_FLAT;
-		pr_info("RevPi Flat\n");
+		pr_info("running on RevPi Flat\n");
 	} else if (of_machine_is_compatible("kunbus,revpi-core-se")) {
 		piDev_g.machine_type = REVPI_CORE_SE;
 		piDev_g.pibridge_supported = 1;
-		pr_info("RevPi Core SE\n");
+		pr_info("running on RevPi Core SE\n");
 	} else {
 		piDev_g.machine_type = REVPI_CORE;
 		piDev_g.pibridge_supported = 1;
 		piDev_g.revpi_gate_supported = 1;
-		pr_info("RevPi Core\n");
+		pr_info("running on RevPi Core\n");
 	}
 
 	// alloc_chrdev_region return 0 on success
@@ -963,7 +963,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	switch (prg_nr) {
 	case KB_RESET:
 		rt_mutex_lock(&piDev_g.lockIoctl);
-		pr_info("Reset: BridgeState=%d \n", piCore_g.eBridgeState);
+		pr_info("driver reset requested\n");
+		pr_debug("BridgeState=%d\n", piCore_g.eBridgeState);
 
 		if (piDev_g.pibridge_supported && isRunning()) {
 			PiBridgeMaster_Stop();

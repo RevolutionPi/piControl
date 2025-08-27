@@ -661,7 +661,7 @@ int PiBridgeMaster_Run(void)
 				// an error occured, check error limits
 				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
 				    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
-					pr_err("too many communication errors -> set BridgeState to stopped\n");
+					pr_err("too many communication errors -> set state to stopped\n");
 					if (piDev_g.revpi_gate_supported)
 						revpi_gate_fini();
 					piCore_g.eBridgeState = piBridgeStop;
@@ -713,7 +713,7 @@ int PiBridgeMaster_Run(void)
 				piCore_g.eBridgeState = piBridgeInit;
 				init_retry--;
 			} else {
-				pr_info("set BridgeState to running\n");
+				pr_info("set state to running\n");
 				if (piDev_g.revpi_gate_supported)
 					revpi_gate_init();
 				piCore_g.eBridgeState = piBridgeRun;
