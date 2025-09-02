@@ -14,6 +14,8 @@
 #define CREATE_TRACE_POINTS
 #include "picontrol_trace.h"
 
+#define PICONTROL_IO_CYCLE_INTERVAL			5 // msecs
+
 /*
  * The priority has to be at least 54 (same as SPI thread), otherwise lots
  * of UART reception errors are observed. The reason for this effect is not
@@ -120,7 +122,6 @@ static int piIoThread(void *data)
 	//TODO int value = 0;
 	ktime_t time;
 	ktime_t now;
-	ktime_t cycle_interval;
 	ktime_t cycle_start;
 	unsigned int cycle_duration;
 	s64 tDiff;
@@ -188,13 +189,8 @@ static int piIoThread(void *data)
 
 		revpi_check_timeout();
 
-		if (piCore_g.eBridgeState == piBridgeInit) {
-			cycle_interval = ns_to_ktime(INTERVAL_RS485);
-		} else {
-			cycle_interval = ns_to_ktime(INTERVAL_IO_COMM);
-		}
-
-		hrtimer_forward(&piCore_g.ioTimer, now, cycle_interval);
+		hrtimer_forward(&piCore_g.ioTimer, now,
+				ms_to_ktime(PICONTROL_IO_CYCLE_INTERVAL));
 		hrtimer_restart(&piCore_g.ioTimer);
 		down(&piCore_g.ioSem);	// wait for timer
 
