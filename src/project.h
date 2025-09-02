@@ -63,11 +63,9 @@
 // use longer intervals to reduce the number of messages
 #define INTERVAL_RS485      ( 1*1000*1000)     //  100 ms    piRs485
 #define INTERVAL_IO_COMM    ( 5*1000*1000)     //  500 ms    piIoComm
-#define INTERVAL_ADDITIONAL (    500*1000)     //  500 ms    piIoComm
 #else
 #define INTERVAL_RS485      ( 1*1000*1000)     //  1   ms    piRs485
 #define INTERVAL_IO_COMM    ( 5*1000*1000)     //  5   ms    piIoComm
-#define INTERVAL_ADDITIONAL (    500*1000)     //  0.5 ms    piIoComm
 #endif
 
 #define KB_PD_LEN       (u16)512

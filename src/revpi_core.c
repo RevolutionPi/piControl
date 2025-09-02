@@ -120,16 +120,16 @@ static int piIoThread(void *data)
 	//TODO int value = 0;
 	ktime_t time;
 	ktime_t now;
+	ktime_t cycle_interval;
 	ktime_t cycle_start;
 	unsigned int cycle_duration;
 	s64 tDiff;
 
-	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+
 	piCore_g.ioTimer.function = piIoTimer;
 
 	pr_info("piIO thread started\n");
-
-	now = hrtimer_cb_get_time(&piCore_g.ioTimer);
 
 	PiBridgeMaster_Reset();
 
@@ -189,19 +189,13 @@ static int piIoThread(void *data)
 		revpi_check_timeout();
 
 		if (piCore_g.eBridgeState == piBridgeInit) {
-			time = ktime_add_ns(time, INTERVAL_RS485);
+			cycle_interval = ns_to_ktime(INTERVAL_RS485);
 		} else {
-			time = ktime_add_ns(time, INTERVAL_IO_COMM);
+			cycle_interval = ns_to_ktime(INTERVAL_IO_COMM);
 		}
 
-		if (ktime_after(now, time)) {
-			// the call of PiBridgeMaster_Run() needed more time than the INTERVAL
-			// -> wait an additional ms
-			//pr_info("%d ms too late, state %d\n", (int)((now.tv64 - time.tv64) >> 20), piCore_g.eBridgeState);
-			time = ktime_add_ns(now, INTERVAL_ADDITIONAL);
-		}
-
-		hrtimer_start(&piCore_g.ioTimer, time, HRTIMER_MODE_ABS);
+		hrtimer_forward(&piCore_g.ioTimer, now, cycle_interval);
+		hrtimer_restart(&piCore_g.ioTimer);
 		down(&piCore_g.ioSem);	// wait for timer
 
 		if (piCore_g.data_exchange_running) {
