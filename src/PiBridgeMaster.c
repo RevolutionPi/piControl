@@ -640,8 +640,10 @@ int PiBridgeMaster_Run(void)
 				PiBridgeMaster_Configure();
 
 				bEntering_s = bFALSE;
-				piCore_g.data_exchange_running = true;
 				ret = 0;
+			} else {
+				/* Start cycle measurement */
+				piCore_g.data_exchange_running = true;
 			}
 
 			/*
