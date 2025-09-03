@@ -139,6 +139,9 @@ static int piIoThread(void *data)
 	piCore_g.cycle_min = UINT_MAX;
 	piCore_g.cycle_max = 0;
 
+	/* Get start time of the first cycle */
+	now = hrtimer_cb_get_time(&piCore_g.ioTimer);
+
 	while (!kthread_should_stop()) {
 		trace_picontrol_cycle_start(piCore_g.cycle_num);
 		cycle_start = ktime_get();
