@@ -122,10 +122,11 @@ static int piIoThread(void *data)
 	//TODO int value = 0;
 	ktime_t time;
 	ktime_t now;
-	ktime_t cycle_start;
 	unsigned int cycle_duration;
 	s64 tDiff;
 
+	/* Note: we use this timer for both, a fixed cycle interval length and
+	   measurement of the cycle time */
 	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	piCore_g.ioTimer.function = piIoTimer;
@@ -144,7 +145,6 @@ static int piIoThread(void *data)
 
 	while (!kthread_should_stop()) {
 		trace_picontrol_cycle_start(piCore_g.cycle_num);
-		cycle_start = ktime_get();
 
 		if (PiBridgeMaster_Run() < 0)
 			break;
@@ -152,8 +152,10 @@ static int piIoThread(void *data)
 		time = now;
 		now = hrtimer_cb_get_time(&piCore_g.ioTimer);
 
-		time = ktime_sub(now, time);
-		piCore_g.image.drv.i8uIOCycle = ktime_to_ms(time);
+		cycle_duration = ktime_to_us(ktime_sub(now, time));
+
+		/* On process image store cycle time in msec */
+		piCore_g.image.drv.i8uIOCycle = cycle_duration / 1000;
 
 		if (piDev_g.tLastOutput1 != piDev_g.tLastOutput2) {
 			tDiff = ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
@@ -198,7 +200,6 @@ static int piIoThread(void *data)
 		down(&piCore_g.ioSem);	// wait for timer
 
 		if (piCore_g.data_exchange_running) {
-			cycle_duration = ktime_to_us(ktime_get() - cycle_start);
 			trace_picontrol_cycle_end(piCore_g.cycle_num, cycle_duration);
 
 			if (piCore_g.cycle_min > cycle_duration)
