@@ -37,6 +37,15 @@ enum {
 	REVPI_PIBRIDGE_ETHERNET_GPIO_DETECT
 };
 
+#define PICONTROL_CYCLE_MAX_DURATION    45000 /* usecs */
+struct picontrol_cycle {
+	unsigned int duration;
+	unsigned int last;
+	unsigned int max;
+	unsigned int min;
+	seqlock_t lock;
+};
+
 typedef struct spiControlDev {
 	// device driver stuff
 	enum revpi_machine machine_type;
@@ -92,6 +101,8 @@ typedef struct spiControlDev {
 	/* Gigabit ethernet on PiBridge */
 	bool pibridge_mode_ethernet_left;
 	bool pibridge_mode_ethernet_right;
+	/* PiControl cycle attributes */
+	struct picontrol_cycle cycle;
 } tpiControlDev;
 
 typedef struct spiEventEntry {
@@ -118,5 +129,6 @@ extern tpiControlDev piDev_g;
 
 bool isRunning(void);
 void printUserMsg(tpiControlInst *priv, const char *s, ...);
+unsigned int piControl_get_cycle_duration(void);
 
 #endif /* PRODUCTS_PIBASE_PIKERNELMOD_PICONTROLINTERN_H_ */

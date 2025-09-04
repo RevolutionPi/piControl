@@ -92,9 +92,6 @@ typedef struct _SRevPiCore {
 	struct hrtimer ioTimer;
 	struct semaphore ioSem;
 
-	// cycle time measurement
-	unsigned int cycle_min; /* usecs */
-	unsigned int cycle_max; /* usecs */
 	u64 cycle_num;
 	/* Number of communication errors */
 	u32 comm_errors;

@@ -14,8 +14,6 @@
 #define CREATE_TRACE_POINTS
 #include "picontrol_trace.h"
 
-#define PICONTROL_IO_CYCLE_INTERVAL			5 // msecs
-
 /*
  * The priority has to be at least 54 (same as SPI thread), otherwise lots
  * of UART reception errors are observed. The reason for this effect is not
@@ -120,9 +118,12 @@ static enum hrtimer_restart piIoTimer(struct hrtimer *pTimer)
 static int piIoThread(void *data)
 {
 	//TODO int value = 0;
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned int last_cycle;
+	unsigned int min_cycle;
+	unsigned int max_cycle;
 	ktime_t time;
 	ktime_t now;
-	unsigned int cycle_duration;
 	s64 tDiff;
 
 	/* Note: we use this timer for both, a fixed cycle interval length and
@@ -134,11 +135,6 @@ static int piIoThread(void *data)
 	pr_info("piIO thread started\n");
 
 	PiBridgeMaster_Reset();
-
-	/* Initialize with the highest possible value to make sure it is
-	   overwritten with the next measured time span */
-	piCore_g.cycle_min = UINT_MAX;
-	piCore_g.cycle_max = 0;
 
 	/* Get start time of the first cycle */
 	now = hrtimer_cb_get_time(&piCore_g.ioTimer);
@@ -152,10 +148,10 @@ static int piIoThread(void *data)
 		time = now;
 		now = hrtimer_cb_get_time(&piCore_g.ioTimer);
 
-		cycle_duration = ktime_to_us(ktime_sub(now, time));
+		last_cycle = ktime_to_us(ktime_sub(now, time));
 
 		/* On process image store cycle time in msec */
-		piCore_g.image.drv.i8uIOCycle = cycle_duration / 1000;
+		piCore_g.image.drv.i8uIOCycle = last_cycle / 1000;
 
 		if (piDev_g.tLastOutput1 != piDev_g.tLastOutput2) {
 			tDiff = ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
@@ -195,33 +191,40 @@ static int piIoThread(void *data)
 		revpi_check_timeout();
 
 		hrtimer_forward(&piCore_g.ioTimer, now,
-				ms_to_ktime(PICONTROL_IO_CYCLE_INTERVAL));
+				ns_to_ktime(piControl_get_cycle_duration() * 1000));
 		hrtimer_restart(&piCore_g.ioTimer);
 		down(&piCore_g.ioSem);	// wait for timer
 
 		if (piCore_g.data_exchange_running) {
-			trace_picontrol_cycle_end(piCore_g.cycle_num, cycle_duration);
+			write_seqlock(&cycle->lock);
+			cycle->last = last_cycle;
 
-			if (piCore_g.cycle_min > cycle_duration)
-				piCore_g.cycle_min = cycle_duration;
+			if (cycle->min > last_cycle)
+				cycle->min = last_cycle;
 
-			if (piCore_g.cycle_max < cycle_duration)
-				piCore_g.cycle_max = cycle_duration;
+			if (cycle->max < last_cycle)
+				cycle->max = last_cycle;
+
+			max_cycle = cycle->max;
+			min_cycle = cycle->min;
+			write_sequnlock(&cycle->lock);
 
 			if (picontrol_max_cycle_deviation &&
-			   (cycle_duration > (piCore_g.cycle_min +
-					      picontrol_max_cycle_deviation))) {
-				trace_picontrol_cycle_exceeded(cycle_duration,
-							       piCore_g.cycle_min);
+			    (last_cycle > (min_cycle +
+					picontrol_max_cycle_deviation))) {
+				trace_picontrol_cycle_exceeded(last_cycle,
+							       min_cycle);
 			}
+
+			trace_picontrol_cycle_end(piCore_g.cycle_num, last_cycle);
 			piCore_g.cycle_num++;
 		}
 	}
 
 	pr_info("piIO exit\n");
 	pr_info("Number of cycles: %llu\n", piCore_g.cycle_num);
-	pr_info("Cycle min: %u usecs\n", piCore_g.cycle_min);
-	pr_info("Cycle max: %u usecs\n", piCore_g.cycle_max);
+	pr_info("Cycle min: %u usecs\n", min_cycle);
+	pr_info("Cycle max: %u usecs\n", max_cycle);
 
 	return 0;
 }

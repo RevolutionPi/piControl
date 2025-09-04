@@ -26,7 +26,8 @@
 #include "revpi_common.h"
 #include "revpi_core.h"
 
-#define FIRMWARE_FILENAME_LEN		32
+#define FIRMWARE_FILENAME_LEN			32
+#define PICONTROL_DEFAULT_CYCLE_DURATION	5000 /* usecs */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
@@ -125,6 +126,165 @@ static char *piControlClass_devnode(const struct device *dev, umode_t * mode)
 	return NULL;
 }
 
+unsigned int piControl_get_cycle_duration(void)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned int duration;
+	unsigned int seq;
+
+	do {
+		seq = read_seqbegin(&cycle->lock);
+		duration = cycle->duration;
+	} while (read_seqretry(&cycle->lock, seq));
+
+	return duration;
+}
+
+static ssize_t last_cycle_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned int last;
+	unsigned int seq;
+
+	do {
+		seq = read_seqbegin(&cycle->lock);
+		last = cycle->last;
+	} while (read_seqretry(&cycle->lock, seq));
+
+	return sprintf(buf, "%u\n", last);
+}
+
+static ssize_t min_cycle_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned int min;
+	unsigned int seq;
+
+	do {
+		seq = read_seqbegin(&cycle->lock);
+		min = cycle->min;
+	} while (read_seqretry(&cycle->lock, seq));
+
+	return sprintf(buf, "%u\n", min);
+}
+
+static ssize_t min_cycle_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+
+	if (count == 1 && (buf[0] == 0xA)) {
+		write_seqlock(&cycle->lock);
+		cycle->min = UINT_MAX;
+		write_sequnlock(&cycle->lock);
+	}
+	return count;
+}
+
+static ssize_t max_cycle_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned int max;
+	unsigned int seq;
+
+	do {
+		seq = read_seqbegin(&cycle->lock);
+		max = cycle->max;
+	} while (read_seqretry(&cycle->lock, seq));
+
+	return sprintf(buf, "%u\n", max);
+}
+
+static ssize_t max_cycle_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+
+	if (count == 1 && (buf[0] == 0xA)) {
+		write_seqlock(&cycle->lock);
+		cycle->max = 0;
+		write_sequnlock(&cycle->lock);
+	}
+
+	return count;
+}
+
+static ssize_t cycle_duration_show(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	return sprintf(buf, "%u\n", piControl_get_cycle_duration());
+}
+
+static ssize_t cycle_duration_store(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t count)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	val = min(val, PICONTROL_CYCLE_MAX_DURATION);
+
+	write_seqlock(&cycle->lock);
+	cycle->duration = val;
+	write_sequnlock(&cycle->lock);
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(cycle_duration);
+static DEVICE_ATTR_RW(max_cycle);
+static DEVICE_ATTR_RW(min_cycle);
+static DEVICE_ATTR_RO(last_cycle);
+
+static int __init piControl_init_sysfs(void)
+{
+	int ret;
+
+	ret = sysfs_create_file(&piDev_g.dev->kobj, &dev_attr_cycle_duration.attr);
+	if (ret)
+		return ret;
+
+	ret = sysfs_create_file(&piDev_g.dev->kobj, &dev_attr_max_cycle.attr);
+	if (ret)
+		goto remove_cycle_duration_file;
+
+	ret = sysfs_create_file(&piDev_g.dev->kobj, &dev_attr_min_cycle.attr);
+	if (ret)
+		goto remove_max_cycle_file;
+
+	ret = sysfs_create_file(&piDev_g.dev->kobj, &dev_attr_last_cycle.attr);
+	if (ret)
+		goto remove_min_cycle_file;
+
+	return 0;
+
+remove_min_cycle_file:
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_min_cycle.attr);
+remove_max_cycle_file:
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_max_cycle.attr);
+remove_cycle_duration_file:
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_cycle_duration.attr);
+
+	return ret;
+}
+
+static void piControl_deinit_sysfs(void)
+{
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_last_cycle.attr);
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_min_cycle.attr);
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_max_cycle.attr);
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_cycle_duration.attr);
+}
+
 static int __init piControlInit(void)
 {
 	int devindex = 0;
@@ -182,6 +342,16 @@ static int __init piControlInit(void)
 		return res;
 	}
 
+	seqlock_init(&piDev_g.cycle.lock);
+	piDev_g.cycle.duration = PICONTROL_DEFAULT_CYCLE_DURATION;
+	piDev_g.cycle.last = 0;
+	piDev_g.cycle.max = 0;
+	/*
+	 * Initialize with the highest possible value to make sure it is
+	 * overwritten with the next measured time span.
+	 */
+	piDev_g.cycle.min = UINT_MAX;
+
 	pr_info("MAJOR-No.  : %d\n", MAJOR(piControlMajor));
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
@@ -214,6 +384,12 @@ static int __init piControlInit(void)
 	}
 
 	pr_info("MAJOR-No.  : %d  MINOR-No.  : %d\n", MAJOR(curdev), MINOR(curdev));
+
+	res = piControl_init_sysfs();
+	if (res) {
+		pr_err("Failed to create sysfs entries: %i\n", res);
+		goto err_dev_destroy;
+	}
 
 	res = devm_led_trigger_register(piDev_g.dev, &piDev_g.power_red)
 	   || devm_led_trigger_register(piDev_g.dev, &piDev_g.a1_green)
@@ -254,7 +430,7 @@ static int __init piControlInit(void)
 	if (res) {
 		pr_err("cannot register LED triggers\n");
 		res = -ENXIO;
-		goto err_dev_destroy;
+		goto err_sysfs_remove;
 	}
 
 	/* init some data */
@@ -310,6 +486,8 @@ err_revpi_fini:
 err_free_config:
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
+err_sysfs_remove:
+	piControl_deinit_sysfs();
 err_dev_destroy:
 	device_destroy(piControlClass, curdev);
 err_class_destroy:
@@ -411,6 +589,7 @@ static void __exit piControlCleanup(void)
 
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
+	piControl_deinit_sysfs();
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor));
 	device_destroy(piControlClass, curdev);
 	class_destroy(piControlClass);
