@@ -659,11 +659,6 @@ static int piControlOpen(struct inode *inode, struct file *file)
 {
 	tpiControlInst *priv;
 
-	if (!waitRunning(3000)) {
-		pr_err("Failed to open piControl device: piControl not running\n");
-		return -ENXIO;
-	}
-
 	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -949,7 +944,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	tpiControlInst *priv;
 	int timeout = 10000;	// ms
 
-	if (prg_nr != KB_CONFIG_SEND && prg_nr != KB_CONFIG_START && !isRunning()) {
+	if (prg_nr != KB_RESET && prg_nr != KB_CONFIG_SEND
+		&& prg_nr != KB_CONFIG_START && !isRunning()) {
 		return -EAGAIN;
 	}
 
