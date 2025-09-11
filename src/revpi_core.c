@@ -40,50 +40,43 @@ SRevPiCore piCore_g;
  */
 u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 {
+	bool is_right;
+	u8 *gate_idx;
 	int i;
 
+	/* Determine which gate based on netdev name */
 	if (!strcmp(netdev->name, "piright")) {
-		if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF) {
-			/*
-			 * The gateway was not discoverable via RS-485,
-			 * but the PiBridge Ethernet communication is up.
-			 * Search for the gateway's config entry.
-			 */
-			pr_info("%s: found uninitialized gateway of type %d, try to find configuration\n",
-				netdev->name, module_type);
-			i = RevPiDevice_find_by_side_and_type(true,
-				     module_type | PICONTROL_NOT_CONNECTED);
-			if (i != REV_PI_DEV_UNDEF) {
-				pr_info("%s: found configuration for uninitialized gateway\n",
-					netdev->name);
-				piCore_g.i8uRightMGateIdx = i;
-				RevPiDevice_getDev(i)->i8uActive = 1;
-				RevPiDevice_getDev(i)->sId.i16uModulType &=
-					       PICONTROL_NOT_CONNECTED_MASK;
-			}
-		}
-		return piCore_g.i8uRightMGateIdx;
+		is_right = true;
+		gate_idx = &piCore_g.i8uRightMGateIdx;
+	} else if (!strcmp(netdev->name, "pileft")) {
+		is_right = false;
+		gate_idx = &piCore_g.i8uLeftMGateIdx;
+	} else {
+		return REV_PI_DEV_UNDEF;
 	}
 
-	if (!strcmp(netdev->name, "pileft")) {
-		if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF) {
-			pr_info("%s: found uninitialized gateway of type %d, try to find configuration\n",
+	/* Only search if gateway not already initialized */
+	if (*gate_idx == REV_PI_DEV_UNDEF) {
+		/*
+		 * The gateway was not discoverable via RS-485,
+		 * but the PiBridge Ethernet communication is up.
+		 * Search for the gateway's config entry.
+		 */
+		pr_info("%s: found uninitialized gateway of type %d, try to find configuration\n",
 				netdev->name, module_type);
-			i = RevPiDevice_find_by_side_and_type(false,
-				    module_type | PICONTROL_NOT_CONNECTED);
-			if (i != REV_PI_DEV_UNDEF) {
-				pr_info("%s: found configuration for uninitialized gateway\n",
+
+		i = RevPiDevice_find_by_side_and_type(is_right,
+				module_type | PICONTROL_NOT_CONNECTED);
+		if (i != REV_PI_DEV_UNDEF) {
+			pr_info("%s: found configuration for uninitialized gateway\n",
 					netdev->name);
-				piCore_g.i8uLeftMGateIdx = i;
-				RevPiDevice_getDev(i)->i8uActive = 1;
-				RevPiDevice_getDev(i)->sId.i16uModulType &=
-					      PICONTROL_NOT_CONNECTED_MASK;
-			}
+			*gate_idx = i;
+			RevPiDevice_getDev(i)->i8uActive = 1;
+			RevPiDevice_getDev(i)->sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
 		}
-		return piCore_g.i8uLeftMGateIdx;
 	}
 
-	return REV_PI_DEV_UNDEF;
+	return *gate_idx;
 }
 
 /**
