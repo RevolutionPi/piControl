@@ -128,6 +128,7 @@ static unsigned int revpi_chnl_compress(void *dst, void *src,
 
 int revpi_mio_cycle(unsigned char devno)
 {
+	SMioAnalogRequestData pending_values;
 	SMioAnalogRequestData io_req_ex;
 	struct mio_img_out *img_out;
 	SMioAnalogRequestData *last;
@@ -158,16 +159,31 @@ int revpi_mio_cycle(unsigned char devno)
 	io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
 
 	if (io_req_ex.i8uChannels) {
-		memcpy(&last->i16uOutputVoltage,
+		/* preserve analog output values for later caching */
+		memcpy(&pending_values.i16uOutputVoltage,
 			&img_out->aio.i16uOutputVoltage,
 			sizeof(unsigned short) * MIO_AIO_PORT_CNT);
-
 		ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
-						&img_out->aio.i16uOutputVoltage,
+						&pending_values.i16uOutputVoltage,
 						io_req_ex.i8uChannels, 2);
 	}
 	rt_mutex_unlock(&piDev_g.lockPI);
-	return revpi_mio_cycle_aio(dev, &io_req_ex, ch_cnt, &img_in->aio);
+	ret = revpi_mio_cycle_aio(dev, &io_req_ex, ch_cnt, &img_in->aio);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Only cache analog output values if data was sent successfully
+	 * and at least one channel was updated.
+	 */
+	if (io_req_ex.i8uChannels) {
+		memcpy(&last->i16uOutputVoltage,
+			&pending_values.i16uOutputVoltage,
+			sizeof(unsigned short) * MIO_AIO_PORT_CNT);
+		}
+
+	return 0;
 }
 
 void revpi_mio_reset()
