@@ -27,7 +27,7 @@
 #include "revpi_core.h"
 
 #define FIRMWARE_FILENAME_LEN			32
-#define PICONTROL_DEFAULT_CYCLE_DURATION	5000 /* usecs */
+#define PICONTROL_DEFAULT_CYCLE_DURATION	0 /* as fast as possible */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
