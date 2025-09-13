@@ -215,15 +215,14 @@ static ssize_t max_cycle_store(struct device *dev,
 }
 
 static ssize_t cycle_duration_show(struct device *dev,
-					      struct device_attribute *attr,
-					      char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%u\n", piControl_get_cycle_duration());
 }
 
 static ssize_t cycle_duration_store(struct device *dev,
-					       struct device_attribute *attr,
-					       const char *buf, size_t count)
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
 	unsigned long val;
