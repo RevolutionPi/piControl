@@ -46,11 +46,12 @@ MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ti-dac082s085 "		/* compact aout */
 	       "ad5446");		/* flat aout */
 
-unsigned int picontrol_max_cycle_deviation;
+static unsigned int picontrol_max_cycle_deviation;
 static unsigned int picontrol_cycle_duration;
 
-module_param(picontrol_max_cycle_deviation, uint, S_IRUSR | S_IWUSR);
-MODULE_PARM_DESC(picontrol_max_cycle_deviation, "Specify the max deviation from an io-cyle in usecs.");
+module_param(picontrol_max_cycle_deviation, uint, S_IRUSR);
+MODULE_PARM_DESC(picontrol_max_cycle_deviation,
+	"Specify the max tolerated deviation from a fixed io-cyle in usecs.");
 
 module_param(picontrol_cycle_duration, uint, S_IRUSR);
 MODULE_PARM_DESC(picontrol_cycle_duration, "Specify a fixed io-cyle duration in usecs. "
@@ -243,10 +244,44 @@ static ssize_t cycle_duration_store(struct device *dev,
 	return count;
 }
 
+static ssize_t max_cycle_deviation_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned int max;
+	unsigned int seq;
+
+	do {
+		seq = read_seqbegin(&cycle->lock);
+		max = cycle->max_deviation;
+	} while (read_seqretry(&cycle->lock, seq));
+
+	return sprintf(buf, "%u\n", max);
+}
+
+static ssize_t max_cycle_deviation_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned long val;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	write_seqlock(&cycle->lock);
+	cycle->max_deviation = val;
+	write_sequnlock(&cycle->lock);
+
+	return count;
+}
+
 static DEVICE_ATTR_RW(cycle_duration);
 static DEVICE_ATTR_RW(max_cycle);
 static DEVICE_ATTR_RW(min_cycle);
 static DEVICE_ATTR_RO(last_cycle);
+static DEVICE_ATTR_RW(max_cycle_deviation);
 
 static int __init piControl_init_sysfs(void)
 {
@@ -268,8 +303,14 @@ static int __init piControl_init_sysfs(void)
 	if (ret)
 		goto remove_min_cycle_file;
 
+	ret = sysfs_create_file(&piDev_g.dev->kobj, &dev_attr_max_cycle_deviation.attr);
+	if (ret)
+		goto remove_last_cycle_file;
+
 	return 0;
 
+remove_last_cycle_file:
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_last_cycle.attr);
 remove_min_cycle_file:
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_min_cycle.attr);
 remove_max_cycle_file:
@@ -282,6 +323,7 @@ remove_cycle_duration_file:
 
 static void piControl_deinit_sysfs(void)
 {
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_max_cycle_deviation.attr);
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_last_cycle.attr);
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_min_cycle.attr);
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_max_cycle.attr);
@@ -359,6 +401,13 @@ static int __init piControlInit(void)
 		}
 
 	}
+
+	if (picontrol_max_cycle_deviation) {
+		piDev_g.cycle.max_deviation = picontrol_max_cycle_deviation;
+		pr_info("Using max cycle deviation %u\n",
+			piDev_g.cycle.max_deviation);
+	}
+
 	piDev_g.cycle.last = 0;
 	piDev_g.cycle.max = 0;
 	/*

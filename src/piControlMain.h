@@ -40,6 +40,7 @@ enum {
 #define PICONTROL_CYCLE_MAX_DURATION    45000 /* usecs */
 struct picontrol_cycle {
 	unsigned int duration;
+	unsigned int max_deviation;
 	unsigned int last;
 	unsigned int max;
 	unsigned int min;

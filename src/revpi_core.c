@@ -112,8 +112,6 @@ static int piIoThread(void *data)
 {
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
 	unsigned int last_cycle;
-	unsigned int min_cycle;
-	unsigned int max_cycle;
 	ktime_t time;
 	ktime_t now;
 	s64 tDiff;
@@ -197,16 +195,14 @@ static int piIoThread(void *data)
 			if (cycle->max < last_cycle)
 				cycle->max = last_cycle;
 
-			max_cycle = cycle->max;
-			min_cycle = cycle->min;
-			write_sequnlock(&cycle->lock);
-
-			if (picontrol_max_cycle_deviation &&
-			    (last_cycle > (min_cycle +
-					picontrol_max_cycle_deviation))) {
+			if (cycle->max_deviation &&
+			    (last_cycle > (cycle->min +
+					   cycle->max_deviation))) {
 				trace_picontrol_cycle_exceeded(last_cycle,
-							       min_cycle);
+							       cycle->min);
 			}
+
+			write_sequnlock(&cycle->lock);
 
 			trace_picontrol_cycle_end(piCore_g.cycle_num, last_cycle);
 			piCore_g.cycle_num++;
@@ -215,8 +211,11 @@ static int piIoThread(void *data)
 
 	pr_info("piIO exit\n");
 	pr_info("Number of cycles: %llu\n", piCore_g.cycle_num);
-	pr_info("Cycle min: %u usecs\n", min_cycle);
-	pr_info("Cycle max: %u usecs\n", max_cycle);
+
+	write_seqlock(&cycle->lock);
+	pr_info("Cycle min: %u usecs\n", cycle->min);
+	pr_info("Cycle max: %u usecs\n", cycle->max);
+	write_sequnlock(&cycle->lock);
 
 	return 0;
 }

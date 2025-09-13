@@ -99,7 +99,6 @@ typedef struct _SRevPiCore {
 } SRevPiCore;
 
 extern SRevPiCore piCore_g;
-extern unsigned int picontrol_max_cycle_deviation;
 
 u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type);
 void revpi_core_gate_connected(SDevice *revpi_dev, bool connected);
