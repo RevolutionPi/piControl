@@ -47,10 +47,14 @@ MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ad5446");		/* flat aout */
 
 unsigned int picontrol_max_cycle_deviation;
+static unsigned int picontrol_cycle_duration;
 
 module_param(picontrol_max_cycle_deviation, uint, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(picontrol_max_cycle_deviation, "Specify the max deviation from an io-cyle in usecs.");
 
+module_param(picontrol_cycle_duration, uint, S_IRUSR);
+MODULE_PARM_DESC(picontrol_cycle_duration, "Specify a fixed io-cyle duration in usecs. "
+					   "Use 0 to use the fastest possible io-cycle duration.");
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
 /******************************************************************************/
@@ -342,7 +346,19 @@ static int __init piControlInit(void)
 	}
 
 	seqlock_init(&piDev_g.cycle.lock);
+
 	piDev_g.cycle.duration = PICONTROL_DEFAULT_CYCLE_DURATION;
+	if (picontrol_cycle_duration) {
+		if (picontrol_cycle_duration > PICONTROL_CYCLE_MAX_DURATION) {
+			pr_warn("Invalid cycle duration %u specified (max=%u)\n",
+				picontrol_cycle_duration, PICONTROL_CYCLE_MAX_DURATION);
+		} else {
+			piDev_g.cycle.duration = picontrol_cycle_duration;
+			pr_info("Using cycle duration %u\n",
+				piDev_g.cycle.duration);
+		}
+
+	}
 	piDev_g.cycle.last = 0;
 	piDev_g.cycle.max = 0;
 	/*
