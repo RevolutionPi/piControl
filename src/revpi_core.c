@@ -112,6 +112,8 @@ static int piIoThread(void *data)
 {
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
 	unsigned int last_cycle;
+	unsigned int cycle_ref;
+
 	ktime_t time;
 	ktime_t now;
 	s64 tDiff;
@@ -195,12 +197,20 @@ static int piIoThread(void *data)
 			if (cycle->max < last_cycle)
 				cycle->max = last_cycle;
 
-			if (cycle->max_deviation &&
-			    (last_cycle > (cycle->min +
-					   cycle->max_deviation))) {
-				cycle->exceeded++;
-				trace_picontrol_cycle_exceeded(last_cycle,
-							       cycle->min);
+			/*
+			 * If specified, check deviation against the set fixed
+			 * cycle duration. If no fix duration is set, check
+			 * against the current min cycle duration.
+			 */
+			if (cycle->max_deviation) {
+				cycle_ref = cycle->duration ? cycle->duration :
+							      cycle->min;
+				if (last_cycle > (cycle_ref +
+						  cycle->max_deviation)) {
+					cycle->exceeded++;
+					trace_picontrol_cycle_exceeded(last_cycle,
+						cycle_ref);
+				}
 			}
 
 			write_sequnlock(&cycle->lock);
