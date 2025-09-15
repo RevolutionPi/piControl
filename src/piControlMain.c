@@ -277,11 +277,40 @@ static ssize_t max_cycle_deviation_store(struct device *dev,
 	return count;
 }
 
+static ssize_t cycles_exceeded_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	u64 exceeded;
+
+	write_seqlock(&cycle->lock);
+	exceeded = cycle->exceeded;
+	write_sequnlock(&cycle->lock);
+
+	return sprintf(buf, "%llu\n", exceeded);
+}
+
+static ssize_t cycles_exceeded_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+
+	if (count == 1 && (buf[0] == 0xA)) {
+		write_seqlock(&cycle->lock);
+		cycle->exceeded = 0;
+		write_sequnlock(&cycle->lock);
+	}
+
+	return count;
+}
+
 static DEVICE_ATTR_RW(cycle_duration);
 static DEVICE_ATTR_RW(max_cycle);
 static DEVICE_ATTR_RW(min_cycle);
 static DEVICE_ATTR_RO(last_cycle);
 static DEVICE_ATTR_RW(max_cycle_deviation);
+static DEVICE_ATTR_RW(cycles_exceeded);
 
 static int __init piControl_init_sysfs(void)
 {
@@ -307,8 +336,14 @@ static int __init piControl_init_sysfs(void)
 	if (ret)
 		goto remove_last_cycle_file;
 
+	ret = sysfs_create_file(&piDev_g.dev->kobj, &dev_attr_cycles_exceeded.attr);
+	if (ret)
+		goto remove_max_cycle_deviation_file;
+
 	return 0;
 
+remove_max_cycle_deviation_file:
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_max_cycle_deviation.attr);
 remove_last_cycle_file:
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_last_cycle.attr);
 remove_min_cycle_file:
@@ -323,6 +358,7 @@ remove_cycle_duration_file:
 
 static void piControl_deinit_sysfs(void)
 {
+	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_cycles_exceeded.attr);
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_max_cycle_deviation.attr);
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_last_cycle.attr);
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_min_cycle.attr);

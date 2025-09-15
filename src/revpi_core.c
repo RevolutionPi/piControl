@@ -198,6 +198,7 @@ static int piIoThread(void *data)
 			if (cycle->max_deviation &&
 			    (last_cycle > (cycle->min +
 					   cycle->max_deviation))) {
+				cycle->exceeded++;
 				trace_picontrol_cycle_exceeded(last_cycle,
 							       cycle->min);
 			}

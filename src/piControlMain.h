@@ -41,6 +41,7 @@ enum {
 struct picontrol_cycle {
 	unsigned int duration;
 	unsigned int max_deviation;
+	u64 exceeded;
 	unsigned int last;
 	unsigned int max;
 	unsigned int min;
