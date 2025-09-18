@@ -960,8 +960,13 @@ static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 	if (i == RevPiDevice_getDevCnt())
 		return -ENODEV;
 
+	if (sdev->sId.i16uModulType & PICONTROL_NOT_CONNECTED) {
+		pr_err("Disconnected modules can't be updated\n");
+		return -ENODEV;
+	}
+
 	if (sdev->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
-		pr_err("Virtual modules don't have firmware to update");
+		pr_err("Virtual modules don't have firmware to update\n");
 		return -EOPNOTSUPP;
 	}
 

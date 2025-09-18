@@ -25,6 +25,11 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	T_KUNBUS_APPL_DESCR *pApplDesc;
 	int read;
 
+	if (pDev_p->sId.i16uModulType & PICONTROL_NOT_CONNECTED) {
+		printUserMsg(priv, "Disconnected modules can't be updated");
+		return -EOPNOTSUPP;
+	}
+
 	if (pDev_p->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
 		printUserMsg(priv, "Virtual modules don't have firmware to update");
 		return -EOPNOTSUPP;
