@@ -1040,6 +1040,28 @@ static int picontrol_get_device_info(SDeviceInfo *dev_info)
 	return -ENXIO;
 }
 
+static int send_internal_io_telegram(void *req, unsigned int reqlen,
+				     SIOGeneric *resp)
+{
+	int ret;
+
+	my_rt_mutex_lock(&piCore_g.lockUserTel);
+	memcpy(&piCore_g.requestUserTel, req, reqlen);
+	piCore_g.pendingUserTel = true;
+	down(&piCore_g.semUserTel);
+	ret = piCore_g.statusUserTel;
+
+	if (ret) {
+		rt_mutex_unlock(&piCore_g.lockUserTel);
+		return ret;
+	}
+	if (resp)
+		memcpy(resp, &piCore_g.responseUserTel, sizeof(*resp));
+	rt_mutex_unlock(&piCore_g.lockUserTel);
+
+	return 0;
+}
+
 /*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
@@ -1383,20 +1405,15 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
 			tel.i16uChannels = res_cnt.i16uBitfield;
 
-			my_rt_mutex_lock(&piCore_g.lockUserTel);
-			memcpy(&piCore_g.requestUserTel, &tel, sizeof(tel));
-
-			piCore_g.pendingUserTel = true;
-			down(&piCore_g.semUserTel);
-			status = piCore_g.statusUserTel;
+			status = send_internal_io_telegram(&tel, sizeof(tel), NULL);
 			pr_info("%s: resetCounter result %d\n", __func__, status);
-			rt_mutex_unlock(&piCore_g.lockUserTel);
 		}
 		break;
 	case KB_RO_GET_COUNTER:
 		{
 			struct revpi_ro_ioctl_counters __user *ioctl_get_counters;
-			UIoProtocolHeader *hdr;
+			UIoProtocolHeader hdr;
+			SIOGeneric resp;
 			SDevice *sdev;
 			u8 addr;
 			int i;
@@ -1431,27 +1448,22 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EINVAL;
 			}
 
-			hdr = &piCore_g.requestUserTel.uHeader;
+			hdr.sHeaderTyp1.bitAddress = addr;
+			hdr.sHeaderTyp1.bitIoHeaderType = 0;
+			hdr.sHeaderTyp1.bitReqResp = 0;
+			hdr.sHeaderTyp1.bitLength = 0;
+			hdr.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA2;
 
-			my_rt_mutex_lock(&piCore_g.lockUserTel);
-			hdr->sHeaderTyp1.bitAddress = addr;
-			hdr->sHeaderTyp1.bitIoHeaderType = 0;
-			hdr->sHeaderTyp1.bitReqResp = 0;
-			hdr->sHeaderTyp1.bitLength = 0;
-			hdr->sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA2;
-			piCore_g.pendingUserTel = true;
-			down(&piCore_g.semUserTel);
-			status = piCore_g.statusUserTel;
-
+			status = send_internal_io_telegram(&hdr, sizeof(hdr),
+							   &resp);
 			if (status) {
 				pr_err("Getting relay counters failed: %d\n", status);
 			} else {
 				if (copy_to_user(ioctl_get_counters->counter,
-						 &piCore_g.responseUserTel.ai8uData,
+						 &resp.ai8uData,
 						 sizeof(ioctl_get_counters->counter)))
 					status = -EFAULT;
 			}
-			rt_mutex_unlock(&piCore_g.lockUserTel);
 		}
 		break;
 	case KB_AIO_CALIBRATE:
@@ -1499,12 +1511,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		req.sData.i16sCalibrationValue = cali.y_val;
 		/*the crc calculation will be done by Tel sending*/
 
-		my_rt_mutex_lock(&piCore_g.lockUserTel);
-		memcpy(&piCore_g.requestUserTel, &req, sizeof(req));
-		piCore_g.pendingUserTel = true;
-		down(&piCore_g.semUserTel);
-		status = piCore_g.statusUserTel;
-		rt_mutex_unlock(&piCore_g.lockUserTel);
+		status = send_internal_io_telegram(&req, sizeof(req), NULL);
 
 		pr_info("MIO calibrate header:0x%x, data:0x%x, status %d\n",
 			*(unsigned short *)&req.uHeader,
@@ -1650,7 +1657,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_INTERN_IO_MSG:
 		{
-			SIOGeneric *tel = (SIOGeneric *) usr_addr;
+			SIOGeneric req;
+			SIOGeneric resp;
 
 			if (!piDev_g.pibridge_supported) {
 				return -EPERM;
@@ -1659,21 +1667,18 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (!isRunning())
 				return -EFAULT;
 
-			my_rt_mutex_lock(&piCore_g.lockUserTel);
-			if (copy_from_user(&piCore_g.requestUserTel, tel, sizeof(SIOGeneric))) {
-				rt_mutex_unlock(&piCore_g.lockUserTel);
-				status = -EFAULT;
-				break;
+			if (copy_from_user(&req, (const void __user *) usr_addr,
+					   sizeof(req)))
+				return -EFAULT;
+
+			status = send_internal_io_telegram(&req, sizeof(req), &resp);
+			if (!status) {
+				if (copy_to_user((void __user *) usr_addr,
+						 &resp, sizeof(resp))) {
+					status = -EFAULT;
+				}
 			}
-			piCore_g.pendingUserTel = true;
-			down(&piCore_g.semUserTel);
-			status = piCore_g.statusUserTel;
-			if (copy_to_user(tel, &piCore_g.responseUserTel, sizeof(SIOGeneric))) {
-				rt_mutex_unlock(&piCore_g.lockUserTel);
-				status = -EFAULT;
-				break;
-			}
-			rt_mutex_unlock(&piCore_g.lockUserTel);
+
 		}
 		break;
 
