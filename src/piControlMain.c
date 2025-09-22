@@ -1074,6 +1074,46 @@ static int send_internal_gate_telegram(u8 addr, u16 cmd, void *snd_data,
 	return 0;
 }
 
+static int send_config(unsigned long usr_addr)
+{
+	SConfigData __user *cfg_user = (SConfigData __user *) usr_addr;
+	u8 rcv_data[MAX_TELEGRAM_DATA_SIZE];
+	unsigned int rcv_datalen;
+	SConfigData cfg;
+	int ret;
+	u8 addr;
+
+	if (!piDev_g.revpi_gate_supported)
+		return -EPERM;
+
+	if (isRunning())
+		return -ECANCELED;
+
+	if (copy_from_user(&cfg, cfg_user, sizeof(cfg)))
+		return -EFAULT;
+
+	if (cfg.i16uLen > MAX_TELEGRAM_DATA_SIZE)
+		return -EINVAL;
+
+	if (cfg.bLeft)
+		addr = RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
+	else
+		addr = RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
+
+	ret = send_internal_gate_telegram(addr, eCmdRAPIMessage, cfg.acData,
+					  cfg.i16uLen, rcv_data, &rcv_datalen);
+	if (!ret) {
+		put_user(rcv_datalen, &cfg_user->i16uLen);
+		if (copy_to_user(cfg_user,
+				 rcv_data,
+				 rcv_datalen)) {
+			ret = -EFAULT;
+		}
+	}
+
+	return ret;
+}
+
 static int send_internal_io_telegram(void *req, unsigned int reqlen,
 				     SIOGeneric *resp)
 {
@@ -1822,45 +1862,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_CONFIG_SEND:	// for download of configuration to Master Gateway: download config data
-		{
-			SConfigData __user *cfg_user = (SConfigData __user *) usr_addr;
-			u8 rcv_data[MAX_TELEGRAM_DATA_SIZE];
-			unsigned int rcv_datalen;
-			SConfigData cfg;
-			u8 addr;
-
-			if (!piDev_g.revpi_gate_supported)
-				return -EPERM;
-
-			if (isRunning())
-				return -ECANCELED;
-
-			if (copy_from_user(&cfg, cfg_user, sizeof(cfg)))
-				return -EFAULT;
-
-			if (cfg.bLeft)
-				addr = RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
-			else
-				addr = RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
-
-			if (cfg.i16uLen > MAX_TELEGRAM_DATA_SIZE)
-				return -EINVAL;
-
-			status = send_internal_gate_telegram(addr,
-							     eCmdRAPIMessage,
-							     cfg.acData,
-							     cfg.i16uLen,
-							     rcv_data,
-							     &rcv_datalen);
-			if (!status) {
-				put_user(rcv_datalen, &cfg_user->i16uLen);
-				if (copy_to_user(cfg_user,
-						 rcv_data,
-						 rcv_datalen)) {
-					status = -EFAULT;
-				}
-			}
-		}
+		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		status = send_config(usr_addr);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
 
 	case KB_CONFIG_START:	// for download of configuration to Master Gateway: restart IO communication
