@@ -1066,6 +1066,190 @@ static int send_internal_io_telegram(void *req, unsigned int reqlen,
 	return 0;
 }
 
+static int reset_dio_counter(unsigned long usr_addr)
+{
+	SDIOResetCounter res_cnt;
+	SDioCounterReset tel;
+	bool found = false;
+	int i;
+
+	if (!piDev_g.pibridge_supported)
+		return -EPERM;
+
+	if (!isRunning())
+		return -EFAULT;
+
+	if (copy_from_user(&res_cnt, (const void __user *) usr_addr,
+			   sizeof(res_cnt))) {
+		pr_err("failed to copy reset counter from user\n");
+		return -EFAULT;
+	}
+
+	for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
+		if (RevPiDevice_getDev(i)->i8uAddress == res_cnt.i8uAddress &&
+		    RevPiDevice_getDev(i)->i8uActive &&
+		    (RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_MIO ||
+		    RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DIO_14 ||
+		    RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DI_16)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found || res_cnt.i16uBitfield == 0) {
+		pr_err("%s: resetCounter failed, bitfield: 0x%x\n",
+			__func__,
+			res_cnt.i16uBitfield);
+		return -EINVAL;
+	}
+
+	tel.uHeader.sHeaderTyp1.bitAddress = res_cnt.i8uAddress;
+	tel.uHeader.sHeaderTyp1.bitIoHeaderType = 0;
+	tel.uHeader.sHeaderTyp1.bitReqResp = 0;
+	tel.uHeader.sHeaderTyp1.bitLength = sizeof(SDioCounterReset) - IOPROTOCOL_HEADER_LENGTH - 1;
+	tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
+	tel.i16uChannels = res_cnt.i16uBitfield;
+
+	return send_internal_io_telegram(&tel, sizeof(tel), NULL);
+}
+
+static int get_ro_counter(unsigned long usr_addr)
+{
+	struct revpi_ro_ioctl_counters __user *ioctl_get_counters;
+	UIoProtocolHeader hdr;
+	SIOGeneric resp;
+	SDevice *sdev;
+	u8 addr;
+	int ret;
+	int i;
+
+	if (!piDev_g.pibridge_supported)
+		return -EOPNOTSUPP;
+
+	if (!isRunning())
+		return -EIO;
+
+	ioctl_get_counters = (struct revpi_ro_ioctl_counters __user *) usr_addr;
+
+	/* copy device address */
+	if (copy_from_user(&addr, &ioctl_get_counters->addr,
+			   sizeof(addr))) {
+		pr_err("failed to copy device address from user\n");
+		return -EFAULT;
+	}
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		sdev = RevPiDevice_getDev(i);
+
+		if ((sdev->i8uAddress == addr) &&
+		    sdev->i8uActive &&
+		    (sdev->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_RO))
+			break;
+	}
+
+	if (i == RevPiDevice_getDevCnt()) {
+		pr_err("Getting relay counters failed: device 0x%02x not found\n",
+		       addr);
+		return -EINVAL;
+	}
+
+	hdr.sHeaderTyp1.bitAddress = addr;
+	hdr.sHeaderTyp1.bitIoHeaderType = 0;
+	hdr.sHeaderTyp1.bitReqResp = 0;
+	hdr.sHeaderTyp1.bitLength = 0;
+	hdr.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA2;
+
+	ret = send_internal_io_telegram(&hdr, sizeof(hdr), &resp);
+	if (!ret) {
+		if (copy_to_user(ioctl_get_counters->counter,
+				 resp.ai8uData,
+				 sizeof(ioctl_get_counters->counter)))
+			ret = -EFAULT;
+	} else {
+		pr_err("Getting relay counters failed: %d\n", ret);
+	}
+
+	return ret;
+}
+
+static int calibrate_aio(unsigned long usr_addr)
+{
+	struct pictl_calibrate cali;
+	SMioCalibrationRequest req;
+	bool found = false;
+	int ret;
+	int i;
+
+	if (!piDev_g.pibridge_supported)
+		return -EPERM;
+
+	if (!isRunning())
+		return -EFAULT;
+
+	if (copy_from_user(&cali, (const void __user *) usr_addr,
+				sizeof(cali))) {
+		pr_err("failed to copy calibrate request from user\n");
+		return -EFAULT;
+	}
+
+	for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
+		if (RevPiDevice_getDev(i)->i8uAddress == cali.address
+			&& RevPiDevice_getDev(i)->i8uActive
+			&& RevPiDevice_getDev(i)->sId.i16uModulType
+				== KUNBUS_FW_DESCR_TYP_PI_MIO) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found || cali.channels == 0) {
+		pr_err("calibrate failed, channel 0x%x\n",
+					cali.channels);
+		return -EINVAL;
+	}
+
+	revpi_io_build_header(&req.uHeader, cali.address,
+			      sizeof(SMioCalibrationRequestData),
+			      IOP_TYP1_CMD_DATA6);
+	req.sData.i8uCalibrationMode = cali.mode;
+	req.sData.i8uChannels = cali.channels;
+	req.sData.i8uPoint = cali.x_val;
+	req.sData.i16sCalibrationValue = cali.y_val;
+	/*the crc calculation will be done by Tel sending*/
+	ret = send_internal_io_telegram(&req, sizeof(req), NULL);
+
+	pr_info("MIO calibrate header:0x%x, data:0x%x, status %d\n",
+		*(unsigned short *)&req.uHeader,
+		*(unsigned short *)&req.sData,
+		ret);
+
+	return ret;
+}
+
+static int send_internal_io_msg(unsigned long usr_addr)
+{
+	SIOGeneric resp;
+	SIOGeneric req;
+	int ret;
+
+	if (!piDev_g.pibridge_supported)
+		return -EPERM;
+
+	if (!isRunning())
+		return -EFAULT;
+
+	if (copy_from_user(&req, (const void __user *) usr_addr, sizeof(req)))
+		return -EFAULT;
+
+	ret = send_internal_io_telegram(&req, sizeof(req), &resp);
+	if (!ret) {
+		if (copy_to_user((void __user *) usr_addr, &resp, sizeof(resp)))
+			ret = -EFAULT;
+	}
+
+	return ret;
+}
+
 /*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
@@ -1365,165 +1549,21 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_DIO_RESET_COUNTER:
-		{
-			SDioCounterReset tel;
-			SDIOResetCounter res_cnt;
-			int i;
-			bool found = false;
-
-			if (!piDev_g.pibridge_supported) {
-				return -EPERM;
-			}
-
-			if (!isRunning()) {
-				return -EFAULT;
-			}
-
-			if (copy_from_user(&res_cnt, (const void __user *) usr_addr, sizeof(res_cnt))) {
-				pr_err("failed to copy reset counter from user\n");
-				return -EFAULT;
-			}
-
-			for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
-				if (RevPiDevice_getDev(i)->i8uAddress == res_cnt.i8uAddress
-				    && RevPiDevice_getDev(i)->i8uActive
-				    && (RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_MIO
-					|| RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DIO_14
-					|| RevPiDevice_getDev(i)->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_DI_16)) {
-					found = true;
-					break;
-				}
-			}
-
-			if (!found || res_cnt.i16uBitfield == 0) {
-				pr_err("%s: resetCounter failed, bitfield: 0x%x\n",
-					__func__,
-					res_cnt.i16uBitfield);
-				return -EINVAL;
-			}
-
-			tel.uHeader.sHeaderTyp1.bitAddress = res_cnt.i8uAddress;
-			tel.uHeader.sHeaderTyp1.bitIoHeaderType = 0;
-			tel.uHeader.sHeaderTyp1.bitReqResp = 0;
-			tel.uHeader.sHeaderTyp1.bitLength = sizeof(SDioCounterReset) - IOPROTOCOL_HEADER_LENGTH - 1;
-			tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
-			tel.i16uChannels = res_cnt.i16uBitfield;
-
-			status = send_internal_io_telegram(&tel, sizeof(tel), NULL);
-			pr_info("%s: resetCounter result %d\n", __func__, status);
-		}
+		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		status = reset_dio_counter(usr_addr);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
+		pr_debug("%s: resetCounter result %d\n", __func__, status);
 		break;
 	case KB_RO_GET_COUNTER:
-		{
-			struct revpi_ro_ioctl_counters __user *ioctl_get_counters;
-			UIoProtocolHeader hdr;
-			SIOGeneric resp;
-			SDevice *sdev;
-			u8 addr;
-			int i;
-
-			if (!piDev_g.pibridge_supported)
-				return -EOPNOTSUPP;
-
-			if (!isRunning())
-				return -EIO;
-
-			ioctl_get_counters = (struct revpi_ro_ioctl_counters __user *) usr_addr;
-
-			/* copy device address */
-			if (copy_from_user(&addr, &ioctl_get_counters->addr,
-					   sizeof(addr))) {
-				pr_err("failed to copy device address from user\n");
-				return -EFAULT;
-			}
-
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				sdev = RevPiDevice_getDev(i);
-
-				if ((sdev->i8uAddress == addr) &&
-				    sdev->i8uActive &&
-				    (sdev->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_RO))
-					break;
-			}
-
-			if (i == RevPiDevice_getDevCnt()) {
-				pr_err("Getting relay counters failed: device 0x%02x not found\n",
-				       addr);
-				return -EINVAL;
-			}
-
-			hdr.sHeaderTyp1.bitAddress = addr;
-			hdr.sHeaderTyp1.bitIoHeaderType = 0;
-			hdr.sHeaderTyp1.bitReqResp = 0;
-			hdr.sHeaderTyp1.bitLength = 0;
-			hdr.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA2;
-
-			status = send_internal_io_telegram(&hdr, sizeof(hdr),
-							   &resp);
-			if (status) {
-				pr_err("Getting relay counters failed: %d\n", status);
-			} else {
-				if (copy_to_user(ioctl_get_counters->counter,
-						 &resp.ai8uData,
-						 sizeof(ioctl_get_counters->counter)))
-					status = -EFAULT;
-			}
-		}
+		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		status = get_ro_counter(usr_addr);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
 	case KB_AIO_CALIBRATE:
-	{
-		int i;
-		bool found = false;
-		struct pictl_calibrate cali;
-		SMioCalibrationRequest req;
-
-		if (!piDev_g.pibridge_supported) {
-			return -EPERM;
-		}
-
-		if (!isRunning()) {
-			return -EFAULT;
-		}
-
-		if (copy_from_user(&cali, (const void __user *) usr_addr,
-					sizeof(cali))) {
-			pr_err("failed to copy calibrate request from user\n");
-			return -EFAULT;
-		}
-
-		for (i = 0; i < RevPiDevice_getDevCnt() && !found; i++) {
-			if (RevPiDevice_getDev(i)->i8uAddress == cali.address
-				&& RevPiDevice_getDev(i)->i8uActive
-				&& RevPiDevice_getDev(i)->sId.i16uModulType
-					== KUNBUS_FW_DESCR_TYP_PI_MIO) {
-				found = true;
-				break;
-			}
-		}
-
-		if (!found || cali.channels == 0) {
-			pr_err("calibrate failed, channel 0x%x\n",
-						cali.channels);
-			return -EINVAL;
-		}
-
-		revpi_io_build_header(&req.uHeader, cali.address,
-			sizeof(SMioCalibrationRequestData), IOP_TYP1_CMD_DATA6);
-		req.sData.i8uCalibrationMode = cali.mode;
-		req.sData.i8uChannels = cali.channels;
-		req.sData.i8uPoint = cali.x_val;
-		req.sData.i16sCalibrationValue = cali.y_val;
-		/*the crc calculation will be done by Tel sending*/
-
-		status = send_internal_io_telegram(&req, sizeof(req), NULL);
-
-		pr_info("MIO calibrate header:0x%x, data:0x%x, status %d\n",
-			*(unsigned short *)&req.uHeader,
-			*(unsigned short *)&req.sData,
-			status);
-
+		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		status = calibrate_aio(usr_addr);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
-	}
 	case KB_INTERN_SET_SERIAL_NUM:
 		{
 			u32 snum_data[2]; 	// snum_data is an array containing the module address and the serial number
@@ -1660,30 +1700,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_INTERN_IO_MSG:
-		{
-			SIOGeneric req;
-			SIOGeneric resp;
-
-			if (!piDev_g.pibridge_supported) {
-				return -EPERM;
-			}
-
-			if (!isRunning())
-				return -EFAULT;
-
-			if (copy_from_user(&req, (const void __user *) usr_addr,
-					   sizeof(req)))
-				return -EFAULT;
-
-			status = send_internal_io_telegram(&req, sizeof(req), &resp);
-			if (!status) {
-				if (copy_to_user((void __user *) usr_addr,
-						 &resp, sizeof(resp))) {
-					status = -EFAULT;
-				}
-			}
-
-		}
+		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		status = send_internal_io_msg(usr_addr);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
 
 	case KB_WAIT_FOR_EVENT:
