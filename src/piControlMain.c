@@ -1053,7 +1053,12 @@ static int send_internal_gate_telegram(u8 addr, u16 cmd, void *snd_data,
 		memcpy(piCore_g.ai8uSendDataGateTel, snd_data, snd_datalen);
 	piCore_g.i8uSendDataLenGateTel = snd_datalen;
 	piCore_g.pendingGateTel = true;
+	rt_mutex_unlock(&piCore_g.lockGateTel);
+
+	/* Wait for response */
 	down(&piCore_g.semGateTel);
+
+	my_rt_mutex_lock(&piCore_g.lockGateTel);
 	ret = piCore_g.statusGateTel;
 	if (ret) {
 		rt_mutex_unlock(&piCore_g.lockGateTel);

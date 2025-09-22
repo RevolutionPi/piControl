@@ -784,6 +784,7 @@ int PiBridgeMaster_Run(void)
 			}
 		}
 		// if the user-ioctl want to send a telegram, do it now
+		my_rt_mutex_lock(&piCore_g.lockGateTel);
 		if (piCore_g.pendingGateTel == true) {
 			piCore_g.statusGateTel = piIoComm_sendRS485Tel(piCore_g.i16uCmdGateTel, piCore_g.i8uAddressGateTel,
 								       piCore_g.ai8uSendDataGateTel, piCore_g.i8uSendDataLenGateTel,
@@ -791,6 +792,7 @@ int PiBridgeMaster_Run(void)
 			piCore_g.pendingGateTel = false;
 			up(&piCore_g.semGateTel);
 		}
+		rt_mutex_unlock(&piCore_g.lockGateTel);
 	}
 
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
