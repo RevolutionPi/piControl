@@ -1840,7 +1840,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				break;
 			}
 			rt_mutex_unlock(&piCore_g.lockGateTel);
-			status = 0;
 		}
 		break;
 
