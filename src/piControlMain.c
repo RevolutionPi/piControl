@@ -1048,9 +1048,13 @@ static int send_internal_io_telegram(void *req, unsigned int reqlen,
 	my_rt_mutex_lock(&piCore_g.lockUserTel);
 	memcpy(&piCore_g.requestUserTel, req, reqlen);
 	piCore_g.pendingUserTel = true;
-	down(&piCore_g.semUserTel);
-	ret = piCore_g.statusUserTel;
+	rt_mutex_unlock(&piCore_g.lockUserTel);
 
+	/* Wait for response */
+	down(&piCore_g.semUserTel);
+
+	my_rt_mutex_lock(&piCore_g.lockUserTel);
+	ret = piCore_g.statusUserTel;
 	if (ret) {
 		rt_mutex_unlock(&piCore_g.lockUserTel);
 		return ret;

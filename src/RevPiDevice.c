@@ -298,6 +298,7 @@ int RevPiDevice_run(void)
 	}
 
 	// if the user-ioctl want to send a telegram, do it now
+	rt_mutex_lock(&piCore_g.lockUserTel);
 	if (piCore_g.pendingUserTel == true) {
 		SIOGeneric *req = &piCore_g.requestUserTel;
 		SIOGeneric *resp = &piCore_g.responseUserTel;
@@ -322,6 +323,7 @@ int RevPiDevice_run(void)
 		piCore_g.pendingUserTel = false;
 		up(&piCore_g.semUserTel);
 	}
+	rt_mutex_unlock(&piCore_g.lockUserTel);
 
 	return retval;
 }
