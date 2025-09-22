@@ -1040,6 +1040,35 @@ static int picontrol_get_device_info(SDeviceInfo *dev_info)
 	return -ENXIO;
 }
 
+static int send_internal_gate_telegram(u8 addr, u16 cmd, void *snd_data,
+				       unsigned int snd_datalen, u8 *rcv_data,
+				       unsigned int *rcv_datalen)
+{
+	int ret;
+
+	my_rt_mutex_lock(&piCore_g.lockGateTel);
+	piCore_g.i16uCmdGateTel = cmd;
+	piCore_g.i8uAddressGateTel = addr;
+	if (snd_datalen)
+		memcpy(piCore_g.ai8uSendDataGateTel, snd_data, snd_datalen);
+	piCore_g.i8uSendDataLenGateTel = snd_datalen;
+	piCore_g.pendingGateTel = true;
+	down(&piCore_g.semGateTel);
+	ret = piCore_g.statusGateTel;
+	if (ret) {
+		rt_mutex_unlock(&piCore_g.lockGateTel);
+		return ret;
+	}
+	if (rcv_data) {
+		memcpy(rcv_data, piCore_g.ai8uRecvDataGateTel,
+		       piCore_g.i16uRecvDataLenGateTel);
+			*rcv_datalen = piCore_g.i16uRecvDataLenGateTel;
+	}
+	rt_mutex_unlock(&piCore_g.lockGateTel);
+
+	return 0;
+}
+
 static int send_internal_io_telegram(void *req, unsigned int reqlen,
 				     SIOGeneric *resp)
 {
@@ -1789,9 +1818,11 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_CONFIG_SEND:	// for download of configuration to Master Gateway: download config data
 		{
-			SConfigData __user *usr_cfg = (SConfigData *) usr_addr;
-			u16 datalen;
-			u8 is_left;
+			SConfigData __user *cfg_user = (SConfigData __user *) usr_addr;
+			u8 rcv_data[MAX_TELEGRAM_DATA_SIZE];
+			unsigned int rcv_datalen;
+			SConfigData cfg;
+			u8 addr;
 
 			if (!piDev_g.revpi_gate_supported)
 				return -EPERM;
@@ -1799,47 +1830,31 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (isRunning())
 				return -ECANCELED;
 
-			if (get_user(datalen, &usr_cfg->i16uLen))
+			if (copy_from_user(&cfg, cfg_user, sizeof(cfg)))
 				return -EFAULT;
 
-			if (datalen > MAX_TELEGRAM_DATA_SIZE)
+			if (cfg.bLeft)
+				addr = RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
+			else
+				addr = RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
+
+			if (cfg.i16uLen > MAX_TELEGRAM_DATA_SIZE)
 				return -EINVAL;
 
-			if (get_user(is_left, &usr_cfg->bLeft))
-				return -EFAULT;
-
-			my_rt_mutex_lock(&piCore_g.lockGateTel);
-			if (copy_from_user(piCore_g.ai8uSendDataGateTel,
-					   usr_cfg->acData, datalen)) {
-				rt_mutex_unlock(&piCore_g.lockGateTel);
-				status = -EFAULT;
-				break;
+			status = send_internal_gate_telegram(addr,
+							     eCmdRAPIMessage,
+							     cfg.acData,
+							     cfg.i16uLen,
+							     rcv_data,
+							     &rcv_datalen);
+			if (!status) {
+				put_user(rcv_datalen, &cfg_user->i16uLen);
+				if (copy_to_user(cfg_user,
+						 rcv_data,
+						 rcv_datalen)) {
+					status = -EFAULT;
+				}
 			}
-			piCore_g.i8uSendDataLenGateTel = datalen;
-
-			if (is_left)
-				piCore_g.i8uAddressGateTel =
-					RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
-			else
-				piCore_g.i8uAddressGateTel =
-					RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
-
-			piCore_g.i16uCmdGateTel = eCmdRAPIMessage;
-
-			piCore_g.pendingGateTel = true;
-			down(&piCore_g.semGateTel);
-			status = piCore_g.statusGateTel;
-
-			put_user(piCore_g.i16uRecvDataLenGateTel, &usr_cfg->i16uLen);
-
-			if (copy_to_user(usr_cfg->acData,
-					 &piCore_g.ai8uRecvDataGateTel,
-					 piCore_g.i16uRecvDataLenGateTel)) {
-				rt_mutex_unlock(&piCore_g.lockGateTel);
-				status = -EFAULT;
-				break;
-			}
-			rt_mutex_unlock(&piCore_g.lockGateTel);
 		}
 		break;
 
