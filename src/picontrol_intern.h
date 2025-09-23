@@ -19,6 +19,18 @@
 #define  KB_INTERN_SET_SERIAL_NUM			_IO(KB_IOC_MAGIC, 100 )
 /* send an I/O-Protocol message and return response */
 #define  KB_INTERN_IO_MSG				_IO(KB_IOC_MAGIC, 101 )
+/* 'Hidden' structure that can be used by userspace for internal gateway telegrams */
+struct modgate_telegram {
+	__u8 dest;
+	__u8 src;
+	__u16 command;
+	__u16 sequence;
+	__u8 datalen;
+	__u8 data[MAX_TELEGRAM_DATA_SIZE];
+} __attribute__((__packed__));
+
+/* send a Gateway-Protocol message and return response */
+#define  KB_INTERN_GATE_MSG				_IO(KB_IOC_MAGIC, 102)
 
 typedef struct SEntryInfoStr
 {

@@ -1114,6 +1114,50 @@ static int send_config(unsigned long usr_addr)
 	return ret;
 }
 
+static int send_internal_gate_msg(unsigned long usr_addr)
+{
+	struct modgate_telegram __user *tel = (struct modgate_telegram __user *) usr_addr;
+	u8 snd_data[MAX_TELEGRAM_DATA_SIZE];
+	u8 rcv_data[MAX_TELEGRAM_DATA_SIZE];
+	unsigned int rcvlen;
+	u8 sendlen;
+	int ret;
+	u16 cmd;
+	u8 dst;
+
+	if (!piDev_g.pibridge_supported)
+		return -EOPNOTSUPP;
+
+	if (get_user(dst, &tel->dest))
+		return -EFAULT;
+
+	if (get_user(cmd, &tel->command))
+		return -EFAULT;
+
+	if (get_user(sendlen, &tel->datalen))
+		return -EFAULT;
+
+	if (copy_from_user(snd_data, tel->data, sendlen))
+		return -EFAULT;
+
+	if (sendlen > MAX_TELEGRAM_DATA_SIZE) {
+		pr_err("Invalid datalen %u for telegram (max: %u)\n", sendlen,
+			MAX_TELEGRAM_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	ret = send_internal_gate_telegram(dst, cmd, snd_data, sendlen, rcv_data,
+					  &rcvlen);
+	if (!ret) {
+		put_user(rcvlen, &tel->datalen);
+
+		if (copy_to_user(tel->data, rcv_data, rcvlen))
+			ret = -EFAULT;
+	}
+
+	return ret;
+}
+
 static int send_internal_io_telegram(void *req, unsigned int reqlen,
 				     SIOGeneric *resp)
 {
@@ -1776,6 +1820,12 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_INTERN_IO_MSG:
 		my_rt_mutex_lock(&piDev_g.lockIoctl);
 		status = send_internal_io_msg(usr_addr);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
+		break;
+
+	case KB_INTERN_GATE_MSG:
+		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		status = send_internal_gate_msg(usr_addr);
 		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
 
