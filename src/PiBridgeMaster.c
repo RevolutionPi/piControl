@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
 
+#include <linux/pibridge_comm.h>
 #include <linux/cpufreq.h>
 #include <linux/thermal.h>
 
@@ -783,7 +784,36 @@ int PiBridgeMaster_Run(void)
 				bEntering_s = bFALSE;
 			}
 		}
-		// if the user-ioctl want to send a telegram, do it now
+
+		/* If requested by user, send internal io/gate telegram(s) */
+		rt_mutex_lock(&piCore_g.lockUserTel);
+		if (piCore_g.pendingUserTel == true) {
+			SIOGeneric *req = &piCore_g.requestUserTel;
+			SIOGeneric *resp = &piCore_g.responseUserTel;
+			UIoProtocolHeader *hdr = &req->uHeader;
+			int ret;
+
+			/* avoid leaking response of previous telegram to user space */
+			memset(resp, 0, sizeof(*resp));
+
+			ret = pibridge_req_io(hdr->sHeaderTyp1.bitAddress,
+					      hdr->sHeaderTyp1.bitCommand,
+					      req->ai8uData,
+					      hdr->sHeaderTyp1.bitLength,
+					      resp->ai8uData,
+					      sizeof(resp->ai8uData) - 1);
+
+			if (ret < 0) {
+				piCore_g.statusUserTel = ret;
+			} else {
+				piCore_g.statusUserTel = 0;
+				resp->uHeader.sHeaderTyp1.bitLength = ret;
+			}
+			piCore_g.pendingUserTel = false;
+			up(&piCore_g.semUserTel);
+		}
+		rt_mutex_unlock(&piCore_g.lockUserTel);
+
 		my_rt_mutex_lock(&piCore_g.lockGateTel);
 		if (piCore_g.pendingGateTel == true) {
 			piCore_g.statusGateTel = piIoComm_sendRS485Tel(piCore_g.i16uCmdGateTel, piCore_g.i8uAddressGateTel,

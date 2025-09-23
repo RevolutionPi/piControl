@@ -297,7 +297,7 @@ int RevPiDevice_run(void)
 		}
 	}
 
-	// if the user-ioctl want to send a telegram, do it now
+	/* If requested by user, send internal io/gate telegram(s) */
 	rt_mutex_lock(&piCore_g.lockUserTel);
 	if (piCore_g.pendingUserTel == true) {
 		SIOGeneric *req = &piCore_g.requestUserTel;
@@ -324,6 +324,19 @@ int RevPiDevice_run(void)
 		up(&piCore_g.semUserTel);
 	}
 	rt_mutex_unlock(&piCore_g.lockUserTel);
+
+	rt_mutex_lock(&piCore_g.lockGateTel);
+	if (piCore_g.pendingGateTel == true) {
+		piCore_g.statusGateTel = piIoComm_sendRS485Tel(piCore_g.i16uCmdGateTel,
+							       piCore_g.i8uAddressGateTel,
+							       piCore_g.ai8uSendDataGateTel,
+							       piCore_g.i8uSendDataLenGateTel,
+							       piCore_g.ai8uRecvDataGateTel,
+							       &piCore_g.i16uRecvDataLenGateTel);
+		piCore_g.pendingGateTel = false;
+		up(&piCore_g.semGateTel);
+	}
+	rt_mutex_unlock(&piCore_g.lockGateTel);
 
 	return retval;
 }
