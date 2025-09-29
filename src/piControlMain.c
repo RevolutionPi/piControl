@@ -25,6 +25,7 @@
 #include "revpi_compact.h"
 #include "revpi_common.h"
 #include "revpi_core.h"
+#include "RevPiDevice.h"
 
 #define FIRMWARE_FILENAME_LEN			32
 #define PICONTROL_DEFAULT_CYCLE_DURATION	0 /* as fast as possible */

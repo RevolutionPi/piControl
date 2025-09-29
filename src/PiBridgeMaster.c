@@ -786,43 +786,7 @@ int PiBridgeMaster_Run(void)
 		}
 
 		/* If requested by user, send internal io/gate telegram(s) */
-		rt_mutex_lock(&piCore_g.lockUserTel);
-		if (piCore_g.pendingUserTel == true) {
-			SIOGeneric *req = &piCore_g.requestUserTel;
-			SIOGeneric *resp = &piCore_g.responseUserTel;
-			UIoProtocolHeader *hdr = &req->uHeader;
-			int ret;
-
-			/* avoid leaking response of previous telegram to user space */
-			memset(resp, 0, sizeof(*resp));
-
-			ret = pibridge_req_io(hdr->sHeaderTyp1.bitAddress,
-					      hdr->sHeaderTyp1.bitCommand,
-					      req->ai8uData,
-					      hdr->sHeaderTyp1.bitLength,
-					      resp->ai8uData,
-					      sizeof(resp->ai8uData) - 1);
-
-			if (ret < 0) {
-				piCore_g.statusUserTel = ret;
-			} else {
-				piCore_g.statusUserTel = 0;
-				resp->uHeader.sHeaderTyp1.bitLength = ret;
-			}
-			piCore_g.pendingUserTel = false;
-			up(&piCore_g.semUserTel);
-		}
-		rt_mutex_unlock(&piCore_g.lockUserTel);
-
-		my_rt_mutex_lock(&piCore_g.lockGateTel);
-		if (piCore_g.pendingGateTel == true) {
-			piCore_g.statusGateTel = piIoComm_sendRS485Tel(piCore_g.i16uCmdGateTel, piCore_g.i8uAddressGateTel,
-								       piCore_g.ai8uSendDataGateTel, piCore_g.i8uSendDataLenGateTel,
-								       piCore_g.ai8uRecvDataGateTel, &piCore_g.i16uRecvDataLenGateTel);
-			piCore_g.pendingGateTel = false;
-			up(&piCore_g.semGateTel);
-		}
-		rt_mutex_unlock(&piCore_g.lockGateTel);
+		RevPiDevice_handle_internal_telegrams();
 	}
 
 	rt_mutex_unlock(&piCore_g.lockBridgeState);

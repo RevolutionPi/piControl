@@ -73,4 +73,4 @@ unsigned int RevPiDevice_getCoreOffset(void);
 
 int RevPiDevice_hat_serial(void);
 void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval);
-
+void RevPiDevice_handle_internal_telegrams(void);
