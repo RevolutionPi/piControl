@@ -739,7 +739,7 @@ void revpi_compact_fini(void)
 	piDev_g.machine = NULL;
 }
 
-int revpi_compact_reset()
+int revpi_compact_reset(void)
 {
 	SRevPiCompact *machine = piDev_g.machine;
 	SRevPiCompactImage *image = (SRevPiCompactImage *)piDev_g.ai8uPI +

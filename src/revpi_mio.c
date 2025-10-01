@@ -186,7 +186,7 @@ int revpi_mio_cycle(unsigned char devno)
 	return 0;
 }
 
-void revpi_mio_reset()
+void revpi_mio_reset(void)
 {
 	mio_cnt = 0;
 	memset(mio_aio_request_last, 0, sizeof(mio_aio_request_last));

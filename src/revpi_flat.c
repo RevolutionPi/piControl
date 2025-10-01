@@ -285,7 +285,7 @@ static void revpi_flat_set_defaults(void)
 	rt_mutex_unlock(&piDev_g.lockPI);
 }
 
-int revpi_flat_reset()
+int revpi_flat_reset(void)
 {
 	dev_dbg(piDev_g.dev, "Resetting RevPi Flat control\n");
 

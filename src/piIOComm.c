@@ -95,7 +95,7 @@ void piIoComm_writeSniff(struct gpio_desc *pGpio, EGpioValue eVal_p, EGpioMode e
 	}
 }
 
-EGpioValue piIoComm_readSniff1A()
+EGpioValue piIoComm_readSniff1A(void)
 {
 	EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1a);
 	trace_picontrol_sniffpin_1a_read(v);
@@ -105,7 +105,7 @@ EGpioValue piIoComm_readSniff1A()
 	return v;
 }
 
-EGpioValue piIoComm_readSniff1B()
+EGpioValue piIoComm_readSniff1B(void)
 {
 	if (!piDev_g.only_left_pibridge) {
 		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1b);
@@ -118,7 +118,7 @@ EGpioValue piIoComm_readSniff1B()
 	return enGpioValue_Low;
 }
 
-EGpioValue piIoComm_readSniff2A()
+EGpioValue piIoComm_readSniff2A(void)
 {
 	EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2a);
 	trace_picontrol_sniffpin_2a_read(v);
@@ -128,7 +128,7 @@ EGpioValue piIoComm_readSniff2A()
 	return v;
 }
 
-EGpioValue piIoComm_readSniff2B()
+EGpioValue piIoComm_readSniff2B(void)
 {
 	if (!piDev_g.only_left_pibridge) {
 		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2b);
