@@ -176,6 +176,9 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 		return ret;
 	}
 
+	if (pi16uRecvDataLen_p)
+		*pi16uRecvDataLen_p = ret;
+
 	return 0;
 }
 
