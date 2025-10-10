@@ -1124,7 +1124,7 @@ static int send_config(unsigned long usr_addr)
 		memcpy(req->data, cfg.acData, cfg.i16uLen);
 
 	ret = send_internal_gate_telegram(req, resp);
-	if (!ret) {
+	if (ret >= 0) {
 		put_user(resp->datalen, &cfg_user->i16uLen);
 
 		if (copy_to_user(cfg_user, resp->data, resp->datalen))
@@ -1164,7 +1164,7 @@ static int send_internal_gate_msg(unsigned long usr_addr)
 	}
 
 	ret = send_internal_gate_telegram(req, resp);
-	if (!ret) {
+	if (ret >= 0) {
 		if (copy_to_user(tel, resp, sizeof(*tel)))
 			ret = -EFAULT;
 	}
