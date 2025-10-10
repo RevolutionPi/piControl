@@ -7,6 +7,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
+#include <linux/pibridge_comm.h>
 
 #include "ModGateRS485.h"
 #include "piControlMain.h"
@@ -79,12 +80,8 @@ typedef struct _SRevPiCore {
 	struct rt_mutex lockGateTel;
 	struct semaphore semGateTel;
 	bool pendingGateTel;
-	INT16U i16uCmdGateTel;
-	INT8U i8uAddressGateTel;
-	INT8U ai8uSendDataGateTel[MAX_TELEGRAM_DATA_SIZE];
-	INT8U i8uSendDataLenGateTel;
-	INT8U ai8uRecvDataGateTel[MAX_TELEGRAM_DATA_SIZE];
-	INT16U i16uRecvDataLenGateTel;
+	struct pibridge_gate_datagram gate_req_dgram;
+	struct pibridge_gate_datagram gate_resp_dgram;
 	int statusGateTel;
 
 	// piIO thread

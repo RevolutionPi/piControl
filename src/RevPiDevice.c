@@ -131,12 +131,8 @@ void RevPiDevice_handle_internal_telegrams(void)
 
 	rt_mutex_lock(&piCore_g.lockGateTel);
 	if (piCore_g.pendingGateTel == true) {
-		piCore_g.statusGateTel = piIoComm_sendRS485Tel(piCore_g.i16uCmdGateTel,
-							       piCore_g.i8uAddressGateTel,
-							       piCore_g.ai8uSendDataGateTel,
-							       piCore_g.i8uSendDataLenGateTel,
-							       piCore_g.ai8uRecvDataGateTel,
-							       &piCore_g.i16uRecvDataLenGateTel);
+		piCore_g.statusGateTel = pibridge_req_gate_datagram(&piCore_g.gate_req_dgram,
+								    &piCore_g.gate_resp_dgram);
 		piCore_g.pendingGateTel = false;
 		up(&piCore_g.semGateTel);
 	}

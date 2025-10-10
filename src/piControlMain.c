@@ -1041,18 +1041,20 @@ static int picontrol_get_device_info(SDeviceInfo *dev_info)
 	return -ENXIO;
 }
 
-static int send_internal_gate_telegram(u8 addr, u16 cmd, void *snd_data,
-				       unsigned int snd_datalen, u8 *rcv_data,
-				       unsigned int *rcv_datalen)
+static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
+				       struct modgate_telegram *resp_tel)
 {
+	struct pibridge_gate_datagram *req_dgram = &piCore_g.gate_req_dgram;
+	struct pibridge_gate_datagram *resp_dgram = &piCore_g.gate_resp_dgram;
 	int ret;
 
 	my_rt_mutex_lock(&piCore_g.lockGateTel);
-	piCore_g.i16uCmdGateTel = cmd;
-	piCore_g.i8uAddressGateTel = addr;
-	if (snd_datalen)
-		memcpy(piCore_g.ai8uSendDataGateTel, snd_data, snd_datalen);
-	piCore_g.i8uSendDataLenGateTel = snd_datalen;
+	req_dgram->hdr.dst = req_tel->dest;
+	req_dgram->hdr.src = req_tel->src;
+	req_dgram->hdr.cmd = req_tel->command;
+	req_dgram->hdr.seq = req_tel->sequence;
+	req_dgram->hdr.len = req_tel->datalen;
+	memcpy(req_dgram->data, req_tel->data, req_tel->datalen);
 	piCore_g.pendingGateTel = true;
 	rt_mutex_unlock(&piCore_g.lockGateTel);
 
@@ -1065,10 +1067,17 @@ static int send_internal_gate_telegram(u8 addr, u16 cmd, void *snd_data,
 		rt_mutex_unlock(&piCore_g.lockGateTel);
 		return ret;
 	}
-	if (rcv_data) {
-		memcpy(rcv_data, piCore_g.ai8uRecvDataGateTel,
-		       piCore_g.i16uRecvDataLenGateTel);
-			*rcv_datalen = piCore_g.i16uRecvDataLenGateTel;
+
+	if (resp_tel) {
+		resp_tel->dest = resp_dgram->hdr.dst;
+		resp_tel->src = resp_dgram->hdr.src;
+		resp_tel->command = resp_dgram->hdr.cmd;
+		resp_tel->sequence = resp_dgram->hdr.seq;
+		resp_tel->datalen = resp_dgram->hdr.len;
+
+		if (resp_dgram->hdr.len)
+			memcpy(resp_tel->data, resp_dgram->data,
+			       resp_dgram->hdr.len);
 	}
 	rt_mutex_unlock(&piCore_g.lockGateTel);
 
@@ -1078,11 +1087,10 @@ static int send_internal_gate_telegram(u8 addr, u16 cmd, void *snd_data,
 static int send_config(unsigned long usr_addr)
 {
 	SConfigData __user *cfg_user = (SConfigData __user *) usr_addr;
-	u8 rcv_data[MAX_TELEGRAM_DATA_SIZE];
-	unsigned int rcv_datalen;
+	struct modgate_telegram *resp;
+	struct modgate_telegram *req;
 	SConfigData cfg;
 	int ret;
-	u8 addr;
 
 	if (!piDev_g.revpi_gate_supported)
 		return -EPERM;
@@ -1096,21 +1104,36 @@ static int send_config(unsigned long usr_addr)
 	if (cfg.i16uLen > MAX_TELEGRAM_DATA_SIZE)
 		return -EINVAL;
 
-	if (cfg.bLeft)
-		addr = RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress;
-	else
-		addr = RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
+	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
 
-	ret = send_internal_gate_telegram(addr, eCmdRAPIMessage, cfg.acData,
-					  cfg.i16uLen, rcv_data, &rcv_datalen);
-	if (!ret) {
-		put_user(rcv_datalen, &cfg_user->i16uLen);
-		if (copy_to_user(cfg_user,
-				 rcv_data,
-				 rcv_datalen)) {
-			ret = -EFAULT;
-		}
+	resp = kmalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp) {
+		ret = -ENOMEM;
+		goto free_req;
 	}
+
+	req->dest = cfg.bLeft ? RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress :
+				RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
+	req->src = 0;
+	req->command = eCmdRAPIMessage;
+	req->sequence = 0;
+	req->datalen = cfg.i16uLen;
+	if (req->datalen)
+		memcpy(req->data, cfg.acData, cfg.i16uLen);
+
+	ret = send_internal_gate_telegram(req, resp);
+	if (!ret) {
+		put_user(resp->datalen, &cfg_user->i16uLen);
+
+		if (copy_to_user(cfg_user, resp->data, resp->datalen))
+			ret = -EFAULT;
+	}
+
+	kfree(resp);
+free_req:
+	kfree(req);
 
 	return ret;
 }
@@ -1118,43 +1141,38 @@ static int send_config(unsigned long usr_addr)
 static int send_internal_gate_msg(unsigned long usr_addr)
 {
 	struct modgate_telegram __user *tel = (struct modgate_telegram __user *) usr_addr;
-	u8 snd_data[MAX_TELEGRAM_DATA_SIZE];
-	u8 rcv_data[MAX_TELEGRAM_DATA_SIZE];
-	unsigned int rcvlen;
-	u8 sendlen;
+	struct modgate_telegram *resp;
+	struct modgate_telegram *req;
 	int ret;
-	u16 cmd;
-	u8 dst;
 
 	if (!piDev_g.pibridge_supported)
 		return -EOPNOTSUPP;
 
-	if (get_user(dst, &tel->dest))
-		return -EFAULT;
+	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
 
-	if (get_user(cmd, &tel->command))
-		return -EFAULT;
-
-	if (get_user(sendlen, &tel->datalen))
-		return -EFAULT;
-
-	if (copy_from_user(snd_data, tel->data, sendlen))
-		return -EFAULT;
-
-	if (sendlen > MAX_TELEGRAM_DATA_SIZE) {
-		pr_err("Invalid datalen %u for telegram (max: %u)\n", sendlen,
-			MAX_TELEGRAM_DATA_SIZE);
-		return -EINVAL;
+	resp = kmalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp) {
+		ret = -ENOMEM;
+		goto free_req;
 	}
 
-	ret = send_internal_gate_telegram(dst, cmd, snd_data, sendlen, rcv_data,
-					  &rcvlen);
-	if (!ret) {
-		put_user(rcvlen, &tel->datalen);
+	if (copy_from_user(req, tel, sizeof(*tel))) {
+		ret = -EFAULT;
+		goto free_resp;
+	}
 
-		if (copy_to_user(tel->data, rcv_data, rcvlen))
+	ret = send_internal_gate_telegram(req, resp);
+	if (!ret) {
+		if (copy_to_user(tel, resp, sizeof(*tel)))
 			ret = -EFAULT;
 	}
+
+free_resp:
+	kfree(resp);
+free_req:
+	kfree(req);
 
 	return ret;
 }
