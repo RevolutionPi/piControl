@@ -37,9 +37,10 @@ enum {
 	REVPI_PIBRIDGE_ETHERNET_GPIO_DETECT
 };
 
-#define PICONTROL_CYCLE_MAX_DURATION    45000 /* usecs */
 struct picontrol_cycle {
-	unsigned int duration;
+	struct hrtimer timer;
+	struct completion timer_expired;
+	unsigned int duration; /* usecs */
 	unsigned int max_deviation;
 	u64 exceeded;
 	unsigned int last;

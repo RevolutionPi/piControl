@@ -28,7 +28,6 @@
 #include "RevPiDevice.h"
 
 #define FIRMWARE_FILENAME_LEN			32
-#define PICONTROL_DEFAULT_CYCLE_DURATION	0 /* as fast as possible */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
@@ -237,6 +236,7 @@ static ssize_t cycle_duration_store(struct device *dev,
 		return -EINVAL;
 
 	val = min(val, PICONTROL_CYCLE_MAX_DURATION);
+	val = max(val, PICONTROL_CYCLE_MIN_DURATION);
 
 	write_seqlock(&cycle->lock);
 	cycle->duration = val;
@@ -433,6 +433,9 @@ static int __init piControlInit(void)
 				picontrol_cycle_duration, PICONTROL_CYCLE_MAX_DURATION);
 		} else {
 			piDev_g.cycle.duration = picontrol_cycle_duration;
+
+			if (piDev_g.cycle.duration < PICONTROL_CYCLE_MIN_DURATION)
+				piDev_g.cycle.duration = PICONTROL_CYCLE_MIN_DURATION;
 			pr_info("Using cycle duration %u\n",
 				piDev_g.cycle.duration);
 		}

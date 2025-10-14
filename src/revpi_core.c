@@ -102,34 +102,41 @@ void revpi_core_gate_connected(SDevice *revpi_dev, bool connected)
 		RevPiDevice_setStatus(status, 0);
 }
 
-static enum hrtimer_restart piIoTimer(struct hrtimer *pTimer)
+static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 {
-	up(&piCore_g.ioSem);
+	struct picontrol_cycle *cycle;
+
+	cycle = container_of(timer, struct picontrol_cycle, timer);
+	complete(&cycle->timer_expired);
 	return HRTIMER_NORESTART;
 }
 
 static int piIoThread(void *data)
 {
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned int needed_cycles;
 	unsigned int last_cycle;
 	unsigned int cycle_ref;
-
+	ktime_t cycle_duration;
 	ktime_t time;
 	ktime_t now;
 	s64 tDiff;
 
 	/* Note: we use this timer for both, a fixed cycle interval length and
 	   measurement of the cycle time */
-	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-
-	piCore_g.ioTimer.function = piIoTimer;
+	hrtimer_init(&cycle->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	cycle->timer.function = wake_up_sleeper;
+	init_completion(&cycle->timer_expired);
+	hrtimer_cancel(&cycle->timer);
 
 	pr_debug("piIO thread started\n");
 
 	PiBridgeMaster_Reset();
 
 	/* Get start time of the first cycle */
-	now = hrtimer_cb_get_time(&piCore_g.ioTimer);
+	now = hrtimer_cb_get_time(&cycle->timer);
+	/* Set initial timer expiration */
+	hrtimer_set_expires(&cycle->timer, now);
 
 	while (!kthread_should_stop()) {
 		trace_picontrol_cycle_start(piCore_g.cycle_num);
@@ -138,7 +145,7 @@ static int piIoThread(void *data)
 			break;
 
 		time = now;
-		now = hrtimer_cb_get_time(&piCore_g.ioTimer);
+		now = hrtimer_cb_get_time(&cycle->timer);
 
 		last_cycle = ktime_to_us(ktime_sub(now, time));
 
@@ -182,11 +189,6 @@ static int piIoThread(void *data)
 
 		revpi_check_timeout();
 
-		hrtimer_forward(&piCore_g.ioTimer, now,
-				ns_to_ktime(piControl_get_cycle_duration() * 1000));
-		hrtimer_restart(&piCore_g.ioTimer);
-		down(&piCore_g.ioSem);	// wait for timer
-
 		if (piCore_g.data_exchange_running) {
 			write_seqlock(&cycle->lock);
 			cycle->last = last_cycle;
@@ -198,13 +200,15 @@ static int piIoThread(void *data)
 				cycle->max = last_cycle;
 
 			/*
-			 * If specified, check deviation against the set fixed
-			 * cycle duration. If no fix duration is set, check
-			 * against the current min cycle duration.
+			 * If specified with a value higher than the min, check
+			 * deviation against the set fixed cycle duration. If no
+			 * fix duration is set, check * against the current min
+			 * cycle duration.
 			 */
 			if (cycle->max_deviation) {
-				cycle_ref = cycle->duration ? cycle->duration :
-							      cycle->min;
+				cycle_ref = cycle->duration != PICONTROL_CYCLE_MIN_DURATION ?
+						cycle->duration : cycle->min;
+
 				if (last_cycle > (cycle_ref +
 						  cycle->max_deviation)) {
 					cycle->exceeded++;
@@ -218,7 +222,25 @@ static int piIoThread(void *data)
 			trace_picontrol_cycle_end(piCore_g.cycle_num, last_cycle);
 			piCore_g.cycle_num++;
 		}
+
+		cycle_duration = ns_to_ktime(piControl_get_cycle_duration() *
+					     NSEC_PER_USEC);
+
+		needed_cycles = hrtimer_forward_now(&cycle->timer,
+						    cycle_duration);
+
+		if (needed_cycles == 0) { /* should never happen (TM) */
+			pr_warn("%s: premature cycle\n", current->comm);
+		} else if (needed_cycles > 1) {
+			pr_debug("got %u missed cycles\n", needed_cycles - 1);
+		}
+
+		reinit_completion(&cycle->timer_expired);
+		hrtimer_start_expires(&cycle->timer, HRTIMER_MODE_ABS);
+		wait_for_completion(&cycle->timer_expired);
 	}
+
+	hrtimer_cancel(&cycle->timer);
 
 	pr_info("piIO exit\n");
 	pr_info("Number of cycles: %llu\n", piCore_g.cycle_num);
@@ -434,7 +456,6 @@ static int pibridge_probe(struct platform_device *pdev)
 	piCore_g.pendingGateTel = false;
 
 	rt_mutex_init(&piCore_g.lockBridgeState);
-	sema_init(&piCore_g.ioSem, 0);
 
 	/* set rt prio for spi PiBridge interfaces on RevPi Core or Connect */
 	if (piDev_g.revpi_gate_supported && (piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT )) {

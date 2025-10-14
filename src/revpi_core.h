@@ -14,6 +14,10 @@
 #include "PiBridgeMaster.h"
 #include "RevPiDevice.h"
 
+#define PICONTROL_CYCLE_MIN_DURATION		500
+#define PICONTROL_DEFAULT_CYCLE_DURATION	PICONTROL_CYCLE_MIN_DURATION /* as fast as possible */
+#define PICONTROL_CYCLE_MAX_DURATION		45000 /* usecs */
+
 typedef enum {
 	piBridgeStop = 0,
 	piBridgeInit = 1,	// MGate Protocol
@@ -86,8 +90,6 @@ typedef struct _SRevPiCore {
 
 	// piIO thread
 	struct task_struct *pIoThread;
-	struct hrtimer ioTimer;
-	struct semaphore ioSem;
 
 	u64 cycle_num;
 	/* Number of communication errors */
