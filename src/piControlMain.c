@@ -180,12 +180,18 @@ static ssize_t min_cycle_store(struct device *dev,
 			       size_t count)
 {
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned long val;
 
-	if (count == 1 && (buf[0] == 0xA)) {
-		write_seqlock(&cycle->lock);
-		cycle->min = UINT_MAX;
-		write_sequnlock(&cycle->lock);
-	}
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val != 0)
+		return -EINVAL;
+
+	write_seqlock(&cycle->lock);
+	cycle->min = UINT_MAX;
+	write_sequnlock(&cycle->lock);
+
 	return count;
 }
 
@@ -209,12 +215,17 @@ static ssize_t max_cycle_store(struct device *dev,
 			       size_t count)
 {
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned long val;
 
-	if (count == 1 && (buf[0] == 0xA)) {
-		write_seqlock(&cycle->lock);
-		cycle->max = 0;
-		write_sequnlock(&cycle->lock);
-	}
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val != 0)
+		return -EINVAL;
+
+	write_seqlock(&cycle->lock);
+	cycle->max = val;
+	write_sequnlock(&cycle->lock);
 
 	return count;
 }
@@ -296,12 +307,17 @@ static ssize_t cycles_exceeded_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned long val;
 
-	if (count == 1 && (buf[0] == 0xA)) {
-		write_seqlock(&cycle->lock);
-		cycle->exceeded = 0;
-		write_sequnlock(&cycle->lock);
-	}
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val != 0)
+		return -EINVAL;
+
+	write_seqlock(&cycle->lock);
+	cycle->exceeded = 0;
+	write_sequnlock(&cycle->lock);
 
 	return count;
 }
