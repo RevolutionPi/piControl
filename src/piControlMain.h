@@ -43,6 +43,7 @@ struct picontrol_cycle {
 	unsigned int duration; /* usecs */
 	unsigned int max_deviation;
 	u64 exceeded;
+	u64 missed;
 	unsigned int last;
 	unsigned int max;
 	unsigned int min;

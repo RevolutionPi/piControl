@@ -189,6 +189,14 @@ static int piIoThread(void *data)
 
 		revpi_check_timeout();
 
+		cycle_duration = ns_to_ktime(piControl_get_cycle_duration() *
+					     NSEC_PER_USEC);
+
+		needed_cycles = hrtimer_forward_now(&cycle->timer,
+						    cycle_duration);
+		if (needed_cycles == 0) /* should never happen (TM) */
+			pr_warn("%s: premature cycle\n", current->comm);
+
 		if (piCore_g.data_exchange_running) {
 			write_seqlock(&cycle->lock);
 			cycle->last = last_cycle;
@@ -217,22 +225,16 @@ static int piIoThread(void *data)
 				}
 			}
 
+			if (needed_cycles > 1 &&
+			    cycle->duration != PICONTROL_CYCLE_MIN_DURATION) {
+				pr_debug("got %u missed cycles\n", needed_cycles - 1);
+				cycle->missed += (needed_cycles - 1);
+			}
+
 			write_sequnlock(&cycle->lock);
 
 			trace_picontrol_cycle_end(piCore_g.cycle_num, last_cycle);
 			piCore_g.cycle_num++;
-		}
-
-		cycle_duration = ns_to_ktime(piControl_get_cycle_duration() *
-					     NSEC_PER_USEC);
-
-		needed_cycles = hrtimer_forward_now(&cycle->timer,
-						    cycle_duration);
-
-		if (needed_cycles == 0) { /* should never happen (TM) */
-			pr_warn("%s: premature cycle\n", current->comm);
-		} else if (needed_cycles > 1) {
-			pr_debug("got %u missed cycles\n", needed_cycles - 1);
 		}
 
 		reinit_completion(&cycle->timer_expired);
