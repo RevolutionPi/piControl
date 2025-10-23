@@ -128,7 +128,7 @@ kernel_revpi_ver="$(echo "$kernel_upstream_ver" | sed -e 's/.*-revpi\([0-9]\+\).
 
 # The kernel package has a version component added to the package names.
 # The variable $pkg_append derives this component from the kernel version.
-pkg_append="${kernel_mainline_ver%.*}.0-revpi${kernel_revpi_ver}-rpi-v8"
+pkg_append="${kernel_mainline_ver}-revpi${kernel_revpi_ver}-rpi-v8"
 
 # The package revision (the last +N) is incremented if the upstream version read
 # from the changelog and the given upstream version are the same. This means the
