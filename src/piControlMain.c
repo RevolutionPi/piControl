@@ -999,11 +999,16 @@ static loff_t piControlSeek(struct file *file, loff_t off, int whence)
 static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 				     tpiControlInst *priv)
 {
-	const struct firmware *fw;
 	char fw_filename[FIRMWARE_FILENAME_LEN];
+	const struct firmware *fw;
+	unsigned int module_type;
+	bool in_rescue_mode;
+	unsigned int hw_rev;
 	SDevice *sdev;
 	int ret;
 	int i;
+
+	in_rescue_mode = !!(fwu->flags & PICONTROL_FIRMWARE_RESCUE_MODE);
 
 	if (!isRunning()) {
 		pr_err("PiBridge communication halted, not updating firmware\n");
@@ -1018,18 +1023,28 @@ static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 	if (i == RevPiDevice_getDevCnt())
 		return -ENODEV;
 
-	if (sdev->sId.i16uModulType & PICONTROL_NOT_CONNECTED) {
+	module_type = sdev->sId.i16uModulType;
+	hw_rev = sdev->sId.i16uHW_Revision;
+
+	if (in_rescue_mode) {
+		module_type &= ~PICONTROL_NOT_CONNECTED;
+		hw_rev = fwu->rescue_mode_hw_revision;
+		pr_info("Using firmware rescue mode with hardware revision %u\n",
+			hw_rev);
+	}
+
+	if ((module_type & PICONTROL_NOT_CONNECTED)) {
 		pr_err("Disconnected modules can't be updated\n");
 		return -ENODEV;
 	}
 
-	if (sdev->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
+	if (module_type >= PICONTROL_SW_OFFSET) {
 		pr_err("Virtual modules don't have firmware to update\n");
 		return -EOPNOTSUPP;
 	}
 
 	snprintf(fw_filename, sizeof(fw_filename), "revpi/fw_%05d_%03d.fwu",
-		 sdev->sId.i16uModulType, sdev->sId.i16uHW_Revision);
+		 module_type, hw_rev);
 
 	ret = request_firmware(&fw, fw_filename, piDev_g.dev);
 	if (ret) {
@@ -1042,7 +1057,7 @@ static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 
 	pr_info("Uploading firmware %s to module %u\n", fw_filename,
 		sdev->i8uAddress);
-	ret = upload_firmware(sdev, fw, fwu->flags);
+	ret = upload_firmware(sdev, fw, fwu->flags, module_type, hw_rev);
 	release_firmware(fw);
 
 	/* firmware already up to date */
