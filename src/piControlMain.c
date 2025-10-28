@@ -51,10 +51,10 @@ static unsigned int picontrol_cycle_duration;
 
 module_param(picontrol_max_cycle_deviation, uint, S_IRUSR);
 MODULE_PARM_DESC(picontrol_max_cycle_deviation,
-	"Specify the max tolerated deviation from a fixed io-cyle in usecs.");
+	"Specify the max tolerated deviation from a fixed io-cycle in usecs.");
 
 module_param(picontrol_cycle_duration, uint, S_IRUSR);
-MODULE_PARM_DESC(picontrol_cycle_duration, "Specify a fixed io-cyle duration in usecs. "
+MODULE_PARM_DESC(picontrol_cycle_duration, "Specify a fixed io-cycle duration in usecs. "
 					   "Use 0 to use the fastest possible io-cycle duration.");
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
