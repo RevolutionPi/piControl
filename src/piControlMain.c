@@ -1135,7 +1135,7 @@ static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
 
 	my_rt_mutex_lock(&piCore_g.lockGateTel);
 	ret = piCore_g.statusGateTel;
-	if (ret) {
+	if (ret <= 0) { /* No response datagram available */
 		rt_mutex_unlock(&piCore_g.lockGateTel);
 		return ret;
 	}
@@ -1153,7 +1153,7 @@ static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
 	}
 	rt_mutex_unlock(&piCore_g.lockGateTel);
 
-	return 0;
+	return ret;
 }
 
 static int send_config(unsigned long usr_addr)
@@ -1196,10 +1196,11 @@ static int send_config(unsigned long usr_addr)
 		memcpy(req->data, cfg.acData, cfg.i16uLen);
 
 	ret = send_internal_gate_telegram(req, resp);
-	if (ret >= 0) {
+	if (ret > 0) {
 		put_user(resp->datalen, &cfg_user->i16uLen);
 
-		if (copy_to_user(cfg_user, resp->data, resp->datalen))
+		if (resp->datalen && copy_to_user(cfg_user, resp->data,
+						  resp->datalen))
 			ret = -EFAULT;
 	}
 
@@ -1236,7 +1237,7 @@ static int send_internal_gate_msg(unsigned long usr_addr)
 	}
 
 	ret = send_internal_gate_telegram(req, resp);
-	if (ret >= 0) {
+	if (ret > 0) {
 		if (copy_to_user(tel, resp, sizeof(*tel)))
 			ret = -EFAULT;
 	}
