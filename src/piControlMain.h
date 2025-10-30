@@ -70,6 +70,7 @@ typedef struct spiControlDev {
 	INT8U ai8uPIDefault[KB_PI_LEN];
 	struct rt_mutex lockPI;
 #define PICONTROL_DEV_FLAG_STOP_IO		(1 << 0)
+#define PICONTROL_DEV_FLAG_RUNNING		(2 << 0)
 	unsigned long flags;
 	piDevices *devs;
 	piEntries *ent;

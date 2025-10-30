@@ -771,16 +771,10 @@ static int pibridge_remove(struct platform_device *pdev)
 // false: system is not operational
 bool isRunning(void)
 {
-	bool running;
-
 	if (!piDev_g.pibridge_supported)
 		return true;
 
-	rt_mutex_lock(&piCore_g.lockBridgeState);
-	running = (piCore_g.eBridgeState == piBridgeRun) ? true : false;
-	rt_mutex_unlock(&piCore_g.lockBridgeState);
-
-	return running;
+	return test_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 }
 
 // true: system is running
@@ -793,14 +787,10 @@ static bool waitRunning(int timeout)	// ms
 	timeout /= 100;
 	timeout++;
 
-	rt_mutex_lock(&piCore_g.lockBridgeState);
-	while (timeout > 0 && piCore_g.eBridgeState != piBridgeRun) {
-		rt_mutex_unlock(&piCore_g.lockBridgeState);
+	while (timeout > 0 && !isRunning()) {
 		msleep(100);
 		timeout--;
-		rt_mutex_lock(&piCore_g.lockBridgeState);
 	}
-	rt_mutex_unlock(&piCore_g.lockBridgeState);
 	if (timeout <= 0)
 		return false;
 

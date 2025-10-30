@@ -42,6 +42,7 @@ void PiBridgeMaster_Stop(void)
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_fini();
 	piCore_g.eBridgeState = piBridgeStop;
+	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
@@ -52,6 +53,7 @@ void PiBridgeMaster_Continue(void)
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
+	set_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
 	bEntering_s = bFALSE;
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
@@ -61,6 +63,7 @@ void PiBridgeMaster_Reset(void)
 {
 	my_rt_mutex_lock(&piCore_g.lockBridgeState);
 	piCore_g.eBridgeState = piBridgeInit;
+	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
 	bEntering_s = bTRUE;
 	RevPiDevice_setStatus(0xff, 0);
@@ -666,6 +669,7 @@ int PiBridgeMaster_Run(void)
 					if (piDev_g.revpi_gate_supported)
 						revpi_gate_fini();
 					piCore_g.eBridgeState = piBridgeStop;
+					clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 				} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
 					   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
 					// bad communication with inputs -> set inputs to default values
@@ -689,6 +693,7 @@ int PiBridgeMaster_Run(void)
 			}
 			if (kbUT_TimerExpired(&tConfigTimeoutTimer_s)) {
 				piCore_g.eBridgeState = piBridgeInit;
+				clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 				eRunStatus_s = enPiBridgeMasterStatus_Init;
 				bEntering_s = bTRUE;
 				RevPiDevice_setStatus(0xff, 0);
@@ -712,12 +717,14 @@ int PiBridgeMaster_Run(void)
 				eRunStatus_s = enPiBridgeMasterStatus_InitRetry;
 				bEntering_s = bTRUE;
 				piCore_g.eBridgeState = piBridgeInit;
+				clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 				init_retry--;
 			} else {
 				pr_info("set state to running\n");
 				if (piDev_g.revpi_gate_supported)
 					revpi_gate_init();
 				piCore_g.eBridgeState = piBridgeRun;
+				set_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 			}
 		}
 	} else	{		// piCore_g.eBridgeState == piBridgeStop
