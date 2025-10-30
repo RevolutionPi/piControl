@@ -71,6 +71,7 @@ static struct gpiod_lookup_table revpi_compact_gpios = {
 		    GPIO_LOOKUP_IDX("74hc595", 5, "dout", 5, 0),
 		    GPIO_LOOKUP_IDX("74hc595", 6, "dout", 6, 0),
 		    GPIO_LOOKUP_IDX("74hc595", 7, "dout", 7, 0),
+		    {}
 		  },
 };
 
