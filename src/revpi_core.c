@@ -436,7 +436,7 @@ err_deinit_sniff_gpios:
 	return ret;
 }
 
-static int pibridge_probe(struct platform_device *pdev)
+int revpi_core_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -488,46 +488,8 @@ err_deinit_gpios:
 	return ret;
 }
 
-#if KERNEL_VERSION(6, 11, 0) <= LINUX_VERSION_CODE
-static void pibridge_remove(struct platform_device *pdev)
-#else
-static int pibridge_remove(struct platform_device *pdev)
-#endif
+void revpi_core_remove(struct platform_device *pdev)
 {
 	kthread_stop(piCore_g.pIoThread);
 	deinit_gpios();
-
-#if KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE
-	return 0;
-#endif
-}
-
-static const struct of_device_id of_pibridge_match[] = {
-	{ .compatible = "kunbus,pibridge", },
-	{},
-};
-
-static struct platform_driver pibridge_driver = {
-	.probe		= pibridge_probe,
-	.remove 	= pibridge_remove,
-	.driver		= {
-		.name	= "pibridge",
-		.of_match_table = of_pibridge_match,
-	},
-};
-
-int revpi_core_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&pibridge_driver);
-	if (ret)
-		pr_err("failed to register pibridge driver: %i\n", ret);
-
-	return ret;
-}
-
-void revpi_core_fini(void)
-{
-	platform_driver_unregister(&pibridge_driver);
 }

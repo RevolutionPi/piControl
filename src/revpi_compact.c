@@ -14,6 +14,7 @@
 #include <linux/spi/max3191x.h>
 #include <linux/spi/spi.h>
 #include <linux/thermal.h>
+#include <linux/platform_device.h>
 
 #include "piControlMain.h"
 #include "process_image.h"
@@ -530,7 +531,7 @@ void revpi_compact_adjust_config(void)
 	kfree(state);
 }
 
-int revpi_compact_init(void)
+int revpi_compact_probe(struct platform_device *pdev)
 {
 	SRevPiCompact *machine;
 	struct device *dev;
@@ -713,7 +714,7 @@ err_remove_table:
 	return ret;
 }
 
-void revpi_compact_fini(void)
+void revpi_compact_remove(struct platform_device *pdev)
 {
 	SRevPiCompact *machine = (SRevPiCompact *)piDev_g.machine;
 

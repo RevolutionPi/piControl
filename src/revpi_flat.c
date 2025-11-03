@@ -10,6 +10,7 @@
 #include <linux/thermal.h>
 #include <linux/types.h>
 #include <linux/version.h>
+#include <linux/platform_device.h>
 
 #include "piControlMain.h"
 #include "process_image.h"
@@ -297,7 +298,7 @@ int revpi_flat_reset(void)
 	return 0;
 }
 
-int revpi_flat_init(void)
+int revpi_flat_probe(struct platform_device *pdev)
 {
 	struct revpi_flat *flat;
 	unsigned int button_gpio;
@@ -408,7 +409,7 @@ err_put_ain:
 	return ret;
 }
 
-void revpi_flat_fini(void)
+void revpi_flat_remove(struct platform_device *pdev)
 {
 	struct revpi_flat *flat = (struct revpi_flat *) piDev_g.machine;
 

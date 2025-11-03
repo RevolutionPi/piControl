@@ -14,6 +14,7 @@
 #include <linux/version.h>
 #include <linux/wait.h>
 #include <linux/firmware.h>
+#include <linux/platform_device.h>
 
 #include "IoProtocol.h"
 #include "ModGateRS485.h"
@@ -424,13 +425,11 @@ static void piControl_deinit_sysfs(void)
 	sysfs_remove_file(&piDev_g.dev->kobj, &dev_attr_cycle_duration.attr);
 }
 
-static int __init piControlInit(void)
+static int pibridge_probe(struct platform_device *pdev)
 {
 	int devindex = 0;
 	dev_t curdev;
 	int res;
-
-	wait_for_device_probe();
 
 	if (of_machine_is_compatible("kunbus,revpi-compact")) {
 		piDev_g.machine_type = REVPI_COMPACT;
@@ -607,12 +606,12 @@ static int __init piControlInit(void)
 		      &piDev_g.connl);
 
 	if (piDev_g.pibridge_supported) {
-		res = revpi_core_init();
+		res = revpi_core_probe(pdev);
 	} else { // standalone device
 		if (piDev_g.machine_type == REVPI_COMPACT)
-			res = revpi_compact_init();
+			res = revpi_compact_probe(pdev);
 		else if (piDev_g.machine_type == REVPI_FLAT)
-			res = revpi_flat_init();
+			res = revpi_flat_probe(pdev);
 	}
 
 	if (res)
@@ -637,12 +636,12 @@ err_revpi_fini:
 	if (piDev_g.pibridge_supported) {
 		if (isRunning())
 			PiBridgeMaster_Stop();
-		revpi_core_fini();
+		revpi_core_remove(pdev);
 	} else { // standalone devices
 		if (piDev_g.machine_type == REVPI_COMPACT)
-			revpi_compact_fini();
+			revpi_compact_remove(pdev);
 		else if (piDev_g.machine_type == REVPI_FLAT)
-			revpi_flat_fini();
+			revpi_flat_remove(pdev);
 	}
 err_free_config:
 	kfree(piDev_g.ent);
@@ -729,7 +728,11 @@ static int piControlReset(tpiControlInst * priv)
 	return status;
 }
 
-static void __exit piControlCleanup(void)
+#if KERNEL_VERSION(6, 11, 0) <= LINUX_VERSION_CODE
+static void pibridge_remove(struct platform_device *pdev)
+#else
+static int pibridge_remove(struct platform_device *pdev)
+#endif
 {
 	dev_t curdev;
 
@@ -740,12 +743,12 @@ static void __exit piControlCleanup(void)
 	if (piDev_g.pibridge_supported) {
 		if (isRunning())
 			PiBridgeMaster_Stop();
-		revpi_core_fini();
+		revpi_core_remove(pdev);
 	} else { // standalone devices
 		if (piDev_g.machine_type == REVPI_COMPACT)
-			revpi_compact_fini();
+			revpi_compact_remove(pdev);
 		else if (piDev_g.machine_type == REVPI_FLAT)
-			revpi_flat_fini();
+			revpi_flat_remove(pdev);
 	}
 
 	kfree(piDev_g.ent);
@@ -758,6 +761,10 @@ static void __exit piControlCleanup(void)
 
 	pr_debug("driver stopped with MAJOR-No. %d\n\n ", MAJOR(piControlMajor));
 	pr_debug("piControlCleanup done\n");
+
+#if KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE
+	return 0;
+#endif
 }
 
 // true: system is running
@@ -2048,6 +2055,38 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	}
 
 	return status;
+}
+
+static const struct of_device_id of_pibridge_match[] = {
+	{ .compatible = "kunbus,pibridge", },
+	{},
+};
+
+static struct platform_driver pibridge_driver = {
+	.probe		= pibridge_probe,
+	.remove		= pibridge_remove,
+	.driver		= {
+		.name	= "pibridge",
+		.of_match_table = of_pibridge_match,
+	},
+};
+
+static int __init piControlInit(void)
+{
+	int ret;
+
+	wait_for_device_probe();
+	ret = platform_driver_register(&pibridge_driver);
+	if (ret)
+		pr_err("failed to register pibridge driver: %i\n", ret);
+
+	return ret;
+}
+
+
+static void __exit piControlCleanup(void)
+{
+	platform_driver_unregister(&pibridge_driver);
 }
 
 module_init(piControlInit);

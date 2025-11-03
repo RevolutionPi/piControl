@@ -8,6 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/pibridge_comm.h>
+#include <linux/platform_device.h>
 
 #include "ModGateRS485.h"
 #include "piControlMain.h"
@@ -101,6 +102,6 @@ extern SRevPiCore piCore_g;
 
 u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type);
 void revpi_core_gate_connected(SDevice *revpi_dev, bool connected);
-int revpi_core_init(void);
-void revpi_core_fini(void);
+int revpi_core_probe(struct platform_device *pdev);
+void revpi_core_remove(struct platform_device *pdev);
 #endif /* _REVPI_CORE_H */
