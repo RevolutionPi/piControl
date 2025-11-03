@@ -364,7 +364,7 @@ static DEVICE_ATTR_RW(max_cycle_deviation);
 static DEVICE_ATTR_RW(cycles_exceeded);
 static DEVICE_ATTR_RW(cycles_missed);
 
-static int __init piControl_init_sysfs(void)
+static int piControl_init_sysfs(void)
 {
 	int ret;
 
