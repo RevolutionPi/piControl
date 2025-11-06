@@ -1134,7 +1134,11 @@ static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
 	ret = piCore_g.statusGateTel;
 	if (ret <= 0) { /* No response datagram available */
 		rt_mutex_unlock(&piCore_g.lockGateTel);
-		return ret;
+		if (ret) {
+			pr_err("Error sending internal IO message: %i\n", ret);
+			return -EIO;
+		}
+		return 0;
 	}
 
 	if (resp_tel) {
@@ -1264,7 +1268,8 @@ static int send_internal_io_telegram(void *req, unsigned int reqlen,
 	ret = piCore_g.statusUserTel;
 	if (ret) {
 		rt_mutex_unlock(&piCore_g.lockUserTel);
-		return ret;
+		pr_err("Error sending internal IO message: %i\n", ret);
+		return -EIO;
 	}
 	if (resp)
 		memcpy(resp, &piCore_g.responseUserTel, sizeof(*resp));
