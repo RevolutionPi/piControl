@@ -884,9 +884,6 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 	INT8U *pPd;
 	size_t nread = count;
 
-	if (file == 0 || pBuf == 0 || ppos == 0)
-		return -EINVAL;
-
 	if (!isRunning())
 		return -EAGAIN;
 
