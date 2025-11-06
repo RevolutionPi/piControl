@@ -1012,7 +1012,7 @@ static int picontrol_upload_firmware(struct picontrol_firmware_upload *fwu,
 
 	if (!isRunning()) {
 		pr_err("PiBridge communication halted, not updating firmware\n");
-		return -ENXIO;
+		return -EAGAIN;
 	}
 
 	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
@@ -1168,7 +1168,7 @@ static int send_config(unsigned long usr_addr)
 		return -EPERM;
 
 	if (isRunning())
-		return -ECANCELED;
+		return -EAGAIN;
 
 	if (copy_from_user(&cfg, cfg_user, sizeof(cfg)))
 		return -EFAULT;
@@ -1284,10 +1284,10 @@ static int reset_dio_counter(unsigned long usr_addr)
 	int i;
 
 	if (!piDev_g.pibridge_supported)
-		return -EPERM;
+		return -EOPNOTSUPP;
 
 	if (!isRunning())
-		return -EFAULT;
+		return -EAGAIN;
 
 	if (copy_from_user(&res_cnt, (const void __user *) usr_addr,
 			   sizeof(res_cnt))) {
@@ -1337,7 +1337,7 @@ static int get_ro_counter(unsigned long usr_addr)
 		return -EOPNOTSUPP;
 
 	if (!isRunning())
-		return -EIO;
+		return -EAGAIN;
 
 	ioctl_get_counters = (struct revpi_ro_ioctl_counters __user *) usr_addr;
 
@@ -1391,10 +1391,10 @@ static int calibrate_aio(unsigned long usr_addr)
 	int i;
 
 	if (!piDev_g.pibridge_supported)
-		return -EPERM;
+		return -EOPNOTSUPP;
 
 	if (!isRunning())
-		return -EFAULT;
+		return -EAGAIN;
 
 	if (copy_from_user(&cali, (const void __user *) usr_addr,
 				sizeof(cali))) {
@@ -1443,10 +1443,10 @@ static int send_internal_io_msg(unsigned long usr_addr)
 	int ret;
 
 	if (!piDev_g.pibridge_supported)
-		return -EPERM;
+		return -EOPNOTSUPP;
 
 	if (!isRunning())
-		return -EFAULT;
+		return -EAGAIN;
 
 	if (copy_from_user(&req, (const void __user *) usr_addr, sizeof(req)))
 		return -EFAULT;
@@ -1577,7 +1577,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			u8 val;
 
 			if (!isRunning())
-				return -EFAULT;
+				return -EAGAIN;
 
 			if (copy_from_user(&spi_val, (const void __user *) usr_addr,
 					     sizeof(spi_val))) {
@@ -1586,7 +1586,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			if (spi_val.i16uAddress >= KB_PI_LEN) {
-				status = -EFAULT;
+				status = -EINVAL;
 			} else {
 				rt_mutex_lock(&piDev_g.lockPI);
 				val = piDev_g.ai8uPI[spi_val.i16uAddress];
@@ -1615,7 +1615,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			SPIValue spi_val;
 
 			if (!isRunning())
-				return -EFAULT;
+				return -EAGAIN;
 
 			if (copy_from_user(&spi_val, (const void __user *) usr_addr,
 					   sizeof(spi_val))) {
@@ -1624,7 +1624,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 
 			if (spi_val.i16uAddress >= KB_PI_LEN) {
-				status = -EFAULT;
+				status = -EINVAL;
 			} else {
 				INT8U i8uValue_l;
 				my_rt_mutex_lock(&piDev_g.lockPI);
@@ -1659,7 +1659,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			const char __user *usr_name;
 
 			if (!isRunning())
-				return -EFAULT;
+				return -EAGAIN;
 
 			if (!piDev_g.ent) {
 				status = -ENOENT;
@@ -1705,7 +1705,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			ktime_t now;
 
 			if (!isRunning())
-				return -EFAULT;
+				return -EAGAIN;
 
 			if (usr_addr == 0) {
 				pr_err("piControlIoctl: illegal parameter\n");
@@ -1779,7 +1779,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			u32 snum_data[2]; 	// snum_data is an array containing the module address and the serial number
 
 			if (!piDev_g.pibridge_supported) {
-				return -EPERM;
+				return -EOPNOTSUPP;
 			}
 
 			if (copy_from_user(snum_data, (const void __user *) usr_addr,
@@ -1791,7 +1791,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			rt_mutex_lock(&piDev_g.lockIoctl);
 			if (!isRunning()) {
 				rt_mutex_unlock(&piDev_g.lockIoctl);
-				return -EFAULT;
+				return -EAGAIN;
 			}
 
 			PiBridgeMaster_Stop();
@@ -1830,7 +1830,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			pr_notice("Note: ioctl KB_UPDATE_DEVICE_FIRMWARE is deprecated. Use PICONTROL_UPLOAD_FIRMWARE instead\n");
 
 			if (!piDev_g.pibridge_supported) {
-				return -EPERM;
+				return -EOPNOTSUPP;
 			}
 
 			if (usr_addr) {
@@ -1846,7 +1846,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (!isRunning()) {
 				printUserMsg(priv, "piControl is not running");
 				rt_mutex_unlock(&piDev_g.lockIoctl);
-				return -EFAULT;
+				return -EAGAIN;
 			}
 
 			PiBridgeMaster_Stop();
@@ -1961,7 +1961,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			u32 data;
 
 			if (!isRunning())
-				return -EFAULT;
+				return -EAGAIN;
 
 			if (get_user(data, (u32 __user *) usr_addr)) {
 				pr_err("Failed to copy stop command from user\n");
@@ -1994,7 +1994,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (!isRunning()) {
 				printUserMsg(priv, "piControl is not running");
 				rt_mutex_unlock(&piDev_g.lockIoctl);
-				return -EFAULT;
+				return -EAGAIN;
 			}
 			PiBridgeMaster_Stop();
 			rt_mutex_unlock(&piDev_g.lockIoctl);
@@ -2015,7 +2015,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EPERM;
 			}
 			if (isRunning()) {
-				return -ECANCELED;
+				return -EAGAIN;
 			}
 
 			PiBridgeMaster_Continue();
