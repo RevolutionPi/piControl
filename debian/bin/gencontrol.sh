@@ -171,7 +171,7 @@ cat <<- EOF > "$debdir/control"
 	 provides a common interface to all RevPi related IOs, which a user can
 	 consume via /dev/piControl0.
 	 .
-	 This package is build for linux-image-${pkg_append}
+	 This package is built for linux-image-${pkg_append}
 	 (= ${kernel_pkg_ver}).
 
 	Package: picontrol-common
