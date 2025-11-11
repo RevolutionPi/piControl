@@ -6,6 +6,7 @@
 #define _REVPI_COMPACT_H
 
 #include <linux/types.h>
+#include <linux/platform_device.h>
 
 #include "common_define.h"
 #include "piControl.h"
@@ -74,8 +75,8 @@ struct revpi_compact_stats {
 };
 
 INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt);
-int revpi_compact_init(void);
 int revpi_compact_reset(void);
-void revpi_compact_fini(void);
+int revpi_compact_probe(struct platform_device *pdev);
+void revpi_compact_remove(struct platform_device *pdev);
 void revpi_compact_adjust_config(void);
 #endif /*_REVPI_COMPACT_H */

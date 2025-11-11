@@ -9,7 +9,7 @@
 
 #define TFPGA_HEAD_DATA_OFFSET			6
 #define	CHUNK_TRANSMISSION_ATTEMPTS		100
-#define	FLASH_ERASE_ATTEMPTS			50
+#define	FLASH_ERASE_ATTEMPTS			5
 
 // ret < 0: error
 // ret == 0: no update needed
@@ -24,6 +24,11 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	TFileHead header;
 	T_KUNBUS_APPL_DESCR *pApplDesc;
 	int read;
+
+	if (pDev_p->sId.i16uModulType & PICONTROL_NOT_CONNECTED) {
+		printUserMsg(priv, "Disconnected modules can't be updated");
+		return -EOPNOTSUPP;
+	}
 
 	if (pDev_p->sId.i16uModulType >= PICONTROL_SW_OFFSET) {
 		printUserMsg(priv, "Virtual modules don't have firmware to update");
@@ -230,13 +235,18 @@ int erase_flash(unsigned int dev_addr)
 		}
 	} while (ret && attempts);
 
+	/* failure */
+	if (ret)
+		return ret;
+
 	if (attempts != FLASH_ERASE_ATTEMPTS)
 		pr_warn("%u attempts to erase flash required\n",
 			FLASH_ERASE_ATTEMPTS - attempts);
-	return ret;
+	return 0;
 }
 
-int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
+int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
+		    unsigned int module_type, unsigned int hw_rev)
 {
 	T_KUNBUS_APPL_DESCR *desc;
 	unsigned int flash_offset;
@@ -250,17 +260,17 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask)
 	force_upload  = !!(mask & PICONTROL_FIRMWARE_FORCE_UPLOAD);
 
 	hdr = (TFileHead *) &fw->data[0];
-	if (hdr->dat.usType != sdev->sId.i16uModulType) {
+	if (hdr->dat.usType != module_type) {
 		if (hdr->dat.usType != KUNBUS_FW_DESCR_TYP_PI_DIO_14)
 			return -EIO;
-		if ((sdev->sId.i16uModulType != KUNBUS_FW_DESCR_TYP_PI_DO_16) &&
-		    (sdev->sId.i16uModulType != KUNBUS_FW_DESCR_TYP_PI_DI_16))
+		if ((module_type != KUNBUS_FW_DESCR_TYP_PI_DO_16) &&
+		    (module_type != KUNBUS_FW_DESCR_TYP_PI_DI_16))
 			return -EIO;
 	}
 
-	if (hdr->dat.usHwRev != sdev->sId.i16uHW_Revision) {
+	if (hdr->dat.usHwRev != hw_rev) {
 		pr_err("HW revision %u in FW does not match HW revision %u of device\n",
-			hdr->dat.usHwRev, sdev->sId.i16uHW_Revision);
+			hdr->dat.usHwRev, hw_rev);
 		return -EIO;
 	}
 	/* Flashing starts with an offset to the "fpga" element of the

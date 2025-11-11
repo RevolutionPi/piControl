@@ -98,6 +98,48 @@ const MODGATECOM_IDResp RevPiGeneric_ID_g = {
 	.i16uFeatureDescriptor = 0
 };
 
+void RevPiDevice_handle_internal_telegrams(void)
+{
+	int ret = 0;
+
+	/* If requested by user, send internal io/gate telegram(s) */
+	rt_mutex_lock(&piCore_g.lockUserTel);
+	if (piCore_g.pendingUserTel == true) {
+		SIOGeneric *req = &piCore_g.requestUserTel;
+		SIOGeneric *resp = &piCore_g.responseUserTel;
+		UIoProtocolHeader *hdr = &req->uHeader;
+
+		/* avoid leaking response of previous telegram to user space */
+		memset(resp, 0, sizeof(*resp));
+
+		ret = pibridge_req_io(hdr->sHeaderTyp1.bitAddress,
+				      hdr->sHeaderTyp1.bitCommand,
+				      req->ai8uData,
+				      hdr->sHeaderTyp1.bitLength,
+				      resp->ai8uData,
+				      sizeof(resp->ai8uData) - 1);
+		if (ret < 0) {
+			piCore_g.statusUserTel = ret;
+		} else {
+			piCore_g.statusUserTel = 0;
+			resp->uHeader.sHeaderTyp1.bitLength = ret;
+		}
+		piCore_g.pendingUserTel = false;
+		up(&piCore_g.semUserTel);
+	}
+	rt_mutex_unlock(&piCore_g.lockUserTel);
+
+	rt_mutex_lock(&piCore_g.lockGateTel);
+	if (piCore_g.pendingGateTel == true) {
+		piCore_g.statusGateTel = pibridge_req_gate_datagram(&piCore_g.gate_req_dgram,
+								    &piCore_g.gate_resp_dgram);
+		piCore_g.pendingGateTel = false;
+		up(&piCore_g.semGateTel);
+	}
+	rt_mutex_unlock(&piCore_g.lockGateTel);
+}
+
+
 int RevPiDevice_hat_serial(void)
 {
 	struct device_node *np;
@@ -129,7 +171,7 @@ int RevPiDevice_hat_serial(void)
 
 void RevPiDevice_init(void)
 {
-	pr_info("RevPiDevice_init()\n");
+	pr_debug("RevPiDevice_init()\n");
 
 	piCore_g.cycle_num = 0;
 	piCore_g.comm_errors = 0;
@@ -297,27 +339,8 @@ int RevPiDevice_run(void)
 		}
 	}
 
-	// if the user-ioctl want to send a telegram, do it now
-	if (piCore_g.pendingUserTel == true) {
-		SIOGeneric *req = &piCore_g.requestUserTel;
-		SIOGeneric *resp = &piCore_g.responseUserTel;
-		UIoProtocolHeader *hdr = &req->uHeader;
-		int ret;
-
-		/* avoid leaking response of previous telegram to user space */
-		memset(resp, 0, sizeof(*resp));
-
-		ret = pibridge_req_io(hdr->sHeaderTyp1.bitAddress,
-				      hdr->sHeaderTyp1.bitCommand,
-				      req->ai8uData,
-				      hdr->sHeaderTyp1.bitLength,
-				      resp->ai8uData,
-				      sizeof(resp->ai8uData) - 1);
-
-		piCore_g.statusUserTel = ret > 0 ? 0 : ret;
-		piCore_g.pendingUserTel = false;
-		up(&piCore_g.semUserTel);
-	}
+	/* If requested by user, send internal io/gate telegram(s) */
+	RevPiDevice_handle_internal_telegrams();
 
 	return retval;
 }
@@ -336,19 +359,8 @@ TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *
 #endif
 		return bFALSE;
 	} else {
-		pr_info("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
+		pr_debug("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
 	}
-
-#if 0
-	ret_l = piIoComm_sendRS485Tel(eCmdPiIoConfigure, i8uAddress_p, NULL, 0, NULL, 0);
-	msleep(3);		// wait a while
-	if (ret_l) {
-#ifdef DEBUG_DEVICE
-		pr_err("piIoComm_sendRS485Tel(PiIoConfigure) failed %d\n", ret_l);
-#endif
-		return bFALSE;
-	}
-#endif
 
 	ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
 	msleep(3);		// wait a while
@@ -389,9 +401,9 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 		pr_info("found %d. device on right side. Moduletype %d. Designated address %d\n",
 			RevPiDevice_getDevCnt() + 1, RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType,
 			RevPiDevices_s.i8uAddressRight);
-		pr_info("input offset  %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
+		pr_debug("input offset  %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
-		pr_info("output offset %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
+		pr_debug("output offset %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
 #endif
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
@@ -425,10 +437,10 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 		pr_info("found %d. device on left side. Moduletype %d. Designated address %d\n",
 			RevPiDevice_getDevCnt() + 1,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType, RevPiDevices_s.i8uAddressLeft);
-		pr_info("input offset  %5d  len %3d\n",
+		pr_debug("input offset  %5d  len %3d\n",
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
-		pr_info("output offset %5d  len %3d\n",
+		pr_debug("output offset %5d  len %3d\n",
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
 #endif
@@ -462,17 +474,6 @@ void RevPiDevice_stopDataexchange(void)
 #ifdef DEBUG_DEVICE
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
 #endif
-	}
-}
-
-void RevPiDevice_checkFirmwareUpdate(void)
-{
-	int j;
-	// Schleife über alle Module die automatisch erkannt wurden
-	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
-		if (RevPiDevice_getDev(j)->i8uAddress != 0 && RevPiDevice_getDev(j)->sId.i16uModulType < PICONTROL_SW_OFFSET) {
-
-		}
 	}
 }
 

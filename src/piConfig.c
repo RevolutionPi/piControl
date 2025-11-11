@@ -107,7 +107,7 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 			break;
 		}
 		if (read == 0) {
-			pr_info("read file finished, f_pos=%lld\n",
+			pr_debug("read file finished, f_pos=%lld\n",
 							input->f_pos);
 			break;
 		}
@@ -275,18 +275,16 @@ static int do_tree(json_config *config,
 		goto free_parser;
 	}
 
-	ret = json_parser_is_done(&parser);
-	if (!ret) {
+	if (!json_parser_is_done(&parser)) { /* parsing incomplete */
 		if (parser.state == 0 && parser.stack_offset == 0)
 			pr_err("config.rsc is empty! "
 				"Probably needs to be configured in PiCtory\n");
 		else
 			pr_err("syntax error: offset %d  state %d\n",
 					parser.stack_offset, parser.state);
+		ret = 1;
 		goto free_parser;
 	}
-	/* all ok */
-	ret = 0;
 
 	if (root_structure)
 		*root_structure = dom.root_structure;
@@ -342,116 +340,6 @@ static int free_tree(json_val_t * element)
 
 	return 0;
 }
-
-#if 0
-static void appendEntry(piEntry ** first, piEntry * p)
-{
-	while (*first != NULL)
-		first = &(*first)->next;
-
-	*first = p;
-}
-
-static piDevice *extract_devices(json_val_t * element, int lvl)
-{
-	int i;
-	piDevice *ret, *p, *last;
-
-	ret = NULL;
-
-	if (!element) {
-		pr_info("error: no element in print tree\n");
-		return ret;
-	}
-
-	switch (element->type) {
-	case JSON_OBJECT_BEGIN:
-		for (i = 0; i < element->length; i++) {
-			if (lvl == 1 && strcmp(element->u.object[i]->key, TOKEN_DEVICES) == 0) {	// we found the devices list -> increase lvl
-				if (ret != NULL) {
-					pr_info("error: there should by only one '%s' element\n",
-						  element->u.object[i]->key);
-					return NULL;
-				}
-				ret = extract_devices(element->u.object[i]->val, 100);
-			} else if (lvl == 101) {	// we found a device, parse elements
-				if (ret == NULL) {
-					ret = malloc(sizeof(piDevice));
-					memset(ret, 0, sizeof(piDevice));
-				}
-				if (strcmp(element->u.object[i]->key, TOKEN_TYPE) == 0) {
-					kstrtou16(element->u.object[i]->val->u.data, 0, &ret->dev.i16uModuleType);
-				} else if (strcmp(element->u.object[i]->key, TOKEN_POSITION) == 0) {
-					kstrtou8(element->u.object[i]->val->u.data, 0, ret->dev.i8uAddress);
-				} else if (strcmp(element->u.object[i]->key, TOKEN_INPUT) == 0) {
-					int j;
-					int idx = 0;
-					piEntry *first, *p;
-					json_val_t *ent = element->u.object[i]->val;
-
-					if (ent->type != JSON_OBJECT_BEGIN || ent->u.object == NULL) {
-						pr_info("error: element '%s' must contain an Object\n",
-							  element->u.object[i]->key);
-						return NULL;
-					}
-					first = NULL;
-					for (j = 0; j < ent->length; j++) {
-						if (ent->u.object[j]->val->type == JSON_ARRAY_BEGIN) {
-							struct json_val **array = ent->u.object[j]->val->u.array;
-							p = malloc(sizeof(piEntry));
-							memset(p, 0, sizeof(piEntry));
-
-							p->ent.i8uAddress = ret->dev.i8uAddress;
-							p->ent.i8uType = 1;	// input
-							p->ent.i16uIndex = idx++;
-							kstrtou16(array[2]->u.data, 0, &p->ent.i16uLength);
-							p->ent.i16uLength /= 8;
-							kstrtou16(array[3]->u.data, 0, &p->ent.i16uOffset);
-							kstrtou16(array[1]->u.data, 0, &p->ent.i32uDefault);
-
-							appendEntry(&first, p);
-						}
-					}
-
-					appendEntry(&ret->entry, first);
-				}
-
-			} else {
-				ret = extract_devices(element->u.object[i]->val, lvl + 1);
-			}
-		}
-		break;
-	case JSON_ARRAY_BEGIN:
-		if (lvl == 100) {
-			for (i = 0; i < element->length; i++) {
-				p = extract_devices(element->u.array[i], lvl + 1);
-				if (i == 0) {
-					ret = p;
-				} else {
-					last->next = p;
-				}
-				last = p;
-			}
-		} else {
-			for (i = 0; i < element->length; i++) {
-				ret = extract_devices(element->u.array[i], lvl + 1);
-			}
-		}
-		break;
-	case JSON_FALSE:
-	case JSON_TRUE:
-	case JSON_NULL:
-	case JSON_INT:
-	case JSON_STRING:
-	case JSON_FLOAT:
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-#endif
 
 static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl)
 {
@@ -875,7 +763,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		return 3;
 	}
 
-	pr_info("%d devices found\n", (*devs)->i16uNumDevices);
+	pr_info("found %d devices in configuration file\n", (*devs)->i16uNumDevices);
 
 	cnt = 0;
 	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
@@ -888,7 +776,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		    );
 		cnt += (*devs)->dev[i].i16uEntries;
 	}
-	pr_info("%d entries in total\n", cnt);
+	pr_debug("%d entries in total\n", cnt);
 
 	*ent = kmalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
 	memset(*ent, 0, sizeof(piEntries) + cnt * sizeof(SEntryInfo));
@@ -1089,7 +977,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
 		} else {
 			// gehe zum nächsten Eintrag
-			pr_info("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
+			pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
 				       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
 
 			i++;
@@ -1099,7 +987,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		}
 	}
 	if (exported_outputs > 0) {
-		pr_info("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
+		pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
 			       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
 		i++;
 	}

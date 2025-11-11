@@ -40,50 +40,43 @@ SRevPiCore piCore_g;
  */
 u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 {
+	bool is_right;
+	u8 *gate_idx;
 	int i;
 
+	/* Determine which gate based on netdev name */
 	if (!strcmp(netdev->name, "piright")) {
-		if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF) {
-			/*
-			 * The gateway was not discoverable via RS-485,
-			 * but the PiBridge Ethernet communication is up.
-			 * Search for the gateway's config entry.
-			 */
-			pr_info("%s: found uninitialized gateway of type %d, try to find configuration\n",
-				netdev->name, module_type);
-			i = RevPiDevice_find_by_side_and_type(true,
-				     module_type | PICONTROL_NOT_CONNECTED);
-			if (i != REV_PI_DEV_UNDEF) {
-				pr_info("%s: found configuration for uninitialized gateway\n",
-					netdev->name);
-				piCore_g.i8uRightMGateIdx = i;
-				RevPiDevice_getDev(i)->i8uActive = 1;
-				RevPiDevice_getDev(i)->sId.i16uModulType &=
-					       PICONTROL_NOT_CONNECTED_MASK;
-			}
-		}
-		return piCore_g.i8uRightMGateIdx;
+		is_right = true;
+		gate_idx = &piCore_g.i8uRightMGateIdx;
+	} else if (!strcmp(netdev->name, "pileft")) {
+		is_right = false;
+		gate_idx = &piCore_g.i8uLeftMGateIdx;
+	} else {
+		return REV_PI_DEV_UNDEF;
 	}
 
-	if (!strcmp(netdev->name, "pileft")) {
-		if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF) {
-			pr_info("%s: found uninitialized gateway of type %d, try to find configuration\n",
+	/* Only search if gateway not already initialized */
+	if (*gate_idx == REV_PI_DEV_UNDEF) {
+		/*
+		 * The gateway was not discoverable via RS-485,
+		 * but the PiBridge Ethernet communication is up.
+		 * Search for the gateway's config entry.
+		 */
+		pr_info("%s: found uninitialized gateway of type %d, try to find configuration\n",
 				netdev->name, module_type);
-			i = RevPiDevice_find_by_side_and_type(false,
-				    module_type | PICONTROL_NOT_CONNECTED);
-			if (i != REV_PI_DEV_UNDEF) {
-				pr_info("%s: found configuration for uninitialized gateway\n",
+
+		i = RevPiDevice_find_by_side_and_type(is_right,
+				module_type | PICONTROL_NOT_CONNECTED);
+		if (i != REV_PI_DEV_UNDEF) {
+			pr_info("%s: found configuration for uninitialized gateway\n",
 					netdev->name);
-				piCore_g.i8uLeftMGateIdx = i;
-				RevPiDevice_getDev(i)->i8uActive = 1;
-				RevPiDevice_getDev(i)->sId.i16uModulType &=
-					      PICONTROL_NOT_CONNECTED_MASK;
-			}
+			*gate_idx = i;
+			RevPiDevice_getDev(i)->i8uActive = 1;
+			RevPiDevice_getDev(i)->sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
 		}
-		return piCore_g.i8uLeftMGateIdx;
 	}
 
-	return REV_PI_DEV_UNDEF;
+	return *gate_idx;
 }
 
 /**
@@ -109,47 +102,55 @@ void revpi_core_gate_connected(SDevice *revpi_dev, bool connected)
 		RevPiDevice_setStatus(status, 0);
 }
 
-static enum hrtimer_restart piIoTimer(struct hrtimer *pTimer)
+static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 {
-	up(&piCore_g.ioSem);
+	struct picontrol_cycle *cycle;
+
+	cycle = container_of(timer, struct picontrol_cycle, timer);
+	complete(&cycle->timer_expired);
 	return HRTIMER_NORESTART;
 }
 
 static int piIoThread(void *data)
 {
-	//TODO int value = 0;
+	struct picontrol_cycle *cycle = &piDev_g.cycle;
+	unsigned int needed_cycles;
+	unsigned int last_cycle;
+	unsigned int cycle_ref;
+	ktime_t cycle_duration;
 	ktime_t time;
 	ktime_t now;
-	ktime_t cycle_start;
-	unsigned int cycle_duration;
 	s64 tDiff;
 
-	hrtimer_init(&piCore_g.ioTimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	piCore_g.ioTimer.function = piIoTimer;
+	/* Note: we use this timer for both, a fixed cycle interval length and
+	   measurement of the cycle time */
+	hrtimer_init(&cycle->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	cycle->timer.function = wake_up_sleeper;
+	init_completion(&cycle->timer_expired);
+	hrtimer_cancel(&cycle->timer);
 
-	pr_info("piIO thread started\n");
-
-	now = hrtimer_cb_get_time(&piCore_g.ioTimer);
+	pr_debug("piIO thread started\n");
 
 	PiBridgeMaster_Reset();
 
-	/* Initialize with the highest possible value to make sure it is
-	   overwritten with the next measured time span */
-	piCore_g.cycle_min = UINT_MAX;
-	piCore_g.cycle_max = 0;
+	/* Get start time of the first cycle */
+	now = hrtimer_cb_get_time(&cycle->timer);
+	/* Set initial timer expiration */
+	hrtimer_set_expires(&cycle->timer, now);
 
 	while (!kthread_should_stop()) {
 		trace_picontrol_cycle_start(piCore_g.cycle_num);
-		cycle_start = ktime_get();
 
 		if (PiBridgeMaster_Run() < 0)
 			break;
 
 		time = now;
-		now = hrtimer_cb_get_time(&piCore_g.ioTimer);
+		now = hrtimer_cb_get_time(&cycle->timer);
 
-		time = ktime_sub(now, time);
-		piCore_g.image.drv.i8uIOCycle = ktime_to_ms(time);
+		last_cycle = ktime_to_us(ktime_sub(now, time));
+
+		/* On process image store cycle time in msec */
+		piCore_g.image.drv.i8uIOCycle = last_cycle / 1000;
 
 		if (piDev_g.tLastOutput1 != piDev_g.tLastOutput2) {
 			tDiff = ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
@@ -188,46 +189,68 @@ static int piIoThread(void *data)
 
 		revpi_check_timeout();
 
-		if (piCore_g.eBridgeState == piBridgeInit) {
-			time = ktime_add_ns(time, INTERVAL_RS485);
-		} else {
-			time = ktime_add_ns(time, INTERVAL_IO_COMM);
-		}
+		cycle_duration = ns_to_ktime(piControl_get_cycle_duration() *
+					     NSEC_PER_USEC);
 
-		if (ktime_after(now, time)) {
-			// the call of PiBridgeMaster_Run() needed more time than the INTERVAL
-			// -> wait an additional ms
-			//pr_info("%d ms too late, state %d\n", (int)((now.tv64 - time.tv64) >> 20), piCore_g.eBridgeState);
-			time = ktime_add_ns(now, INTERVAL_ADDITIONAL);
-		}
-
-		hrtimer_start(&piCore_g.ioTimer, time, HRTIMER_MODE_ABS);
-		down(&piCore_g.ioSem);	// wait for timer
+		needed_cycles = hrtimer_forward_now(&cycle->timer,
+						    cycle_duration);
+		if (needed_cycles == 0) /* should never happen (TM) */
+			pr_warn("%s: premature cycle\n", current->comm);
 
 		if (piCore_g.data_exchange_running) {
-			cycle_duration = ktime_to_us(ktime_get() - cycle_start);
-			trace_picontrol_cycle_end(piCore_g.cycle_num, cycle_duration);
+			write_seqlock(&cycle->lock);
+			cycle->last = last_cycle;
 
-			if (piCore_g.cycle_min > cycle_duration)
-				piCore_g.cycle_min = cycle_duration;
+			if (cycle->min > last_cycle)
+				cycle->min = last_cycle;
 
-			if (piCore_g.cycle_max < cycle_duration)
-				piCore_g.cycle_max = cycle_duration;
+			if (cycle->max < last_cycle)
+				cycle->max = last_cycle;
 
-			if (picontrol_max_cycle_deviation &&
-			   (cycle_duration > (piCore_g.cycle_min +
-					      picontrol_max_cycle_deviation))) {
-				trace_picontrol_cycle_exceeded(cycle_duration,
-							       piCore_g.cycle_min);
+			/*
+			 * If specified with a value higher than the min, check
+			 * deviation against the set fixed cycle duration. If no
+			 * fix duration is set, check * against the current min
+			 * cycle duration.
+			 */
+			if (cycle->max_deviation) {
+				cycle_ref = cycle->duration != PICONTROL_CYCLE_MIN_DURATION ?
+						cycle->duration : cycle->min;
+
+				if (last_cycle > (cycle_ref +
+						  cycle->max_deviation)) {
+					cycle->exceeded++;
+					trace_picontrol_cycle_exceeded(last_cycle,
+						cycle_ref);
+				}
 			}
+
+			if (needed_cycles > 1 &&
+			    cycle->duration != PICONTROL_CYCLE_MIN_DURATION) {
+				pr_debug("got %u missed cycles\n", needed_cycles - 1);
+				cycle->missed += (needed_cycles - 1);
+			}
+
+			write_sequnlock(&cycle->lock);
+
+			trace_picontrol_cycle_end(piCore_g.cycle_num, last_cycle);
 			piCore_g.cycle_num++;
 		}
+
+		reinit_completion(&cycle->timer_expired);
+		hrtimer_start_expires(&cycle->timer, HRTIMER_MODE_ABS);
+		wait_for_completion(&cycle->timer_expired);
 	}
+
+	hrtimer_cancel(&cycle->timer);
 
 	pr_info("piIO exit\n");
 	pr_info("Number of cycles: %llu\n", piCore_g.cycle_num);
-	pr_info("Cycle min: %u usecs\n", piCore_g.cycle_min);
-	pr_info("Cycle max: %u usecs\n", piCore_g.cycle_max);
+
+	write_seqlock(&cycle->lock);
+	pr_info("Cycle min: %u usecs\n", cycle->min);
+	pr_info("Cycle max: %u usecs\n", cycle->max);
+	write_sequnlock(&cycle->lock);
 
 	return 0;
 }
@@ -413,7 +436,7 @@ err_deinit_sniff_gpios:
 	return ret;
 }
 
-static int pibridge_probe(struct platform_device *pdev)
+int revpi_core_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -435,7 +458,6 @@ static int pibridge_probe(struct platform_device *pdev)
 	piCore_g.pendingGateTel = false;
 
 	rt_mutex_init(&piCore_g.lockBridgeState);
-	sema_init(&piCore_g.ioSem, 0);
 
 	/* set rt prio for spi PiBridge interfaces on RevPi Core or Connect */
 	if (piDev_g.revpi_gate_supported && (piDev_g.machine_type == REVPI_CORE || piDev_g.machine_type == REVPI_CONNECT )) {
@@ -466,46 +488,8 @@ err_deinit_gpios:
 	return ret;
 }
 
-#if KERNEL_VERSION(6, 11, 0) <= LINUX_VERSION_CODE
-static void pibridge_remove(struct platform_device *pdev)
-#else
-static int pibridge_remove(struct platform_device *pdev)
-#endif
+void revpi_core_remove(struct platform_device *pdev)
 {
 	kthread_stop(piCore_g.pIoThread);
 	deinit_gpios();
-
-#if KERNEL_VERSION(6, 11, 0) > LINUX_VERSION_CODE
-	return 0;
-#endif
-}
-
-static const struct of_device_id of_pibridge_match[] = {
-	{ .compatible = "kunbus,pibridge", },
-	{},
-};
-
-static struct platform_driver pibridge_driver = {
-	.probe		= pibridge_probe,
-	.remove 	= pibridge_remove,
-	.driver		= {
-		.name	= "pibridge",
-		.of_match_table = of_pibridge_match,
-	},
-};
-
-int revpi_core_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&pibridge_driver);
-	if (ret)
-		pr_err("failed to register pibridge driver: %i\n", ret);
-
-	return ret;
-}
-
-void revpi_core_fini(void)
-{
-	platform_driver_unregister(&pibridge_driver);
 }

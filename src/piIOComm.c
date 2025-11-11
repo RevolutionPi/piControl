@@ -14,30 +14,6 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 {
 	int written;
 
-#ifdef DEBUG_SERIALCOMM
-	if (i16uLen_p == 1) {
-		pr_info("send %d: %02x\n", i16uLen_p, buf_p[0]);
-	} else if (i16uLen_p == 2) {
-		pr_info("send %d: %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1]);
-	} else if (i16uLen_p == 3) {
-		pr_info("send %d: %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2]);
-	} else if (i16uLen_p == 4) {
-		pr_info("send %d: %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3]);
-	} else if (i16uLen_p == 5) {
-		pr_info("send %d: %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4]);
-	} else if (i16uLen_p == 6) {
-		pr_info("send %d: %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5]);
-	} else if (i16uLen_p == 7) {
-		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6]);
-	} else if (i16uLen_p == 8) {
-		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x %02x\n", i16uLen_p, buf_p[0], buf_p[1], buf_p[2],
-			buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7]);
-	} else {
-		pr_info("send %d: %02x %02x %02x %02x %02x %02x %02x %02x %02x ...\n", i16uLen_p, buf_p[0], buf_p[1],
-			buf_p[2], buf_p[3], buf_p[4], buf_p[5], buf_p[6], buf_p[7], buf_p[8]);
-	}
-	//pr_info("vfs_write(%d, %d, %d)\n", (int)piIoComm_fd_m, i16uLen_p, (int)piIoComm_fd_m->f_pos);
-#endif
 	/* First clear receive FIFO to remove stale data */
 	pibridge_clear_fifo();
 
@@ -119,7 +95,7 @@ void piIoComm_writeSniff(struct gpio_desc *pGpio, EGpioValue eVal_p, EGpioMode e
 	}
 }
 
-EGpioValue piIoComm_readSniff1A()
+EGpioValue piIoComm_readSniff1A(void)
 {
 	EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1a);
 	trace_picontrol_sniffpin_1a_read(v);
@@ -129,7 +105,7 @@ EGpioValue piIoComm_readSniff1A()
 	return v;
 }
 
-EGpioValue piIoComm_readSniff1B()
+EGpioValue piIoComm_readSniff1B(void)
 {
 	if (!piDev_g.only_left_pibridge) {
 		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1b);
@@ -142,7 +118,7 @@ EGpioValue piIoComm_readSniff1B()
 	return enGpioValue_Low;
 }
 
-EGpioValue piIoComm_readSniff2A()
+EGpioValue piIoComm_readSniff2A(void)
 {
 	EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2a);
 	trace_picontrol_sniffpin_2a_read(v);
@@ -152,7 +128,7 @@ EGpioValue piIoComm_readSniff2A()
 	return v;
 }
 
-EGpioValue piIoComm_readSniff2B()
+EGpioValue piIoComm_readSniff2B(void)
 {
 	if (!piDev_g.only_left_pibridge) {
 		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2b);
@@ -199,6 +175,9 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 		pr_info_serial("Error sending gate request: %i\n", ret);
 		return ret;
 	}
+
+	if (pi16uRecvDataLen_p)
+		*pi16uRecvDataLen_p = ret;
 
 	return 0;
 }

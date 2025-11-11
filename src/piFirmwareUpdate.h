@@ -16,7 +16,8 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p);
 int flash_firmware(unsigned int dev_addr, unsigned int flash_addr,
 		   unsigned char *upload_data, unsigned int upload_len);
 int erase_flash(unsigned int dev_addr);
-int upload_firmware(SDevice *sdev, const struct firmware *fw,
-		    u32 mask);
+int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
+		    unsigned int module_type, unsigned int hw_rev);
+
 
 #endif // PIFIRMWAREUPDATE_H

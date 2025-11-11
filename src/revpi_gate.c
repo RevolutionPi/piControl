@@ -367,7 +367,7 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 		goto drop;
 	}
 
-	pr_info("%s: id response (module type %hu hw V%hu sw V%hu.%hu svn %u serial %u mac %pM)\n",
+	pr_info("%s: id response from gateway (module type %hu hw V%hu sw V%hu.%hu svn %u serial %u mac %pM)\n",
 		dev->name, rcv_al->i16uModulType, rcv_al->i16uHW_Revision,
 		rcv_al->i16uSW_Major, rcv_al->i16uSW_Minor,
 		rcv_al->i32uSVN_Revision, rcv_al->i32uSerialnumber,
@@ -434,7 +434,7 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 		goto drop;
 
 	if (!conn) {
-		pr_info("%s: id request\n", dev->name);
+		pr_debug("%s: id request\n", dev->name);
 		rcv_tl = (MODGATECOM_TransportLayer *)skb_network_header(rcv);
 
 		conn = kzalloc(sizeof(*conn), GFP_ATOMIC);

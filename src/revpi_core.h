@@ -7,11 +7,17 @@
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
+#include <linux/pibridge_comm.h>
+#include <linux/platform_device.h>
 
 #include "ModGateRS485.h"
 #include "piControlMain.h"
 #include "PiBridgeMaster.h"
 #include "RevPiDevice.h"
+
+#define PICONTROL_CYCLE_MIN_DURATION		500
+#define PICONTROL_DEFAULT_CYCLE_DURATION	PICONTROL_CYCLE_MIN_DURATION /* as fast as possible */
+#define PICONTROL_CYCLE_MAX_DURATION		45000 /* usecs */
 
 typedef enum {
 	piBridgeStop = 0,
@@ -79,22 +85,13 @@ typedef struct _SRevPiCore {
 	struct rt_mutex lockGateTel;
 	struct semaphore semGateTel;
 	bool pendingGateTel;
-	INT16U i16uCmdGateTel;
-	INT8U i8uAddressGateTel;
-	INT8U ai8uSendDataGateTel[MAX_TELEGRAM_DATA_SIZE];
-	INT8U i8uSendDataLenGateTel;
-	INT8U ai8uRecvDataGateTel[MAX_TELEGRAM_DATA_SIZE];
-	INT16U i16uRecvDataLenGateTel;
+	struct pibridge_gate_datagram gate_req_dgram;
+	struct pibridge_gate_datagram gate_resp_dgram;
 	int statusGateTel;
 
 	// piIO thread
 	struct task_struct *pIoThread;
-	struct hrtimer ioTimer;
-	struct semaphore ioSem;
 
-	// cycle time measurement
-	unsigned int cycle_min; /* usecs */
-	unsigned int cycle_max; /* usecs */
 	u64 cycle_num;
 	/* Number of communication errors */
 	u32 comm_errors;
@@ -102,10 +99,9 @@ typedef struct _SRevPiCore {
 } SRevPiCore;
 
 extern SRevPiCore piCore_g;
-extern unsigned int picontrol_max_cycle_deviation;
 
 u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type);
 void revpi_core_gate_connected(SDevice *revpi_dev, bool connected);
-int revpi_core_init(void);
-void revpi_core_fini(void);
+int revpi_core_probe(struct platform_device *pdev);
+void revpi_core_remove(struct platform_device *pdev);
 #endif /* _REVPI_CORE_H */

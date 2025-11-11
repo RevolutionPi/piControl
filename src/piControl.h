@@ -39,10 +39,14 @@
 
 struct picontrol_firmware_upload {
 	__u32 addr;
+/* upload regardless of FW version */
 #define PICONTROL_FIRMWARE_FORCE_UPLOAD		0x0001
+/* do firmware upload in module rescue mode */
+#define PICONTROL_FIRMWARE_RESCUE_MODE		0x0002 /* no FWU MODE switch */
 	__u32 flags;
+	__u8 rescue_mode_hw_revision;
 	/* Memory is cheap, so reserve a few bytes for future extensions */
-	__u32 padding[4];
+	__u8 padding[15];
 };
 
 typedef struct SDeviceInfoStr {

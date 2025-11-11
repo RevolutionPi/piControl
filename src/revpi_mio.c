@@ -128,6 +128,7 @@ static unsigned int revpi_chnl_compress(void *dst, void *src,
 
 int revpi_mio_cycle(unsigned char devno)
 {
+	SMioAnalogRequestData pending_values;
 	SMioAnalogRequestData io_req_ex;
 	struct mio_img_out *img_out;
 	SMioAnalogRequestData *last;
@@ -158,19 +159,34 @@ int revpi_mio_cycle(unsigned char devno)
 	io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
 
 	if (io_req_ex.i8uChannels) {
-		memcpy(&last->i16uOutputVoltage,
+		/* preserve analog output values for later caching */
+		memcpy(&pending_values.i16uOutputVoltage,
 			&img_out->aio.i16uOutputVoltage,
 			sizeof(unsigned short) * MIO_AIO_PORT_CNT);
-
 		ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
-						&img_out->aio.i16uOutputVoltage,
+						&pending_values.i16uOutputVoltage,
 						io_req_ex.i8uChannels, 2);
 	}
 	rt_mutex_unlock(&piDev_g.lockPI);
-	return revpi_mio_cycle_aio(dev, &io_req_ex, ch_cnt, &img_in->aio);
+	ret = revpi_mio_cycle_aio(dev, &io_req_ex, ch_cnt, &img_in->aio);
+
+	if (ret)
+		return ret;
+
+	/*
+	 * Only cache analog output values if data was sent successfully
+	 * and at least one channel was updated.
+	 */
+	if (io_req_ex.i8uChannels) {
+		memcpy(&last->i16uOutputVoltage,
+			&pending_values.i16uOutputVoltage,
+			sizeof(unsigned short) * MIO_AIO_PORT_CNT);
+		}
+
+	return 0;
 }
 
-void revpi_mio_reset()
+void revpi_mio_reset(void)
 {
 	mio_cnt = 0;
 	memset(mio_aio_request_last, 0, sizeof(mio_aio_request_last));
@@ -199,7 +215,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 	/*1=output(Fixed Output)*/
 	conf->aio_o.i8uDirection = 1;
 
-	pr_info("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd)\n",
+	pr_debug("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd)\n",
 		addr, e_cnt, mio_cnt, MIO_CONF_BASE);
 
 	for (i = 0; i < e_cnt; i++) {
@@ -256,9 +272,9 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		}
 	}
 
-	pr_info("dio  :%*ph\n", (int) sizeof(conf->dio), &conf->dio);
-	pr_info("aio-i:%*ph\n", (int) sizeof(conf->aio_i), &conf->aio_i);
-	pr_info("aio-o:%*ph\n", (int) sizeof(conf->aio_o), &conf->aio_o);
+	pr_debug("dio  :%*ph\n", (int) sizeof(conf->dio), &conf->dio);
+	pr_debug("aio-i:%*ph\n", (int) sizeof(conf->aio_i), &conf->aio_i);
+	pr_debug("aio-o:%*ph\n", (int) sizeof(conf->aio_o), &conf->aio_o);
 
 	mio_cnt++;
 
@@ -274,11 +290,11 @@ int revpi_mio_init(unsigned char devno)
 
 	addr = RevPiDevice_getDev(devno)->i8uAddress;
 
-	pr_info("MIO Initializing...(devno:%d, addr:%d, conf-base:%zd)\n",
+	pr_debug("MIO Initializing...(devno:%d, addr:%d, conf-base:%zd)\n",
 						devno, addr, MIO_CONF_BASE);
 
 	for (i = 0; i < mio_cnt; i++) {
-		pr_info("search mio conf(index:%d, addr:%d)\n", i,
+		pr_debug("search mio conf(index:%d, addr:%d)\n", i,
 			mio_list[i].addr);
 
 		if (mio_list[i].addr == addr) {
@@ -315,7 +331,7 @@ int revpi_mio_init(unsigned char devno)
 		pr_err("talk with mio for conf aio_o err(devno:%d, ret:%d)\n",
 		       devno, ret);
 
-	pr_info("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
+	pr_debug("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
 
 	return 0;
 }

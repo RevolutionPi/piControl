@@ -6,6 +6,7 @@
 #define PICONTROL_INTERN_H
 
 #include "piControl.h"
+#include "IoProtocol.h"
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
@@ -17,8 +18,39 @@
 // the following call are for KUNBUS internal use only.
 /* set serial num in piDIO, piDI or piDO (can be made only once) */
 #define  KB_INTERN_SET_SERIAL_NUM			_IO(KB_IOC_MAGIC, 100 )
+/* 'Hidden' structure that can be used by userspace for internal io telegrams */
+struct io_telegram {
+	__u8 dest      :6;
+	__u8 type      :1;   /* must be 0 for header type 1 */
+	__u8 response  :1;   /* 0 for request, 1 for response */
+	__u8 datalen   :5;
+	__u8 command   :3;   /* 0 for broadcast*/
+	__u8 data[IOPROTOCOL_MAXDATA_LENGTH + 1];
+} __attribute__((__packed__));
+
+struct io_telegram2 {
+	__u8 command   :6;
+	__u8 type      :1;   /* must be 1 for header type 2 */
+	__u8 response  :1;   /* 0 for request, 1 for response */
+	__u8 datalen   :5;
+	__u8 dpart1    :3;
+	__u8 data[IOPROTOCOL_MAXDATA_LENGTH + 1];
+} __attribute__((__packed__));
+
 /* send an I/O-Protocol message and return response */
 #define  KB_INTERN_IO_MSG				_IO(KB_IOC_MAGIC, 101 )
+/* 'Hidden' structure that can be used by userspace for internal gateway telegrams */
+struct modgate_telegram {
+	__u8 dest;
+	__u8 src;
+	__u16 command;
+	__u16 sequence;
+	__u8 datalen;
+	__u8 data[MAX_TELEGRAM_DATA_SIZE];
+} __attribute__((__packed__));
+
+/* send a Gateway-Protocol message and return response */
+#define  KB_INTERN_GATE_MSG				_IO(KB_IOC_MAGIC, 102)
 
 typedef struct SEntryInfoStr
 {

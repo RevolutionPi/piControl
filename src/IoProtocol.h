@@ -242,7 +242,7 @@ typedef struct {
 // Input configuration
 typedef struct {
     EAioInputRange      eInputRange : 4;
-    EAioInputSampleRate i8uReserve : 4;
+    INT8U               i8uReserve : 4;
     // Scaling input values val = A1/A2*x + B
     INT16S              i16sA1; // Scaling A1
     INT16U              i16uA2; // Scaling A2

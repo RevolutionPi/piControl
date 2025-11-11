@@ -14,6 +14,7 @@
 #include <linux/spi/max3191x.h>
 #include <linux/spi/spi.h>
 #include <linux/thermal.h>
+#include <linux/platform_device.h>
 
 #include "piControlMain.h"
 #include "process_image.h"
@@ -71,6 +72,7 @@ static struct gpiod_lookup_table revpi_compact_gpios = {
 		    GPIO_LOOKUP_IDX("74hc595", 5, "dout", 5, 0),
 		    GPIO_LOOKUP_IDX("74hc595", 6, "dout", 6, 0),
 		    GPIO_LOOKUP_IDX("74hc595", 7, "dout", 7, 0),
+		    {}
 		  },
 };
 
@@ -529,7 +531,7 @@ void revpi_compact_adjust_config(void)
 	kfree(state);
 }
 
-int revpi_compact_init(void)
+int revpi_compact_probe(struct platform_device *pdev)
 {
 	SRevPiCompact *machine;
 	struct device *dev;
@@ -545,6 +547,7 @@ int revpi_compact_init(void)
 	machine->ain_should_reset = true;
 	init_completion(&machine->ain_reset);
 	gpiod_add_lookup_table(&revpi_compact_gpios);
+	seqlock_init(&machine->stats.lock);
 
 	machine->din =  gpiod_get_array(piDev_g.dev, "din", GPIOD_ASIS);
 	if (IS_ERR(machine->din)) {
@@ -711,7 +714,7 @@ err_remove_table:
 	return ret;
 }
 
-void revpi_compact_fini(void)
+void revpi_compact_remove(struct platform_device *pdev)
 {
 	SRevPiCompact *machine = (SRevPiCompact *)piDev_g.machine;
 
@@ -738,7 +741,7 @@ void revpi_compact_fini(void)
 	piDev_g.machine = NULL;
 }
 
-int revpi_compact_reset()
+int revpi_compact_reset(void)
 {
 	SRevPiCompact *machine = piDev_g.machine;
 	SRevPiCompactImage *image = (SRevPiCompactImage *)piDev_g.ai8uPI +

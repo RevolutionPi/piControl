@@ -37,6 +37,19 @@ enum {
 	REVPI_PIBRIDGE_ETHERNET_GPIO_DETECT
 };
 
+struct picontrol_cycle {
+	struct hrtimer timer;
+	struct completion timer_expired;
+	unsigned int duration; /* usecs */
+	unsigned int max_deviation;
+	u64 exceeded;
+	u64 missed;
+	unsigned int last;
+	unsigned int max;
+	unsigned int min;
+	seqlock_t lock;
+};
+
 typedef struct spiControlDev {
 	// device driver stuff
 	enum revpi_machine machine_type;
@@ -57,6 +70,7 @@ typedef struct spiControlDev {
 	INT8U ai8uPIDefault[KB_PI_LEN];
 	struct rt_mutex lockPI;
 #define PICONTROL_DEV_FLAG_STOP_IO		(1 << 0)
+#define PICONTROL_DEV_FLAG_RUNNING		(2 << 0)
 	unsigned long flags;
 	piDevices *devs;
 	piEntries *ent;
@@ -92,6 +106,8 @@ typedef struct spiControlDev {
 	/* Gigabit ethernet on PiBridge */
 	bool pibridge_mode_ethernet_left;
 	bool pibridge_mode_ethernet_right;
+	/* PiControl cycle attributes */
+	struct picontrol_cycle cycle;
 } tpiControlDev;
 
 typedef struct spiEventEntry {
@@ -118,5 +134,6 @@ extern tpiControlDev piDev_g;
 
 bool isRunning(void);
 void printUserMsg(tpiControlInst *priv, const char *s, ...);
+unsigned int piControl_get_cycle_duration(void);
 
 #endif /* PRODUCTS_PIBASE_PIKERNELMOD_PICONTROLINTERN_H_ */
