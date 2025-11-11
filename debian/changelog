@@ -1,3 +1,101 @@
+picontrol (2.4.0-1+deb12+1) bookworm; urgency=medium
+
+  [ Thomas Böhler ]
+  * Build for linux-image-6.12.56-revpi0-rpi-v8 (= 6.12.56-revpi0-
+    1+deb12+1)
+
+  [ Nicolai Buchwitz ]
+  * Fix SAioInputConfig
+
+  [ Lino Sanfilippo ]
+  * Remove wrapper function revpi_pbm_cont_mio()
+  * Move module configuration into own function
+  * Do not set flag in every cycle
+  * Fix flaw in parser function
+  * On flash erase failure skip the warning concerning attempts
+  * compact: fix missing lock initialization
+  * Reduce number of attempts to erase the flash
+
+  [ Nicolai Buchwitz ]
+  * piControl: Flush error messages in counter reset
+
+  [ Lino Sanfilippo ]
+  * Fix start of cycle measurement
+  * Fix io cycle interval duration
+  * Dont use different cycle times for init and running state
+  * Get starting time for first cycle
+  * Do not use different calculations for cycle time
+  * Make cycle attributes accessible via sysfs
+
+  [ Nicolai Buchwitz ]
+  * Cleanup unused code
+  * Use pr_debug() for debug output
+  * Add context to log messages
+  * piControl: allow reset ioctl while bridge is stopped
+  * core: eliminate code duplication in revpi_core_find_gate()
+  * mio: fix analog cache corruption on communication failure
+
+  [ Lino Sanfilippo ]
+  * As default make cycle time as fast as possible
+  * Fix function parameter alignment
+  * Provide module parameter for cycle duration
+  * Make max cycle deviation accessible vias sysfs
+  * Make the number of exceeded cycles accessible via sysfs
+  * Handle deviation differently for fixed cycles
+
+  [ Nicolai Buchwitz ]
+  * Skip firmware update for disconnected modules
+
+  [ Thomas Böhler ]
+  * specify void for functions without parameters
+
+  [ Lino Sanfilippo ]
+  * Do not override result for KB_INTERN_IO_MSG
+  * Set data len in IO telegram response
+  * Move code to send internal io telegrams into own function
+  * Fix locking for io telegrams
+  * Protect io telegram from concurrent access
+  * Do not override result for KB_CONFIG_SEND
+  * Move code to send internal gate telegrams into own function
+  * Fix locking for gate telegrams
+  * Protect gate telegram from concurrent access
+  * Add new ioctl to send generic gate telegrams
+  * Allow to send gate/io telegrams in any state
+  * Add structure definitions for io telegrams
+  * Avoid code duplication for internal telegrams
+  * Set receive len for gate telegrams
+  * Make the sequence number available in internal gate datatagrams
+  * Adjust handling of gate telegrams to new api return values
+  * Implement cycle timer with fixed time grid
+  * Change semantic for resetting cycle min, max and exceeded values
+  * Make missed cycles accessible via sysfs
+
+  [ Thomas Böhler ]
+  * ci: include global-vars.yml for coverity-submit
+  * fix spelling of io-cycle in module parameters
+
+  [ Lino Sanfilippo ]
+  * compact: do not forget sentinel in lookup table
+  * Register platform device driver also for Flat and Compact
+  * Use flag to check the PiBridge running state
+
+  [ Thomas Böhler ]
+  * avoid piControl_init_sysfs clean up before use
+
+  [ Lino Sanfilippo ]
+  * Implement firmware rescue feature
+  * Fix gateway datagram reception
+  * Revise the error values returned to userspace
+  * Remove useless checks in piControlRead
+  * Map internal message errors to -EIO
+
+  [ Thomas Böhler ]
+  * Release v2.4.0
+  * feat(deb): linux package name includes sublevel
+  * fix(deb): correct spelling of description
+
+ -- Thomas Böhler <t.boehler@kunbus.com>  Tue, 11 Nov 2025 12:49:53 +0100
+
 picontrol (2.3.7-1+deb12+1) bookworm; urgency=medium
 
   [ Ramiro Gsponer ]
