@@ -15,9 +15,9 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 	int written;
 
 	/* First clear receive FIFO to remove stale data */
-	pibridge_clear_fifo();
+	pibridge_clear_fifo(piCore_g.pibridge);
 
-	written = pibridge_send(buf_p, i16uLen_p);
+	written = pibridge_send(piCore_g.pibridge, buf_p, i16uLen_p);
 	if (written < 0) {
 		pr_info_serial("pibridge_send error: %i\n", written);
 		return written;
@@ -166,9 +166,9 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 	if (i8uSendDataLen_p > 0 && pi8uSendData_p[0] == 'F')
 		timeout = 1000; // ms
 
-	ret = pibridge_req_gate_tmt(i8uAddress_p, i16uCmd_p, pi8uSendData_p,
-				    i8uSendDataLen_p, pi8uRecvData_p,
-				    rcvlen, timeout);
+	ret = pibridge_req_gate_tmt(piCore_g.pibridge, i8uAddress_p, i16uCmd_p,
+				    pi8uSendData_p, i8uSendDataLen_p,
+				    pi8uRecvData_p, rcvlen, timeout);
 	if (ret != rcvlen) {
 		if (ret >= 0)
 			ret = -EIO;

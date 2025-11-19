@@ -7,6 +7,7 @@
 #include "piAIOComm.h"
 #include "piControlMain.h"
 #include "revpi_common.h"
+#include "revpi_core.h"
 #include "RevPiDevice.h"
 
 #define AIO_MAX_DEVS			10
@@ -230,24 +231,24 @@ u32 piAIOComm_Init(u8 devnum)
 	snd_buf = &aioIn1Config_s[dev_idx];
 
 	pr_info_aio("piAIOComm_Init send configIn1\n");
-	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA2, snd_buf,
-			      AIO_CONFIG_DATA2_LEN, NULL, 0);
+	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA2,
+			      snd_buf, AIO_CONFIG_DATA2_LEN, NULL, 0);
 	if (ret)
 		return 3;
 
 	snd_buf = &aioIn2Config_s[dev_idx];
 
 	pr_info_aio("piAIOComm_Init send configIn2\n");
-	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA3, snd_buf,
-			      AIO_CONFIG_DATA3_LEN, NULL, 0);
+	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA3,
+			      snd_buf, AIO_CONFIG_DATA3_LEN, NULL, 0);
 	if (ret)
 		return 3;
 
 	snd_buf = &aioConfig_s[dev_idx];
 
 	pr_info_aio("piAIOComm_Init send config\n");
-	ret = pibridge_req_io(addr, IOP_TYP1_CMD_CFG, snd_buf,
-			      AIO_CONFIG_DATA1_LEN, NULL, 0);
+	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
+			      snd_buf, AIO_CONFIG_DATA1_LEN, NULL, 0);
 	if (ret)
 		return 3;
 
@@ -280,8 +281,9 @@ u32 piAIOComm_sendCyclicTelegram(u8 devnum)
 		memset(snd_buf, 0, AIO_OUTPUT_DATA_LEN);
 	}
 
-	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA, snd_buf,
-			      AIO_OUTPUT_DATA_LEN, rcv_buf, AIO_INPUT_DATA_LEN);
+	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA,
+			      snd_buf, AIO_OUTPUT_DATA_LEN, rcv_buf,
+			      AIO_INPUT_DATA_LEN);
 	if (ret != AIO_INPUT_DATA_LEN) {
 		pr_debug("AIO addr %2d: communication failed (req:%zu,ret:%d)\n",
 			addr, AIO_INPUT_DATA_LEN, ret);

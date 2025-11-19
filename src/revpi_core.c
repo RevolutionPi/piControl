@@ -443,6 +443,13 @@ int revpi_core_probe(struct platform_device *pdev)
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 
+	piCore_g.pibridge = pibridge_get();
+	if (!piCore_g.pibridge) {
+		dev_dbg(piDev_g.dev,
+			"Failed to grab pibridge instance, deferring probe...\n");
+		return -EPROBE_DEFER;
+	}
+
 	ret = init_gpios(pdev);
 	if (ret) {
 		dev_err(piDev_g.dev, "Failed to init gpios: %i\n", ret);

@@ -112,7 +112,8 @@ void RevPiDevice_handle_internal_telegrams(void)
 		/* avoid leaking response of previous telegram to user space */
 		memset(resp, 0, sizeof(*resp));
 
-		ret = pibridge_req_io(hdr->sHeaderTyp1.bitAddress,
+		ret = pibridge_req_io(piCore_g.pibridge,
+				      hdr->sHeaderTyp1.bitAddress,
 				      hdr->sHeaderTyp1.bitCommand,
 				      req->ai8uData,
 				      hdr->sHeaderTyp1.bitLength,
@@ -131,8 +132,10 @@ void RevPiDevice_handle_internal_telegrams(void)
 
 	rt_mutex_lock(&piCore_g.lockGateTel);
 	if (piCore_g.pendingGateTel == true) {
-		piCore_g.statusGateTel = pibridge_req_gate_datagram(&piCore_g.gate_req_dgram,
-								    &piCore_g.gate_resp_dgram);
+		piCore_g.statusGateTel =
+			pibridge_req_gate_datagram(piCore_g.pibridge,
+						   &piCore_g.gate_req_dgram,
+						   &piCore_g.gate_resp_dgram);
 		piCore_g.pendingGateTel = false;
 		up(&piCore_g.semGateTel);
 	}
