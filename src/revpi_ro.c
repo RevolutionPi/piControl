@@ -7,6 +7,7 @@
 
 #include "piControlMain.h"
 #include "revpi_common.h"
+#include "revpi_core.h"
 #include "revpi_ro.h"
 #include "RevPiDevice.h"
 
@@ -91,8 +92,9 @@ int revpi_ro_init(unsigned int devnum)
 	if (i == num_devices)
 		return 4;  // unknown device
 
-	return pibridge_req_io(addr, IOP_TYP1_CMD_CFG, &itm->config,
-			       sizeof(struct revpi_ro_config), NULL, 0);
+	return pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
+			       &itm->config, sizeof(struct revpi_ro_config),
+			       NULL, 0);
 }
 
 int revpi_ro_cycle(unsigned int devnum)
@@ -115,8 +117,8 @@ int revpi_ro_cycle(unsigned int devnum)
 	state_out = img_out->target_state;
 	rt_mutex_unlock(&piDev_g.lockPI);
 
-	ret = pibridge_req_io(dev->i8uAddress, IOP_TYP1_CMD_DATA,
-			      &state_out, sizeof(state_out),
+	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
+			      IOP_TYP1_CMD_DATA, &state_out, sizeof(state_out),
 			      &status_in, sizeof(status_in));
 
 	if (ret != sizeof(status_in)) {

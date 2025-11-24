@@ -102,7 +102,8 @@ INT32U piDIOComm_Init(INT8U i8uDevice_p)
 		if (dioConfig_s[i].i8uAddr == addr) {
 			snd_buf = (u8 *) &dioConfig_s[i].i16uOutputPushPull;
 
-			ret = pibridge_req_io(addr, IOP_TYP1_CMD_CFG, snd_buf,
+			ret = pibridge_req_io(piCore_g.pibridge, addr,
+					      IOP_TYP1_CMD_CFG, snd_buf,
 					      snd_len, NULL, 0);
 			break;
 		}
@@ -172,7 +173,8 @@ INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
 
 	rcv_len = 3 * sizeof(u16) + i8uNumCounter[addr] * sizeof(u32);
 
-	ret = pibridge_req_io(addr, cmd, snd_buf, snd_len, in_buf, rcv_len);
+	ret = pibridge_req_io(piCore_g.pibridge, addr, cmd, snd_buf, snd_len,
+			      in_buf, rcv_len);
 	if (ret != rcv_len) {
 		pr_debug("DIO addr %2d: communication failed (req:%u,ret:%d)\n",
 			addr, rcv_len, ret);

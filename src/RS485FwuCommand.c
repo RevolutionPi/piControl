@@ -7,6 +7,7 @@
 #include <linux/pibridge_comm.h>
 
 #include "ModGateRS485.h"
+#include "revpi_core.h"
 #include "piIOComm.h"
 #include "RS485FwuCommand.h"
 
@@ -15,7 +16,8 @@ int fwuEnterFwuMode(u8 address)
 	int ret;
 
 	/* Ignore the response for this command */
-	ret = pibridge_req_send_gate(address, eCmdSetFwUpdateMode, NULL, 0);
+	ret = pibridge_req_send_gate(piCore_g.pibridge, address,
+				     eCmdSetFwUpdateMode, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -33,9 +35,9 @@ int fwuWriteSerialNum (u8 address, u32 sernum)
 	 * Allow an extra 100 msec before expecting a response.
 	 * The response consists of an error code which is 0 on success.
 	 */
-	ret = pibridge_req_gate_tmt(address, eCmdWriteSerialNumber,
-				    &sernum, sizeof(sernum),
-				    &err, sizeof(err),
+	ret = pibridge_req_gate_tmt(piCore_g.pibridge, address,
+				    eCmdWriteSerialNumber, &sernum,
+				    sizeof(sernum), &err, sizeof(err),
 				    REV_PI_IO_TIMEOUT + 100);
 	if (ret < 0)
 		return ret;
@@ -65,10 +67,9 @@ int fwuEraseFlash (u8 address)
 	 * Allow 6 sec before expecting a response.
 	 * The response consists of an error code which is 0 on success.
 	 */
-	ret = pibridge_req_gate_tmt(address, eCmdEraseFwFlash,
-				    NULL, 0,
-				    &err, sizeof(err),
-				    6000);
+	ret = pibridge_req_gate_tmt(piCore_g.pibridge, address,
+				    eCmdEraseFwFlash, NULL, 0, &err,
+				    sizeof(err), 6000);
 	if (ret < 0)
 		return ret;
 
@@ -103,10 +104,10 @@ int fwuWrite(u8 address, u32 flashAddr, char *data, u32 length)
 	 * Allow 1 sec before expecting a response.
 	 * The response consists of an error code which is 0 on success.
 	 */
-	ret = pibridge_req_gate_tmt(address, eCmdWriteFwFlash,
-				    sendbuf, sizeof(flashAddr) + length,
-				    &err, sizeof(err),
-				    1000);
+	ret = pibridge_req_gate_tmt(piCore_g.pibridge, address,
+				    eCmdWriteFwFlash, sendbuf,
+				    sizeof(flashAddr) + length, &err,
+				    sizeof(err), 1000);
 	if (ret < 0)
 		return ret;
 
@@ -130,7 +131,8 @@ int fwuResetModule (u8 address)
 	int ret;
 
 	/* There is no response for this command. */
-	ret = pibridge_req_send_gate(address, eCmdResetModule, NULL, 0);
+	ret = pibridge_req_send_gate(piCore_g.pibridge, address,
+				     eCmdResetModule, NULL, 0);
 	if (ret)
 		return ret;
 

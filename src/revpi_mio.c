@@ -28,8 +28,9 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 	memcpy(&req, req_data, sizeof(req));
 	rt_mutex_unlock(&piDev_g.lockPI);
 
-	ret = pibridge_req_io(dev->i8uAddress, IOP_TYP1_CMD_DATA,
-			      &req, sizeof(req), &resp, sizeof(resp));
+	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
+			      IOP_TYP1_CMD_DATA, &req, sizeof(req), &resp,
+			      sizeof(resp));
 	if (ret != sizeof(resp)) {
 		pr_debug("MIO addr %2d: dio communication failed (req:%zu,ret:%d)\n",
 			dev->i8uAddress, sizeof(resp), ret);
@@ -55,9 +56,10 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 	SMioAnalogResponseData resp;
 	int ret;
 
-	ret = pibridge_req_io(dev->i8uAddress, IOP_TYP1_CMD_DATA2,
-			      req_data, sizeof(*req_data) - compressed,
-			      &resp, sizeof(resp));
+	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
+			      IOP_TYP1_CMD_DATA2, req_data,
+			      sizeof(*req_data) - compressed, &resp,
+			      sizeof(resp));
 	if (ret != sizeof(resp)) {
 		pr_debug("MIO addr %2d: aio communication failed (req:%zd,ret:%d)\n",
 			dev->i8uAddress, sizeof(resp), ret);
@@ -310,7 +312,7 @@ int revpi_mio_init(unsigned char devno)
 	}
 
 	/*dio*/
-	ret = pibridge_req_io(addr, IOP_TYP1_CMD_CFG,
+	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
 			      &conf->dio, sizeof(conf->dio), NULL, 0);
 	if (ret) {
 		pr_err("talk with mio for conf dio err(devno:%d, ret:%d)\n",
@@ -318,14 +320,14 @@ int revpi_mio_init(unsigned char devno)
 	}
 
 	/*aio in*/
-	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA4,
+	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
 			      &conf->aio_i, sizeof(conf->aio_i), NULL, 0);
 	if (ret)
 		pr_err("talk with mio for conf aio_i err(devno:%d, ret:%d)\n",
 		       devno, ret);
 
 	/*aio out*/
-	ret = pibridge_req_io(addr, IOP_TYP1_CMD_DATA4,
+	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
 			      &conf->aio_o, sizeof(conf->aio_o), NULL, 0);
 	if (ret)
 		pr_err("talk with mio for conf aio_o err(devno:%d, ret:%d)\n",

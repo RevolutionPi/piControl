@@ -46,6 +46,8 @@ typedef struct _SRevPiProcessImage {
 } __attribute__ ((__packed__)) SRevPiProcessImage;
 
 typedef struct _SRevPiCore {
+	/* pibridge instance for PiBridge communication */
+	struct pibridge *pibridge;
 	SRevPiProcessImage image;
 
 	// piGate stuff
