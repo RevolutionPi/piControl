@@ -44,7 +44,7 @@ For a new release the following steps should be done:
 
 1. merge the upstream tag (only needed for new upstream versions)
 2. execute `./debian/bin/gencontrol.sh $UPSTREAM_VERSION $KERNEL_PKG_VERSION`
-3. run `gbp dch -RD bookworm` (check the changelog file for the correct distro version)
+3. run `gbp dch -RD trixie` (check the changelog file for the correct distro version)
 4. commit the changes:
    - `git add debian/{control,changelog,rules.vars}`
    - `git commit -seF commit-msg.txt && rm commit-msg.txt`

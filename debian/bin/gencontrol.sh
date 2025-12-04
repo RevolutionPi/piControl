@@ -14,7 +14,7 @@ set -e
 
 # This is the major version of the Debian distribution
 # Bullseye: 11, Bookworm: 12, Trixie: 13, ...
-DISTRO_VERSION=12
+DISTRO_VERSION=13
 
 usage() {
 	cat <<- __EOF__
@@ -153,10 +153,10 @@ cat <<- EOF > "$debdir/control"
 	  debhelper-compat (= 13),
 	  dh-sequence-dkms,
 	  linux-headers-${pkg_append} (= ${kernel_pkg_ver}),
-	Standards-Version: 4.6.2
+	Standards-Version: 4.7.2
 	Homepage: https://revolutionpi.com/
 	Rules-Requires-Root: no
-	Vcs-Git: https://gitlab.com/revolutionpi/piControl.git -b debian/bookworm
+	Vcs-Git: https://gitlab.com/revolutionpi/piControl.git -b debian/trixie
 	Vcs-Browser: https://gitlab.com/revolutionpi/piControl/
 
 	Package: picontrol-${pkg_append}
