@@ -8,7 +8,7 @@ Maintainer: KUNBUS GmbH <support@kunbus.com>
 Build-Depends:
   debhelper-compat (= 13),
   dh-sequence-dkms,
-  linux-headers-6.12.56-revpi1-rpi-v8 (= 6.12.56-revpi1-1+deb13+1),
+  linux-headers-6.12.56-revpi1-rpi-v8 (= 6.12.56-revpi1-1+deb13+2),
 Standards-Version: 4.7.2
 Homepage: https://revolutionpi.com/
 Rules-Requires-Root: no
@@ -18,7 +18,7 @@ Vcs-Browser: https://gitlab.com/revolutionpi/piControl/
 Package: picontrol-6.12.56-revpi1-rpi-v8
 Architecture: any
 Depends:
-  linux-image-6.12.56-revpi1-rpi-v8 (= 6.12.56-revpi1-1+deb13+1),
+  linux-image-6.12.56-revpi1-rpi-v8 (= 6.12.56-revpi1-1+deb13+2),
   picontrol-common,
   ${misc:Depends},
 Conflicts: picontrol-dkms
@@ -28,7 +28,7 @@ Description: RevPi piControl kernel module package
  consume via /dev/piControl0.
  .
  This package is built for linux-image-6.12.56-revpi1-rpi-v8
- (= 6.12.56-revpi1-1+deb13+1).
+ (= 6.12.56-revpi1-1+deb13+2).
 
 Package: picontrol-common
 Architecture: all
