@@ -75,6 +75,9 @@ typedef struct _SRevPiCore {
 	struct gpio_desc *gpio_pbswitch_mpx_right;
 	struct gpio_desc *gpio_pbswitch_detect_right;
 
+	// RS485 termination
+	struct gpio_desc *gpio_rs485_term;
+
 	// handle user telegrams
 	struct rt_mutex lockUserTel;
 	struct semaphore semUserTel;

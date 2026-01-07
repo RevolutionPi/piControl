@@ -408,9 +408,38 @@ static int init_connect_gpios(struct platform_device *pdev)
 	return 0;
 }
 
+static int init_rs485_term_gpio(struct platform_device *pdev)
+{
+	struct gpio_desc *desc;
+
+	desc = devm_gpiod_get_optional(&pdev->dev, "pibridge-term",
+				       GPIOD_OUT_LOW);
+	if (!desc) {
+		dev_dbg(&pdev->dev, "no termination GPIO found\n");
+		return 0;
+	}
+
+	if (IS_ERR(desc)) {
+		dev_err(&pdev->dev,
+			"failed to acquire pibridge termination GPIO\n");
+			return PTR_ERR(desc);
+	}
+
+	piCore_g.gpio_rs485_term = desc;
+
+	return 0;
+}
+
 static int init_gpios(struct platform_device *pdev)
 {
 	int ret;
+
+	ret = init_rs485_term_gpio(pdev);
+	if (ret) {
+		dev_err(piDev_g.dev, "Failed to init rs485 term gpio: %i\n",
+			ret);
+		return ret;
+	}
 
 	ret = init_sniff_gpios(pdev);
 	if (ret) {
