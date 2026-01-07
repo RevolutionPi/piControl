@@ -181,7 +181,7 @@ void RevPiDevice_init(void)
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
-	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_RIGHT - 1;	// first address of a left side module
+	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_LEFT;		// first address of a left side module
 	RevPiDevice_resetDevCnt();	// counter for detected devices
 	RevPiDevices_s.i16uErrorCnt = 0;
 
