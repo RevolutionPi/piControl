@@ -560,3 +560,19 @@ unsigned int RevPiDevice_getCoreOffset(void)
 {
 	return RevPiDevices_s.offset;
 }
+
+int RevPiDevice_setBaseTermination(void)
+{
+	bool terminable;
+
+	terminable = piCore_g.gpio_rs485_term &&
+		     ((RevPiDevices_s.i8uAddressLeft == REV_PI_DEV_FIRST_LEFT) ||
+		      (RevPiDevices_s.i8uAddressRight == REV_PI_DEV_FIRST_RIGHT));
+
+	if (!terminable)
+		return -EOPNOTSUPP;
+
+	gpiod_set_value_cansleep(piCore_g.gpio_rs485_term, 1);
+
+	return 0;
+}
