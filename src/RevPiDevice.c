@@ -181,7 +181,9 @@ void RevPiDevice_init(void)
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
+	RevPiDevices_s.gatewayRight = false;
 	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_LEFT;		// first address of a left side module
+	RevPiDevices_s.gatewayLeft = false;
 	RevPiDevice_resetDevCnt();	// counter for detected devices
 	RevPiDevices_s.i16uErrorCnt = 0;
 
@@ -411,6 +413,12 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 #endif
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
+
+		if (RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFeatureDescriptor &
+		    MODGATE_feature_IODataExchange) {
+			RevPiDevices_s.gatewayRight = true;
+		}
+
 		RevPiDevice_incDevCnt();
 		RevPiDevices_s.i8uAddressRight++;
 		return bTRUE;
@@ -449,6 +457,12 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 #endif
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
+
+		if (RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFeatureDescriptor &
+		    MODGATE_feature_IODataExchange) {
+			RevPiDevices_s.gatewayLeft = true;
+		}
+
 		RevPiDevice_incDevCnt();
 		RevPiDevices_s.i8uAddressLeft--;
 		return bTRUE;
@@ -559,6 +573,72 @@ void RevPiDevice_setCoreOffset(unsigned int offset)
 unsigned int RevPiDevice_getCoreOffset(void)
 {
 	return RevPiDevices_s.offset;
+}
+
+static int RevPiDevice_setModuleTermination(u8 address, bool terminate)
+{
+	u8 data;
+	int ret;
+
+	data = terminate ? 0 : 1;
+
+	ret = piIoComm_sendRS485Tel(eCmdPiIoSetTermination, address, &data,
+				    sizeof(data), NULL, 0);
+	if (ret) {
+		pr_err("Failed to %s termination for module (address %d): %d\n",
+			terminate ? "enable" : "disable", address, ret);
+		goto fail;
+	}
+
+	if (terminate)
+		pr_info("PiBridge termination enabled for module %d\n",
+			address);
+	else
+		pr_debug("PiBridge termination disabled for module %d\n",
+			address);
+fail:
+
+	return ret;
+}
+
+int RevPiDevice_setRightModuleTermination(bool terminate)
+{
+	int ret;
+
+	if ((RevPiDevices_s.i8uAddressRight == REV_PI_DEV_FIRST_RIGHT) ||
+	     RevPiDevices_s.gatewayRight)
+		return -EOPNOTSUPP;
+	/*
+	 * The PiBridge protocol requires gaps between messages so wait a while
+	 * before and after sending the command for module termination.
+	 */
+	msleep(3);
+
+	ret = RevPiDevice_setModuleTermination(RevPiDevices_s.i8uAddressRight - 1,
+					       terminate);
+	msleep(3);
+
+	return ret;
+}
+
+int RevPiDevice_setLeftModuleTermination(bool terminate)
+{
+	int ret;
+
+	if ((RevPiDevices_s.i8uAddressLeft == REV_PI_DEV_FIRST_LEFT) ||
+	     RevPiDevices_s.gatewayLeft)
+		return -EOPNOTSUPP;
+	/*
+	 * The PiBridge protocol requires gaps between messages so wait a while
+	 * before and after sending the command for module termination.
+	 */
+	msleep(3);
+
+	ret = RevPiDevice_setModuleTermination(RevPiDevices_s.i8uAddressLeft + 1,
+					       terminate);
+	msleep(3);
+
+	return ret;
 }
 
 int RevPiDevice_setBaseTermination(void)

@@ -35,7 +35,9 @@ typedef struct _SDevice
 typedef struct _SDeviceConfig
 {
     INT8U i8uAddressRight;
+    bool gatewayRight;
     INT8U i8uAddressLeft;
+    bool gatewayLeft;
     INT8U i8uDeviceCount;
     INT16U i16uErrorCnt;
 
@@ -76,3 +78,5 @@ int RevPiDevice_hat_serial(void);
 void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval);
 void RevPiDevice_handle_internal_telegrams(void);
 int RevPiDevice_setBaseTermination(void);
+int RevPiDevice_setLeftModuleTermination(bool terminate);
+int RevPiDevice_setRightModuleTermination(bool terminate);

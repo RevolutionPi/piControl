@@ -477,10 +477,12 @@ int PiBridgeMaster_Run(void)
 				if (piIoComm_readSniff2B() == enGpioValue_High) {
 					// configure next right slave
 					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
+					RevPiDevice_setRightModuleTermination(false);
 					bEntering_s = bTRUE;
 				} else {
 					// no more slaves on the right side, configure left slaves
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
+					RevPiDevice_setRightModuleTermination(true);
 					bEntering_s = bTRUE;
 				}
 			}
@@ -552,10 +554,12 @@ int PiBridgeMaster_Run(void)
 				if (piIoComm_readSniff2A() == enGpioValue_High) {
 					// configure next left slave
 					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
+					RevPiDevice_setLeftModuleTermination(false);
 					bEntering_s = bTRUE;
 				} else {
 					// no more slaves on the left
 					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
+					RevPiDevice_setLeftModuleTermination(true);
 					bEntering_s = bTRUE;
 				}
 			}
