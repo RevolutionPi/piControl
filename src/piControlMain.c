@@ -1215,38 +1215,27 @@ free_req:
 static int send_internal_gate_msg(unsigned long usr_addr)
 {
 	struct modgate_telegram __user *tel = (struct modgate_telegram __user *) usr_addr;
-	struct modgate_telegram *resp;
-	struct modgate_telegram *req;
 	int ret;
 
 	if (!piDev_g.pibridge_supported)
 		return -EOPNOTSUPP;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	struct modgate_telegram *req __free(kfree) = kmalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
-	resp = kmalloc(sizeof(*resp), GFP_KERNEL);
-	if (!resp) {
-		ret = -ENOMEM;
-		goto free_req;
-	}
+	struct modgate_telegram *resp __free(kfree) = kmalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
 
-	if (copy_from_user(req, tel, sizeof(*tel))) {
-		ret = -EFAULT;
-		goto free_resp;
-	}
+	if (copy_from_user(req, tel, sizeof(*tel)))
+		return -EFAULT;
 
 	ret = send_internal_gate_telegram(req, resp);
 	if (ret > 0) {
 		if (copy_to_user(tel, resp, sizeof(*tel)))
-			ret = -EFAULT;
+			return -EFAULT;
 	}
-
-free_resp:
-	kfree(resp);
-free_req:
-	kfree(req);
 
 	return ret;
 }
