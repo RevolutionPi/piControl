@@ -721,6 +721,8 @@ int PiBridgeMaster_Run(void)
 				init_retry--;
 			} else {
 				pr_info("set state to running\n");
+				if (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE)
+					pr_warn("Not all configured modules detected on PiBridge!\n");
 				if (piDev_g.revpi_gate_supported)
 					revpi_gate_init();
 				piCore_g.eBridgeState = piBridgeRun;
