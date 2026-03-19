@@ -1211,7 +1211,8 @@ static int send_config(unsigned long usr_addr)
 	if (ret > 0) {
 		put_user(resp->datalen, &cfg_user->i16uLen);
 
-		if (resp->datalen && copy_to_user(cfg_user, resp->data,
+		if (resp->datalen && copy_to_user(cfg_user->acData,
+						  resp->data,
 						  resp->datalen))
 			ret = -EFAULT;
 	}
