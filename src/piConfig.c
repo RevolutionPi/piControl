@@ -391,8 +391,11 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 	case JSON_ARRAY_BEGIN:
 		if (lvl == 100) {
 			int entries = 0;
-			ret = kmalloc(sizeof(piDevices) + element->length * sizeof(SDeviceInfo), GFP_KERNEL);
-			memset(ret, 0, sizeof(piDevices) + element->length * sizeof(SDeviceInfo));
+			ret = kzalloc(sizeof(piDevices) +
+				      element->length * sizeof(SDeviceInfo),
+				      GFP_KERNEL);
+			if (!ret)
+				return NULL;
 			ret->i16uNumDevices = element->length;
 			for (i = 0; i < element->length; i++) {
 				ret->dev[i].i16uFirstEntry = entries;
@@ -643,6 +646,8 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 	case JSON_ARRAY_BEGIN:
 		if (lvl == 100) {
 			ret = kzalloc(sizeof(piConnectionList) + element->length * sizeof(piConnection), GFP_KERNEL);
+			if (!ret)
+				return NULL;
 			ret->i16uNumEntries = element->length;
 			for (i = 0; i < element->length; i++) {
 				find_connections(element->u.array[i], devs, ent, &ret->conn[i], lvl + 1);
@@ -707,8 +712,12 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		cnt += (*devs)->dev[i].i16uEntries;
 	pr_debug("%d entries in total\n", cnt);
 
-	*ent = kmalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
-	memset(*ent, 0, sizeof(piEntries) + cnt * sizeof(SEntryInfo));
+	*ent = kzalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
+	if (!*ent) {
+		kfree(*devs);
+		*devs = NULL;
+		return JSON_ERROR_NO_MEMORY;
+	}
 	(*ent)->i16uNumEntries = cnt;
 	cnt = 0;
 	find_entries(root_structure, *ent, &cnt, 0, 0, 1);
@@ -821,7 +830,16 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	*connl = find_connections(root_structure, *devs, *ent, NULL, 1);
 
 	// Generate Copy List
-	*cl = kmalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
+	*cl = kzalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
+	if (!*cl) {
+		kfree(*connl);
+		*connl = NULL;
+		kfree(*ent);
+		*ent = NULL;
+		kfree(*devs);
+		*devs = NULL;
+		return JSON_ERROR_NO_MEMORY;
+	}
 	(*cl)->i16uNumEntries = exported_outputs;
 	d = 0;
 	for (i = 0; i < (*ent)->i16uNumEntries && d <= exported_outputs; i++) {
