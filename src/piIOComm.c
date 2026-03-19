@@ -43,9 +43,6 @@ INT8U piIoComm_Crc8(INT8U * pi8uFrame_p, INT16U i16uLen_p)
 
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
 {
-#ifdef DEBUG_GPIO
-	pr_info("sniff1A: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
-#endif
 	piIoComm_writeSniff(piCore_g.gpio_sniff1a, eVal_p, eMode_p);
 	if (eMode_p == enGpioMode_Output)
 		trace_picontrol_sniffpin_1a_set(eVal_p);
@@ -57,17 +54,11 @@ void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p)
 		piIoComm_writeSniff(piCore_g.gpio_sniff1b, eVal_p, eMode_p);
 		if (eMode_p == enGpioMode_Output)
 			trace_picontrol_sniffpin_1b_set(eVal_p);
-#ifdef DEBUG_GPIO
-		pr_info("sniff1B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
-#endif
 	}
 }
 
 void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p)
 {
-#ifdef DEBUG_GPIO
-	pr_info("sniff2A: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
-#endif
 	piIoComm_writeSniff(piCore_g.gpio_sniff2a, eVal_p, eMode_p);
 	if (eMode_p == enGpioMode_Output)
 		trace_picontrol_sniffpin_2a_set(eVal_p);
@@ -79,9 +70,6 @@ void piIoComm_writeSniff2B(EGpioValue eVal_p, EGpioMode eMode_p)
 		piIoComm_writeSniff(piCore_g.gpio_sniff2b, eVal_p, eMode_p);
 		if (eMode_p == enGpioMode_Output)
 			trace_picontrol_sniffpin_2b_set(eVal_p);
-#ifdef DEBUG_GPIO
-		pr_info("sniff2B: mode %d value %d\n", (int)eMode_p, (int)eVal_p);
-#endif
 	}
 }
 
@@ -99,9 +87,6 @@ EGpioValue piIoComm_readSniff1A(void)
 {
 	EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1a);
 	trace_picontrol_sniffpin_1a_read(v);
-#ifdef DEBUG_GPIO
-	pr_info("sniff1A: input value %d\n", (int)v);
-#endif
 	return v;
 }
 
@@ -110,9 +95,6 @@ EGpioValue piIoComm_readSniff1B(void)
 	if (!piDev_g.only_left_pibridge) {
 		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff1b);
 		trace_picontrol_sniffpin_1b_read(v);
-#ifdef DEBUG_GPIO
-		pr_info("sniff1B: input value %d\n", (int)v);
-#endif
 		return v;
 	}
 	return enGpioValue_Low;
@@ -122,9 +104,6 @@ EGpioValue piIoComm_readSniff2A(void)
 {
 	EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2a);
 	trace_picontrol_sniffpin_2a_read(v);
-#ifdef DEBUG_GPIO
-	pr_info("sniff2A: input value %d\n", (int)v);
-#endif
 	return v;
 }
 
@@ -133,9 +112,6 @@ EGpioValue piIoComm_readSniff2B(void)
 	if (!piDev_g.only_left_pibridge) {
 		EGpioValue v = piIoComm_readSniff(piCore_g.gpio_sniff2b);
 		trace_picontrol_sniffpin_2b_read(v);
-#ifdef DEBUG_GPIO
-		pr_info("sniff2B: input value %d\n", (int)v);
-#endif
 		return v;
 	}
 	return enGpioValue_Low;
@@ -197,13 +173,8 @@ INT32S piIoComm_gotoGateProtocol(void)
 						IOPROTOCOL_HEADER_LENGTH);
 
 	ret = piIoComm_send((INT8U *) &sRequest_l, IOPROTOCOL_HEADER_LENGTH + 1);
-	if (ret == 0) {
-		// there is no reply
-	} else {
-#ifdef DEBUG_DEVICE_IO
+	if (ret)
 		pr_info("dev all: send ioprotocol send error %d\n", ret);
-#endif
-	}
 	return 0;
 }
 
