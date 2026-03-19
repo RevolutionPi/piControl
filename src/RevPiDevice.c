@@ -471,14 +471,6 @@ void RevPiDevice_startDataexchange(void)
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
 }
 
-void RevPiDevice_stopDataexchange(void)
-{
-	INT32U ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
-	msleep(90);		// wait a while
-	if (ret_l)
-		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
-}
-
 u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
 {
 	int i;
