@@ -34,22 +34,22 @@ typedef enum
 
 // Header
 typedef union {
-    INT8U ai8uHeader[IOPROTOCOL_HEADER_LENGTH];
+    u8 ai8uHeader[IOPROTOCOL_HEADER_LENGTH];
     struct                              // Unicast
     {
-	INT8U bitAddress : 6;
-	INT8U bitIoHeaderType : 1;      // 0 for header type 1
-	INT8U bitReqResp : 1;
-	INT8U bitLength : 5;
-	INT8U bitCommand : 3;
+	u8 bitAddress : 6;
+	u8 bitIoHeaderType : 1;      // 0 for header type 1
+	u8 bitReqResp : 1;
+	u8 bitLength : 5;
+	u8 bitCommand : 3;
     }sHeaderTyp1;
     struct                              // Broadcast
     {
-	INT8U bitCommand : 6;
-	INT8U bitIoHeaderType : 1;      // 1 for header type 2
-	INT8U bitReqResp : 1;
-	INT8U bitLength : 5;
-	INT8U bitDataPart1 : 3;
+	u8 bitCommand : 6;
+	u8 bitIoHeaderType : 1;      // 1 for header type 2
+	u8 bitReqResp : 1;
+	u8 bitLength : 5;
+	u8 bitDataPart1 : 3;
     }sHeaderTyp2;
 } __attribute__((__packed__)) UIoProtocolHeader;
 
@@ -57,7 +57,7 @@ typedef union {
 // generic data structure for request and response
 typedef struct {
     UIoProtocolHeader uHeader;
-    INT8U ai8uData[IOPROTOCOL_MAXDATA_LENGTH + 1];    // one more byte for CRC
+    u8 ai8uData[IOPROTOCOL_MAXDATA_LENGTH + 1];    // one more byte for CRC
 } __attribute__((__packed__)) SIOGeneric;
 
 // ----------------- BROADCAST messages -------------------------------------
@@ -67,14 +67,14 @@ typedef struct {
 //-----------------------------------------------------------------------------
 // Request for Digital IO modules: Config
 typedef struct { // IOP_TYP1_CMD_CFG
-    INT8U i8uAddr;
-    INT16U i16uOutputPushPull;          // bitfield: 1=push-pull, 0=high side mode
-    INT16U i16uOutputOpenLoadDetect;    // bitfield: 1=detect open load in high side mode
-    INT16U i16uOutputPWM;               // bitfield: 1=generate pwm signal
-    INT8U  i8uOutputPWMIncrement;       // [1-10] increment for pwm algorithm
+    u8 i8uAddr;
+    u16 i16uOutputPushPull;          // bitfield: 1=push-pull, 0=high side mode
+    u16 i16uOutputOpenLoadDetect;    // bitfield: 1=detect open load in high side mode
+    u16 i16uOutputPWM;               // bitfield: 1=generate pwm signal
+    u8  i8uOutputPWMIncrement;       // [1-10] increment for pwm algorithm
 
-    INT8U  i8uInputDebounce;            // 0=Off, 1=25us, 2=750us, 3=3ms, 4-255 not allowed
-    INT32U i32uInputMode;               // bitfield, 2 bits per channel: 00=direct, 01=counter, rising edge, 10=counter, falling edge, 11=encoder
+    u8  i8uInputDebounce;            // 0=Off, 1=25us, 2=750us, 3=3ms, 4-255 not allowed
+    u32 i32uInputMode;               // bitfield, 2 bits per channel: 00=direct, 01=counter, rising edge, 10=counter, falling edge, 11=encoder
 } __attribute__((__packed__)) SDioConfig;
 
 
@@ -82,8 +82,8 @@ typedef struct { // IOP_TYP1_CMD_CFG
 // Request for Digital IO modules: digital output only, no pwm
 typedef struct { // IOP_TYP1_CMD_DATA
     UIoProtocolHeader uHeader;
-    INT16U i16uOutput;
-    INT8U  i8uCrc;
+    u16 i16uOutput;
+    u8  i8uCrc;
 } __attribute__((__packed__)) SDioRequest;
 
 // Request for Digital IO modules: output with variable number of pwm values
@@ -96,8 +96,8 @@ struct pwm_data {		// IOP_TYP1_CMD_DATA2
 // Request for Digital IO modules: reset counter values
 typedef struct { // IOP_TYP1_CMD_DATA3
     UIoProtocolHeader uHeader;
-    INT16U i16uChannels;    // bitfield counter channel
-    INT8U  i8uCrc;
+    u16 i16uChannels;    // bitfield counter channel
+    u8  i8uCrc;
 } __attribute__((__packed__)) SDioCounterReset;
 
 
@@ -105,38 +105,38 @@ typedef struct { // IOP_TYP1_CMD_DATA3
 // Response of Digital IO modules
 typedef struct
 {
-    INT8U bitInputCommErr : 1;          // no communication with chip
-    INT8U bitInputUVL1 : 1;             // under voltage 1 on channel 0-7
-    INT8U bitInputUVL2 : 1;             // under voltage 2 on channel 0-7
-    INT8U bitInputOTL : 1;              // over temperature on channel 0-7
-    INT8U bitInputUVH1 : 1;             // under voltage 1 on channel 8-15
-    INT8U bitInputUVH2 : 1;             // under voltage 2 on channel 8-15
-    INT8U bitInputOTh : 1;              // over temperature on channel 8-15
-    INT8U bitInputFault : 1;            // fault signal on gpio
+    u8 bitInputCommErr : 1;          // no communication with chip
+    u8 bitInputUVL1 : 1;             // under voltage 1 on channel 0-7
+    u8 bitInputUVL2 : 1;             // under voltage 2 on channel 0-7
+    u8 bitInputOTL : 1;              // over temperature on channel 0-7
+    u8 bitInputUVH1 : 1;             // under voltage 1 on channel 8-15
+    u8 bitInputUVH2 : 1;             // under voltage 2 on channel 8-15
+    u8 bitInputOTh : 1;              // over temperature on channel 8-15
+    u8 bitInputFault : 1;            // fault signal on gpio
 
-    INT8U bitOutputCommErr : 1;         // no communication with chip
-    INT8U bitOutputCRCErr : 1;          // output chip reports crc error
-    INT8U bitOutputFault : 1;           // fault signal on gpio
-    INT8U bitOutputReserve : 5;
+    u8 bitOutputCommErr : 1;         // no communication with chip
+    u8 bitOutputCRCErr : 1;          // output chip reports crc error
+    u8 bitOutputFault : 1;           // fault signal on gpio
+    u8 bitOutputReserve : 5;
 }SDioModuleStatus;
 
 // Answer if Digital IO modules: digital input and status, no counter or encoder values
 typedef struct { // IOP_TYP1_CMD_DATA
     UIoProtocolHeader uHeader;
-    INT16U i16uInput;                   // 0=low signal, 1=high signal
-    INT16U i16uOutputStatus;            // 0=error on output pin (thermal shutdown, over load, open load in high side mode)
+    u16 i16uInput;                   // 0=low signal, 1=high signal
+    u16 i16uOutputStatus;            // 0=error on output pin (thermal shutdown, over load, open load in high side mode)
     SDioModuleStatus sDioModuleStatus;
-    INT8U i8uCrc;
+    u8 i8uCrc;
 } __attribute__((__packed__)) SDioResponse;
 
 // Answer if Digital IO modules: digital input and status, with counter or encoder values
 typedef struct { // IOP_TYP1_CMD_DATA2
     UIoProtocolHeader uHeader;
-    INT16U i16uInput;                   // 0=low signal, 1=high signal
-    INT16U i16uOutputStatus;            // 0=error on output pin (thermal shutdown, over load, open load in high side mode)
+    u16 i16uInput;                   // 0=low signal, 1=high signal
+    u16 i16uOutputStatus;            // 0=error on output pin (thermal shutdown, over load, open load in high side mode)
     SDioModuleStatus sDioModuleStatus;
-    INT32U ai32uCounters[16];           // dummy array, contains only values for the activated counters/encoders
-    INT8U i8uCrc;
+    u32 ai32uCounters[16];           // dummy array, contains only values for the activated counters/encoders
+    u8 i8uCrc;
 } __attribute__((__packed__)) SDioCounterResponse;
 
 //-----------------------------------------------------------------------------
@@ -229,40 +229,40 @@ typedef enum
 // Output configuration
 typedef struct {
     EAioOutputRange       eOutputRange : 4;
-    TBOOL                 bSlewRateEnabled : 1;
+    bool                 bSlewRateEnabled : 1;
     EAioSlewRateStepSize  eSlewRateStepSize : 3;
     EAioSlewRateFrequency eSlewRateFrequency : 4;
-    INT8U                 i8uReserve : 4;
+    u8                 i8uReserve : 4;
     // Scaling output values val = A1/A2*x + B
-    INT16S                i16sA1; // Scaling A1
-    INT16U                i16uA2; // Scaling A2
-    INT16S                i16sB;  // Scaling B
+    s16                i16sA1; // Scaling A1
+    u16                i16uA2; // Scaling A2
+    s16                i16sB;  // Scaling B
 } __attribute__((__packed__)) SAioOutputConfig;
 
 // Input configuration
 typedef struct {
     EAioInputRange      eInputRange : 4;
-    INT8U               i8uReserve : 4;
+    u8               i8uReserve : 4;
     // Scaling input values val = A1/A2*x + B
-    INT16S              i16sA1; // Scaling A1
-    INT16U              i16uA2; // Scaling A2
-    INT16S              i16sB;  // Scaling B
+    s16              i16sA1; // Scaling A1
+    u16              i16uA2; // Scaling A2
+    s16              i16sB;  // Scaling B
 } __attribute__((__packed__)) SAioInputConfig;
 
 // RTD configuration, 7 Bytes
 typedef struct {
-    INT8U i8uSensorType : 1; // 0:PT100 1:PT1000
-    INT8U i8uMeasureMethod : 1; // 0:3-wire 1:4-wire
-    INT8U i8uReserve : 6;
+    u8 i8uSensorType : 1; // 0:PT100 1:PT1000
+    u8 i8uMeasureMethod : 1; // 0:3-wire 1:4-wire
+    u8 i8uReserve : 6;
     // Scaling temperatures val = A1/A2*x + B
-    INT16S i16sA1;              // Scaling A1
-    INT16U i16uA2;              // Scaling A2
-    INT16S i16sB;               // Scaling B
+    s16 i16sA1;              // Scaling A1
+    u16 i16uA2;              // Scaling A2
+    s16 i16sB;               // Scaling B
 } __attribute__((__packed__)) SAioRtdConfig;
 
 // AIO configuration, 31 Bytes
 typedef struct { // IOP_TYP1_CMD_CFG
-    INT8U i8uInputSampleRate;
+    u8 i8uInputSampleRate;
     SAioRtdConfig sAioRtdConfig[AIO_MAX_RTD];
     SAioOutputConfig sAioOutputConfig[AIO_MAX_OUTPUTS];
 } __attribute__((__packed__)) SAioConfig;
@@ -274,58 +274,58 @@ typedef struct { // IOP_TYP1_CMD_DATA2 (Input 1+2) or IOP_TYP1_CMD_DATA3 (Input 
 //-----------------------------------------------------------------------------
 // Data request for Analog IO modules, 4 Bytes
 typedef struct { // IOP_TYP1_CMD_DATA
-    INT16S i16sOutputValue[AIO_MAX_OUTPUTS]; // Output value in mV or uA
+    s16 i16sOutputValue[AIO_MAX_OUTPUTS]; // Output value in mV or uA
 } __attribute__((__packed__)) SAioRequest;
 
 //-----------------------------------------------------------------------------
 // Data response of Analog IO modules, 20 Bytes
 typedef struct { // IOP_TYP1_CMD_DATA
-    INT16S i16sInputValue[AIO_MAX_INPUTS];  // Input value in mV or uA
-    INT8U i8uInputStatus[AIO_MAX_INPUTS];   // Input status
-    INT16S i16sRtdValue[AIO_MAX_RTD];       // RTD value in 0,1°C
-    INT8U i8uRtdStatus[AIO_MAX_RTD];        // RTD status
-    INT8U i8uOutputStatus[AIO_MAX_OUTPUTS]; // Output status
+    s16 i16sInputValue[AIO_MAX_INPUTS];  // Input value in mV or uA
+    u8 i8uInputStatus[AIO_MAX_INPUTS];   // Input status
+    s16 i16sRtdValue[AIO_MAX_RTD];       // RTD value in 0,1°C
+    u8 i8uRtdStatus[AIO_MAX_RTD];        // RTD status
+    u8 i8uOutputStatus[AIO_MAX_OUTPUTS]; // Output status
 } __attribute__((__packed__)) SAioResponse;
 
 //-----------------------------------------------------------------------------
 // Data request for raw values of Analog IO modules, 0 Bytes
 typedef struct { // IOP_TYP1_CMD_DATA4
     UIoProtocolHeader uHeader;
-    INT8U  i8uCrc;
+    u8  i8uCrc;
 } __attribute__((__packed__)) SAioRawRequest;
 
 //-----------------------------------------------------------------------------
 // Data response for raw values of Analog IO modules, 10 Bytes
 typedef struct { // IOP_TYP1_CMD_DATA4
     UIoProtocolHeader uHeader;
-    INT16U i16uInternalCurrentSensor;
-    INT16U i16uInternalVoltageSensor;
-    INT16U i16uInternalTemperatureSensor;
-    INT16U i16uRtdValue[AIO_MAX_RTD];
-    INT8U  i8uCrc;
+    u16 i16uInternalCurrentSensor;
+    u16 i16uInternalVoltageSensor;
+    u16 i16uInternalTemperatureSensor;
+    u16 i16uRtdValue[AIO_MAX_RTD];
+    u8  i8uCrc;
 } __attribute__((__packed__)) SAioRawResponse;
 
 //-----------------------------------------------------------------------------
 // Data request for rtd scaling values of Analog IO modules, 0 Bytes
 typedef struct {
-    INT16U i16uRtd3wireFactor[AIO_MAX_RTD];
-    INT16S i16sRtd3wireOffset[AIO_MAX_RTD];
-    INT16U i16uRtd4wireFactor[AIO_MAX_RTD];
-    INT16S i16sRtd4wireOffset[AIO_MAX_RTD];
+    u16 i16uRtd3wireFactor[AIO_MAX_RTD];
+    s16 i16sRtd3wireOffset[AIO_MAX_RTD];
+    u16 i16uRtd4wireFactor[AIO_MAX_RTD];
+    s16 i16sRtd4wireOffset[AIO_MAX_RTD];
 }__attribute__((__packed__)) SAioRtdScaling;
 
 typedef struct { // IOP_TYP1_CMD_DATA5
     UIoProtocolHeader uHeader;
     SAioRtdScaling sRtdScaling;
-    INT8U  i8uCrc;
+    u8  i8uCrc;
 } __attribute__((__packed__)) SAioScalingRequest;
 
 //-----------------------------------------------------------------------------
 // Data response for rtd scaling values of Analog IO modules, 1 Byte
 typedef struct { // IOP_TYP1_CMD_DATA5
     UIoProtocolHeader uHeader;
-    INT8U  i8uSuccess; // 1: Success
-    INT8U  i8uCrc;
+    u8  i8uSuccess; // 1: Success
+    u8  i8uCrc;
 } __attribute__((__packed__)) SAioScalingResponse;
 
 //-----------------------------------------------------------------------------
@@ -341,17 +341,17 @@ typedef struct { // IOP_TYP1_CMD_DATA5
 
 typedef struct {
 	// 1 = encoderMode active
-	INT8U i8uEncoderMode;
+	u8 i8uEncoderMode;
 	// value of EmioIOModes
-	INT8U i8uIoMode[MIO_DIO_PORT_CNT];
+	u8 i8uIoMode[MIO_DIO_PORT_CNT];
 	// bitfield: 1=Pullup, 0=noPull
-	INT8U i8uPullup;
+	u8 i8uPullup;
 	// bitfield: 1=retrigger after OutputState Toggle, 0=no retrigger
-	INT8U i8uPulseRetrigMode;
+	u8 i8uPulseRetrigMode;
 	// pwm output frequency (Hz)
-	INT16U i16uPwmFrequency[MIO_PWM_TMR_CNT];
+	u16 i16uPwmFrequency[MIO_PWM_TMR_CNT];
 	// pulse length (ms)
-	INT16U i16uPulseLength[MIO_DIO_PORT_CNT];
+	u16 i16uPulseLength[MIO_DIO_PORT_CNT];
 } SMioDIOConfigData;
 
 // Requests for Multi IO modules: Config
@@ -359,74 +359,74 @@ typedef struct {
 typedef struct {
 	UIoProtocolHeader uHeader;
 	SMioDIOConfigData sData;				/* 21 bytes */
-	INT8U i8uCrc;
+	u8 i8uCrc;
 } SMioDIOConfig;
 
 typedef struct {
 	// bitfield: 1=output (Fixed Output), 0=input (InputThreshold)
-	INT8U i8uDirection;
+	u8 i8uDirection;
 	// bitfield: Variable Voltage mode (0) or logic level mode (1)
-	INT8U  i8uIoMode;
+	u8  i8uIoMode;
 	// Input Threshold(dir=0) or Fixed Output(direction=1)
-	INT16U i16uVolt[MIO_AIO_PORT_CNT];
+	u16 i16uVolt[MIO_AIO_PORT_CNT];
 	// Size of moving averag filter
-	INT8U  i8uMvgAvgWindow;
+	u8  i8uMvgAvgWindow;
 } SMioAIOConfigData;
 
 typedef struct {
 	// IOP_TYP1_CMD_DATA4
 	UIoProtocolHeader uHeader;
 	SMioAIOConfigData sData;				/* 19 bytes */
-	INT8U i8uCrc;
+	u8 i8uCrc;
 } SMioAIOConfig;
 
 //-----------------------------------------------------------------------------
 // Request for Multi IO modules:
 typedef struct {
 	//bitfield: mode
-	INT8U i8uCalibrationMode;
+	u8 i8uCalibrationMode;
 	//channels to calibrate
-	INT8U i8uChannels;
+	u8 i8uChannels;
 	//specifies point in lookupTable
-	INT8U i8uPoint;
-	INT16S i16sCalibrationValue;
+	u8 i8uPoint;
+	s16 i16sCalibrationValue;
 } SMioCalibrationRequestData;
 
 typedef struct {
 	// IOP_TYP5_CMD_DATA6
 	UIoProtocolHeader uHeader;
 	SMioCalibrationRequestData sData;			/*  5 bytes */
-	INT8U  i8uCrc;
+	u8  i8uCrc;
 } SMioCalibrationRequest;
 
 typedef struct {
 	//bitfield: 1=high, 0=low (when IoMode==1)
-	INT8U i8uOutputValue;
+	u8 i8uOutputValue;
 	//dutycycle: [0-1000]
-	INT16U i16uDutycycle[MIO_DIO_PORT_CNT];
+	u16 i16uDutycycle[MIO_DIO_PORT_CNT];
 } SMioDigitalRequestData;
 
 typedef struct {
 	// IOP_TYP1_CMD_DATA
 	UIoProtocolHeader uHeader;
 	SMioDigitalRequestData sData;				/*  9 bytes */
-	INT8U  i8uCrc;
+	u8  i8uCrc;
 } SMioDigitalRequest;
 
 typedef struct {
 	// High or low level on AO port (in fixed voltage mode)
-	INT8U i8uLogicLevel;
+	u8 i8uLogicLevel;
 	// analog channels to change    - 1 byte
-	INT8U i8uChannels;
+	u8 i8uChannels;
 	// Output Voltage (mV)          - 16 bytes
-	INT16U i16uOutputVoltage[MIO_AIO_PORT_CNT];
+	u16 i16uOutputVoltage[MIO_AIO_PORT_CNT];
 } SMioAnalogRequestData;
 
 typedef struct {
 	// IOP_TYP5_CMD_DATA2
 	UIoProtocolHeader uHeader;
 	SMioAnalogRequestData sData;				/* 18 bytes */
-	INT8U  i8uCrc;
+	u8  i8uCrc;
 } SMioAnalogRequest;
 
 //-----------------------------------------------------------------------------
@@ -434,16 +434,16 @@ typedef struct {
 //customer, are those definitions clear to customer?
 typedef struct {
 	UIoProtocolHeader uHeader;
-	INT8U  i8uCrc;
+	u8  i8uCrc;
 } SMioConfigResponse;
 
 typedef struct	{
 	//bitfield: 1=high, 0=low
-	INT8U i8uDigitalInputStatus;
+	u8 i8uDigitalInputStatus;
 	// dutycycle: [0-1000] OR pulse-length
-	INT16U i16uDcPlen[MIO_DIO_PORT_CNT];
+	u16 i16uDcPlen[MIO_DIO_PORT_CNT];
 	// pwm-frequency [Hz] OR pulse-count
-	INT16U i16uFreqPcnt[MIO_DIO_PORT_CNT];
+	u16 i16uFreqPcnt[MIO_DIO_PORT_CNT];
 } SMioDigitalResponseData;
 
 // Response of Multi IO modules
@@ -452,14 +452,14 @@ typedef struct {
 	// IOP_TYP1_CMD_DATA
 	UIoProtocolHeader uHeader;
 	SMioDigitalResponseData sData;				/* 17 bytes */
-	INT8U  i8uCrc;
+	u8  i8uCrc;
 } SMioDigitalResponse;
 
 typedef struct {
 	// bitfield: 1=high, 0=low
-	INT8U i8uAnalogInputStatus;
+	u8 i8uAnalogInputStatus;
 	// analog input value
-	INT16S i16sAnalogInputVoltage[MIO_AIO_PORT_CNT];
+	s16 i16sAnalogInputVoltage[MIO_AIO_PORT_CNT];
 } SMioAnalogResponseData;
 
 // Analog data response
@@ -467,7 +467,7 @@ typedef struct {
 	// IOP_TYP1_CMD_DATA2
 	UIoProtocolHeader uHeader;
 	SMioAnalogResponseData sData;				/* 17 bytes */
-	INT8U  i8uCrc;
+	u8  i8uCrc;
 } SMioAnalogResponse;
 
 

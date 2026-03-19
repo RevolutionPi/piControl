@@ -11,17 +11,17 @@
 #define DIO_MAX_COUNTERS		6
 #define DIO_PWM_DATA_LEN		sizeof(struct pwm_data)
 
-static INT8U i8uConfigured_s = 0;
+static u8 i8uConfigured_s = 0;
 static SDioConfig dioConfig_s[10];
-static INT8U i8uNumCounter[64];
-static INT16U i16uCounterAct[64];
+static u8 i8uNumCounter[64];
+static u16 i16uCounterAct[64];
 
 void piDIOComm_InitStart(void)
 {
 	i8uConfigured_s = 0;
 }
 
-INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
+u32 piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
 {
 	uint16_t i;
 
@@ -78,7 +78,7 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 	return 0;
 }
 
-INT32U piDIOComm_Init(INT8U i8uDevice_p)
+u32 piDIOComm_Init(u8 i8uDevice_p)
 {
 	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 	u8 snd_len = sizeof(SDioConfig);
@@ -102,7 +102,7 @@ INT32U piDIOComm_Init(INT8U i8uDevice_p)
 	return ret;
 }
 
-INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
+u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 {
 	static u8 last_out[40][DIO_OUTPUT_DATA_LEN];
 	u8 in_buf[IOPROTOCOL_MAXDATA_LENGTH];

@@ -51,10 +51,10 @@ typedef struct _SRevPiCore {
 	SRevPiProcessImage image;
 
 	// piGate stuff
-	INT8U i8uLeftMGateIdx;	// index of left GateModule in RevPiDevice_asDevice_m
-	INT8U i8uRightMGateIdx;	// index of right GateModule in RevPiDevice_asDevice_m
-	INT8U ai8uInput[KB_PD_LEN * MODGATECOM_MAX_MODULES];
-	INT8U ai8uOutput[KB_PD_LEN * MODGATECOM_MAX_MODULES];
+	u8 i8uLeftMGateIdx;	// index of left GateModule in RevPiDevice_asDevice_m
+	u8 i8uRightMGateIdx;	// index of right GateModule in RevPiDevice_asDevice_m
+	u8 ai8uInput[KB_PD_LEN * MODGATECOM_MAX_MODULES];
+	u8 ai8uOutput[KB_PD_LEN * MODGATECOM_MAX_MODULES];
 
 	// piBridge stuff
 	struct rt_mutex lockBridgeState;

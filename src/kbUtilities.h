@@ -12,17 +12,17 @@
 
 typedef struct kbUT_StrTimer
 {
-    INT32U i32uStartTime;
-    INT32U i32uDuration;
-    TBOOL bRun;
-    TBOOL bExpired;
+    u32 i32uStartTime;
+    u32 i32uDuration;
+    bool bRun;
+    bool bExpired;
 } kbUT_Timer;
 
 typedef struct kbUT_StrArgHeap
 {
-    INT8U i8uState;                         //!< State of block; free or occupied
-    INT8U i8uOwner;                         //!< Debug Marker. Who has allocated the block ?
-    INT16U i16uLen;                         //!< Length of block
+    u8 i8uState;                         //!< State of block; free or occupied
+    u8 i8uOwner;                         //!< Debug Marker. Who has allocated the block ?
+    u16 i16uLen;                         //!< Length of block
     struct kbUT_StrArgHeap *ptPrev;         //!< Previous descriptor structure
     struct kbUT_StrArgHeap *ptNext;         //!< Previous descriptor structure
 } kbUT_TArgHeap;
@@ -60,17 +60,17 @@ extern "C" {
 
 
 extern void				kbUT_TimerInit (kbUT_Timer *ptTimer_p);
-extern void				kbUT_TimerStart (kbUT_Timer *ptTimer_p, INT32U i32uDuration_p);
-extern TBOOL			kbUT_TimerRunning (kbUT_Timer *ptTimer_p);
-extern TBOOL			kbUT_TimerExpired (kbUT_Timer *ptTimer_p);
-extern INT32U			kbUT_TimeElapsed (kbUT_Timer *ptTimer_p);
-extern TBOOL			kbUT_TimerInUse (kbUT_Timer *ptTimer_p);
-extern INT32U			kbUT_getCurrentMs (void);
-extern void				kbUT_crc32 (INT8U *pi8uData_p, INT16U i16uCnt_p, INT32U *pi32uCrc_p);
-extern void				kbUT_crc8XX(INT8U *pi8uData_p, INT16U i16uCnt_p, INT8U i8uPolynom_p, INT8U *pi8uCrc_p);
-extern TBOOL			kbUT_uitoa(INT32U p_value, INT8U* p_string, INT8U p_radix);
+extern void				kbUT_TimerStart (kbUT_Timer *ptTimer_p, u32 i32uDuration_p);
+extern bool			kbUT_TimerRunning (kbUT_Timer *ptTimer_p);
+extern bool			kbUT_TimerExpired (kbUT_Timer *ptTimer_p);
+extern u32			kbUT_TimeElapsed (kbUT_Timer *ptTimer_p);
+extern bool			kbUT_TimerInUse (kbUT_Timer *ptTimer_p);
+extern u32			kbUT_getCurrentMs (void);
+extern void				kbUT_crc32 (u8 *pi8uData_p, u16 i16uCnt_p, u32 *pi32uCrc_p);
+extern void				kbUT_crc8XX(u8 *pi8uData_p, u16 i16uCnt_p, u8 i8uPolynom_p, u8 *pi8uCrc_p);
+extern bool			kbUT_uitoa(u32 p_value, u8* p_string, u8 p_radix);
 extern unsigned long	kbUT_atoi(const char *s, int *success);
-extern char *			kbUT_itoa(INT32U val, INT16S radix, INT16U len);
+extern char *			kbUT_itoa(u32 val, s16 radix, u16 len);
 
 
 #ifdef  __cplusplus

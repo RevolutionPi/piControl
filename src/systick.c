@@ -15,14 +15,14 @@
 //|             Variablen / variables
 //+=============================================================================================
 
-static INT32U i32uCounter_s = 0;
-//static INT32U i32uCounterStart_s = 0;
+static u32 i32uCounter_s = 0;
+//static u32 i32uCounterStart_s = 0;
 
-static TBOOL hrtime_initialized;
+static bool hrtime_initialized;
 struct hrtimer hrtime_g;
 
 //-------------------------------------------------------------------------------------------------
-INT32U kbGetTickCount(void)
+u32 kbGetTickCount(void)
 {
 	ktime_t ktime_l;
 	if (!hrtime_initialized) {
@@ -32,7 +32,7 @@ INT32U kbGetTickCount(void)
 		hrtimer_setup(&hrtime_g, hrtimer_dummy_timeout, CLOCK_MONOTONIC,
 			      HRTIMER_MODE_ABS);
 #endif
-		hrtime_initialized = bTRUE;
+		hrtime_initialized = true;
 	}
 
 	ktime_l = hrtimer_cb_get_time(&hrtime_g);

@@ -10,7 +10,7 @@
 #include "picontrol_trace.h"
 
 
-int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
+int piIoComm_send(u8 * buf_p, u16 i16uLen_p)
 {
 	int written;
 
@@ -31,9 +31,9 @@ int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p)
 }
 
 
-INT8U piIoComm_Crc8(INT8U * pi8uFrame_p, INT16U i16uLen_p)
+u8 piIoComm_Crc8(u8 * pi8uFrame_p, u16 i16uLen_p)
 {
-	INT8U i8uRv_l = 0;
+	u8 i8uRv_l = 0;
 
 	while (i16uLen_p--) {
 		i8uRv_l = i8uRv_l ^ pi8uFrame_p[i16uLen_p];
@@ -127,8 +127,8 @@ EGpioValue piIoComm_readSniff(struct gpio_desc * pGpio)
 	return ret;
 }
 
-INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
-			     INT8U * pi8uSendData_p, INT8U i8uSendDataLen_p, INT8U * pi8uRecvData_p, INT16U * pi16uRecvDataLen_p)
+s32 piIoComm_sendRS485Tel(u16 i16uCmd_p, u8 i8uAddress_p,
+			     u8 * pi8uSendData_p, u8 i8uSendDataLen_p, u8 * pi8uRecvData_p, u16 * pi16uRecvDataLen_p)
 {
 	u16 timeout = REV_PI_IO_TIMEOUT;
 	unsigned int rcvlen;
@@ -158,7 +158,7 @@ INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAddress_p,
 	return 0;
 }
 
-INT32S piIoComm_gotoGateProtocol(void)
+s32 piIoComm_gotoGateProtocol(void)
 {
 	SIOGeneric sRequest_l;
 	int ret;
@@ -169,10 +169,10 @@ INT32S piIoComm_gotoGateProtocol(void)
 	sRequest_l.uHeader.sHeaderTyp2.bitLength = 0;
 	sRequest_l.uHeader.sHeaderTyp2.bitDataPart1 = 0;
 
-	sRequest_l.ai8uData[0] = piIoComm_Crc8((INT8U *) &sRequest_l,
+	sRequest_l.ai8uData[0] = piIoComm_Crc8((u8 *) &sRequest_l,
 						IOPROTOCOL_HEADER_LENGTH);
 
-	ret = piIoComm_send((INT8U *) &sRequest_l, IOPROTOCOL_HEADER_LENGTH + 1);
+	ret = piIoComm_send((u8 *) &sRequest_l, IOPROTOCOL_HEADER_LENGTH + 1);
 	if (ret)
 		pr_info("dev all: send ioprotocol send error %d\n", ret);
 	return 0;

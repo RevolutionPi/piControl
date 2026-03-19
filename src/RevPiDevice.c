@@ -247,7 +247,7 @@ void RevPiDevice_init(void)
 	RevPiDevice_incDevCnt();
 }
 
-void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval)
+void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval)
 {
 	if (r) {
 		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
@@ -279,8 +279,8 @@ void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval)
 //-------------------------------------------------------------------------------------------------
 int RevPiDevice_run(void)
 {
-	INT8U i8uDevice = 0;
-	INT32U r;
+	u8 i8uDevice = 0;
+	u32 r;
 	int retval = 0;
 	SDevice *dev;
 
@@ -350,17 +350,17 @@ int RevPiDevice_run(void)
 	return retval;
 }
 
-TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp * pModgateId_p)
+bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pModgateId_p)
 {
-	INT32U ret_l;
-	INT16U i16uLen_l = sizeof(MODGATECOM_IDResp);
+	u32 ret_l;
+	u16 i16uLen_l = sizeof(MODGATECOM_IDResp);
 	//
 	ret_l =
-	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (INT8U *) pModgateId_p, &i16uLen_l);
+	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (u8 *) pModgateId_p, &i16uLen_l);
 	msleep(3);		// wait a while
 	if (ret_l) {
 		pr_err("piIoComm_sendRS485Tel(GetDeviceInfo) failed %d\n", ret_l);
-		return bFALSE;
+		return false;
 	} else {
 		pr_debug("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
 	}
@@ -376,12 +376,12 @@ TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *
 			if (ret_l)
 				pr_err("piIoComm_sendRS485Tel(PiIoSetAddress) failed %d\n", ret_l);
 		}
-		return bFALSE;
+		return false;
 	}
-	return bTRUE;
+	return true;
 }
 
-TBOOL RevPiDevice_writeNextConfigurationRight(void)
+bool RevPiDevice_writeNextConfigurationRight(void)
 {
 	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressRight, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressRight;
@@ -414,14 +414,14 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 
 		RevPiDevice_incDevCnt();
 		RevPiDevices_s.i8uAddressRight++;
-		return bTRUE;
+		return true;
 	} else {
 		//TODO restart with reset
 	}
-	return bFALSE;
+	return false;
 }
 
-TBOOL RevPiDevice_writeNextConfigurationLeft(void)
+bool RevPiDevice_writeNextConfigurationLeft(void)
 {
 	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressLeft, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressLeft;
@@ -456,16 +456,16 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 
 		RevPiDevice_incDevCnt();
 		RevPiDevices_s.i8uAddressLeft--;
-		return bTRUE;
+		return true;
 	} else {
 		//TODO restart with reset
 	}
-	return bFALSE;
+	return false;
 }
 
 void RevPiDevice_startDataexchange(void)
 {
-	INT32U ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
+	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
 	msleep(90);		// wait a while
 	if (ret_l)
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
@@ -488,19 +488,19 @@ u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
 	return REV_PI_DEV_UNDEF;
 }
 
-INT8U RevPiDevice_setStatus(INT8U clr, INT8U set)
+u8 RevPiDevice_setStatus(u8 clr, u8 set)
 {
 	RevPiDevices_s.i8uStatus &= ~clr;
 	RevPiDevices_s.i8uStatus |= set;
 	return RevPiDevices_s.i8uStatus;
 }
 
-INT8U RevPiDevice_getStatus(void)
+u8 RevPiDevice_getStatus(void)
 {
 	return RevPiDevices_s.i8uStatus;
 }
 
-SDevice *RevPiDevice_getDev(INT8U idx)
+SDevice *RevPiDevice_getDev(u8 idx)
 {
 	// idx==i8uDeviceCount is allowed. This enables to add data to the next entry before RevPiDevice_incDevCnt is called.
 	if (idx <= RevPiDevices_s.i8uDeviceCount)
@@ -521,23 +521,23 @@ void RevPiDevice_incDevCnt(void)
 	}
 }
 
-INT8U RevPiDevice_getDevCnt(void)
+u8 RevPiDevice_getDevCnt(void)
 {
 	return RevPiDevices_s.i8uDeviceCount;
 }
 
-INT8U RevPiDevice_getAddrLeft(void)
+u8 RevPiDevice_getAddrLeft(void)
 {
 	return RevPiDevices_s.i8uAddressLeft;
 }
 
-INT8U RevPiDevice_getAddrRight(void)
+u8 RevPiDevice_getAddrRight(void)
 {
 	return RevPiDevices_s.i8uAddressRight;
 }
 
 
-INT16U RevPiDevice_getErrCnt(void)
+u16 RevPiDevice_getErrCnt(void)
 {
 	return RevPiDevices_s.i16uErrorCnt;
 }

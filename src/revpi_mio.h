@@ -20,16 +20,16 @@
 
 #define MIO_CONF_EMOD	MIO_CONF_BASE
 #define MIO_CONF_IOMOD	(MIO_CONF_EMOD + 1)
-#define MIO_CONF_PUL	(MIO_CONF_IOMOD + sizeof(INT8U) * MIO_DIO_PORT_CNT)
+#define MIO_CONF_PUL	(MIO_CONF_IOMOD + sizeof(u8) * MIO_DIO_PORT_CNT)
 #define MIO_CONF_PMOD	(MIO_CONF_PUL + 1)
 #define MIO_CONF_FPWM	(MIO_CONF_PMOD + 1)
-#define MIO_CONF_PLEN	(MIO_CONF_FPWM + sizeof(INT16U) * MIO_PWM_TMR_CNT)
-#define MIO_CONF_AIM	(MIO_CONF_PLEN + sizeof(INT16U) * MIO_DIO_PORT_CNT)
+#define MIO_CONF_PLEN	(MIO_CONF_FPWM + sizeof(u16) * MIO_PWM_TMR_CNT)
+#define MIO_CONF_AIM	(MIO_CONF_PLEN + sizeof(u16) * MIO_DIO_PORT_CNT)
 #define MIO_CONF_THR	(MIO_CONF_AIM + 1)
-#define MIO_CONF_WSIZE	(MIO_CONF_THR + sizeof(INT16U) * MIO_AIO_PORT_CNT)
+#define MIO_CONF_WSIZE	(MIO_CONF_THR + sizeof(u16) * MIO_AIO_PORT_CNT)
 #define MIO_CONF_AOM	(MIO_CONF_WSIZE + 1)
 #define MIO_CONF_OUTV	(MIO_CONF_AOM + 1)
-#define MIO_CONF_END	(MIO_CONF_OUTV + sizeof(INT16U) * MIO_AIO_PORT_CNT)
+#define MIO_CONF_END	(MIO_CONF_OUTV + sizeof(u16) * MIO_AIO_PORT_CNT)
 
 /*
 because of the limitation of length field in UIoProtocolHeader, which has 5 bits,

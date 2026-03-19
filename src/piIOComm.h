@@ -30,7 +30,7 @@ typedef enum _EGpioMode
     enGpioMode_Output,
 } EGpioMode;
 
-INT8U piIoComm_Crc8(INT8U *pi8uFrame_p, INT16U i16uLen_p);
+u8 piIoComm_Crc8(u8 *pi8uFrame_p, u16 i16uLen_p);
 
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p);
@@ -43,12 +43,12 @@ EGpioValue piIoComm_readSniff2A(void);
 EGpioValue piIoComm_readSniff2B(void);
 EGpioValue piIoComm_readSniff(struct gpio_desc *);
 
-INT32S piIoComm_sendRS485Tel(INT16U i16uCmd_p, INT8U i8uAdress_p,
-    INT8U *pi8uSendData_p, INT8U i8uSendDataLen_p,
-    INT8U *pi8uRecvData_p, INT16U *pi16uRecvDataLen_p);
+s32 piIoComm_sendRS485Tel(u16 i16uCmd_p, u8 i8uAdress_p,
+    u8 *pi8uSendData_p, u8 i8uSendDataLen_p,
+    u8 *pi8uRecvData_p, u16 *pi16uRecvDataLen_p);
 
-INT32S piIoComm_gotoGateProtocol(void);
+s32 piIoComm_gotoGateProtocol(void);
 
 void revpi_io_build_header(UIoProtocolHeader *hdr,
 		unsigned char addr, unsigned char len, unsigned char cmd);
-int piIoComm_send(INT8U * buf_p, INT16U i16uLen_p);
+int piIoComm_send(u8 * buf_p, u16 i16uLen_p);

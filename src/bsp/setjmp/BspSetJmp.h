@@ -27,14 +27,14 @@
   #define bspLongJmp(x,y)  longjmp ((x), (y))
   
 #else
-  typedef INT32U BSP_TJumpBuf[12];
+  typedef u32 BSP_TJumpBuf[12];
 
   #ifdef __cplusplus
   extern "C" { 
   #endif 
   
-  extern INT32S bspSetJmp (BSP_TJumpBuf tJmpBuf_p);
-  extern void bspLongJmp(BSP_TJumpBuf tJmpBuf_p, INT32S i32sValue_p);
+  extern s32 bspSetJmp (BSP_TJumpBuf tJmpBuf_p);
+  extern void bspLongJmp(BSP_TJumpBuf tJmpBuf_p, s32 i32sValue_p);
 
   #ifdef __cplusplus
   }    

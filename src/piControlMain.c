@@ -114,7 +114,7 @@ static bool waitRunning(int timeout);	// ms
 /*       I N I T                                                             */
 /*****************************************************************************/
 #ifdef UART_TEST
-void piControlDummyReceive(INT8U i8uChar_p)
+void piControlDummyReceive(u8 i8uChar_p)
 {
 	pr_info("Got character %c\n", i8uChar_p);
 }
@@ -892,7 +892,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count, loff_t * ppos)
 {
 	tpiControlInst *priv;
-	INT8U *pPd;
+	u8 *pPd;
 	size_t nread = count;
 
 	if (!isRunning())
@@ -931,7 +931,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_t count, loff_t * ppos)
 {
 	tpiControlInst *priv;
-	INT8U *pPd;
+	u8 *pPd;
 	size_t nwrite = count;
 
 	if (!isRunning())
@@ -1629,7 +1629,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (spi_val.i16uAddress >= KB_PI_LEN) {
 				status = -EINVAL;
 			} else {
-				INT8U i8uValue_l;
+				u8 i8uValue_l;
 				my_rt_mutex_lock(&piDev_g.lockPI);
 				i8uValue_l = piDev_g.ai8uPI[spi_val.i16uAddress];
 
@@ -1827,7 +1827,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			int i, ret, cnt;
 			u32 data;
-			INT32U *pData = NULL;	// pData is null or points to the module address
+			u32 *pData = NULL;	// pData is null or points to the module address
 
 
 			pr_notice("Note: ioctl KB_UPDATE_DEVICE_FIRMWARE is deprecated. Use PICONTROL_UPLOAD_FIRMWARE instead\n");

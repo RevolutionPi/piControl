@@ -30,23 +30,23 @@ extern "C" {
 
 
 typedef struct StrFileHeadData {
-    INT16U usType;
-    INT16U usHwRev;
-    INT16U usFwuRev;
-    INT32U ulFlashStart;
-    INT32U ulFlashEnd;
-    INT32U ulFwuEntry;
-    INT32U ulFlashCrc;
+    u16 usType;
+    u16 usHwRev;
+    u16 usFwuRev;
+    u32 ulFlashStart;
+    u32 ulFlashEnd;
+    u32 ulFwuEntry;
+    u32 ulFlashCrc;
 } __attribute__((__packed__)) TFileHeadData; // sizeof = 22
 
 typedef struct StrFPGAHeadData {
-    INT32U ulFPGALen;
-    INT32U ulFPGACrc;
+    u32 ulFPGALen;
+    u32 ulFPGACrc;
 } __attribute__((__packed__)) TFPGAHeadData; // sizeof = 8
 
 typedef struct StrFileHead {
-    INT8U acSync[2];
-    INT32U ulLength;
+    u8 acSync[2];
+    u32 ulLength;
     TFileHeadData dat;
     TFPGAHeadData fpga;
 } __attribute__((__packed__)) TFileHead; // sizeof = 36
@@ -64,10 +64,10 @@ typedef struct StrFileHead {
 #define FWU_FILENAME_MODE_1			'b'
 #define FWU_FILENAME_MODE_2			'\0'
 
-extern void FWU_FS_main (void *file, TFileHead *header, INT8U write_fpga) FWU_CODE_SECTION;
-extern void FWU_BuR_main(INT32U i32uAppPrgStartAdd, INT32U i32uAppPrgSize) FWU_CODE_SECTION;
-extern TBOOL FWU_check_file(void *file, TFileHead *header) FWU_CODE_SECTION;
-extern void FWU_error (INT16U i16uErrorCode) FWU_CODE_SECTION;
+extern void FWU_FS_main (void *file, TFileHead *header, u8 write_fpga) FWU_CODE_SECTION;
+extern void FWU_BuR_main(u32 i32uAppPrgStartAdd, u32 i32uAppPrgSize) FWU_CODE_SECTION;
+extern bool FWU_check_file(void *file, TFileHead *header) FWU_CODE_SECTION;
+extern void FWU_error (u16 i16uErrorCode) FWU_CODE_SECTION;
 
 #ifdef  __cplusplus 
 } 

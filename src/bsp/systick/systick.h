@@ -34,7 +34,7 @@ extern "C" {
 extern void		SysTickHandler				( void );
 extern void		ext6_handler				( void );
 
-extern INT32U	kbGetTickCount				( void );
+extern u32	kbGetTickCount				( void );
 
 
 extern void BSP_STK_init (void);
