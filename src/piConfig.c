@@ -805,7 +805,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 				(*devs)->dev[d].i16uConfigLength += (*ent)->ent[i].i16uBitLength;
 			} else if (type == 4)	// Config
 			{
-				if (idx[0] == 0 || (*devs)->dev[d].i16uInputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[3] == 0 || (*devs)->dev[d].i16uConfigOffset > (*ent)->ent[i].i16uOffset) {
 					idx[3]++;
 					(*devs)->dev[d].i16uConfigOffset = (*ent)->ent[i].i16uOffset;
 				}
