@@ -646,6 +646,8 @@ err_revpi_fini:
 err_free_config:
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
+	kfree(piDev_g.cl);
+	kfree(piDev_g.connl);
 err_sysfs_remove:
 	piControl_deinit_sysfs();
 err_dev_destroy:
@@ -673,6 +675,9 @@ static int piControlReset(tpiControlInst * priv)
 
 	kfree(piDev_g.cl);
 	piDev_g.cl = NULL;
+
+	kfree(piDev_g.connl);
+	piDev_g.connl = NULL;
 
 	/* start application */
 	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl,
@@ -753,6 +758,8 @@ static int pibridge_remove(struct platform_device *pdev)
 
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
+	kfree(piDev_g.cl);
+	kfree(piDev_g.connl);
 	piControl_deinit_sysfs();
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor));
 	device_destroy(piControlClass, curdev);
