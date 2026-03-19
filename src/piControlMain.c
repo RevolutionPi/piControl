@@ -717,10 +717,14 @@ static int piControlReset(tpiControlInst * priv)
 
 				if (!found) {
 					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
-					pEntry->event = piEvReset;
-					list_add_tail(&pEntry->list, &pos_inst->piEventList);
+					if (pEntry) {
+						pEntry->event = piEvReset;
+						list_add_tail(&pEntry->list,
+							      &pos_inst->piEventList);
+					}
 					rt_mutex_unlock(&pos_inst->lockEventList);
-					wake_up(&pos_inst->wq);
+					if (pEntry)
+						wake_up(&pos_inst->wq);
 				} else {
 					rt_mutex_unlock(&pos_inst->lockEventList);
 				}
