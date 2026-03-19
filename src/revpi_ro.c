@@ -55,8 +55,6 @@ int revpi_ro_config(u8 addr, int num_entries, SEntryInfo *pEnt)
 	memset(itm, 0, sizeof(*itm));
 	itm->addr = addr;
 
-	pr_info_dio("%s: RO config done for addr %d \n", __func__, addr);
-
 	for (i = 0; i < num_entries; i++) {
 		entry = &pEnt[i];
 

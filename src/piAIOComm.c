@@ -26,7 +26,6 @@ static u8 aio_dev[AIO_MAX_DEVS];
 
 void piAIOComm_InitStart(void)
 {
-	pr_info_aio("piAIOComm_InitStart\n");
 	num_aios = 0;
 }
 
@@ -39,15 +38,9 @@ u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 		return -1;
 	}
 
-	pr_info_aio("piAIOComm_Config addr %d entries %d  num %d\n", addr, num_entries, num_aios);
-
 	aio_dev[num_aios] = addr;
 
 	for (i = 0; i < num_entries; i++) {
-		pr_info_aio("addr %2d  type %d  len %3d  offset %3d  value %d 0x%x\n",
-			    pEnt[i].i8uAddress, pEnt[i].i8uType, pEnt[i].i16uBitLength, pEnt[i].i16uOffset,
-			    pEnt[i].i32uDefault, pEnt[i].i32uDefault);
-
 		switch (pEnt[i].i16uOffset) {
 		case AIO_OFFSET_InputValue_1:
 		case AIO_OFFSET_InputValue_2:
@@ -203,8 +196,6 @@ u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 
 	num_aios++;
 
-	pr_info_aio("piAIOComm_Config done %d addr %d\n", num_aios, addr);
-
 	return 0;
 }
 
@@ -217,9 +208,6 @@ u32 piAIOComm_Init(u8 devnum)
 
 	addr = RevPiDevice_getDev(devnum)->i8uAddress;
 
-	pr_info_aio("piAIOComm_Init %d of %d  addr %d\n", devnum,
-		    num_aios, addr);
-
 	for (dev_idx = 0; dev_idx < num_aios; dev_idx++) {
 		if (aio_dev[dev_idx] == addr)
 			break;
@@ -230,7 +218,6 @@ u32 piAIOComm_Init(u8 devnum)
 
 	snd_buf = &aioIn1Config_s[dev_idx];
 
-	pr_info_aio("piAIOComm_Init send configIn1\n");
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA2,
 			      snd_buf, AIO_CONFIG_DATA2_LEN, NULL, 0);
 	if (ret)
@@ -238,7 +225,6 @@ u32 piAIOComm_Init(u8 devnum)
 
 	snd_buf = &aioIn2Config_s[dev_idx];
 
-	pr_info_aio("piAIOComm_Init send configIn2\n");
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA3,
 			      snd_buf, AIO_CONFIG_DATA3_LEN, NULL, 0);
 	if (ret)
@@ -246,13 +232,10 @@ u32 piAIOComm_Init(u8 devnum)
 
 	snd_buf = &aioConfig_s[dev_idx];
 
-	pr_info_aio("piAIOComm_Init send config\n");
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
 			      snd_buf, AIO_CONFIG_DATA1_LEN, NULL, 0);
 	if (ret)
 		return 3;
-
-	pr_info_aio("piAIOComm_Init done config\n");
 
 	return 0;
 }

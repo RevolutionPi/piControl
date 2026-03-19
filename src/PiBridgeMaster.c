@@ -277,13 +277,6 @@ void PiBridgeMaster_setDefaults(void)
 
 	for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
 		if (piDev_g.ent->ent[i].i32uDefault != 0) {
-			pr_info_master2("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
-					piDev_g.ent->ent[i].i8uAddress,
-					piDev_g.ent->ent[i].i8uType,
-					piDev_g.ent->ent[i].i16uBitLength,
-					piDev_g.ent->ent[i].i16uOffset,
-					piDev_g.ent->ent[i].i8uBitPos, piDev_g.ent->ent[i].i32uDefault);
-
 			if (piDev_g.ent->ent[i].i16uBitLength == 1) {
 				INT8U i8uValue, i8uMask, bit;
 				unsigned int offset;
