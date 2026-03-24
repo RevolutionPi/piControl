@@ -60,17 +60,23 @@ void PiBridgeMaster_Continue(void)
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
-void PiBridgeMaster_Reset(void)
+static void pibridge_reinit(void)
 {
-	rt_mutex_lock(&piCore_g.lockBridgeState);
+	lockdep_assert_held(&piCore_g.lockBridgeState);
+
 	piCore_g.eBridgeState = piBridgeInit;
 	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
 	bEntering_s = true;
 	RevPiDevice_setStatus(0xff, 0);
-	init_retry = MAX_INIT_RETRIES;
-
 	RevPiDevice_init();
+}
+
+void PiBridgeMaster_Reset(void)
+{
+	rt_mutex_lock(&piCore_g.lockBridgeState);
+	init_retry = MAX_INIT_RETRIES;
+	pibridge_reinit();
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
@@ -698,15 +704,8 @@ int PiBridgeMaster_Run(void)
 				pr_info_master("Enter Initialization Retry\n");
 				bEntering_s = false;
 			}
-			if (time_after_eq(jiffies, config_deadline)) {
-				piCore_g.eBridgeState = piBridgeInit;
-				clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
-				eRunStatus_s = enPiBridgeMasterStatus_Init;
-				bEntering_s = true;
-				RevPiDevice_setStatus(0xff, 0);
-
-				RevPiDevice_init();
-			}
+			if (time_after_eq(jiffies, config_deadline))
+				pibridge_reinit();
 			break;
 
 		default:
