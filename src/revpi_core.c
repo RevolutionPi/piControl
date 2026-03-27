@@ -7,6 +7,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
+#include <linux/version.h>
 
 #include "revpi_common.h"
 #include "revpi_core.h"
@@ -124,8 +125,13 @@ static int piIoThread(void *data)
 
 	/* Note: we use this timer for both, a fixed cycle interval length and
 	   measurement of the cycle time */
+#if KERNEL_VERSION(6, 13, 0) > LINUX_VERSION_CODE
 	hrtimer_init(&cycle->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	cycle->timer.function = wake_up_sleeper;
+#else
+	hrtimer_setup(&cycle->timer, wake_up_sleeper, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_ABS);
+#endif
 	init_completion(&cycle->timer_expired);
 	hrtimer_cancel(&cycle->timer);
 
@@ -402,9 +408,38 @@ static int init_connect_gpios(struct platform_device *pdev)
 	return 0;
 }
 
+static int init_rs485_term_gpio(struct platform_device *pdev)
+{
+	struct gpio_desc *desc;
+
+	desc = devm_gpiod_get_optional(&pdev->dev, "pibridge-term",
+				       GPIOD_OUT_LOW);
+	if (!desc) {
+		dev_dbg(&pdev->dev, "no termination GPIO found\n");
+		return 0;
+	}
+
+	if (IS_ERR(desc)) {
+		dev_err(&pdev->dev,
+			"failed to acquire pibridge termination GPIO\n");
+			return PTR_ERR(desc);
+	}
+
+	piCore_g.gpio_rs485_term = desc;
+
+	return 0;
+}
+
 static int init_gpios(struct platform_device *pdev)
 {
 	int ret;
+
+	ret = init_rs485_term_gpio(pdev);
+	if (ret) {
+		dev_err(piDev_g.dev, "Failed to init rs485 term gpio: %i\n",
+			ret);
+		return ret;
+	}
 
 	ret = init_sniff_gpios(pdev);
 	if (ret) {

@@ -40,3 +40,6 @@ all:
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -f $(piControl-y)
+
+modules_install:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules_install

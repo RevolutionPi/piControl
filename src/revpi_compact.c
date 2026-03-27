@@ -252,9 +252,6 @@ static int revpi_compact_poll_ain(void *data)
 		smp_rmb();
 		if (machine->ain_should_reset) {
 			/* determine which channels are enabled */
-			pr_info_aio("AIn Reset: config %d %d %d %d %d %d %d %d\n",
-				machine->config.ain[0], machine->config.ain[1], machine->config.ain[2], machine->config.ain[3],
-				machine->config.ain[4], machine->config.ain[5], machine->config.ain[6], machine->config.ain[7]);
 
 			for (i = 0, numchans = 0; i < ARRAY_SIZE(chan); i++) {
 				unsigned long config = machine->config.ain[i];
@@ -287,11 +284,6 @@ static int revpi_compact_poll_ain(void *data)
 			i = 0;
 			smp_store_release(&machine->ain_should_reset, false);
 			complete(&machine->ain_reset);
-			pr_info_aio("AIn Reset: ct %dms, %d active: %d %d %d %d %d %d %d %d    %d %d %d %d %d %d %d %d\n",
-				(1000 / numchans), numchans,
-				mux[0], mux[1], mux[2], mux[3], mux[4], mux[5], mux[6], mux[7],
-				chan[0], chan[1], chan[2], chan[3], chan[4], chan[5], chan[6], chan[7]
-				);
 		}
 
 		if (!numchans)
@@ -374,15 +366,11 @@ static int match_name(struct device *dev, const void *data)
 		return sysfs_streq(name, dev_name(dev));
 }
 
-INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
+u32 revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
 {
 	uint16_t i;
 
 	for (i = 0; i < i16uNumEntries; i++) {
-		pr_info_aio("addr %2d  type %d  len %3d  offset %3d  value %d 0x%x\n",
-			    pEnt[i].i8uAddress, pEnt[i].i8uType, pEnt[i].i16uBitLength, pEnt[i].i16uOffset,
-			    pEnt[i].i32uDefault, pEnt[i].i32uDefault);
-
 		switch (pEnt[i].i16uOffset) {
 		case RevPi_Compact_OFFSET_DInDebounce:
 			revpi_compact_config_g.din_debounce = pEnt[i].i32uDefault;

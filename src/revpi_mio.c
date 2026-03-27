@@ -52,7 +52,7 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 			       size_t ch_cnt, SMioAnalogResponseData *resp_data)
 {
-	size_t compressed = (MIO_AIO_PORT_CNT - ch_cnt) * sizeof(INT16U);
+	size_t compressed = (MIO_AIO_PORT_CNT - ch_cnt) * sizeof(u16);
 	SMioAnalogResponseData resp;
 	int ret;
 
@@ -230,7 +230,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 			conf->dio.i8uEncoderMode = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_IOMOD ... MIO_CONF_PUL -1:
-			arr_idx = (offset - MIO_CONF_IOMOD) / sizeof(INT8U);
+			arr_idx = (offset - MIO_CONF_IOMOD) / sizeof(u8);
 			conf->dio.i8uIoMode[arr_idx] = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_PUL:
@@ -240,12 +240,12 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 			conf->dio.i8uPulseRetrigMode = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_FPWM ... MIO_CONF_PLEN - 1:
-			arr_idx = (offset - MIO_CONF_FPWM) / sizeof(INT16U);
+			arr_idx = (offset - MIO_CONF_FPWM) / sizeof(u16);
 			conf->dio.i16uPwmFrequency[arr_idx]
 							= ent[i].i32uDefault;
 			break;
 		case MIO_CONF_PLEN ... MIO_CONF_AIM - 1:
-			arr_idx = (offset - MIO_CONF_PLEN) / sizeof(INT16U);
+			arr_idx = (offset - MIO_CONF_PLEN) / sizeof(u16);
 			conf->dio.i16uPulseLength[arr_idx]
 							= ent[i].i32uDefault;
 			break;
@@ -254,7 +254,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 				|= ent[i].i32uDefault << ent[i].i8uBitPos;
 			break;
 		case MIO_CONF_THR ... MIO_CONF_WSIZE - 1:
-			arr_idx = (offset - MIO_CONF_THR) / sizeof(INT16U);
+			arr_idx = (offset - MIO_CONF_THR) / sizeof(u16);
 			conf->aio_i.i16uVolt[arr_idx] = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_WSIZE:
@@ -265,7 +265,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 				|= ent[i].i32uDefault << ent[i].i8uBitPos;
 			break;
 		case MIO_CONF_OUTV ... MIO_CONF_END - 1:
-			arr_idx = (offset - MIO_CONF_OUTV) / sizeof(INT16U);
+			arr_idx = (offset - MIO_CONF_OUTV) / sizeof(u16);
 			conf->aio_o.i16uVolt[arr_idx] = ent[i].i32uDefault;
 			break;
 		default:

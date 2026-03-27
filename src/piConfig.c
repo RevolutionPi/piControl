@@ -44,8 +44,6 @@ typedef struct json_val {
 	} u;
 } json_val_t;
 
-char *indent_string = NULL;
-
 char *string_of_errors[] = {
 	[JSON_ERROR_NO_MEMORY] = "out of memory",
 	[JSON_ERROR_BAD_CHAR] = "bad character",
@@ -65,8 +63,6 @@ struct file *open_filename(const char *filename, int flags)
 {
 	struct file *input;
 	input = filp_open(filename, flags, 0);
-
-	pr_info_config("filp_open %s %x  %d %x\n", filename, (int)filename, (int)input, (int)input);
 
 	if (IS_ERR(input)) {
 		pr_err("error: cannot open file %s\n", filename);
@@ -351,8 +347,6 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 		return NULL;
 	}
 
-	pr_info_config("find_devices type %d   lvl %d\n", element->type, lvl);
-
 	switch (element->type) {
 	case JSON_OBJECT_BEGIN:
 		if (lvl == 200) {
@@ -397,8 +391,11 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 	case JSON_ARRAY_BEGIN:
 		if (lvl == 100) {
 			int entries = 0;
-			ret = kmalloc(sizeof(piDevices) + element->length * sizeof(SDeviceInfo), GFP_KERNEL);
-			memset(ret, 0, sizeof(piDevices) + element->length * sizeof(SDeviceInfo));
+			ret = kzalloc(sizeof(piDevices) +
+				      element->length * sizeof(SDeviceInfo),
+				      GFP_KERNEL);
+			if (!ret)
+				return NULL;
 			ret->i16uNumDevices = element->length;
 			for (i = 0; i < element->length; i++) {
 				ret->dev[i].i16uFirstEntry = entries;
@@ -500,7 +497,6 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 							}
 						}
 					}
-					//pr_info_config("export: >%s< t %d l %d\n", array[4]->u.data, array[4]->type, array[4]->length);
 					if (array[4]->type == JSON_TRUE ||
 					    (array[4]->type == JSON_STRING && strcmp(array[4]->u.data, "true") == 0)
 					    ) {
@@ -561,8 +557,6 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 		pr_err("error: no element in print tree\n");
 		return NULL;
 	}
-
-	pr_info_config("find_connections type %d   lvl %d\n", element->type, lvl);
 
 	switch (element->type) {
 	case JSON_OBJECT_BEGIN:
@@ -652,6 +646,8 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 	case JSON_ARRAY_BEGIN:
 		if (lvl == 100) {
 			ret = kzalloc(sizeof(piConnectionList) + element->length * sizeof(piConnection), GFP_KERNEL);
+			if (!ret)
+				return NULL;
 			ret->i16uNumEntries = element->length;
 			for (i = 0; i < element->length; i++) {
 				find_connections(element->u.array[i], devs, ent, &ret->conn[i], lvl + 1);
@@ -681,56 +677,6 @@ static piConnectionList *find_connections(json_val_t * element, piDevices * devs
 	return ret;
 }
 
-#ifdef DEBUG_CONFIG
-static int print_tree_iter(json_val_t * element, int lvl)
-{
-	int i;
-	char sLvl[] = "############";
-
-	if (!element) {
-		pr_info_config("error: no element in print tree\n");
-		return -1;
-	}
-
-	sLvl[lvl] = 0;
-
-	switch (element->type) {
-	case JSON_OBJECT_BEGIN:
-		pr_info_config("%s object begin (%d element)\n", sLvl, element->length);
-		for (i = 0; i < element->length; i++) {
-			pr_info_config("%s key: %s\n", sLvl, element->u.object[i]->key);
-			print_tree_iter(element->u.object[i]->val, lvl + 1);
-		}
-		pr_info_config("%s object end\n", sLvl);
-		break;
-	case JSON_ARRAY_BEGIN:
-		pr_info_config("%s array begin\n", sLvl);
-		for (i = 0; i < element->length; i++) {
-			print_tree_iter(element->u.array[i], lvl + 1);
-		}
-		pr_info_config("%s array end\n", sLvl);
-		break;
-	case JSON_FALSE:
-	case JSON_TRUE:
-	case JSON_NULL:
-		pr_info_config("%s constant\n", sLvl);
-		break;
-	case JSON_INT:
-		pr_info_config("%s integer: %s\n", sLvl, element->u.data);
-		break;
-	case JSON_STRING:
-		pr_info_config("%s string: %s\n", sLvl, element->u.data);
-		break;
-	case JSON_FLOAT:
-		pr_info_config("%s float: %s\n", sLvl, element->u.data);
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-#endif
-
 int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piCopylist ** cl,
 		  piConnectionList ** connl)
 {
@@ -753,10 +699,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	if (ret)
 		return ret;
 
-#ifdef DEBUG_CONFIG
-	print_tree_iter(root_structure, 1);
-#endif
-
 	*devs = find_devices(root_structure, NULL, 1);
 	if (*devs == NULL) {
 		pr_err("find_devices returned NULL\n");
@@ -766,20 +708,16 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	pr_info("found %d devices in configuration file\n", (*devs)->i16uNumDevices);
 
 	cnt = 0;
-	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
-		pr_info_config("device %d has %d entries, from %d. Offsets: Base=%3d"
-			       //" In=%3d Out=%3d Conf=%3d"
-			       "\n",
-			       i, (*devs)->dev[i].i16uEntries, (*devs)->dev[i].i16uFirstEntry,
-			       (*devs)->dev[i].i16uBaseOffset
-			       //, (*devs)->dev[i].i16uInputOffset, (*devs)->dev[i].i16uOutputOffset, (*devs)->dev[i].i16uConfigOffset
-		    );
+	for (i = 0; i < (*devs)->i16uNumDevices; i++)
 		cnt += (*devs)->dev[i].i16uEntries;
-	}
 	pr_debug("%d entries in total\n", cnt);
 
-	*ent = kmalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
-	memset(*ent, 0, sizeof(piEntries) + cnt * sizeof(SEntryInfo));
+	*ent = kzalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
+	if (!*ent) {
+		kfree(*devs);
+		*devs = NULL;
+		return JSON_ERROR_NO_MEMORY;
+	}
 	(*ent)->i16uNumEntries = cnt;
 	cnt = 0;
 	find_entries(root_structure, *ent, &cnt, 0, 0, 1);
@@ -791,13 +729,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	revpi_ro_reset();
 
 	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
-		pr_info_config("device %d typ %d has %d entries. Offsets: Base=%3d"
-			       " In=%3d Out=%3d Conf=%3d"
-			       "\n",
-			       i, (*devs)->dev[i].i16uModuleType, (*devs)->dev[i].i16uEntries,
-			       (*devs)->dev[i].i16uBaseOffset, (*devs)->dev[i].i16uInputOffset,
-			       (*devs)->dev[i].i16uOutputOffset, (*devs)->dev[i].i16uConfigOffset);
-
 		switch ((*devs)->dev[i].i16uModuleType) {
 		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
 		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
@@ -841,14 +772,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			(*devs)->dev[d].i16uOutputLength /= 8;
 			(*devs)->dev[d].i16uConfigLength /= 8;
 
-			pr_info_config("device %d typ %d adjusted. Offsets: Base=%3d\n"
-				       "offset In=%3d Out=%3d Conf=%3d\n"
-				       "length In=%3d Out=%3d Conf=%3d\n",
-				       d, (*devs)->dev[d].i16uModuleType, (*devs)->dev[d].i16uBaseOffset,
-				       (*devs)->dev[d].i16uInputOffset, (*devs)->dev[d].i16uOutputOffset,
-				       (*devs)->dev[d].i16uConfigOffset, (*devs)->dev[d].i16uInputLength,
-				       (*devs)->dev[d].i16uOutputLength, (*devs)->dev[d].i16uConfigLength);
-
 			d++;	// goto next device
 			idx[0] = idx[1] = idx[2] = idx[3] = 0;
 		} else {
@@ -882,7 +805,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 				(*devs)->dev[d].i16uConfigLength += (*ent)->ent[i].i16uBitLength;
 			} else if (type == 4)	// Config
 			{
-				if (idx[0] == 0 || (*devs)->dev[d].i16uInputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[3] == 0 || (*devs)->dev[d].i16uConfigOffset > (*ent)->ent[i].i16uOffset) {
 					idx[3]++;
 					(*devs)->dev[d].i16uConfigOffset = (*ent)->ent[i].i16uOffset;
 				}
@@ -894,8 +817,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 				(*ent)->ent[i].i16uOffset++;
 			}
 
-			pr_info_config("addr %2d  type %d  len %3d  offset %3d\n", (*ent)->ent[i].i8uAddress,
-				       (*ent)->ent[i].i8uType, (*ent)->ent[i].i16uBitLength, (*ent)->ent[i].i16uOffset);
 			i++;
 		}
 	}
@@ -904,28 +825,21 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		(*devs)->dev[d].i16uOutputLength /= 8;
 		(*devs)->dev[d].i16uConfigLength /= 8;
 
-		pr_info_config("device %d typ %d adjusted. Offsets: Base=%3d\n"
-			       "offset In=%3d Out=%3d Conf=%3d\n"
-			       "length In=%3d Out=%3d Conf=%3d\n",
-			       d, (*devs)->dev[d].i16uModuleType, (*devs)->dev[d].i16uBaseOffset,
-			       (*devs)->dev[d].i16uInputOffset, (*devs)->dev[d].i16uOutputOffset,
-			       (*devs)->dev[d].i16uConfigOffset, (*devs)->dev[d].i16uInputLength,
-			       (*devs)->dev[d].i16uOutputLength, (*devs)->dev[d].i16uConfigLength);
 	}
 
 	*connl = find_connections(root_structure, *devs, *ent, NULL, 1);
 
-#ifdef DEBUG_CONFIG
-	for (i = 0; i < (*connl)->i16uNumEntries; i++) {
-		pr_info_config("connection %2d: %d bits from %d/%d to %d/%d\n",
-			       i, (*connl)->conn[i].i8uLength,
-			       (*connl)->conn[i].i16uSrcAddr, (*connl)->conn[i].i8uSrcBit,
-			       (*connl)->conn[i].i16uDestAddr, (*connl)->conn[i].i8uDestBit);
-	}
-#endif
-
 	// Generate Copy List
-	*cl = kmalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
+	*cl = kzalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
+	if (!*cl) {
+		kfree(*connl);
+		*connl = NULL;
+		kfree(*ent);
+		*ent = NULL;
+		kfree(*devs);
+		*devs = NULL;
+		return JSON_ERROR_NO_MEMORY;
+	}
 	(*cl)->i16uNumEntries = exported_outputs;
 	d = 0;
 	for (i = 0; i < (*ent)->i16uNumEntries && d <= exported_outputs; i++) {
@@ -944,9 +858,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		}
 	}
 
-	pr_info_config("cl: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[0].i16uAddr, (*cl)->ent[0].i8uBitMask,
-		       (*cl)->ent[0].i16uLength);
-
 	// prüfe ob die Einträge aufsteigend sortiert sind
 	for (d = 1; d < exported_outputs; d++) {
 		if (((*cl)->ent[d - 1].i16uAddr > (*cl)->ent[d].i16uAddr)
@@ -957,9 +868,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			pr_err("### internal error 2 ### %d\n", d);
 			exported_outputs = 0;
 			break;
-		} else {
-			pr_info_config("cl: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[d].i16uAddr,
-				       (*cl)->ent[d].i8uBitMask, (*cl)->ent[d].i16uLength);
 		}
 	}
 
@@ -992,7 +900,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		i++;
 	}
 
-	pr_info_config("copylist has %d entries\n", i);
 	(*cl)->i16uNumEntries = i;
 
 	free_tree(root_structure);
@@ -1008,10 +915,6 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 	int i;
 
 	for (i = 0; i < entries->i16uNumEntries; i++) {
-		pr_info_aio("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
-			    ent->i8uAddress, ent->i8uType, ent->i16uBitLength,
-			    ent->i16uOffset, ent->i8uBitPos, ent->i32uDefault);
-
 		ent = &entries->ent[i];
 		type = ent->i8uType & ENTRY_INFO_TYPE_MASK;
 

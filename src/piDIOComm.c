@@ -11,17 +11,17 @@
 #define DIO_MAX_COUNTERS		6
 #define DIO_PWM_DATA_LEN		sizeof(struct pwm_data)
 
-static INT8U i8uConfigured_s = 0;
+static u8 i8uConfigured_s = 0;
 static SDioConfig dioConfig_s[10];
-static INT8U i8uNumCounter[64];
-static INT16U i16uCounterAct[64];
+static u8 i8uNumCounter[64];
+static u16 i16uCounterAct[64];
 
 void piDIOComm_InitStart(void)
 {
 	i8uConfigured_s = 0;
 }
 
-INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
+u32 piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
 {
 	uint16_t i;
 
@@ -30,7 +30,6 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 		return -1;
 	}
 
-	pr_info_dio("piDIOComm_Config addr %d entries %d  num %d\n", i8uAddress, i16uNumEntries, i8uConfigured_s);
 	memset(&dioConfig_s[i8uConfigured_s], 0, sizeof(SDioConfig));
 
 	dioConfig_s[i8uConfigured_s].i8uAddr = i8uAddress;
@@ -39,10 +38,6 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 	i16uCounterAct[i8uAddress] = 0;
 
 	for (i = 0; i < i16uNumEntries; i++) {
-		pr_info_dio("addr %2d  type %d  len %3d  offset %3d  value %d 0x%x\n",
-			    pEnt[i].i8uAddress, pEnt[i].i8uType, pEnt[i].i16uBitLength, pEnt[i].i16uOffset,
-			    pEnt[i].i32uDefault, pEnt[i].i32uDefault);
-
 		if (pEnt[i].i16uOffset >= 88 && pEnt[i].i16uOffset <= 103) {
 			dioConfig_s[i8uConfigured_s].i32uInputMode |=
 			    (pEnt[i].i32uDefault & 0x03) << ((pEnt[i].i16uOffset - 88) * 2);
@@ -78,23 +73,18 @@ INT32U piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo 
 		return -1;
 	}
 
-	pr_info_dio("piDIOComm_Config done addr %d input mode %08x  numCnt %d\n", i8uAddress,
-		    dioConfig_s[i8uConfigured_s].i32uInputMode, i8uNumCounter[i8uAddress]);
 	i8uConfigured_s++;
 
 	return 0;
 }
 
-INT32U piDIOComm_Init(INT8U i8uDevice_p)
+u32 piDIOComm_Init(u8 i8uDevice_p)
 {
 	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 	u8 snd_len = sizeof(SDioConfig);
 	u8 *snd_buf;
 	int ret;
 	int i;
-
-	pr_info_dio("piDIOComm_Init %d of %d  addr %d numCnt %d\n", i8uDevice_p,
-		    i8uConfigured_s, addr, i8uNumCounter[addr]);
 
 	ret = 4;  // unknown device
 
@@ -112,7 +102,7 @@ INT32U piDIOComm_Init(INT8U i8uDevice_p)
 	return ret;
 }
 
-INT32U piDIOComm_sendCyclicTelegram(u8 devnum)
+u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 {
 	static u8 last_out[40][DIO_OUTPUT_DATA_LEN];
 	u8 in_buf[IOPROTOCOL_MAXDATA_LENGTH];

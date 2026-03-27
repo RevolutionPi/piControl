@@ -74,7 +74,7 @@ struct revpi_compact_stats {
 	seqlock_t lock;
 };
 
-INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt);
+u32 revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt);
 int revpi_compact_reset(void);
 int revpi_compact_probe(struct platform_device *pdev);
 void revpi_compact_remove(struct platform_device *pdev);

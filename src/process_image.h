@@ -12,6 +12,7 @@
 #include <linux/hrtimer.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
+#include <linux/version.h>
 #include "revpi_compact.h"
 
 struct cycletimer {
@@ -64,8 +65,13 @@ static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime
 {
 	struct hrtimer *timer = &ct->timer;
 
+#if KERNEL_VERSION(6, 13, 0) > LINUX_VERSION_CODE
 	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->function = wake_up_sleeper;
+#else
+	hrtimer_setup_on_stack(timer, wake_up_sleeper, CLOCK_MONOTONIC,
+			       HRTIMER_MODE_ABS_HARD);
+#endif
 	init_completion(&ct->timer_expired);
 	cycletimer_change(ct, cycletime);
 }

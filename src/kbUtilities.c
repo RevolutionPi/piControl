@@ -17,11 +17,11 @@
 //!
 //! ingroup. Util
 //-------------------------------------------------------------------------------------------------
-INT32U kbUT_getCurrentMs (
+u32 kbUT_getCurrentMs (
     void)           //! \return tick count
 
 {
-    INT32U i32uRv_l;
+    u32 i32uRv_l;
 
     i32uRv_l = kbGetTickCount ();
 
@@ -54,14 +54,14 @@ void kbUT_TimerInit (
 //-------------------------------------------------------------------------------------------------
 void kbUT_TimerStart (
     kbUT_Timer *ptTimer_p,          //!< [inout] pointer to timer struct
-    INT32U i32uDuration_p)          //!< [in] duration of timer to run (ms)
+    u32 i32uDuration_p)          //!< [in] duration of timer to run (ms)
 
 {
 
     ptTimer_p->i32uStartTime = kbUT_getCurrentMs ();
     ptTimer_p->i32uDuration = i32uDuration_p;
-    ptTimer_p->bExpired = bFALSE;
-    ptTimer_p->bRun = bTRUE;
+    ptTimer_p->bExpired = false;
+    ptTimer_p->bRun = true;
 }
 
 //*************************************************************************************************
@@ -72,21 +72,21 @@ void kbUT_TimerStart (
 //!
 //! ingroup. Util
 //-------------------------------------------------------------------------------------------------
-TBOOL kbUT_TimerRunning (
+bool kbUT_TimerRunning (
     kbUT_Timer *ptTimer_p)      //!< [in] pointer to timer struct
-				//! \return = bTRUE: timer is actual running, = bFALSE: timer is
+				//! \return = true: timer is actual running, = false: timer is
 				//! either not started or expired.
 
 {
-    INT32U i32uTimeDiff_l;
+    u32 i32uTimeDiff_l;
 
-    if (ptTimer_p->bRun == bTRUE)
+    if (ptTimer_p->bRun == true)
     {
 	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
 	if (i32uTimeDiff_l >= ptTimer_p->i32uDuration)
 	{  // Timer expired
-	    ptTimer_p->bExpired = bTRUE;
-	    ptTimer_p->bRun = bFALSE;
+	    ptTimer_p->bExpired = true;
+	    ptTimer_p->bRun = false;
 	}
     }
 
@@ -103,27 +103,27 @@ TBOOL kbUT_TimerRunning (
 //!
 //! ingroup. Util
 //-------------------------------------------------------------------------------------------------
-TBOOL kbUT_TimerExpired (
+bool kbUT_TimerExpired (
     kbUT_Timer *ptTimer_p)
 
 {
-    INT32U i32uTimeDiff_l;
-    TBOOL bRv_l = bFALSE;
+    u32 i32uTimeDiff_l;
+    bool bRv_l = false;
 
-    if (ptTimer_p->bRun == bTRUE)
+    if (ptTimer_p->bRun == true)
     {
 	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
 	if (i32uTimeDiff_l >= ptTimer_p->i32uDuration)
 	{  // Timer expired
-	    ptTimer_p->bExpired = bTRUE;
-	    ptTimer_p->bRun = bFALSE;
-	    bRv_l = bTRUE;
+	    ptTimer_p->bExpired = true;
+	    ptTimer_p->bRun = false;
+	    bRv_l = true;
 	}
     }
 
     bRv_l = ptTimer_p->bExpired;
 
-    ptTimer_p->bExpired = bFALSE; // Reset Flag, so that it is only once TRUE
+    ptTimer_p->bExpired = false; // Reset Flag, so that it is only once TRUE
 
     return (bRv_l);
 
@@ -139,15 +139,15 @@ TBOOL kbUT_TimerExpired (
 //!
 //! ingroup. Util
 //-------------------------------------------------------------------------------------------------
-INT32U kbUT_TimeElapsed (
+u32 kbUT_TimeElapsed (
     kbUT_Timer *ptTimer_p)      //!< [in] pointer to timer
 				//! \return time elapsed since timer started in ms
 
 {
 
-    INT32U i32uTimeDiff_l = 0;
+    u32 i32uTimeDiff_l = 0;
 
-    if (ptTimer_p->bRun == bTRUE)
+    if (ptTimer_p->bRun == true)
     {
 	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
     }
@@ -163,9 +163,9 @@ INT32U kbUT_TimeElapsed (
 //!
 //! ingroup. Util
 //-------------------------------------------------------------------------------------------------
-TBOOL kbUT_TimerInUse (
+bool kbUT_TimerInUse (
     kbUT_Timer *ptTimer_p)      //!< [in] pointer to timer struct
-				//! \return = bTRUE: timer is actual running, = bFALSE: timer is
+				//! \return = true: timer is actual running, = false: timer is
 				//! either not started or expired and can be restarted now
 
 {
@@ -183,20 +183,20 @@ TBOOL kbUT_TimerInUse (
 //! ingroup. Util
 //-------------------------------------------------------------------------------------------------
 void kbUT_crc32 (
-    INT8U *pi8uData_p,        //!< [in] pointer to data
-    INT16U i16uCnt_p,         //!< [in] number of bytes
-    INT32U *pi32uCrc_p)       //!< [inout] CRC sum and inital value
+    u8 *pi8uData_p,        //!< [in] pointer to data
+    u16 i16uCnt_p,         //!< [in] number of bytes
+    u32 *pi32uCrc_p)       //!< [inout] CRC sum and inital value
 
 {
 
-    INT16U i;
-    INT16U j;
-    INT32U i32uCrc_l = *pi32uCrc_p;
+    u16 i;
+    u16 j;
+    u32 i32uCrc_l = *pi32uCrc_p;
 #define CRC32_POLY  0xEDB88320
 
     for (i = 0; i < i16uCnt_p; i++)
     {
-	i32uCrc_l ^= (INT32U)pi8uData_p[i];
+	i32uCrc_l ^= (u32)pi8uData_p[i];
 	for (j = 0; j < 8; j++)
 	{
 	    if (i32uCrc_l & 0x00000001)
@@ -221,18 +221,18 @@ void kbUT_crc32 (
 //!
 //! ingroup. Util
 //-------------------------------------------------------------------------------------------------
-TBOOL kbUT_uitoa(INT32U p_value, INT8U* p_string, INT8U p_radix)
+bool kbUT_uitoa(u32 p_value, u8* p_string, u8 p_radix)
 {
-  INT8U* stringPtr  = p_string;
-  INT8U* stringPtr1 = p_string;
-  INT8U  tmp_char;
-  INT32U oldValue;
+  u8* stringPtr  = p_string;
+  u8* stringPtr1 = p_string;
+  u8  tmp_char;
+  u32 oldValue;
 
   // Check base
   if (p_radix != 2 && p_radix != 10 && p_radix != 16)
   {
     // Error, invalid base
-    return bFALSE;
+    return false;
   }
 
   do
@@ -253,7 +253,7 @@ TBOOL kbUT_uitoa(INT32U p_value, INT8U* p_string, INT8U p_radix)
     *stringPtr1++  = tmp_char;
   }
 
-  return bTRUE;
+  return true;
 }
 
 //*************************************************************************************************
@@ -355,7 +355,7 @@ unsigned long kbUT_atoi(const char *start, int *success)
 //! until the next call of the function.
 //! ingroup. Util
 //-------------------------------------------------------------------------------------------------
-char *kbUT_itoa(INT32U val, INT16S radix, INT16U len)
+char *kbUT_itoa(u32 val, s16 radix, u16 len)
 {
   static char buffer[13];
   unsigned int i = 0, j;
@@ -364,7 +364,7 @@ char *kbUT_itoa(INT32U val, INT16S radix, INT16U len)
   if (radix < 0)
   {
     radix = -radix;
-    if ((INT32S)val < 0)
+    if ((s32)val < 0)
     {
       val = ~(val-1);
       sign = 1;

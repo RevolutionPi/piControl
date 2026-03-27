@@ -33,7 +33,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.5.0");
+MODULE_VERSION("2.6.1");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
@@ -114,7 +114,7 @@ static bool waitRunning(int timeout);	// ms
 /*       I N I T                                                             */
 /*****************************************************************************/
 #ifdef UART_TEST
-void piControlDummyReceive(INT8U i8uChar_p)
+void piControlDummyReceive(u8 i8uChar_p)
 {
 	pr_info("Got character %c\n", i8uChar_p);
 }
@@ -646,6 +646,8 @@ err_revpi_fini:
 err_free_config:
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
+	kfree(piDev_g.cl);
+	kfree(piDev_g.connl);
 err_sysfs_remove:
 	piControl_deinit_sysfs();
 err_dev_destroy:
@@ -673,6 +675,9 @@ static int piControlReset(tpiControlInst * priv)
 
 	kfree(piDev_g.cl);
 	piDev_g.cl = NULL;
+
+	kfree(piDev_g.connl);
+	piDev_g.connl = NULL;
 
 	/* start application */
 	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl,
@@ -712,10 +717,14 @@ static int piControlReset(tpiControlInst * priv)
 
 				if (!found) {
 					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
-					pEntry->event = piEvReset;
-					list_add_tail(&pEntry->list, &pos_inst->piEventList);
+					if (pEntry) {
+						pEntry->event = piEvReset;
+						list_add_tail(&pEntry->list,
+							      &pos_inst->piEventList);
+					}
 					rt_mutex_unlock(&pos_inst->lockEventList);
-					wake_up(&pos_inst->wq);
+					if (pEntry)
+						wake_up(&pos_inst->wq);
 				} else {
 					rt_mutex_unlock(&pos_inst->lockEventList);
 				}
@@ -753,6 +762,8 @@ static int pibridge_remove(struct platform_device *pdev)
 
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
+	kfree(piDev_g.cl);
+	kfree(piDev_g.connl);
 	piControl_deinit_sysfs();
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor));
 	device_destroy(piControlClass, curdev);
@@ -881,7 +892,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count, loff_t * ppos)
 {
 	tpiControlInst *priv;
-	INT8U *pPd;
+	u8 *pPd;
 	size_t nread = count;
 
 	if (!isRunning())
@@ -920,7 +931,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_t count, loff_t * ppos)
 {
 	tpiControlInst *priv;
-	INT8U *pPd;
+	u8 *pPd;
 	size_t nwrite = count;
 
 	if (!isRunning())
@@ -1200,7 +1211,8 @@ static int send_config(unsigned long usr_addr)
 	if (ret > 0) {
 		put_user(resp->datalen, &cfg_user->i16uLen);
 
-		if (resp->datalen && copy_to_user(cfg_user, resp->data,
+		if (resp->datalen && copy_to_user(cfg_user->acData,
+						  resp->data,
 						  resp->datalen))
 			ret = -EFAULT;
 	}
@@ -1215,38 +1227,27 @@ free_req:
 static int send_internal_gate_msg(unsigned long usr_addr)
 {
 	struct modgate_telegram __user *tel = (struct modgate_telegram __user *) usr_addr;
-	struct modgate_telegram *resp;
-	struct modgate_telegram *req;
 	int ret;
 
 	if (!piDev_g.pibridge_supported)
 		return -EOPNOTSUPP;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	struct modgate_telegram *req __free(kfree) = kmalloc(sizeof(*req), GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
-	resp = kmalloc(sizeof(*resp), GFP_KERNEL);
-	if (!resp) {
-		ret = -ENOMEM;
-		goto free_req;
-	}
+	struct modgate_telegram *resp __free(kfree) = kmalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
 
-	if (copy_from_user(req, tel, sizeof(*tel))) {
-		ret = -EFAULT;
-		goto free_resp;
-	}
+	if (copy_from_user(req, tel, sizeof(*tel)))
+		return -EFAULT;
 
 	ret = send_internal_gate_telegram(req, resp);
 	if (ret > 0) {
 		if (copy_to_user(tel, resp, sizeof(*tel)))
-			ret = -EFAULT;
+			return -EFAULT;
 	}
-
-free_resp:
-	kfree(resp);
-free_req:
-	kfree(req);
 
 	return ret;
 }
@@ -1628,7 +1629,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (spi_val.i16uAddress >= KB_PI_LEN) {
 				status = -EINVAL;
 			} else {
-				INT8U i8uValue_l;
+				u8 i8uValue_l;
 				my_rt_mutex_lock(&piDev_g.lockPI);
 				i8uValue_l = piDev_g.ai8uPI[spi_val.i16uAddress];
 
@@ -1826,7 +1827,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			int i, ret, cnt;
 			u32 data;
-			INT32U *pData = NULL;	// pData is null or points to the module address
+			u32 *pData = NULL;	// pData is null or points to the module address
 
 
 			pr_notice("Note: ioctl KB_UPDATE_DEVICE_FIRMWARE is deprecated. Use PICONTROL_UPLOAD_FIRMWARE instead\n");

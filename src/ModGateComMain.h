@@ -26,12 +26,12 @@ typedef enum
 // Link Layer
 //**********************************************************************************************
 typedef struct {
-    INT8U   i8uDestination[6];
-    INT8U   i8uSource[6];
-    INT16U  i16uType;
+    u8   i8uDestination[6];
+    u8   i8uSource[6];
+    u16  i16uType;
 #ifndef __KUNBUSPI_KERNEL__
-    INT8U   i8uACK;             //Acknowledge
-    INT8U   i8uCounter;
+    u8   i8uACK;             //Acknowledge
+    u8   i8uCounter;
 #endif
 } __attribute__((__packed__)) MODGATECOM_LinkLayer;
 
@@ -40,14 +40,14 @@ typedef struct {
 //**********************************************************************************************
 typedef struct {
 #ifdef __KUNBUSPI_KERNEL__
-    INT8U   i8uACK;             //Acknowledge
-    INT8U   i8uCounter;
+    u8   i8uACK;             //Acknowledge
+    u8   i8uCounter;
 #endif
-    INT16U  i16uCmd;
-    INT16U  i16uDataLength;
-    INT32U  i32uError;
-    INT8U   i8uVersion;
-    INT8U   i8uReserved;
+    u16  i16uCmd;
+    u16  i16uDataLength;
+    u32  i32uError;
+    u8   i8uVersion;
+    u8   i8uReserved;
 } __attribute__((__packed__)) MODGATECOM_TransportLayer;
 
 //**********************************************************************************************
@@ -97,29 +97,29 @@ typedef enum
 
 //**********************************************************************************************
 typedef struct {
-    INT32U  i32uSerialnumber;
-    INT16U  i16uModulType;
-    INT16U  i16uHW_Revision;
-    INT16U  i16uSW_Major;
-    INT16U  i16uSW_Minor;
-    INT32U  i32uSVN_Revision;
-    INT16U  i16uFBS_InputLength;
-    INT16U  i16uFBS_OutputLength;
-    INT16U  i16uFeatureDescriptor;
+    u32  i32uSerialnumber;
+    u16  i16uModulType;
+    u16  i16uHW_Revision;
+    u16  i16uSW_Major;
+    u16  i16uSW_Minor;
+    u32  i32uSVN_Revision;
+    u16  i16uFBS_InputLength;
+    u16  i16uFBS_OutputLength;
+    u16  i16uFeatureDescriptor;
 } __attribute__((__packed__)) MODGATECOM_IDResp;
 
 //**********************************************************************************************
 typedef struct {
-    INT8U   i8uFieldbusStatus;  // type MODGATECOM_FieldbusStatus
-    INT16U  i16uOffset;
-    INT16U  i16uDataLen;
-    INT8U   i8uData[0];     // dummy declaration for up to MODGATE_MAX_PD_DATALEN bytes
+    u8   i8uFieldbusStatus;  // type MODGATECOM_FieldbusStatus
+    u16  i16uOffset;
+    u16  i16uDataLen;
+    u8   i8uData[0];     // dummy declaration for up to MODGATE_MAX_PD_DATALEN bytes
 } __attribute__((__packed__)) MODGATECOM_CyclicPD;
 
 typedef struct {
     MODGATECOM_LinkLayer      strLinkLayer;
     MODGATECOM_TransportLayer strTransportLayer;
-    INT8U                     i8uData[MODGATE_AL_MAX_LEN];
+    u8                     i8uData[MODGATE_AL_MAX_LEN];
 } __attribute__((__packed__)) MODGATECOM_Packet;
 
 //**********************************************************************************************
@@ -135,22 +135,22 @@ extern "C" {
 typedef struct _sLLData
 {
     MODGATECOM_LinkLayer    Header;
-    INT8U                   state;
-    INT32U                  send_tick;       // tick counter of last sent packet
-    INT8U                   send_retry;      // retry counter
-    INT32U                  recv_tick;       // tick counter of last recv packet
-    TBOOL                   timed_out;
+    u8                   state;
+    u32                  send_tick;       // tick counter of last sent packet
+    u8                   send_retry;      // retry counter
+    u32                  recv_tick;       // tick counter of last recv packet
+    bool                   timed_out;
     MODGATECOM_Packet      *pLastData;
 } sLLData;
 
 typedef sLLData *LLHandle;
 
-INT32U MG_LL_init (LLHandle llHdl);
-INT32U MG_LL_send (LLHandle llHdl, MODGATECOM_Packet *pData_p);
-MODGATECOM_Packet *MG_LL_recv(LLHandle llHdl, INT32U *pi32uStatus_p, INT16U *pi16uLen_p);
-TBOOL  MG_LL_pending (LLHandle llHdl);
+u32 MG_LL_init (LLHandle llHdl);
+u32 MG_LL_send (LLHandle llHdl, MODGATECOM_Packet *pData_p);
+MODGATECOM_Packet *MG_LL_recv(LLHandle llHdl, u32 *pi32uStatus_p, u16 *pi16uLen_p);
+bool  MG_LL_pending (LLHandle llHdl);
 void   MG_LL_abort (LLHandle llHdl);
-TBOOL  MG_LL_timed_out (LLHandle llHdl);
+bool  MG_LL_timed_out (LLHandle llHdl);
 
 //**********************************************************************************************
 // Application Layer
@@ -162,16 +162,16 @@ typedef struct _sALData
     MODGATECOM_IDResp OtherID;              //!< ID-Data of other mGate
     kbUT_Timer  AL_Timeout;
 
-    INT8U *pi8uInData;
-    INT16U i16uInDataLen;
-    INT16U i16uInDataLenActive;
+    u8 *pi8uInData;
+    u16 i16uInDataLen;
+    u16 i16uInDataLenActive;
 
-    INT8U *pi8uOutData;
-    INT16U i16uOutDataLen;
-    INT16U i16uOutDataLenActive;
+    u8 *pi8uOutData;
+    u16 i16uOutDataLen;
+    u16 i16uOutDataLenActive;
 
-    INT8U    i8uState;                      //!< modular Gateway state machine state
-    INT8U    i8uOtherFieldbusState;         //!< Fieldbus State of other mGate
+    u8    i8uState;                      //!< modular Gateway state machine state
+    u8    i8uOtherFieldbusState;         //!< Fieldbus State of other mGate
     MODGATECOM_EPowerLedState enLedStateAct;
     MODGATECOM_EPowerLedState enLedStateOld;
 } sALData;
@@ -182,30 +182,30 @@ extern sALData AL_Data_s[MODGATECOM_MAX_MODULES];
 
 //**********************************************************************************************
 #ifndef __KUNBUSPI_KERNEL__
-INT32U MODGATECOM_init (INT8U *pi8uInData_p,  INT16U i16uInDataLen_p, INT8U *pi8uOutData_p, INT16U i16uOutDataLen_p, ETHERNET_INTERFACE *EthDrv);
+u32 MODGATECOM_init (u8 *pi8uInData_p,  u16 i16uInDataLen_p, u8 *pi8uOutData_p, u16 i16uOutDataLen_p, ETHERNET_INTERFACE *EthDrv);
 void   MODGATECOM_run (void);
 
-void   MODGATECOM_SetOwnFieldbusState(INT8U i8uOwnFieldbusState_p);
-INT8U  MODGATECOM_GetOwnFieldbusState(void);
-INT8U  MODGATECOM_GetOtherFieldbusState(INT8U i8uInst_p);               // in modular Gateways always 0 must be passed
+void   MODGATECOM_SetOwnFieldbusState(u8 i8uOwnFieldbusState_p);
+u8  MODGATECOM_GetOwnFieldbusState(void);
+u8  MODGATECOM_GetOtherFieldbusState(u8 i8uInst_p);               // in modular Gateways always 0 must be passed
 MODGATECOM_EPowerLedState MODGATECOM_GetLedState(void);
 
-INT16U MODGATECOM_GetInputDataLengthActive(INT8U i8uInstance_p);    // in modular Gateways, always 0 must be passed
-INT16U MODGATECOM_GetOutputDataLengthActive(INT8U i8uInstance_p);   // ditto
+u16 MODGATECOM_GetInputDataLengthActive(u8 i8uInstance_p);    // in modular Gateways, always 0 must be passed
+u16 MODGATECOM_GetOutputDataLengthActive(u8 i8uInstance_p);   // ditto
 
 //**********************************************************************************************
 // internal
 //**********************************************************************************************
 
-INT32U MODGATECOM_send_ID_Req   (ALHandle);
-INT32U MODGATECOM_send_ID_Resp  (ALHandle);
-INT32U MODGATECOM_send_cyclicPD (ALHandle);
+u32 MODGATECOM_send_ID_Req   (ALHandle);
+u32 MODGATECOM_send_ID_Resp  (ALHandle);
+u32 MODGATECOM_send_cyclicPD (ALHandle);
 
-TBOOL MODGATECOM_recv_Id_Resp  (ALHandle, MODGATECOM_Packet *pPacket_p);
-TBOOL MODGATECOM_recv_cyclicPD (ALHandle, MODGATECOM_Packet *pPacket_p);
+bool MODGATECOM_recv_Id_Resp  (ALHandle, MODGATECOM_Packet *pPacket_p);
+bool MODGATECOM_recv_cyclicPD (ALHandle, MODGATECOM_Packet *pPacket_p);
 
 void   MODGATECOM_managePowerLedRun (void);
-MODGATE_AL_Status MODGATECOM_GetState(INT8U i8uInst_p);
+MODGATE_AL_Status MODGATECOM_GetState(u8 i8uInst_p);
 
 //**********************************************************************************************
 
@@ -219,10 +219,10 @@ extern MODGATECOM_IDResp MODGATE_OwnID_g;     //!< ID-Data of this mGate
 
 
 // internal functions
-// for all functions: return value bTRUE is send/receive was successful
-TBOOL  MODGATECOM_receive (void);
-TBOOL  MODGATECOM_send (INT16U cmd);
-TBOOL  MODGATECOM_send_ACK (void);
+// for all functions: return value true is send/receive was successful
+bool  MODGATECOM_receive (void);
+bool  MODGATECOM_send (u16 cmd);
+bool  MODGATECOM_send_ACK (void);
 
 void   MODGATECOM_T1_Handler (void);
 void   MODGATECOM_T2_Handler (void);
