@@ -1,3 +1,52 @@
+picontrol (2.6.1-1+deb12+1) bookworm; urgency=medium
+
+  [ Ramiro Gsponer ]
+  * Build for linux-image-6.12.73-revpi0-rpi-v8 (= 6.12.73-revpi0-
+    1+deb12+1)
+
+  [ Thomas Böhler ]
+  * ci: fix regex for linux headers version
+
+  [ Erik Sallmann ]
+  * Add modules_install target to Makefile
+
+  [ Thomas Böhler ]
+  * switch to use hrtimer_setup{,_on_stack}
+
+  [ Lino Sanfilippo ]
+  * Print a note for not found IO-devices
+  * In init_gpios() setup RS485 termination GPIO
+  * Introduce macro for first IO device on the left side
+  * Set base device RS485 termination depending on topology
+  * Set termination on RevPi extension modules
+
+  [ Thomas Böhler ]
+  * editorconfig: add .editorconfig
+  * piControlMain: Simplify send_internal_gate_msg()
+  * piControlMain: reword firmware update messages
+
+  [ Lino Sanfilippo ]
+  * Bump to version 2.6.0
+
+  [ Nicolai Buchwitz ]
+  * piControl: remove dead debug infrastructure
+  * piIOComm: remove dead DEBUG_GPIO debug blocks
+  * RevPiDevice: remove redundant DEBUG_DEVICE ifdef guards
+  * RevPiDevice: remove unused RevPiDevice_stopDataexchange()
+  * piControlMain: fix memory leaks of connl and cl on reset and removal
+  * piControlMain: add NULL check after kmalloc in piControlReset()
+  * piConfig: add NULL checks after allocation and use kzalloc
+  * piConfig: fix wrong index in type 4 (Config) offset correction
+  * revpi_gate: use GFP_KERNEL instead of GFP_ATOMIC for allocations
+  * piControlMain: fix copy_to_user destination in send_config()
+  * piControlMain: use bit numbers for flag definitions
+  * piControl: replace KUNBUS types with standard kernel types
+
+  [ Ramiro Gsponer ]
+  * Release v2.6.1
+
+ -- Ramiro Gsponer <r.gsponer@kunbus.com>  Fri, 27 Mar 2026 13:38:13 +0100
+
 picontrol (2.5.0-1+deb12+1) bookworm; urgency=medium
 
   [ Lino Sanfilippo ]
