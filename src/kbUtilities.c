@@ -117,7 +117,6 @@ bool kbUT_TimerExpired (
 	{  // Timer expired
 	    ptTimer_p->bExpired = true;
 	    ptTimer_p->bRun = false;
-	    bRv_l = true;
 	}
     }
 
