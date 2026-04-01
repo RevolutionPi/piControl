@@ -1243,6 +1243,9 @@ static int send_internal_gate_msg(unsigned long usr_addr)
 	if (copy_from_user(req, tel, sizeof(*tel)))
 		return -EFAULT;
 
+	if (req->datalen > MAX_TELEGRAM_DATA_SIZE)
+		return -EINVAL;
+
 	ret = send_internal_gate_telegram(req, resp);
 	if (ret > 0) {
 		if (copy_to_user(tel, resp, sizeof(*tel)))
