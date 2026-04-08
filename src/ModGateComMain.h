@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #ifndef MODGATECOMMAIN_H_INC
 #define MODGATECOMMAIN_H_INC
+
+#include <linux/bits.h>
 
 #if defined (_MSC_VER)
 #pragma warning (disable: 4200)
@@ -73,6 +75,7 @@ typedef enum
 
 // Feature descriptor bits
 #define MODGATE_feature_IODataExchange          0x0001 // supports data-exchange using ethernet (e.g. mGate)
+#define MODGATE_feature_Baudrate                GENMASK(3, 2) // bits 2-3: supported baudrates
 
 #define MODGATE_MAX_PD_DATALEN              512
 

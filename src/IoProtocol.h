@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #ifndef IOPROTOCOL_H_INC
@@ -24,6 +24,17 @@
 #define IOP_TYP2_CMD_UNDEF0                    0
 #define IOP_TYP2_CMD_UNDEF1                    1
 #define IOP_TYP2_CMD_GOTO_GATE_PROTOCOL     0x3f
+
+/*
+ * Baudrate negotiation: 2-bit index encoded in i16uFeatureDescriptor
+ * bits 2-3. Legacy modules have these bits zeroed (= 115200).
+ * Specific baudrates are subject to change based on firmware testing.
+ */
+#define PIBRIDGE_BAUD_INDEX_115200	0
+#define PIBRIDGE_BAUD_INDEX_500000	1
+#define PIBRIDGE_BAUD_INDEX_1000000	2
+#define PIBRIDGE_BAUD_INDEX_1500000	3
+#define PIBRIDGE_BAUD_INDEX_MAX		3
 
 typedef enum
 {

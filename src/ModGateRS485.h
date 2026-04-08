@@ -36,6 +36,7 @@ typedef enum
     eCmdPiIoSetTermination    = 0x0015,     // The slave should set the RS485 termination resistor
     eCmdPiIoConfigure         = 0x0016,     // The configuration data for the slave
     eCmdPiIoStartDataExchange = 0x0017,     // Slave have to start dataexchange
+    eCmdPiIoSetBaudrate       = 0x0019,     // Set RS485 baudrate (1 byte payload: baud index)
 } ERs485Command;
 
 #endif // MODGATERS485_H_INC
