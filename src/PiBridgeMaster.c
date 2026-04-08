@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
+#include <linux/bitfield.h>
 #include <linux/cpufreq.h>
 #include <linux/jiffies.h>
 #include <linux/pibridge_comm.h>
@@ -21,6 +22,7 @@
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
+#define BAUD_SWITCH_MAX_RETRIES 3	// max. retries for switching the bus baudrate
 
 /* The number of cycles after which the comm error counter is decreased */
 #define COMM_ERROR_CYCLES		(1<<3) /* must be power of 2! */
@@ -28,7 +30,15 @@
 /* Error limit for error log message */
 #define COMM_ERROR_LOG_LIMIT		10
 
+static const u32 pibridge_baud_table[] = {
+	[PIBRIDGE_BAUD_INDEX_115200]  = PIBRIDGE_MIN_BAUDRATE,
+	[PIBRIDGE_BAUD_INDEX_500000]  = 500000,
+	[PIBRIDGE_BAUD_INDEX_1000000] = 1000000,
+	[PIBRIDGE_BAUD_INDEX_1500000] = 1500000,
+};
+
 static int init_retry = MAX_INIT_RETRIES;
+static int baud_switch_retries;
 static volatile bool bEntering_s = true;
 EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
 static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
@@ -321,6 +331,133 @@ void PiBridgeMaster_setDefaults(void)
 	}
 }
 
+/*
+ * Compute the highest baudrate supported by all active IO modules.
+ * Reads the 2-bit baudrate index from each module's feature descriptor
+ * (bits 2-3 of i16uFeatureDescriptor), which was already received
+ * during discovery. Legacy modules have these bits zeroed (= 115200).
+ * Skips device 0 (the base/master device) which is not an IO module.
+ * Returns PIBRIDGE_BAUD_INDEX_115200 if no IO modules are present.
+ */
+static u8 pibridge_get_max_common_baudrate(void)
+{
+	u32 master_max = pibridge_get_max_baudrate(piCore_g.pibridge);
+	u8 min_index = PIBRIDGE_BAUD_INDEX_MAX;
+	u8 max_index = 0;
+	bool found = false;
+	SDevice *dev;
+	u8 baud_idx;
+	int i;
+
+	/* Start with the master's hardware-limited max baud as the ceiling. */
+	if (master_max) {
+		while ((min_index > PIBRIDGE_BAUD_INDEX_115200) &&
+		       (pibridge_baud_table[min_index] > master_max))
+			min_index--;
+	}
+
+	for (i = 1; i < RevPiDevice_getDevCnt(); i++) {
+		dev = RevPiDevice_getDev(i);
+		if (!dev->i8uActive)
+			continue;
+		if (dev->sId.i16uModulType >= PICONTROL_SW_OFFSET)
+			continue;
+		if (!(dev->sId.i16uFeatureDescriptor &
+		      MODGATE_feature_RS485DataExchange))
+			continue;
+		found = true;
+		baud_idx = FIELD_GET(MODGATE_feature_Baudrate,
+				     dev->sId.i16uFeatureDescriptor);
+		if (baud_idx > max_index)
+			max_index = baud_idx;
+		if (baud_idx < min_index)
+			min_index = baud_idx;
+	}
+
+	if (!found)
+		return PIBRIDGE_BAUD_INDEX_115200;
+
+	if (min_index < max_index)
+		pr_warn("one or more modules limits baudrate to %u, check for a firmware update\n",
+			pibridge_baud_table[min_index]);
+
+	return min_index;
+}
+
+/*
+ * Send a baudrate change command as a GW protocol broadcast.
+ */
+static int pibridge_modules_set_baudrate(u8 baud_index)
+{
+	return piIoComm_sendRS485Tel(eCmdPiIoSetBaudrate,
+				    MODGATE_RS485_BROADCAST_ADDR,
+				    &baud_index, sizeof(baud_index),
+				    NULL, 0);
+}
+
+/*
+ * Configure the baudrate for cyclic IO. Sends eCmdPiIoSetBaudrate as
+ * a GW broadcast to switch all modules, then reconfigures the master
+ * UART. Called during the config phase before startDataExchange.
+ *
+ * On failure, falls back via bus reset. Gives up after
+ * BAUD_SWITCH_MAX_RETRIES attempts and stays at 115200.
+ */
+static void pibridge_configure_baudrate(void)
+{
+	u8 negotiated = pibridge_get_max_common_baudrate();
+	u32 new_baud;
+	int ret;
+
+	if (negotiated <= PIBRIDGE_BAUD_INDEX_115200)
+		return;
+
+	if (baud_switch_retries >= BAUD_SWITCH_MAX_RETRIES) {
+		pr_warn("baudrate switch failed %d times, staying at %u\n",
+			baud_switch_retries,
+			pibridge_baud_table[PIBRIDGE_BAUD_INDEX_115200]);
+		return;
+	}
+
+	new_baud = pibridge_baud_table[negotiated];
+
+	ret = pibridge_modules_set_baudrate(negotiated);
+	if (ret) {
+		pr_err("failed to send SET_BAUD broadcast: %d\n", ret);
+		goto fallback;
+	}
+
+	/*
+	 * Guard time: let modules process the broadcast
+	 * and reconfigure their UARTs.
+	 */
+	usleep_range(5000, 6000);
+
+	ret = pibridge_set_baudrate(piCore_g.pibridge, new_baud);
+	if (ret) {
+		pr_err("failed to switch master to %u baud: %d\n",
+		       new_baud, ret);
+		goto fallback;
+	}
+
+	baud_switch_retries = 0;
+	return;
+
+fallback:
+	/*
+	 * Recovery: trigger a full bus reset. The Init state resets
+	 * the master UART to 115200 and sends a new present signal
+	 * on sniff-2. Module firmware must reset its UART to 115200
+	 * when it detects the present signal -- this is the only
+	 * safe way to recover modules stuck at the higher rate.
+	 */
+	baud_switch_retries++;
+	pr_warn("baudrate switch failed (attempt %d/%d), triggering bus reset\n",
+		baud_switch_retries, BAUD_SWITCH_MAX_RETRIES);
+	// baudrate is reset to default in Init state handler
+	pibridge_reinit();
+}
+
 static void handle_pibridge_ethernet(void)
 {
 	piDev_g.pibridge_mode_ethernet_left = false;
@@ -366,6 +503,19 @@ int PiBridgeMaster_Run(void)
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
 			pr_debug("Enter Init State\n");
 			handle_pibridge_ethernet();
+
+			/*
+			 * Reset baudrate in case a previous negotiation
+			 * changed it. Discovery must always run at the
+			 * baseline rate.
+			 */
+			if (pibridge_get_baudrate(piCore_g.pibridge) != PIBRIDGE_MIN_BAUDRATE) {
+				ret = pibridge_set_baudrate(piCore_g.pibridge,
+							   PIBRIDGE_MIN_BAUDRATE);
+				if (ret)
+					pr_err("failed to reset baudrate: %d\n", ret);
+			}
+
 			// configure PiBridge Sniff lines as input
 			piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
 			piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
@@ -644,6 +794,8 @@ int PiBridgeMaster_Run(void)
 					pr_info("PiBridge termination enabled for base device\n");
 				}
 
+				pibridge_configure_baudrate();
+
 				msleep(100);	// wait a while
 				pr_info("start data exchange\n");
 				RevPiDevice_startDataexchange();
@@ -738,7 +890,23 @@ int PiBridgeMaster_Run(void)
 	} else	{		// piCore_g.eBridgeState == piBridgeStop
 		if (eRunStatus_s == enPiBridgeMasterStatus_EndOfConfig) {
 			pr_info("stop data exchange\n");
+
 			ret = piIoComm_gotoGateProtocol();
+
+			/*
+			 * Reset baudrate after switching to GW protocol.
+			 * Modules and master are still at the negotiated
+			 * rate. Use GW broadcast to switch all modules
+			 * back to 115200, then switch the master.
+			 */
+			if (pibridge_get_baudrate(piCore_g.pibridge) !=
+			    PIBRIDGE_MIN_BAUDRATE) {
+				pibridge_modules_set_baudrate(
+					PIBRIDGE_BAUD_INDEX_115200);
+				usleep_range(5000, 6000);
+				pibridge_set_baudrate(piCore_g.pibridge,
+						      PIBRIDGE_MIN_BAUDRATE);
+			}
 			pr_info("piIoComm_gotoGateProtocol returned %d\n", ret);
 			eRunStatus_s = enPiBridgeMasterStatus_Init;
 			piCore_g.data_exchange_running = false;

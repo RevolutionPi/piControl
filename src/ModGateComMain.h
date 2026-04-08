@@ -75,6 +75,7 @@ typedef enum
 
 // Feature descriptor bits
 #define MODGATE_feature_IODataExchange          0x0001 // supports data-exchange using ethernet (e.g. mGate)
+#define MODGATE_feature_RS485DataExchange       0x0002 // supports data exchange using RS485 (e.g. piDio)
 #define MODGATE_feature_Baudrate                GENMASK(3, 2) // bits 2-3: supported baudrates
 
 #define MODGATE_MAX_PD_DATALEN              512
