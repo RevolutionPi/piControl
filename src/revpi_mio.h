@@ -11,7 +11,17 @@
 
 /************************************************/
 
-#define REVPI_MIO_MAX	10
+#define REVPI_MIO_MAX		10
+
+/* MIO digital IO channel modes, mirrors EMioIOModes in firmware */
+typedef enum {
+	MIO_GPIO_IN_DI		= 0,
+	MIO_GPIO_IN_PULSE	= 1,
+	MIO_GPIO_IN_PWM		= 2,
+	MIO_GPIO_OUT_DO		= 3,
+	MIO_GPIO_OUT_PULSE	= 4,
+	MIO_GPIO_OUT_PWM	= 5,
+} EMioIOModes;
 
 #define MIO_CONF_BASE	sizeof(SMioDigitalRequestData) + \
 			sizeof(SMioAnalogRequestData) + \
