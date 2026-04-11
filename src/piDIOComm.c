@@ -188,10 +188,12 @@ u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 		}
 	}
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, data_in,
-	       sizeof(data_in));
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, data_in,
+		       sizeof(data_in));
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	return 0;
 }
