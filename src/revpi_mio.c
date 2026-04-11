@@ -24,9 +24,13 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 	int ret;
 
 	/*copy: from process image:output to request*/
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(&req, req_data, sizeof(req));
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(&req, req_data, sizeof(req));
+		rt_mutex_unlock(&piDev_g.lockPI);
+	} else {
+		memset(&req, 0, sizeof(req));
+	}
 
 	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
 			      IOP_TYP1_CMD_DATA, &req, sizeof(req), &resp,
@@ -42,9 +46,11 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 	}
 
 	/*copy: from response to process image:input*/
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(resp_data, &resp, sizeof(*resp_data));
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(resp_data, &resp, sizeof(*resp_data));
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	return 0;
 }
@@ -71,9 +77,11 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 	}
 
 	/*copy: from response to process image*/
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(resp_data, &resp, sizeof(*resp_data));
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(resp_data, &resp, sizeof(*resp_data));
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	return 0;
 }
@@ -151,25 +159,32 @@ int revpi_mio_cycle(unsigned char devno)
 		return ret;
 
 	/* for the AIO cycle */
-	my_rt_mutex_lock(&piDev_g.lockPI);
-	io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		my_rt_mutex_lock(&piDev_g.lockPI);
+		io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
 
-	io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
+		io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
 						&img_out->aio.i16uOutputVoltage,
 						MIO_AIO_PORT_CNT, 2);
-	/* force to update from process image */
-	io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
+		/* force to update from process image */
+		io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
 
-	if (io_req_ex.i8uChannels) {
-		/* preserve analog output values for later caching */
-		memcpy(&pending_values.i16uOutputVoltage,
-			&img_out->aio.i16uOutputVoltage,
-			sizeof(unsigned short) * MIO_AIO_PORT_CNT);
-		ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
+		if (io_req_ex.i8uChannels) {
+			/* preserve analog output values for later caching */
+			memcpy(&pending_values.i16uOutputVoltage,
+				&img_out->aio.i16uOutputVoltage,
+				sizeof(unsigned short) * MIO_AIO_PORT_CNT);
+			ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
 						&pending_values.i16uOutputVoltage,
 						io_req_ex.i8uChannels, 2);
+		}
+		rt_mutex_unlock(&piDev_g.lockPI);
+	} else {
+		memset(&io_req_ex, 0, sizeof(io_req_ex));
+		memset(&pending_values, 0, sizeof(pending_values));
+		io_req_ex.i8uChannels = (1 << MIO_AIO_PORT_CNT) - 1;
+		ch_cnt = MIO_AIO_PORT_CNT;
 	}
-	rt_mutex_unlock(&piDev_g.lockPI);
 	ret = revpi_mio_cycle_aio(dev, &io_req_ex, ch_cnt, &img_in->aio);
 
 	if (ret)
