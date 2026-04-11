@@ -154,9 +154,11 @@ int revpi_mio_cycle(unsigned char devno)
 					 dev->i16uOutputOffset);
 	img_in = (struct mio_img_in *)(piDev_g.ai8uPI + dev->i16uInputOffset);
 
-	ret = revpi_mio_cycle_dio(dev, &img_out->dio, &img_in->dio);
-	if (ret)
-		return ret;
+	if (mio_list[dev->i8uPriv].dio_enabled) {
+		ret = revpi_mio_cycle_dio(dev, &img_out->dio, &img_in->dio);
+		if (ret)
+			return ret;
+	}
 
 	/* for the AIO cycle */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
@@ -289,7 +291,29 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		}
 	}
 
-	pr_debug("dio  :%*ph\n", (int) sizeof(conf->dio), &conf->dio);
+	/*
+	 * Force pullup off for disabled channels: the firmware reuses the
+	 * output stage as a software pullup for input modes, so leaving the
+	 * user's pullup bit set on a DISABLED channel would still drive the
+	 * line. "Disabled" must mean off regardless of the pullup setting.
+	 */
+	for (i = 0; i < 4; i++) {
+		if (conf->dio.i8uIoMode[i] == MIO_GPIO_DISABLED)
+			conf->dio.i8uPullup &= ~(1 << i);
+	}
+
+	/* Skip digital exchange if all 4 channels are disabled */
+	conf->dio_enabled = (conf->dio.i8uIoMode[0] != MIO_GPIO_DISABLED) ||
+			    (conf->dio.i8uIoMode[1] != MIO_GPIO_DISABLED) ||
+			    (conf->dio.i8uIoMode[2] != MIO_GPIO_DISABLED) ||
+			    (conf->dio.i8uIoMode[3] != MIO_GPIO_DISABLED);
+
+	if (conf->dio_enabled)
+		pr_info("MIO addr %d: digital IO enabled (additional bus exchange per cycle)\n",
+			addr);
+
+	pr_debug("dio  :%*ph (enabled: %d)\n", (int) sizeof(conf->dio),
+		 &conf->dio, conf->dio_enabled);
 	pr_debug("aio-i:%*ph\n", (int) sizeof(conf->aio_i), &conf->aio_i);
 	pr_debug("aio-o:%*ph\n", (int) sizeof(conf->aio_o), &conf->aio_o);
 
@@ -332,6 +356,28 @@ int revpi_mio_init(unsigned char devno)
 	if (ret) {
 		pr_err("talk with mio for conf dio err(devno:%d, ret:%d)\n",
 		       devno, ret);
+	}
+
+	/*
+	 * One-shot DIO data exchange when the digital ios are disabled, so
+	 * the firmware's update path runs once and ensures that the output
+	 * stage for these channels in the OFF state (i8uPullup was forced to
+	 * 0 in revpi_mio_config). Without this, on hardware where MCU OUT
+	 * default 0 means "output active" (older MIO active-low logic),
+	 * the line would stay driven by the GPIO_Init default forever.
+	 */
+	if (!conf->dio_enabled) {
+		SMioDigitalRequestData zero_req;
+		SMioDigitalResponseData zero_resp;
+
+		memset(&zero_req, 0, sizeof(zero_req));
+		ret = pibridge_req_io(piCore_g.pibridge, addr,
+				      IOP_TYP1_CMD_DATA, &zero_req,
+				      sizeof(zero_req), &zero_resp,
+				      sizeof(zero_resp));
+		if (ret != sizeof(zero_resp))
+			pr_warn("MIO addr %d: one-shot dio init failed (ret:%d)\n",
+				addr, ret);
 	}
 
 	/*aio in*/

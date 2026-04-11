@@ -21,6 +21,7 @@ typedef enum {
 	MIO_GPIO_OUT_DO		= 3,
 	MIO_GPIO_OUT_PULSE	= 4,
 	MIO_GPIO_OUT_PWM	= 5,
+	MIO_GPIO_DISABLED	= 255,
 } EMioIOModes;
 
 #define MIO_CONF_BASE	sizeof(SMioDigitalRequestData) + \
@@ -53,6 +54,7 @@ despite of the repeated headers
 */
 struct mio_config {
 	u8 addr;
+	bool dio_enabled;        /* false if all 4 DIO channels disabled */
 	SMioDIOConfigData dio;   /*digital configuration*/
 	SMioAIOConfigData aio_i; /*analog configuration for input*/
 	SMioAIOConfigData aio_o; /*analog configuration for output*/
