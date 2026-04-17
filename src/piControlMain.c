@@ -1518,13 +1518,12 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_DEVICE_INFO_LIST:
 		{
-			SDeviceInfo *dev_infos;
 			unsigned int num_devs = RevPiDevice_getDevCnt();
 			bool firmware_update = false;
 			int i;
 
-			dev_infos = kcalloc(num_devs, sizeof(SDeviceInfo),
-					    GFP_KERNEL);
+			SDeviceInfo *dev_infos __free(kfree) = kcalloc(num_devs,
+					sizeof(SDeviceInfo), GFP_KERNEL);
 			if (!dev_infos)
 				return -ENOMEM;
 
@@ -1563,10 +1562,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (copy_to_user((void __user *) usr_addr, dev_infos,
 					 sizeof(SDeviceInfo) * num_devs)) {
 				pr_err("failed to copy device list to user\n");
-				kfree(dev_infos);
 				return -EFAULT;
 			}
-			kfree(dev_infos);
 			status = RevPiDevice_getDevCnt();
 		}
 		break;
