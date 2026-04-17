@@ -5,9 +5,6 @@
 #ifndef MODGATEERROR_H_INC
 #define MODGATEERROR_H_INC
 
-#include <linux/stdarg.h>
-
-#include "bsp/setjmp/BspSetJmp.h"
 #include "common_define.h"
 
 // mGate errors 0x37xxxxxx
@@ -70,26 +67,4 @@ typedef enum {
 
 } EModGateComError;
 
-#define MODGATECOM_ASSERT(expr, errCode)   if (!(expr)) MODGATECOM_error (errCode, true, 0)
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-	extern void MODGATECOM_errorInit(BSP_TJumpBuf * ptExceptionPoint_p,
-					 void (*cbErrHandler_p) (u32 i32uErrorCode_p, bool bFatal_p,
-								 u8 i8uParaCnt_p, va_list argptr_p));
-	extern void MODGATECOM_error(u32 i32uErrCode_p, bool bFatalErr_p, u8 i8uParaCnt_p, ...);
-	extern u32 MODGATECOM_has_fatal_error(void);
-
-#if defined(MGATE_ERROR_STACK) && defined(STM_WITH_EEPROM)
-#define MGATE_ERROR_STACK_ELEMENTS              8	//!< number of error stack elements
-
-	void MODGATECOM_errorLogEEPROM(u32 i32uErrCode_p);
-	void MODGATECOM_getErrorLogEEPROM(u32 * pai32uErrStackBuf_p);
-#endif				//#if defined(MGATE_ERROR_STACK) && defined(STM_WITH_EEPROM)
-
-#ifdef  __cplusplus
-}
-#endif
 #endif				//MODGATEERROR_H_INC
