@@ -65,7 +65,6 @@ extern bool			kbUT_TimerRunning (kbUT_Timer *ptTimer_p);
 extern bool			kbUT_TimerExpired (kbUT_Timer *ptTimer_p);
 extern u32			kbUT_TimeElapsed (kbUT_Timer *ptTimer_p);
 extern bool			kbUT_TimerInUse (kbUT_Timer *ptTimer_p);
-extern u32			kbUT_getCurrentMs (void);
 extern void				kbUT_crc32 (u8 *pi8uData_p, u16 i16uCnt_p, u32 *pi32uCrc_p);
 extern void				kbUT_crc8XX(u8 *pi8uData_p, u16 i16uCnt_p, u8 i8uPolynom_p, u8 *pi8uCrc_p);
 extern bool			kbUT_uitoa(u32 p_value, u8* p_string, u8 p_radix);

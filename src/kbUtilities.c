@@ -1,32 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
 
+#include <linux/jiffies.h>
 #include <linux/string.h>
 
-#include "bsp/systick/systick.h"
 #include "common_define.h"
 #include "kbUtilities.h"
-
-//*************************************************************************************************
-//| Function: kbUT_getCurrentMs
-//|
-//! reads out the current value of the tick counter (1ms)
-//!
-//! detailed
-//!
-//!
-//! ingroup. Util
-//-------------------------------------------------------------------------------------------------
-u32 kbUT_getCurrentMs (
-    void)           //! \return tick count
-
-{
-    u32 i32uRv_l;
-
-    i32uRv_l = kbGetTickCount ();
-
-    return (i32uRv_l);
-}
 
 //*************************************************************************************************
 //| Function: kbUT_TimerInit
@@ -58,7 +37,7 @@ void kbUT_TimerStart (
 
 {
 
-    ptTimer_p->i32uStartTime = kbUT_getCurrentMs ();
+	ptTimer_p->i32uStartTime = jiffies_to_msecs(jiffies);
     ptTimer_p->i32uDuration = i32uDuration_p;
     ptTimer_p->bExpired = false;
     ptTimer_p->bRun = true;
@@ -82,7 +61,7 @@ bool kbUT_TimerRunning (
 
     if (ptTimer_p->bRun == true)
     {
-	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
+	i32uTimeDiff_l = (jiffies_to_msecs(jiffies) - ptTimer_p->i32uStartTime);
 	if (i32uTimeDiff_l >= ptTimer_p->i32uDuration)
 	{  // Timer expired
 	    ptTimer_p->bExpired = true;
@@ -112,7 +91,7 @@ bool kbUT_TimerExpired (
 
     if (ptTimer_p->bRun == true)
     {
-	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
+	i32uTimeDiff_l = (jiffies_to_msecs(jiffies) - ptTimer_p->i32uStartTime);
 	if (i32uTimeDiff_l >= ptTimer_p->i32uDuration)
 	{  // Timer expired
 	    ptTimer_p->bExpired = true;
@@ -148,7 +127,7 @@ u32 kbUT_TimeElapsed (
 
     if (ptTimer_p->bRun == true)
     {
-	i32uTimeDiff_l = (kbUT_getCurrentMs () - ptTimer_p->i32uStartTime);
+	i32uTimeDiff_l = (jiffies_to_msecs(jiffies) - ptTimer_p->i32uStartTime);
     }
 
     return (i32uTimeDiff_l);

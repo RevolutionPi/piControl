@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
 
-#include <linux/pibridge_comm.h>
 #include <linux/cpufreq.h>
+#include <linux/jiffies.h>
+#include <linux/pibridge_comm.h>
 #include <linux/thermal.h>
 
 #include "common_define.h"
@@ -349,7 +350,7 @@ int PiBridgeMaster_Run(void)
 	static int error_cnt;
 	static u16 last_led;
 	static u8 last_output;
-	static unsigned long last_update;
+	static unsigned long next_update;
 	int ret = 0;
 	int i;
 
@@ -870,7 +871,7 @@ int PiBridgeMaster_Run(void)
 	}
 
 	// update every 1 sec
-	if ((kbUT_getCurrentMs() - last_update) > 1000) {
+	if (time_after_eq(jiffies, next_update)) {
 		if (piDev_g.thermal_zone != NULL) {
 			int temp, ret;
 
@@ -890,7 +891,7 @@ int PiBridgeMaster_Run(void)
 			cpufreq_quick_get(0) / 10000;
 
 
-		last_update = kbUT_getCurrentMs();
+		next_update = jiffies + msecs_to_jiffies(1000);
 	}
 
 	if (piCore_g.eBridgeState == piBridgeRun) {
