@@ -257,7 +257,7 @@ static int revpi_compact_poll_ain(void *data)
 				unsigned long config = machine->config.ain[i];
 
 				if (!test_bit(AIN_ENABLED, &config)) {
-					my_rt_mutex_lock(&piDev_g.lockPI);
+					rt_mutex_lock(&piDev_g.lockPI);
 					image->drv.ain[i] = 0;
 					rt_mutex_unlock(&piDev_g.lockPI);
 					continue;
@@ -292,7 +292,7 @@ static int revpi_compact_poll_ain(void *data)
 		/* poll ain */
 		ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
 
-		my_rt_mutex_lock(&piDev_g.lockPI);
+		rt_mutex_lock(&piDev_g.lockPI);
 		assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
 		if (ret < 0) {
 			image->drv.ain[chan[i]] = 0;
@@ -316,7 +316,7 @@ static int revpi_compact_poll_ain(void *data)
 			GetPt100Temperature(resistance, &raw);
 		}
 
-		my_rt_mutex_lock(&piDev_g.lockPI);
+		rt_mutex_lock(&piDev_g.lockPI);
 		image->drv.ain[chan[i]] = raw;
 		rt_mutex_unlock(&piDev_g.lockPI);
 
@@ -340,7 +340,7 @@ next_chan:
 			*/
 			freq = cpufreq_quick_get(0);
 
-			my_rt_mutex_lock(&piDev_g.lockPI);
+			rt_mutex_lock(&piDev_g.lockPI);
 			if (piDev_g.thermal_zone != NULL && !ret)
 				image->drv.i8uCPUTemperature = temp / 1000;
 			image->drv.i8uCPUFrequency = freq / 10;
@@ -737,7 +737,7 @@ int revpi_compact_reset(void)
 	int ret;
 
 	/* disallow access to process image while offsets are changed */
-	my_rt_mutex_lock(&piDev_g.lockPI);
+	rt_mutex_lock(&piDev_g.lockPI);
 	revpi_compact_adjust_config();
 	memset(&image->usr, 0, sizeof(image->usr));
 	if (piDev_g.ent)

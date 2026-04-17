@@ -100,7 +100,7 @@ static __always_inline int test_bit_in_byte(u8 nr, u8 * addr)
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {			\
 		if (((typeof(shadow))(piDev_g.ai8uPI + (offset))) == 0 || (shadow) == 0) \
 			pr_err("NULL pointer: %p %p\n", ((typeof(shadow))(piDev_g.ai8uPI + (offset))), (shadow)); \
-		my_rt_mutex_lock(&piDev_g.lockPI);					\
+		rt_mutex_lock(&piDev_g.lockPI);					\
 		((typeof(shadow))(piDev_g.ai8uPI + (offset)))->drv = (shadow)->drv;	\
 		(shadow)->usr = ((typeof(shadow))(piDev_g.ai8uPI + (offset)))->usr;	\
 		rt_mutex_unlock(&piDev_g.lockPI);					\

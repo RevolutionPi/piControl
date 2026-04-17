@@ -160,7 +160,7 @@ int revpi_mio_cycle(unsigned char devno)
 
 	/* for the AIO cycle */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		my_rt_mutex_lock(&piDev_g.lockPI);
+		rt_mutex_lock(&piDev_g.lockPI);
 		io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
 
 		io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,

@@ -38,7 +38,7 @@ static char *pcFWUdata;
 
 void PiBridgeMaster_Stop(void)
 {
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_fini();
 	piCore_g.eBridgeState = piBridgeStop;
@@ -49,7 +49,7 @@ void PiBridgeMaster_Stop(void)
 void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
@@ -61,7 +61,7 @@ void PiBridgeMaster_Continue(void)
 
 void PiBridgeMaster_Reset(void)
 {
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	piCore_g.eBridgeState = piBridgeInit;
 	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
@@ -352,7 +352,7 @@ int PiBridgeMaster_Run(void)
 	int ret = 0;
 	int i;
 
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piCore_g.eBridgeState != piBridgeStop) {
 		switch (eRunStatus_s) {
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
@@ -625,7 +625,7 @@ int PiBridgeMaster_Run(void)
 #endif
 				PiBridgeMaster_setDefaults();
 
-				my_rt_mutex_lock(&piDev_g.lockPI);
+				rt_mutex_lock(&piDev_g.lockPI);
 				memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
 				rt_mutex_unlock(&piDev_g.lockPI);
 
@@ -901,7 +901,7 @@ int PiBridgeMaster_Run(void)
 			p2 = (u8 *)&piCore_g.image;
 			pI1 = (SRevPiProcessImage *)p1;
 			pI2 = (SRevPiProcessImage *)p2;
-			my_rt_mutex_lock(&piDev_g.lockPI);
+			rt_mutex_lock(&piDev_g.lockPI);
 			pI1->drv = pI2->drv;
 			// The size of _SRevPiProcessImage.usr was 5 bytes before the field rgb_leds was introduced
 			// with Connect 4 and the size changed to 7 bytes. In order to maintain compatibility with existing deviecs,
