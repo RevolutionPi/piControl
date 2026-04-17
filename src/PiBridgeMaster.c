@@ -7,6 +7,7 @@
 #include <linux/thermal.h>
 
 #include "common_define.h"
+#include "kbUtilities.h"
 #include "piAIOComm.h"
 #include "piDIOComm.h"
 #include "PiBridgeMaster.h"

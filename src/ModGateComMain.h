@@ -12,7 +12,6 @@
 #endif
 
 #include "common_define.h"
-#include "kbUtilities.h"
 
 typedef enum
 {
@@ -160,7 +159,6 @@ typedef struct _sALData
     sLLData     llParas;
 
     MODGATECOM_IDResp OtherID;              //!< ID-Data of other mGate
-    kbUT_Timer  AL_Timeout;
 
     u8 *pi8uInData;
     u16 i16uInDataLen;
