@@ -1171,8 +1171,6 @@ static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
 static int send_config(unsigned long usr_addr)
 {
 	SConfigData __user *cfg_user = (SConfigData __user *) usr_addr;
-	struct modgate_telegram *resp;
-	struct modgate_telegram *req;
 	SConfigData cfg;
 	int ret;
 
@@ -1188,15 +1186,15 @@ static int send_config(unsigned long usr_addr)
 	if (cfg.i16uLen > MAX_TELEGRAM_DATA_SIZE)
 		return -EINVAL;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	struct modgate_telegram *req __free(kfree) = kmalloc(sizeof(*req),
+			GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
-	resp = kmalloc(sizeof(*resp), GFP_KERNEL);
-	if (!resp) {
-		ret = -ENOMEM;
-		goto free_req;
-	}
+	struct modgate_telegram *resp __free(kfree) = kmalloc(sizeof(*resp),
+			GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
 
 	req->dest = cfg.bLeft ? RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress :
 				RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
@@ -1214,12 +1212,8 @@ static int send_config(unsigned long usr_addr)
 		if (resp->datalen && copy_to_user(cfg_user->acData,
 						  resp->data,
 						  resp->datalen))
-			ret = -EFAULT;
+			return -EFAULT;
 	}
-
-	kfree(resp);
-free_req:
-	kfree(req);
 
 	return ret;
 }
