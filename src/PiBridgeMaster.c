@@ -158,14 +158,16 @@ int PiBridgeMaster_Adjust(void)
 {
 	int i, j;
 	int result = 0, found;
-	uint8_t *state;
 
 	if (piDev_g.devs == NULL || piDev_g.ent == NULL) {
 		// config file could not be read, do nothing
 		return -1;
 	}
 
-	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
+	u8 *state __free(kfree) = kcalloc(piDev_g.devs->i16uNumDevices,
+			sizeof(u8), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
 
 	// Schleife über alle Module die automatisch erkannt wurden
 	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
@@ -262,7 +264,6 @@ int PiBridgeMaster_Adjust(void)
 		}
 	}
 
-	kfree(state);
 	return result;
 }
 

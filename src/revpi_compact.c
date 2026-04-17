@@ -411,7 +411,6 @@ void revpi_compact_adjust_config(void)
 {
 	int i, j;
 	int result = 0, found;
-	uint8_t *state;
 
 	RevPiDevice_init();
 
@@ -420,7 +419,10 @@ void revpi_compact_adjust_config(void)
 		return;
 	}
 
-	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
+	u8 *state __free(kfree) = kcalloc(piDev_g.devs->i16uNumDevices,
+			sizeof(u8), GFP_KERNEL);
+	if (!state)
+		return;
 
 	// Schleife über alle Module die automatisch erkannt wurden
 	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
@@ -515,8 +517,6 @@ void revpi_compact_adjust_config(void)
 			RevPiDevice_incDevCnt();
 		}
 	}
-
-	kfree(state);
 }
 
 int revpi_compact_probe(struct platform_device *pdev)
