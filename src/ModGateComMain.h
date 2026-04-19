@@ -5,8 +5,6 @@
 #ifndef MODGATECOMMAIN_H_INC
 #define MODGATECOMMAIN_H_INC
 
-#define MODGATECOM_MAX_MODULES      2
-
 #if defined (_MSC_VER)
 #pragma warning (disable: 4200)
 #endif
