@@ -14,7 +14,6 @@ piControl-y += src/piConfig.o
 piControl-y += src/RS485FwuCommand.o
 piControl-y += src/piFirmwareUpdate.o
 piControl-y += src/PiBridgeMaster.o
-piControl-y += src/kbUtilities.o
 piControl-y += src/revpi_common.o
 piControl-y += src/revpi_compact.o
 piControl-y += src/revpi_core.o

@@ -7,7 +7,6 @@
 #include <linux/thermal.h>
 
 #include "common_define.h"
-#include "kbUtilities.h"
 #include "piAIOComm.h"
 #include "piDIOComm.h"
 #include "PiBridgeMaster.h"
@@ -346,8 +345,8 @@ static void handle_pibridge_ethernet(void)
 
 int PiBridgeMaster_Run(void)
 {
-	static kbUT_Timer tTimeoutTimer_s;
-	static kbUT_Timer tConfigTimeoutTimer_s;
+	static unsigned long timeout_deadline;
+	static unsigned long config_deadline;
 	static int error_cnt;
 	static u16 last_led;
 	static u8 last_output;
@@ -394,10 +393,10 @@ int PiBridgeMaster_Run(void)
 
 				piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
 				piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-				kbUT_TimerStart(&tTimeoutTimer_s, 30);
+				timeout_deadline = jiffies + msecs_to_jiffies(30);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
-				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
+			if (time_after_eq(jiffies, timeout_deadline)) {
+				config_deadline = jiffies + msecs_to_jiffies(END_CONFIG_TIME);
 				if (piDev_g.only_left_pibridge) {
 					// the RevPi Connect has I/O modules only on the left side
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
@@ -433,9 +432,9 @@ int PiBridgeMaster_Run(void)
 				pr_debug("Enter ConfigRightStart State\n");
 				bEntering_s = false;
 				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Output);
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
 				bEntering_s = true;
 			}
@@ -467,9 +466,9 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_debug("Enter SlaveDetectionRight State\n");
 				bEntering_s = false;
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				if (piIoComm_readSniff2B() == enGpioValue_High) {
 					// configure next right slave
 					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
@@ -510,9 +509,9 @@ int PiBridgeMaster_Run(void)
 				pr_debug("Enter ConfigLeftStart State\n");
 				bEntering_s = false;
 				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Output);
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
 				bEntering_s = true;
 			}
@@ -544,9 +543,9 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_debug("Enter SlaveDetectionLeft State\n");
 				bEntering_s = false;
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				if (piIoComm_readSniff2A() == enGpioValue_High) {
 					// configure next left slave
 					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
@@ -699,7 +698,7 @@ int PiBridgeMaster_Run(void)
 				pr_info_master("Enter Initialization Retry\n");
 				bEntering_s = false;
 			}
-			if (kbUT_TimerExpired(&tConfigTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, config_deadline)) {
 				piCore_g.eBridgeState = piBridgeInit;
 				clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 				eRunStatus_s = enPiBridgeMasterStatus_Init;
