@@ -171,15 +171,15 @@ static int piIoThread(void *data)
 					&piDev_g.flags)) {
 					rt_mutex_lock(&piDev_g.lockPI);
 					for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
-						uint16_t len = piDev_g.cl->ent[i].i16uLength;
-						uint16_t addr = piDev_g.cl->ent[i].i16uAddr;
+						u16 len = piDev_g.cl->ent[i].i16uLength;
+						u16 addr = piDev_g.cl->ent[i].i16uAddr;
 
 						if (len >= 8) {
 							len /= 8;
 							memset(piDev_g.ai8uPI + addr, 0, len);
 						} else {
-							uint8_t val;
-							uint8_t mask = piDev_g.cl->ent[i].i8uBitMask;
+							u8 val;
+							u8 mask = piDev_g.cl->ent[i].i8uBitMask;
 
 							val = piDev_g.ai8uPI[addr];
 							val &= ~mask;

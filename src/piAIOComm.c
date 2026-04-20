@@ -31,7 +31,7 @@ void piAIOComm_InitStart(void)
 
 u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 {
-	uint16_t i;
+	u16 i;
 
 	if (num_aios >= AIO_MAX_DEVS) {
 		pr_err("max. number of AIOs reached\n");

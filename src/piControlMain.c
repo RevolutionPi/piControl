@@ -1720,8 +1720,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			piDev_g.tLastOutput1 = now;
 
 			for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
-				uint16_t len = piDev_g.cl->ent[i].i16uLength;
-				uint16_t addr = piDev_g.cl->ent[i].i16uAddr;
+				u16 len = piDev_g.cl->ent[i].i16uLength;
+				u16 addr = piDev_g.cl->ent[i].i16uAddr;
 
 				if (len >= 8) {
 					len /= 8;
@@ -1730,8 +1730,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 						break;
 					}
 				} else {
-					uint8_t val1, val2;
-					uint8_t mask = piDev_g.cl->ent[i].i8uBitMask;
+					u8 val1, val2;
+					u8 mask = piDev_g.cl->ent[i].i8uBitMask;
 
 					if (get_user(val1, (u8 __user*) (usr_addr + addr))) {
 						pr_err("failed to copy byte from user\n");

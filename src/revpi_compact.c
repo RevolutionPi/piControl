@@ -366,9 +366,9 @@ static int match_name(struct device *dev, const void *data)
 		return sysfs_streq(name, dev_name(dev));
 }
 
-u32 revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
+u32 revpi_compact_config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 {
-	uint16_t i;
+	u16 i;
 
 	for (i = 0; i < i16uNumEntries; i++) {
 		switch (pEnt[i].i16uOffset) {
