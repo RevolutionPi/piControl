@@ -131,7 +131,7 @@ typedef struct
     u8 bitOutputReserve : 5;
 }SDioModuleStatus;
 
-// Answer if Digital IO modules: digital input and status, no counter or encoder values
+// Answer of Digital IO modules: digital input and status, no counter or encoder values
 typedef struct { // IOP_TYP1_CMD_DATA
     UIoProtocolHeader uHeader;
     u16 i16uInput;                   // 0=low signal, 1=high signal
@@ -140,13 +140,13 @@ typedef struct { // IOP_TYP1_CMD_DATA
     u8 i8uCrc;
 } __packed SDioResponse;
 
-// Answer if Digital IO modules: digital input and status, with counter or encoder values
+// Answer of Digital IO modules: digital input and status, with counter or encoder values
 typedef struct { // IOP_TYP1_CMD_DATA2
     UIoProtocolHeader uHeader;
     u16 i16uInput;                   // 0=low signal, 1=high signal
     u16 i16uOutputStatus;            // 0=error on output pin (thermal shutdown, over load, open load in high side mode)
     SDioModuleStatus sDioModuleStatus;
-    u32 ai32uCounters[16];           // dummy array, contains only values for the activated counters/encoders
+    u32 ai32uCounters[6];            // dummy array, contains only values for the activated counters/encoders
     u8 i8uCrc;
 } __packed SDioCounterResponse;
 
