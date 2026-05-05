@@ -30,7 +30,7 @@
 
 struct json_val_elem {
 	char *key;
-	uint32_t key_length;
+	u32 key_length;
 	struct json_val *val;
 };
 
@@ -80,10 +80,10 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 {
 #define BUFFLEN     4096
 	int ret = 0;
-	int32_t read;
-	uint32_t lines, col, i, len;
+	s32 read;
+	u32 lines, col, i, len;
 	char *buffer;
-	uint32_t processed;
+	u32 processed;
 
 	buffer = kmalloc(BUFFLEN, GFP_KERNEL);
 	if (buffer == NULL) {
@@ -153,7 +153,7 @@ static void *tree_create_structure(int is_object)
 	return v;
 }
 
-static char *memalloc_copy_length(const char *src, uint32_t n)
+static char *memalloc_copy_length(const char *src, u32 n)
 {
 	char *dest;
 
@@ -165,7 +165,7 @@ static char *memalloc_copy_length(const char *src, uint32_t n)
 	return dest;
 }
 
-static void *tree_create_data(int type, const char *data, uint32_t length)
+static void *tree_create_data(int type, const char *data, u32 length)
 {
 	json_val_t *v;
 
@@ -182,7 +182,7 @@ static void *tree_create_data(int type, const char *data, uint32_t length)
 	return v;
 }
 
-static int tree_append(void *structure, char *key, uint32_t key_length, void *obj)
+static int tree_append(void *structure, char *key, u32 key_length, void *obj)
 {
 	json_val_t *parent = structure;
 	if (key) {
@@ -194,7 +194,7 @@ static int tree_append(void *structure, char *key, uint32_t key_length, void *ob
 				return 1;
 			memset(parent->u.object, 0, 2 * sizeof(json_val_t *));
 		} else {
-			uint32_t newsize = parent->length + 1 + 1;	/* +1 for null */
+			u32 newsize = parent->length + 1 + 1;	/* +1 for null */
 			void *newptr;
 
 			newptr = krealloc(parent->u.object, newsize * sizeof(json_val_t *), GFP_KERNEL);
@@ -219,7 +219,7 @@ static int tree_append(void *structure, char *key, uint32_t key_length, void *ob
 				return 1;
 			memset(parent->u.array, 0, (1 + 1) * sizeof(json_val_t *));
 		} else {
-			uint32_t newsize = parent->length + 1 + 1;	/* +1 for null */
+			u32 newsize = parent->length + 1 + 1;	/* +1 for null */
 			void *newptr;
 
 			newptr = krealloc(parent->u.object, newsize * sizeof(json_val_t *), GFP_KERNEL);
@@ -775,7 +775,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 			d++;	// goto next device
 			idx[0] = idx[1] = idx[2] = idx[3] = 0;
 		} else {
-			uint8_t type = (*ent)->ent[i].i8uType;
+			u8 type = (*ent)->ent[i].i8uType;
 			if (type == 0x82)
 				exported_outputs++;
 

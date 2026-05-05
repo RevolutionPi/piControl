@@ -10,7 +10,7 @@
 
 void piDIOComm_InitStart(void);
 
-u32 piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt);
+u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt);
 
 u32 piDIOComm_Init(u8 i8uDevice_p);
 

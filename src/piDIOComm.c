@@ -21,9 +21,9 @@ void piDIOComm_InitStart(void)
 	i8uConfigured_s = 0;
 }
 
-u32 piDIOComm_Config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
+u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 {
-	uint16_t i;
+	u16 i;
 
 	if (i8uConfigured_s >= sizeof(dioConfig_s) / sizeof(SDioConfig)) {
 		pr_err("max. number of DIOs reached\n");
@@ -188,10 +188,12 @@ u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 		}
 	}
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, data_in,
-	       sizeof(data_in));
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, data_in,
+		       sizeof(data_in));
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	return 0;
 }

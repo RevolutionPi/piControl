@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
 
-#include <linux/pibridge_comm.h>
 #include <linux/cpufreq.h>
+#include <linux/jiffies.h>
+#include <linux/pibridge_comm.h>
 #include <linux/thermal.h>
 
 #include "common_define.h"
@@ -38,7 +39,7 @@ static char *pcFWUdata;
 
 void PiBridgeMaster_Stop(void)
 {
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_fini();
 	piCore_g.eBridgeState = piBridgeStop;
@@ -49,7 +50,7 @@ void PiBridgeMaster_Stop(void)
 void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
@@ -61,7 +62,7 @@ void PiBridgeMaster_Continue(void)
 
 void PiBridgeMaster_Reset(void)
 {
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	piCore_g.eBridgeState = piBridgeInit;
 	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
@@ -158,14 +159,16 @@ int PiBridgeMaster_Adjust(void)
 {
 	int i, j;
 	int result = 0, found;
-	uint8_t *state;
 
 	if (piDev_g.devs == NULL || piDev_g.ent == NULL) {
 		// config file could not be read, do nothing
 		return -1;
 	}
 
-	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
+	u8 *state __free(kfree) = kcalloc(piDev_g.devs->i16uNumDevices,
+			sizeof(u8), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
 
 	// Schleife über alle Module die automatisch erkannt wurden
 	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
@@ -262,7 +265,6 @@ int PiBridgeMaster_Adjust(void)
 		}
 	}
 
-	kfree(state);
 	return result;
 }
 
@@ -343,16 +345,16 @@ static void handle_pibridge_ethernet(void)
 
 int PiBridgeMaster_Run(void)
 {
-	static kbUT_Timer tTimeoutTimer_s;
-	static kbUT_Timer tConfigTimeoutTimer_s;
+	static unsigned long timeout_deadline;
+	static unsigned long config_deadline;
 	static int error_cnt;
 	static u16 last_led;
 	static u8 last_output;
-	static unsigned long last_update;
+	static unsigned long next_update;
 	int ret = 0;
 	int i;
 
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piCore_g.eBridgeState != piBridgeStop) {
 		switch (eRunStatus_s) {
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
@@ -391,10 +393,10 @@ int PiBridgeMaster_Run(void)
 
 				piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
 				piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-				kbUT_TimerStart(&tTimeoutTimer_s, 30);
+				timeout_deadline = jiffies + msecs_to_jiffies(30);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
-				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
+			if (time_after_eq(jiffies, timeout_deadline)) {
+				config_deadline = jiffies + msecs_to_jiffies(END_CONFIG_TIME);
 				if (piDev_g.only_left_pibridge) {
 					// the RevPi Connect has I/O modules only on the left side
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
@@ -430,9 +432,9 @@ int PiBridgeMaster_Run(void)
 				pr_debug("Enter ConfigRightStart State\n");
 				bEntering_s = false;
 				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Output);
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
 				bEntering_s = true;
 			}
@@ -464,9 +466,9 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_debug("Enter SlaveDetectionRight State\n");
 				bEntering_s = false;
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				if (piIoComm_readSniff2B() == enGpioValue_High) {
 					// configure next right slave
 					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
@@ -507,9 +509,9 @@ int PiBridgeMaster_Run(void)
 				pr_debug("Enter ConfigLeftStart State\n");
 				bEntering_s = false;
 				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Output);
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
 				bEntering_s = true;
 			}
@@ -541,9 +543,9 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_debug("Enter SlaveDetectionLeft State\n");
 				bEntering_s = false;
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				if (piIoComm_readSniff2A() == enGpioValue_High) {
 					// configure next left slave
 					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
@@ -625,7 +627,7 @@ int PiBridgeMaster_Run(void)
 #endif
 				PiBridgeMaster_setDefaults();
 
-				my_rt_mutex_lock(&piDev_g.lockPI);
+				rt_mutex_lock(&piDev_g.lockPI);
 				memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
 				rt_mutex_unlock(&piDev_g.lockPI);
 
@@ -696,7 +698,7 @@ int PiBridgeMaster_Run(void)
 				pr_info_master("Enter Initialization Retry\n");
 				bEntering_s = false;
 			}
-			if (kbUT_TimerExpired(&tConfigTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, config_deadline)) {
 				piCore_g.eBridgeState = piBridgeInit;
 				clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 				eRunStatus_s = enPiBridgeMasterStatus_Init;
@@ -869,7 +871,7 @@ int PiBridgeMaster_Run(void)
 	}
 
 	// update every 1 sec
-	if ((kbUT_getCurrentMs() - last_update) > 1000) {
+	if (time_after_eq(jiffies, next_update)) {
 		if (piDev_g.thermal_zone != NULL) {
 			int temp, ret;
 
@@ -889,7 +891,7 @@ int PiBridgeMaster_Run(void)
 			cpufreq_quick_get(0) / 10000;
 
 
-		last_update = kbUT_getCurrentMs();
+		next_update = jiffies + msecs_to_jiffies(1000);
 	}
 
 	if (piCore_g.eBridgeState == piBridgeRun) {
@@ -901,7 +903,7 @@ int PiBridgeMaster_Run(void)
 			p2 = (u8 *)&piCore_g.image;
 			pI1 = (SRevPiProcessImage *)p1;
 			pI2 = (SRevPiProcessImage *)p2;
-			my_rt_mutex_lock(&piDev_g.lockPI);
+			rt_mutex_lock(&piDev_g.lockPI);
 			pI1->drv = pI2->drv;
 			// The size of _SRevPiProcessImage.usr was 5 bytes before the field rgb_leds was introduced
 			// with Connect 4 and the size changed to 7 bytes. In order to maintain compatibility with existing deviecs,

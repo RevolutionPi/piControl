@@ -111,9 +111,13 @@ int revpi_ro_cycle(unsigned int devnum)
 	img_in = (struct revpi_ro_img_in *) (piDev_g.ai8uPI +
 					     dev->i16uInputOffset);
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	state_out = img_out->target_state;
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		state_out = img_out->target_state;
+		rt_mutex_unlock(&piDev_g.lockPI);
+	} else {
+		memset(&state_out, 0, sizeof(state_out));
+	}
 
 	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
 			      IOP_TYP1_CMD_DATA, &state_out, sizeof(state_out),
@@ -129,9 +133,11 @@ int revpi_ro_cycle(unsigned int devnum)
 		return ret;
 	}
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	img_in->status = status_in;
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		img_in->status = status_in;
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	return 0;
 }

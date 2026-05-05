@@ -33,7 +33,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.6.1");
+MODULE_VERSION("2.6.2");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
@@ -696,7 +696,7 @@ static int piControlReset(tpiControlInst * priv)
 	} else {
 		struct list_head *pCon;
 
-		my_rt_mutex_lock(&piDev_g.lockListCon);
+		rt_mutex_lock(&piDev_g.lockListCon);
 		list_for_each(pCon, &piDev_g.listCon) {
 			tpiControlInst *pos_inst;
 			pos_inst = list_entry(pCon, tpiControlInst, list);
@@ -706,7 +706,7 @@ static int piControlReset(tpiControlInst * priv)
 				bool found = false;
 
 				// add the event to the list only, if it not already there
-				my_rt_mutex_lock(&pos_inst->lockEventList);
+				rt_mutex_lock(&pos_inst->lockEventList);
 				list_for_each(pEv, &pos_inst->piEventList) {
 					pEntry = list_entry(pEv, tpiEventEntry, list);
 					if (pEntry->event == piEvReset) {
@@ -841,7 +841,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 
 	init_waitqueue_head(&priv->wq);
 
-	my_rt_mutex_lock(&piDev_g.lockListCon);
+	rt_mutex_lock(&piDev_g.lockListCon);
 	list_add(&priv->list, &piDev_g.listCon);
 	rt_mutex_unlock(&piDev_g.lockListCon);
 
@@ -861,7 +861,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 	if (priv->tTimeoutDurationMs > 0) {
 		// if the watchdog is active, set all outputs to 0
 		int i;
-		my_rt_mutex_lock(&piDev_g.lockPI);
+		rt_mutex_lock(&piDev_g.lockPI);
 		for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 			if (RevPiDevice_getDev(i)->i8uActive) {
 				memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
@@ -870,7 +870,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 		rt_mutex_unlock(&piDev_g.lockPI);
 	}
 
-	my_rt_mutex_lock(&piDev_g.lockListCon);
+	rt_mutex_lock(&piDev_g.lockListCon);
 	list_del(&priv->list);
 	rt_mutex_unlock(&piDev_g.lockListCon);
 
@@ -912,7 +912,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 
 	pPd = piDev_g.ai8uPI + *ppos;
 
-	my_rt_mutex_lock(&piDev_g.lockPI);
+	rt_mutex_lock(&piDev_g.lockPI);
 	if (copy_to_user(pBuf, pPd, nread) != 0) {
 		rt_mutex_unlock(&piDev_g.lockPI);
 		pr_err("piControlRead: copy_to_user failed");
@@ -951,7 +951,7 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 
 	pPd = piDev_g.ai8uPI + *ppos;
 
-	my_rt_mutex_lock(&piDev_g.lockPI);
+	rt_mutex_lock(&piDev_g.lockPI);
 	if (copy_from_user(pPd, pBuf, nwrite) != 0) {
 		rt_mutex_unlock(&piDev_g.lockPI);
 		pr_err("piControlWrite: copy_from_user failed");
@@ -1128,7 +1128,7 @@ static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
 	struct pibridge_gate_datagram *resp_dgram = &piCore_g.gate_resp_dgram;
 	int ret;
 
-	my_rt_mutex_lock(&piCore_g.lockGateTel);
+	rt_mutex_lock(&piCore_g.lockGateTel);
 	req_dgram->hdr.dst = req_tel->dest;
 	req_dgram->hdr.src = req_tel->src;
 	req_dgram->hdr.cmd = req_tel->command;
@@ -1141,7 +1141,7 @@ static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
 	/* Wait for response */
 	down(&piCore_g.semGateTel);
 
-	my_rt_mutex_lock(&piCore_g.lockGateTel);
+	rt_mutex_lock(&piCore_g.lockGateTel);
 	ret = piCore_g.statusGateTel;
 	if (ret <= 0) { /* No response datagram available */
 		rt_mutex_unlock(&piCore_g.lockGateTel);
@@ -1171,8 +1171,6 @@ static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
 static int send_config(unsigned long usr_addr)
 {
 	SConfigData __user *cfg_user = (SConfigData __user *) usr_addr;
-	struct modgate_telegram *resp;
-	struct modgate_telegram *req;
 	SConfigData cfg;
 	int ret;
 
@@ -1188,15 +1186,15 @@ static int send_config(unsigned long usr_addr)
 	if (cfg.i16uLen > MAX_TELEGRAM_DATA_SIZE)
 		return -EINVAL;
 
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	struct modgate_telegram *req __free(kfree) = kmalloc(sizeof(*req),
+			GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
 
-	resp = kmalloc(sizeof(*resp), GFP_KERNEL);
-	if (!resp) {
-		ret = -ENOMEM;
-		goto free_req;
-	}
+	struct modgate_telegram *resp __free(kfree) = kmalloc(sizeof(*resp),
+			GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
 
 	req->dest = cfg.bLeft ? RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress :
 				RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
@@ -1214,12 +1212,8 @@ static int send_config(unsigned long usr_addr)
 		if (resp->datalen && copy_to_user(cfg_user->acData,
 						  resp->data,
 						  resp->datalen))
-			ret = -EFAULT;
+			return -EFAULT;
 	}
-
-	kfree(resp);
-free_req:
-	kfree(req);
 
 	return ret;
 }
@@ -1243,6 +1237,9 @@ static int send_internal_gate_msg(unsigned long usr_addr)
 	if (copy_from_user(req, tel, sizeof(*tel)))
 		return -EFAULT;
 
+	if (req->datalen > MAX_TELEGRAM_DATA_SIZE)
+		return -EINVAL;
+
 	ret = send_internal_gate_telegram(req, resp);
 	if (ret > 0) {
 		if (copy_to_user(tel, resp, sizeof(*tel)))
@@ -1257,7 +1254,7 @@ static int send_internal_io_telegram(void *req, unsigned int reqlen,
 {
 	int ret;
 
-	my_rt_mutex_lock(&piCore_g.lockUserTel);
+	rt_mutex_lock(&piCore_g.lockUserTel);
 	memcpy(&piCore_g.requestUserTel, req, reqlen);
 	piCore_g.pendingUserTel = true;
 	rt_mutex_unlock(&piCore_g.lockUserTel);
@@ -1265,7 +1262,7 @@ static int send_internal_io_telegram(void *req, unsigned int reqlen,
 	/* Wait for response */
 	down(&piCore_g.semUserTel);
 
-	my_rt_mutex_lock(&piCore_g.lockUserTel);
+	rt_mutex_lock(&piCore_g.lockUserTel);
 	ret = piCore_g.statusUserTel;
 	if (ret) {
 		rt_mutex_unlock(&piCore_g.lockUserTel);
@@ -1521,13 +1518,12 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_DEVICE_INFO_LIST:
 		{
-			SDeviceInfo *dev_infos;
 			unsigned int num_devs = RevPiDevice_getDevCnt();
 			bool firmware_update = false;
 			int i;
 
-			dev_infos = kcalloc(num_devs, sizeof(SDeviceInfo),
-					    GFP_KERNEL);
+			SDeviceInfo *dev_infos __free(kfree) = kcalloc(num_devs,
+					sizeof(SDeviceInfo), GFP_KERNEL);
 			if (!dev_infos)
 				return -ENOMEM;
 
@@ -1566,10 +1562,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			if (copy_to_user((void __user *) usr_addr, dev_infos,
 					 sizeof(SDeviceInfo) * num_devs)) {
 				pr_err("failed to copy device list to user\n");
-				kfree(dev_infos);
 				return -EFAULT;
 			}
-			kfree(dev_infos);
 			status = RevPiDevice_getDevCnt();
 		}
 		break;
@@ -1630,7 +1624,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				status = -EINVAL;
 			} else {
 				u8 i8uValue_l;
-				my_rt_mutex_lock(&piDev_g.lockPI);
+				rt_mutex_lock(&piDev_g.lockPI);
 				i8uValue_l = piDev_g.ai8uPI[spi_val.i16uAddress];
 
 				if (spi_val.i8uBit >= 8) {
@@ -1721,13 +1715,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			status = 0;
 			now = ktime_get();
 
-			my_rt_mutex_lock(&piDev_g.lockPI);
+			rt_mutex_lock(&piDev_g.lockPI);
 			piDev_g.tLastOutput2 = piDev_g.tLastOutput1;
 			piDev_g.tLastOutput1 = now;
 
 			for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
-				uint16_t len = piDev_g.cl->ent[i].i16uLength;
-				uint16_t addr = piDev_g.cl->ent[i].i16uAddr;
+				u16 len = piDev_g.cl->ent[i].i16uLength;
+				u16 addr = piDev_g.cl->ent[i].i16uAddr;
 
 				if (len >= 8) {
 					len /= 8;
@@ -1736,8 +1730,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 						break;
 					}
 				} else {
-					uint8_t val1, val2;
-					uint8_t mask = piDev_g.cl->ent[i].i8uBitMask;
+					u8 val1, val2;
+					u8 mask = piDev_g.cl->ent[i].i8uBitMask;
 
 					if (get_user(val1, (u8 __user*) (usr_addr + addr))) {
 						pr_err("failed to copy byte from user\n");
@@ -1762,18 +1756,18 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_DIO_RESET_COUNTER:
-		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		rt_mutex_lock(&piDev_g.lockIoctl);
 		status = reset_dio_counter(usr_addr);
 		rt_mutex_unlock(&piDev_g.lockIoctl);
 		pr_debug("%s: resetCounter result %d\n", __func__, status);
 		break;
 	case KB_RO_GET_COUNTER:
-		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		rt_mutex_lock(&piDev_g.lockIoctl);
 		status = get_ro_counter(usr_addr);
 		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
 	case KB_AIO_CALIBRATE:
-		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		rt_mutex_lock(&piDev_g.lockIoctl);
 		status = calibrate_aio(usr_addr);
 		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
@@ -1913,13 +1907,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_INTERN_IO_MSG:
-		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		rt_mutex_lock(&piDev_g.lockIoctl);
 		status = send_internal_io_msg(usr_addr);
 		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
 
 	case KB_INTERN_GATE_MSG:
-		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		rt_mutex_lock(&piDev_g.lockIoctl);
 		status = send_internal_gate_msg(usr_addr);
 		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
@@ -1929,7 +1923,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			tpiEventEntry *pEntry;
 
 			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
-				my_rt_mutex_lock(&priv->lockEventList);
+				rt_mutex_lock(&priv->lockEventList);
 				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
 
 				list_del(&pEntry->list);
@@ -2007,7 +2001,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_CONFIG_SEND:	// for download of configuration to Master Gateway: download config data
-		my_rt_mutex_lock(&piDev_g.lockIoctl);
+		rt_mutex_lock(&piDev_g.lockIoctl);
 		status = send_config(usr_addr);
 		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
