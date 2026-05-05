@@ -1,3 +1,42 @@
+picontrol (2.6.2-1+deb12+1) bookworm; urgency=medium
+
+  [ Ramiro Gsponer ]
+  * Build for linux-image-6.12.85-revpi0-rpi-v8 (= 6.12.85-revpi0-
+    1+deb12+1)
+
+  [ Lino Sanfilippo ]
+  * Check gate message datalen from user
+  * Remove assignment with no effect
+
+  [ Nicolai Buchwitz ]
+  * revpi_ro: honor KB_STOP_IO flag
+  * revpi_mio: honor KB_STOP_IO flag
+  * piDIOComm: skip input update when KB_STOP_IO is set
+  * tools: add pibridge-cycles.py for cycle time collection and plotting
+
+  [ Thomas Böhler ]
+  * remove unnecessary my_rt_mutex_lock macro
+  * use scope-based resource management in send_config
+  * use scope-based resource management in PiBridgeMaster_Adjust
+  * use scope-based resource management for KB_GET_DEVICE_INFO_LIST
+
+  [ Nicolai Buchwitz ]
+  * piControl: remove dead BSP setjmp abstraction
+  * piControl: replace kbUT_getCurrentMs() with jiffies_to_msecs()
+  * piControl: remove BSP systick abstraction layer
+  * piControl: remove unused functions from kbUtilities
+  * piControl: remove unused AL_Timeout from ModGateComMain
+  * revpi_core: replace MODGATECOM_MAX_MODULES with REVPI_MGATE_MAX
+  * piControl: remove unused declarations from ModGateComMain
+  * piControl: remove unused declarations from fwuFlashFileMain
+  * piControl: replace stdint types with kernel types
+  * piControl: replace kbUT_Timer with jiffies + time_after_eq
+
+  [ Ramiro Gsponer ]
+  * Release v2.6.2
+
+ -- Ramiro Gsponer <r.gsponer@kunbus.com>  Tue, 05 May 2026 13:14:40 +0200
+
 picontrol (2.6.1-1+deb12+1) bookworm; urgency=medium
 
   [ Ramiro Gsponer ]
