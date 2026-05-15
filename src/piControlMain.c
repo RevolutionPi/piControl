@@ -1091,6 +1091,7 @@ static void picontrol_set_device_info(SDeviceInfo *out, SDevice *dev)
 	out->i16uInputLength = dev->sId.i16uFBS_InputLength;
 	out->i16uInputOffset = dev->i16uInputOffset;
 	out->i16uOutputLength = dev->sId.i16uFBS_OutputLength;
+	out->i16uFeatures = dev->sId.i16uFeatureDescriptor;
 	out->i16uOutputOffset = dev->i16uOutputOffset;
 	out->i16uConfigLength = dev->i16uConfigLength;
 	out->i16uConfigOffset = dev->i16uConfigOffset;
