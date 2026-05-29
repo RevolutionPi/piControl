@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2020-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2020-2026 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
 
@@ -238,7 +238,8 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		addr, e_cnt, mio_cnt, MIO_CONF_BASE);
 
 	for (i = 0; i < e_cnt; i++) {
-		offset = ent[i].i16uOffset;
+		offset = ent[i].i16uDeviceOffset;
+
 		switch (offset) {
 		case 0 ... MIO_CONF_BASE - 1:
 			/*nothing to do for input and output */

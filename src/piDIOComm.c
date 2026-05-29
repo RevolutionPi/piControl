@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
 
@@ -38,16 +38,16 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 	i16uCounterAct[i8uAddress] = 0;
 
 	for (i = 0; i < i16uNumEntries; i++) {
-		if (pEnt[i].i16uOffset >= 88 && pEnt[i].i16uOffset <= 103) {
+		if (pEnt[i].i16uDeviceOffset >= 88 && pEnt[i].i16uDeviceOffset <= 103) {
 			dioConfig_s[i8uConfigured_s].i32uInputMode |=
-			    (pEnt[i].i32uDefault & 0x03) << ((pEnt[i].i16uOffset - 88) * 2);
+			    (pEnt[i].i32uDefault & 0x03) << ((pEnt[i].i16uDeviceOffset - 88) * 2);
 			if ((pEnt[i].i32uDefault == 1 || pEnt[i].i32uDefault == 2)
-			    || (pEnt[i].i32uDefault == 3 && ((pEnt[i].i16uOffset - 88) % 2) == 0)) {
+			    || (pEnt[i].i32uDefault == 3 && ((pEnt[i].i16uDeviceOffset - 88) % 2) == 0)) {
 				i8uNumCounter[i8uAddress]++;
-				i16uCounterAct[i8uAddress] |= (1 << (pEnt[i].i16uOffset - 88));
+				i16uCounterAct[i8uAddress] |= (1 << (pEnt[i].i16uDeviceOffset - 88));
 			}
 		} else {
-			switch (pEnt[i].i16uOffset) {
+			switch (pEnt[i].i16uDeviceOffset) {
 			case 104:
 				dioConfig_s[i8uConfigured_s].i8uInputDebounce = pEnt[i].i32uDefault;
 				break;

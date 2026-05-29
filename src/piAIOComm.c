@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/types.h>
 #include <linux/pibridge_comm.h>
@@ -41,7 +41,7 @@ u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 	aio_dev[num_aios] = addr;
 
 	for (i = 0; i < num_entries; i++) {
-		switch (pEnt[i].i16uOffset) {
+		switch (pEnt[i].i16uDeviceOffset) {
 		case AIO_OFFSET_InputValue_1:
 		case AIO_OFFSET_InputValue_2:
 		case AIO_OFFSET_InputValue_3:
@@ -190,7 +190,7 @@ u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 			aioConfig_s[num_aios].sAioOutputConfig[1].i16sB = pEnt[i].i32uDefault;
 			break;
 		default:
-			pr_err("piAIOComm_Config: Unknown parameter %d in rsc-file\n", pEnt[i].i16uOffset);
+			pr_err("piAIOComm_Config: Unknown parameter %d in rsc-file\n", pEnt[i].i16uDeviceOffset);
 		}
 	}
 

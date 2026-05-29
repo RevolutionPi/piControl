@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2023-2026 KUNBUS GmbH
 
 // RevPi RO module (Relais Output)
 
@@ -62,9 +62,9 @@ int revpi_ro_config(u8 addr, int num_entries, SEntryInfo *pEnt)
 		 * Set initial thresholds for wearout warning (0 means wearout
 		 * warning is deactivated).
 		 */
-		if ((entry->i16uOffset >= ENTRY_THRESH_FIRST) &&
-		    (entry->i16uOffset <= ENTRY_THRESH_LAST)) {
-			thr_idx = (entry->i16uOffset - ENTRY_THRESH_FIRST) / 4;
+		if ((entry->i16uDeviceOffset >= ENTRY_THRESH_FIRST) &&
+		    (entry->i16uDeviceOffset <= ENTRY_THRESH_LAST)) {
+			thr_idx = (entry->i16uDeviceOffset - ENTRY_THRESH_FIRST) / 4;
 			itm->config.thresh[thr_idx] = entry->i32uDefault;
 		}
 	}

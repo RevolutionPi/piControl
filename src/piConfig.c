@@ -532,9 +532,13 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 	}
 }
 
-int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piCopylist ** cl)
+int piConfigParse(const char *filename, piDevices **devices_list,
+		  piEntries **entries_list, piCopylist **copy_list)
 {
 	int ret = 0, i, cnt, d, idx[4], exported_outputs;
+	piDevices *devs;
+	piEntries *ent;
+	piCopylist *cl;
 	json_config config;
 	json_val_t *root_structure;
 
@@ -544,167 +548,123 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	config.allow_c_comments = 1;
 	config.allow_yaml_comments = 1;
 
-	*devs = NULL;
-	*ent = NULL;
-	*cl = NULL;
-
 	ret = do_tree(&config, filename, &root_structure);
 	if (ret)
 		return ret;
 
-	*devs = find_devices(root_structure, NULL, 1);
-	if (*devs == NULL) {
+	devs = find_devices(root_structure, NULL, 1);
+	if (devs == NULL) {
 		pr_err("find_devices returned NULL\n");
 		free_tree(root_structure);
 		return 3;
 	}
 
-	pr_info("found %d devices in configuration file\n", (*devs)->i16uNumDevices);
+	pr_info("found %d devices in configuration file\n", devs->i16uNumDevices);
 
 	cnt = 0;
-	for (i = 0; i < (*devs)->i16uNumDevices; i++)
-		cnt += (*devs)->dev[i].i16uEntries;
+	for (i = 0; i < devs->i16uNumDevices; i++)
+		cnt += devs->dev[i].i16uEntries;
 	pr_debug("%d entries in total\n", cnt);
 
-	*ent = kzalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
-	if (!*ent) {
-		kfree(*devs);
-		*devs = NULL;
+	ent = kzalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
+	if (!ent) {
+		kfree(devs);
 		free_tree(root_structure);
 		return JSON_ERROR_NO_MEMORY;
 	}
-	(*ent)->i16uNumEntries = cnt;
+	ent->i16uNumEntries = cnt;
 	cnt = 0;
-	find_entries(root_structure, *ent, &cnt, 0, 0, 1);
-
-	// copy the config value into the module driver
-	piDIOComm_InitStart();
-	piAIOComm_InitStart();
-	revpi_mio_reset();
-	revpi_ro_reset();
-
-	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
-		switch ((*devs)->dev[i].i16uModuleType) {
-		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			piDIOComm_Config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			piAIOComm_Config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
-			revpi_compact_config((*devs)->dev[i].i8uAddress,
-					     (*devs)->dev[i].i16uEntries,
-					     &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_MIO:
-			revpi_mio_config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_RO:
-			revpi_ro_config((*devs)->dev[i].i8uAddress,
-					(*devs)->dev[i].i16uEntries,
-					&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		}
-
-	}
+	find_entries(root_structure, ent, &cnt, 0, 0, 1);
 
 	// now correct the offsets with the base offset of the module
 	d = 0;
 	i = 0;
 	exported_outputs = 0;
 	idx[0] = idx[1] = idx[2] = idx[3] = 0;
-	while (i < (*ent)->i16uNumEntries && d < (*devs)->i16uNumDevices) {
-		if ((*ent)->ent[i].i8uAddress != (*devs)->dev[d].i8uAddress) {
-			(*devs)->dev[d].i16uInputLength /= 8;
-			(*devs)->dev[d].i16uOutputLength /= 8;
-			(*devs)->dev[d].i16uConfigLength /= 8;
+	while (i < ent->i16uNumEntries && d < devs->i16uNumDevices) {
+		if (ent->ent[i].i8uAddress != devs->dev[d].i8uAddress) {
+			devs->dev[d].i16uInputLength /= 8;
+			devs->dev[d].i16uOutputLength /= 8;
+			devs->dev[d].i16uConfigLength /= 8;
 
 			d++;	// goto next device
 			idx[0] = idx[1] = idx[2] = idx[3] = 0;
 		} else {
-			u8 type = (*ent)->ent[i].i8uType;
+			u8 type = ent->ent[i].i8uType;
 			if (type == 0x82)
 				exported_outputs++;
 
 			type &= 0x7f;	// remove export flag
 
-			(*ent)->ent[i].i16uOffset += (*devs)->dev[d].i16uBaseOffset;
+			ent->ent[i].i16uDeviceOffset = ent->ent[i].i16uOffset;
+			ent->ent[i].i16uOffset += devs->dev[d].i16uBaseOffset;
 			if (type == 1)	// Input
 			{
-				if (idx[0] == 0 || (*devs)->dev[d].i16uInputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[0] == 0 || devs->dev[d].i16uInputOffset > ent->ent[i].i16uOffset) {
 					idx[0]++;
-					(*devs)->dev[d].i16uInputOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uInputOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uInputLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uInputLength += ent->ent[i].i16uBitLength;
 			} else if (type == 2)	// Output
 			{
-				if (idx[1] == 0 || (*devs)->dev[d].i16uOutputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[1] == 0 || devs->dev[d].i16uOutputOffset > ent->ent[i].i16uOffset) {
 					idx[1]++;
-					(*devs)->dev[d].i16uOutputOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uOutputOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uOutputLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uOutputLength += ent->ent[i].i16uBitLength;
 			} else if (type == 3)	// Memory
 			{
-				if (idx[2] == 0 || (*devs)->dev[d].i16uConfigOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[2] == 0 || devs->dev[d].i16uConfigOffset > ent->ent[i].i16uOffset) {
 					idx[2]++;
-					(*devs)->dev[d].i16uConfigOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uConfigOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uConfigLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uConfigLength += ent->ent[i].i16uBitLength;
 			} else if (type == 4)	// Config
 			{
-				if (idx[3] == 0 || (*devs)->dev[d].i16uConfigOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[3] == 0 || devs->dev[d].i16uConfigOffset > ent->ent[i].i16uOffset) {
 					idx[3]++;
-					(*devs)->dev[d].i16uConfigOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uConfigOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uConfigLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uConfigLength += ent->ent[i].i16uBitLength;
 			}
 
-			while ((*ent)->ent[i].i8uBitPos >= 8) {
-				(*ent)->ent[i].i8uBitPos -= 8;
-				(*ent)->ent[i].i16uOffset++;
+			while (ent->ent[i].i8uBitPos >= 8) {
+				ent->ent[i].i8uBitPos -= 8;
+				ent->ent[i].i16uOffset++;
+				ent->ent[i].i16uDeviceOffset++;
 			}
 
 			i++;
 		}
 	}
-	if (d < (*devs)->i16uNumDevices) {
-		(*devs)->dev[d].i16uInputLength /= 8;
-		(*devs)->dev[d].i16uOutputLength /= 8;
-		(*devs)->dev[d].i16uConfigLength /= 8;
+	if (d < devs->i16uNumDevices) {
+		devs->dev[d].i16uInputLength /= 8;
+		devs->dev[d].i16uOutputLength /= 8;
+		devs->dev[d].i16uConfigLength /= 8;
 
 	}
 
 	// Generate Copy List
-	*cl = kzalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
-	if (!*cl) {
-		kfree(*ent);
-		*ent = NULL;
-		kfree(*devs);
-		*devs = NULL;
+	cl = kzalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
+	if (!cl) {
+		kfree(ent);
+		kfree(devs);
 		free_tree(root_structure);
 		return JSON_ERROR_NO_MEMORY;
 	}
-	(*cl)->i16uNumEntries = exported_outputs;
+	cl->i16uNumEntries = exported_outputs;
 	d = 0;
-	for (i = 0; i < (*ent)->i16uNumEntries && d <= exported_outputs; i++) {
-		if ((*ent)->ent[i].i8uType == 0x82) {
+	for (i = 0; i < ent->i16uNumEntries && d <= exported_outputs; i++) {
+		if (ent->ent[i].i8uType == 0x82) {
 			if (d == exported_outputs) {
-				pr_err("### internal error 1 ### %d %d  %d %d\n", i, (*ent)->i16uNumEntries, d,
+				pr_err("### internal error 1 ### %d %d  %d %d\n", i, ent->i16uNumEntries, d,
 				       exported_outputs);
 				exported_outputs = 0;
 			} else {
-				(*cl)->ent[d].i16uAddr = (*ent)->ent[i].i16uOffset;
-				(*cl)->ent[d].i8uBitMask =
-				    (0xff >> (8 - (*ent)->ent[i].i16uBitLength)) << (*ent)->ent[i].i8uBitPos;
-				(*cl)->ent[d].i16uLength = (*ent)->ent[i].i16uBitLength;
+				cl->ent[d].i16uAddr = ent->ent[i].i16uOffset;
+				cl->ent[d].i8uBitMask =
+				    (0xff >> (8 - ent->ent[i].i16uBitLength)) << ent->ent[i].i8uBitPos;
+				cl->ent[d].i16uLength = ent->ent[i].i16uBitLength;
 				d++;
 			}
 		}
@@ -712,9 +672,9 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 
 	// prüfe ob die Einträge aufsteigend sortiert sind
 	for (d = 1; d < exported_outputs; d++) {
-		if (((*cl)->ent[d - 1].i16uAddr > (*cl)->ent[d].i16uAddr)
-		    || (((*cl)->ent[d - 1].i16uAddr == (*cl)->ent[d].i16uAddr)
-			&& ((*cl)->ent[d - 1].i8uBitMask & (*cl)->ent[d].i8uBitMask)
+		if ((cl->ent[d - 1].i16uAddr > cl->ent[d].i16uAddr)
+		    || ((cl->ent[d - 1].i16uAddr == cl->ent[d].i16uAddr)
+			&& (cl->ent[d - 1].i8uBitMask & cl->ent[d].i8uBitMask)
 		    )
 		    ) {
 			pr_err("### internal error 2 ### %d\n", d);
@@ -725,36 +685,84 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 
 	i = 0;
 	for (d = 1; d < exported_outputs; d++) {
-		if ((*cl)->ent[i].i16uAddr == (*cl)->ent[d].i16uAddr
-		    && (*cl)->ent[i].i16uLength < 8 && (*cl)->ent[d].i16uLength < 8) {
+		if (cl->ent[i].i16uAddr == cl->ent[d].i16uAddr
+		    && cl->ent[i].i16uLength < 8 && cl->ent[d].i16uLength < 8) {
 			// fasse die beiden Einträge zusammen
-			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
-			(*cl)->ent[i].i8uBitMask |= (*cl)->ent[d].i8uBitMask;
-		} else if ((*cl)->ent[i].i16uLength >= 8
-			   && (*cl)->ent[d].i16uLength >= 8
-			   && (*cl)->ent[d].i16uAddr == (*cl)->ent[i].i16uAddr + (*cl)->ent[i].i16uLength / 8) {
+			cl->ent[i].i16uLength += cl->ent[d].i16uLength;
+			cl->ent[i].i8uBitMask |= cl->ent[d].i8uBitMask;
+		} else if (cl->ent[i].i16uLength >= 8
+			   && cl->ent[d].i16uLength >= 8
+			   && cl->ent[d].i16uAddr == cl->ent[i].i16uAddr + cl->ent[i].i16uLength / 8) {
 			// fasse die beiden Einträge zusammen
-			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
+			cl->ent[i].i16uLength += cl->ent[d].i16uLength;
 		} else {
 			// gehe zum nächsten Eintrag
-			pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
-				       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
+			pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, cl->ent[i].i16uAddr,
+				       cl->ent[i].i8uBitMask, cl->ent[i].i16uLength);
 
 			i++;
-			(*cl)->ent[i].i16uAddr = (*cl)->ent[d].i16uAddr;
-			(*cl)->ent[i].i8uBitMask = (*cl)->ent[d].i8uBitMask;
-			(*cl)->ent[i].i16uLength = (*cl)->ent[d].i16uLength;
+			cl->ent[i].i16uAddr = cl->ent[d].i16uAddr;
+			cl->ent[i].i8uBitMask = cl->ent[d].i8uBitMask;
+			cl->ent[i].i16uLength = cl->ent[d].i16uLength;
 		}
 	}
 	if (exported_outputs > 0) {
-		pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
-			       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
+		pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, cl->ent[i].i16uAddr,
+			       cl->ent[i].i8uBitMask, cl->ent[i].i16uLength);
 		i++;
 	}
 
-	(*cl)->i16uNumEntries = i;
+	cl->i16uNumEntries = i;
 
 	free_tree(root_structure);
+
+	/* Parsing ok, configure devices and replace old parsed data with new */
+	// copy the config value into the module driver
+	piDIOComm_InitStart();
+	piAIOComm_InitStart();
+	revpi_mio_reset();
+	revpi_ro_reset();
+
+	for (i = 0; i < devs->i16uNumDevices; i++) {
+		switch (devs->dev[i].i16uModuleType) {
+		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+			piDIOComm_Config(devs->dev[i].i8uAddress,
+					 devs->dev[i].i16uEntries,
+					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_AIO:
+			piAIOComm_Config(devs->dev[i].i8uAddress,
+					 devs->dev[i].i16uEntries,
+					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
+			revpi_compact_config(devs->dev[i].i8uAddress,
+					     devs->dev[i].i16uEntries,
+					     &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_MIO:
+			revpi_mio_config(devs->dev[i].i8uAddress,
+					 devs->dev[i].i16uEntries,
+					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_RO:
+			revpi_ro_config(devs->dev[i].i8uAddress,
+					devs->dev[i].i16uEntries,
+					&ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		}
+
+	}
+
+	kfree(*devices_list);
+	kfree(*entries_list);
+	kfree(*copy_list);
+
+	*devices_list = devs;
+	*entries_list = ent;
+	*copy_list = cl;
 
 	return ret;
 }

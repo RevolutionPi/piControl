@@ -602,7 +602,12 @@ static int pibridge_probe(struct platform_device *pdev)
 	piDev_g.tLastOutput2 = ktime_set(0, 0);
 
 	/* start application */
-	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl);
+	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent,
+			  &piDev_g.cl)) {
+		pr_warn("Error while parsing the configuration file %s\n",
+			PICONFIG_FILE);
+		pr_warn("No data parsed from config file!\n");
+	}
 
 	if (piDev_g.pibridge_supported) {
 		res = revpi_core_probe(pdev);
@@ -665,17 +670,12 @@ static int piControlReset(tpiControlInst * priv)
 	int status = -EFAULT;
 	int timeout = 10000;	// ms
 
-	kfree(piDev_g.ent);
-	piDev_g.ent = NULL;
-
-	kfree(piDev_g.devs);
-	piDev_g.devs = NULL;
-
-	kfree(piDev_g.cl);
-	piDev_g.cl = NULL;
-
 	/* start application */
-	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl);
+	if (piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl)) {
+		pr_warn("Error while parsing the configuration file %s\n",
+			PICONFIG_FILE);
+		pr_warn("Configuration data not changed!\n");
+	}
 
 	if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_reset();

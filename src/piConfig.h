@@ -31,7 +31,8 @@ typedef struct _piCopylist {
 	piCopyEntry ent[0];
 } piCopylist;
 
-int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piCopylist ** cl);
+int piConfigParse(const char *filename, piDevices **devices_list,
+		  piEntries **entries_list, piCopylist **copy_list);
 struct file *open_filename(const char *filename, int flags);
 void close_filename(struct file *file);
 void revpi_set_defaults(unsigned char *mem, piEntries *entries);

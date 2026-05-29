@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2018-2024 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
  */
 
 #ifndef PICONTROL_INTERN_H
@@ -68,7 +68,9 @@ typedef struct SEntryInfoStr
 	u16 i16uBitLength;
 	/* 0-7 bit position, 0 also for whole byte */
 	u8 i8uBitPos;
-	/* offset in process image */
+	/* device offset */
+	u16 i16uDeviceOffset;
+	/* offset in process image (modified device offset) */
 	u16 i16uOffset;
 	/* default value */
 	u32 i32uDefault;
