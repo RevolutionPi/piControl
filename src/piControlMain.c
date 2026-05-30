@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 /******************************************************************************/
 /********************************  Includes  **********************************/
@@ -602,8 +602,7 @@ static int pibridge_probe(struct platform_device *pdev)
 	piDev_g.tLastOutput2 = ktime_set(0, 0);
 
 	/* start application */
-	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl,
-		      &piDev_g.connl);
+	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl);
 
 	if (piDev_g.pibridge_supported) {
 		res = revpi_core_probe(pdev);
@@ -647,7 +646,6 @@ err_free_config:
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
 	kfree(piDev_g.cl);
-	kfree(piDev_g.connl);
 err_sysfs_remove:
 	piControl_deinit_sysfs();
 err_dev_destroy:
@@ -676,12 +674,8 @@ static int piControlReset(tpiControlInst * priv)
 	kfree(piDev_g.cl);
 	piDev_g.cl = NULL;
 
-	kfree(piDev_g.connl);
-	piDev_g.connl = NULL;
-
 	/* start application */
-	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl,
-		      &piDev_g.connl);
+	piConfigParse(PICONFIG_FILE, &piDev_g.devs, &piDev_g.ent, &piDev_g.cl);
 
 	if (piDev_g.machine_type == REVPI_COMPACT) {
 		revpi_compact_reset();
@@ -763,7 +757,6 @@ static int pibridge_remove(struct platform_device *pdev)
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
 	kfree(piDev_g.cl);
-	kfree(piDev_g.connl);
 	piControl_deinit_sysfs();
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor));
 	device_destroy(piControlClass, curdev);

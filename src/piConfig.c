@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/fs.h>
 #include <linux/slab.h>
@@ -15,7 +15,6 @@
 #include "revpi_ro.h"
 
 #define TOKEN_DEVICES       "Devices"
-#define TOKEN_CONNECTIONS   "Connections"
 #define TOKEN_TYPE          "productType"
 #define TOKEN_POSITION      "position"
 #define TOKEN_INPUT         "inp"
@@ -23,10 +22,6 @@
 #define TOKEN_MEMORY        "mem"
 #define TOKEN_CONFIG        "config"
 #define TOKEN_OFFSET        "offset"
-#define TOKEN_SRC_GUID      "srcGUID"
-#define TOKEN_SRC_NAME      "srcAttrname"
-#define TOKEN_DEST_GUID     "destGUID"
-#define TOKEN_DEST_NAME     "destAttrname"
 
 struct json_val_elem {
 	char *key;
@@ -537,148 +532,7 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 	}
 }
 
-static SEntryInfo *search_entry(piEntries * ent, char *strName)
-{
-	int i;
-	for (i = 0; i < ent->i16uNumEntries; i++) {
-		if (strcmp(ent->ent[i].strVarName, strName) == 0)
-			return &ent->ent[i];
-	}
-	return NULL;
-}
-
-static piConnectionList *find_connections(json_val_t * element, piDevices * devs, piEntries * ent, piConnection * conn,
-					  int lvl)
-{
-	int i;
-	piConnectionList *ret = NULL;
-
-	if (!element) {
-		pr_err("error: no element in print tree\n");
-		return NULL;
-	}
-
-	switch (element->type) {
-	case JSON_OBJECT_BEGIN:
-		if (lvl == 200) {
-
-		} else {
-			// The variable name are unique in th whole configuration, therefore it is not necessary to compare the GUIDs
-			// also. This is guaranteed by PiCtory.
-//			char strSrcGUID[50];
-//			char strDstGUID[50];
-			char strSrcName[32];
-			char strDstName[32];
-//			strSrcGUID[0] = 0;
-//			strDstGUID[0] = 0;
-			strSrcName[0] = 0;
-			strDstName[0] = 0;
-
-			for (i = 0; i < element->length; i++) {
-				if (lvl == 1 && strcmp(element->u.object[i]->key, TOKEN_CONNECTIONS) == 0) {	// we found the connections list -> increase lvl
-					if (ret != NULL) {
-						pr_err("error: there should by only one '%s' element\n",
-							  element->u.object[i]->key);
-						return NULL;
-					}
-					ret = find_connections(element->u.object[i]->val, devs, ent, conn, 100);
-				} else if (lvl == 101) {	// we found a connection, parse elements
-//					if (strcmp(element->u.object[i]->key, TOKEN_SRC_GUID) == 0)
-//					{
-//						strncpy(strSrcGUID, element->u.object[i]->val->u.data, sizeof(strSrcGUID)-1);
-//						strSrcGUID[sizeof(strSrcGUID)-1] = 0;
-//					}
-//					else if (strcmp(element->u.object[i]->key, TOKEN_DEST_GUID) == 0)
-//					{
-//						strncpy(strDstGUID, element->u.object[i]->val->u.data, sizeof(strDstGUID)-1);
-//						strDstGUID[sizeof(strDstGUID)-1] = 0;
-//					}
-//					else
-					if (strcmp(element->u.object[i]->key, TOKEN_SRC_NAME) == 0) {
-						strncpy(strSrcName, element->u.object[i]->val->u.data,
-							sizeof(strSrcName) - 1);
-						strSrcName[sizeof(strSrcName) - 1] = 0;
-					} else if (strcmp(element->u.object[i]->key, TOKEN_DEST_NAME) == 0) {
-						strncpy(strDstName, element->u.object[i]->val->u.data,
-							sizeof(strDstName) - 1);
-						strDstName[sizeof(strDstName) - 1] = 0;
-					}
-				} else {
-					// the other objects are not processed
-					//ret = find_connections(element->u.object[i]->val, NULL, lvl + 1);
-				}
-			}
-
-			if (lvl == 101) {
-				if (	/*    strSrcGUID[0] != 0
-					   &&  strDstGUID[0] != 0
-					   && */ strSrcName[0] != 0
-					   && strDstName[0] != 0) {
-					SEntryInfo *pSrcEntry, *pDstEntry;
-					pSrcEntry = search_entry(ent, strSrcName);
-					if (pSrcEntry == NULL) {
-						pr_err("error: connection variable %s unknown\n", strSrcName);
-						return NULL;
-					}
-					pDstEntry = search_entry(ent, strDstName);
-					if (pDstEntry == NULL) {
-						pr_err("error: connection variable %s unknown\n", strDstName);
-						return NULL;
-					}
-					conn->i16uSrcAddr = pSrcEntry->i16uOffset;
-					conn->i16uDestAddr = pDstEntry->i16uOffset;
-					conn->i8uLength = pSrcEntry->i16uBitLength;
-					if (conn->i8uLength < 8) {
-						conn->i8uSrcBit = pSrcEntry->i8uBitPos;
-						conn->i8uDestBit = pDstEntry->i8uBitPos;
-					} else {
-						conn->i8uSrcBit = 0;
-						conn->i8uDestBit = 0;
-					}
-					return NULL;	// return value is not used in this recursive call
-				} else {
-					pr_err("error: attributes of connection %d are missing\n", i + 1);
-					return NULL;
-				}
-			}
-		}
-		break;
-	case JSON_ARRAY_BEGIN:
-		if (lvl == 100) {
-			ret = kzalloc(sizeof(piConnectionList) + element->length * sizeof(piConnection), GFP_KERNEL);
-			if (!ret)
-				return NULL;
-			ret->i16uNumEntries = element->length;
-			for (i = 0; i < element->length; i++) {
-				find_connections(element->u.array[i], devs, ent, &ret->conn[i], lvl + 1);
-			}
-		} else {
-//			for (i = 0; i < element->length; i++)
-//			{
-//				ret = find_connections(element->u.array[i], devs, ent, conn, lvl + 1);
-//			}
-		}
-		break;
-		break;
-	case JSON_FALSE:
-	case JSON_TRUE:
-	case JSON_NULL:
-		break;
-	case JSON_INT:
-		break;
-	case JSON_STRING:
-		break;
-	case JSON_FLOAT:
-		break;
-	default:
-		pr_err("error: unhandled type %d\n", element->type);
-		break;
-	}
-	return ret;
-}
-
-int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piCopylist ** cl,
-		  piConnectionList ** connl)
+int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piCopylist ** cl)
 {
 	int ret = 0, i, cnt, d, idx[4], exported_outputs;
 	json_config config;
@@ -693,7 +547,6 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	*devs = NULL;
 	*ent = NULL;
 	*cl = NULL;
-	*connl = NULL;
 
 	ret = do_tree(&config, filename, &root_structure);
 	if (ret)
@@ -827,13 +680,9 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 
 	}
 
-	*connl = find_connections(root_structure, *devs, *ent, NULL, 1);
-
 	// Generate Copy List
 	*cl = kzalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
 	if (!*cl) {
-		kfree(*connl);
-		*connl = NULL;
 		kfree(*ent);
 		*ent = NULL;
 		kfree(*devs);

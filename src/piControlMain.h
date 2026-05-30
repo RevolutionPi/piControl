@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #ifndef PRODUCTS_PIBASE_PIKERNELMOD_PICONTROLINTERN_H_
@@ -78,7 +78,6 @@ typedef struct spiControlDev {
 	/* Protect internal resources, like devs, ent, cl, etc. during
 	   execution of ioctls. This is especially needed during reset. */
 	struct rt_mutex lockIoctl;
-	piConnectionList *connl;
 	ktime_t tLastOutput1, tLastOutput2;
 
 	// handle open connections and notification
