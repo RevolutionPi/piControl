@@ -532,6 +532,32 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 	}
 }
 
+static bool device_ranges_valid(SDeviceInfo *dev)
+{
+	if ((dev->i16uInputOffset + dev->i16uInputLength) > KB_PI_LEN) {
+		pr_err("Invalid input range (offset: %u, length: %u)\n",
+			dev->i16uInputOffset,
+			dev->i16uInputLength);
+		return false;
+	}
+
+	if ((dev->i16uOutputOffset + dev->i16uOutputLength) > KB_PI_LEN) {
+		pr_err("Invalid output range (offset: %u, length: %u)\n",
+			dev->i16uOutputOffset,
+			dev->i16uOutputLength);
+		return false;
+	}
+
+	if ((dev->i16uConfigOffset + dev->i16uConfigLength) > KB_PI_LEN) {
+		pr_err("Invalid config range (offset: %u, length: %u)\n",
+			dev->i16uConfigOffset,
+			dev->i16uConfigLength);
+		return false;
+	}
+
+	return true;
+}
+
 int piConfigParse(const char *filename, piDevices **devices_list,
 		  piEntries **entries_list, piCopylist **copy_list)
 {
@@ -581,11 +607,14 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 	i = 0;
 	exported_outputs = 0;
 	idx[0] = idx[1] = idx[2] = idx[3] = 0;
-	while (i < ent->i16uNumEntries && d < devs->i16uNumDevices) {
+	while (i < ent->i16uNumEntries && d < devs->i16uNumDevices && !ret) {
 		if (ent->ent[i].i8uAddress != devs->dev[d].i8uAddress) {
 			devs->dev[d].i16uInputLength /= 8;
 			devs->dev[d].i16uOutputLength /= 8;
 			devs->dev[d].i16uConfigLength /= 8;
+
+			if (!device_ranges_valid(&devs->dev[d]))
+				ret = -EINVAL;
 
 			d++;	// goto next device
 			idx[0] = idx[1] = idx[2] = idx[3] = 0;
@@ -642,6 +671,15 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 		devs->dev[d].i16uOutputLength /= 8;
 		devs->dev[d].i16uConfigLength /= 8;
 
+		if (!device_ranges_valid(&devs->dev[d]))
+			ret = -EINVAL;
+	}
+
+	if (ret) {
+		kfree(ent);
+		kfree(devs);
+		free_tree(root_structure);
+		return ret;
 	}
 
 	// Generate Copy List
