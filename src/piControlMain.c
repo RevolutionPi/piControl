@@ -1679,6 +1679,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			spi_var.i8uBit = 0xff;
 			spi_var.i16uLength = 0xffff;
 
+			status = -ENOENT;
+
 			for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
 				if (strcmp(piDev_g.ent->ent[i].strVarName, spi_var.strVarName) == 0) {
 					spi_var.i16uAddress = piDev_g.ent->ent[i].i16uOffset;
