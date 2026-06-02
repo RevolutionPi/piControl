@@ -555,6 +555,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	*devs = find_devices(root_structure, NULL, 1);
 	if (*devs == NULL) {
 		pr_err("find_devices returned NULL\n");
+		free_tree(root_structure);
 		return 3;
 	}
 
@@ -569,6 +570,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	if (!*ent) {
 		kfree(*devs);
 		*devs = NULL;
+		free_tree(root_structure);
 		return JSON_ERROR_NO_MEMORY;
 	}
 	(*ent)->i16uNumEntries = cnt;
@@ -687,6 +689,7 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 		*ent = NULL;
 		kfree(*devs);
 		*devs = NULL;
+		free_tree(root_structure);
 		return JSON_ERROR_NO_MEMORY;
 	}
 	(*cl)->i16uNumEntries = exported_outputs;
