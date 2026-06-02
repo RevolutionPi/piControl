@@ -1461,6 +1461,118 @@ static int send_internal_io_msg(unsigned long usr_addr)
 	return ret;
 }
 
+static int set_exported_outputs(tpiControlInst *priv, unsigned long usr_addr)
+{
+	ktime_t now;
+	int ret = 0;
+	int i;
+
+	if (!isRunning())
+		return -EAGAIN;
+
+	if (usr_addr == 0) {
+		pr_err("piControlIoctl: illegal parameter\n");
+		return -EINVAL;
+	}
+
+	if (piDev_g.cl == 0 || piDev_g.cl->i16uNumEntries == 0)
+		return 0;	// nothing to do
+
+	now = ktime_get();
+
+	rt_mutex_lock(&piDev_g.lockPI);
+	piDev_g.tLastOutput2 = piDev_g.tLastOutput1;
+	piDev_g.tLastOutput1 = now;
+
+	for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
+		u16 len = piDev_g.cl->ent[i].i16uLength;
+		u16 addr = piDev_g.cl->ent[i].i16uAddr;
+
+		if (len >= 8) {
+			len /= 8;
+			if (copy_from_user(piDev_g.ai8uPI + addr,
+					   (void *)(usr_addr + addr),
+					   len) != 0) {
+				ret = -EFAULT;
+				break;
+			}
+		} else {
+			u8 val1, val2;
+			u8 mask = piDev_g.cl->ent[i].i8uBitMask;
+
+			if (get_user(val1, (u8 __user *) (usr_addr + addr))) {
+				pr_err("failed to copy byte from user\n");
+				ret = -EFAULT;
+				break;
+			}
+
+			val1 &= mask;
+
+			val2 = piDev_g.ai8uPI[addr];
+			val2 &= ~mask;
+			val2 |= val1;
+			piDev_g.ai8uPI[addr] = val2;
+		}
+	}
+	rt_mutex_unlock(&piDev_g.lockPI);
+
+	if (priv->tTimeoutDurationMs > 0) {
+		priv->tTimeoutTS = ktime_add_ms(ktime_get(),
+						priv->tTimeoutDurationMs);
+	}
+
+	return ret;
+}
+
+static int find_variable(unsigned long usr_addr)
+{
+	const char __user *usr_name;
+	SPIVariable spi_var;
+	int namelen;
+	int ret;
+	int i;
+
+	if (!isRunning())
+		return -EAGAIN;
+
+	if (!piDev_g.ent)
+		return -ENOENT;
+
+	usr_name = ((SPIVariable *) usr_addr)->strVarName;
+
+	namelen = strncpy_from_user(spi_var.strVarName, usr_name,
+				    sizeof(spi_var.strVarName) - 1);
+	if (namelen < 0) {
+		pr_err("failed to copy spi variable from user\n");
+		return -EFAULT;
+	}
+	/* make sure we have a valid string */
+	spi_var.strVarName[namelen] = '\0';
+	/* set default */
+	spi_var.i16uAddress = 0xffff;
+	spi_var.i8uBit = 0xff;
+	spi_var.i16uLength = 0xffff;
+
+	ret = -ENOENT;
+
+	for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
+		if (strcmp(piDev_g.ent->ent[i].strVarName, spi_var.strVarName) == 0) {
+			spi_var.i16uAddress = piDev_g.ent->ent[i].i16uOffset;
+			spi_var.i8uBit = piDev_g.ent->ent[i].i8uBitPos;
+			spi_var.i16uLength = piDev_g.ent->ent[i].i16uBitLength;
+			ret = 0;
+			break;
+		}
+	}
+
+	if (copy_to_user((void __user *) usr_addr, &spi_var, sizeof(spi_var))) {
+		pr_err("failed to copy spi variable to user\n");
+		return -EFAULT;
+	}
+
+	return ret;
+}
+
 /*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
@@ -1650,114 +1762,17 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_FIND_VARIABLE:
-		{
-			int i;
-			SPIVariable spi_var;
-			int namelen;
-			const char __user *usr_name;
-
-			if (!isRunning())
-				return -EAGAIN;
-
-			if (!piDev_g.ent) {
-				status = -ENOENT;
-				break;
-			}
-
-			usr_name = ((SPIVariable *) usr_addr)->strVarName;
-
-			namelen = strncpy_from_user(spi_var.strVarName, usr_name,
-						    sizeof(spi_var.strVarName) - 1);
-			if (namelen < 0) {
-				pr_err("failed to copy spi variable from user\n");
-				return -EFAULT;
-			}
-			/* make sure we have a valid string */
-			spi_var.strVarName[namelen] = '\0';
-			/* set default */
-			spi_var.i16uAddress = 0xffff;
-			spi_var.i8uBit = 0xff;
-			spi_var.i16uLength = 0xffff;
-
-			status = -ENOENT;
-
-			for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
-				if (strcmp(piDev_g.ent->ent[i].strVarName, spi_var.strVarName) == 0) {
-					spi_var.i16uAddress = piDev_g.ent->ent[i].i16uOffset;
-					spi_var.i8uBit = piDev_g.ent->ent[i].i8uBitPos;
-					spi_var.i16uLength = piDev_g.ent->ent[i].i16uBitLength;
-					status = 0;
-					break;
-				}
-			}
-
-			if (copy_to_user((void __user *) usr_addr, &spi_var, sizeof(spi_var))) {
-				pr_err("failed to copy spi variable to user\n");
-				return -EFAULT;
-			}
-
-		}
+		rt_mutex_lock(&piDev_g.lockIoctl);
+		status = find_variable(usr_addr);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
 		break;
 
 	case KB_SET_EXPORTED_OUTPUTS:
-		{
-			int i;
-			ktime_t now;
+		rt_mutex_lock(&piDev_g.lockIoctl);
+		status = set_exported_outputs(priv, usr_addr);
+		rt_mutex_unlock(&piDev_g.lockIoctl);
 
-			if (!isRunning())
-				return -EAGAIN;
-
-			if (usr_addr == 0) {
-				pr_err("piControlIoctl: illegal parameter\n");
-				return -EINVAL;
-			}
-
-			if (piDev_g.cl == 0 || piDev_g.cl->i16uNumEntries == 0)
-				return 0;	// nothing to do
-
-			status = 0;
-			now = ktime_get();
-
-			rt_mutex_lock(&piDev_g.lockPI);
-			piDev_g.tLastOutput2 = piDev_g.tLastOutput1;
-			piDev_g.tLastOutput1 = now;
-
-			for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
-				u16 len = piDev_g.cl->ent[i].i16uLength;
-				u16 addr = piDev_g.cl->ent[i].i16uAddr;
-
-				if (len >= 8) {
-					len /= 8;
-					if (copy_from_user(piDev_g.ai8uPI + addr, (void *)(usr_addr + addr), len) != 0) {
-						status = -EFAULT;
-						break;
-					}
-				} else {
-					u8 val1, val2;
-					u8 mask = piDev_g.cl->ent[i].i8uBitMask;
-
-					if (get_user(val1, (u8 __user*) (usr_addr + addr))) {
-						pr_err("failed to copy byte from user\n");
-						status = -EFAULT;
-						break;
-					}
-
-					val1 &= mask;
-
-					val2 = piDev_g.ai8uPI[addr];
-					val2 &= ~mask;
-					val2 |= val1;
-					piDev_g.ai8uPI[addr] = val2;
-				}
-			}
-			rt_mutex_unlock(&piDev_g.lockPI);
-
-			if (priv->tTimeoutDurationMs > 0) {
-				priv->tTimeoutTS = ktime_add_ms(ktime_get(), priv->tTimeoutDurationMs);
-			}
-		}
 		break;
-
 	case KB_DIO_RESET_COUNTER:
 		rt_mutex_lock(&piDev_g.lockIoctl);
 		status = reset_dio_counter(usr_addr);
