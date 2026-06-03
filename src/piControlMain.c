@@ -1566,6 +1566,34 @@ static int find_variable(unsigned long usr_addr)
 	return ret;
 }
 
+static int wait_for_reset_event(unsigned long usr_addr, tpiControlInst *priv)
+{
+	tpiEventEntry *pEntry = NULL;
+	int ret;
+
+	while (!pEntry) {
+		ret = wait_event_interruptible(priv->wq,
+					       !list_empty(&priv->piEventList));
+		if (ret)
+			return ret;
+
+		rt_mutex_lock(&priv->lockEventList);
+		if (!list_empty(&priv->piEventList)) {
+			pEntry = list_first_entry(&priv->piEventList,
+						  tpiEventEntry, list);
+			list_del(&pEntry->list);
+		}
+		rt_mutex_unlock(&priv->lockEventList);
+	}
+
+	if (put_user(pEntry->event, (u32 __user *) usr_addr))
+		ret = -EFAULT;
+
+	kfree(pEntry);
+
+	return ret;
+}
+
 /*****************************************************************************/
 /*    I O C T L                                                           */
 /*****************************************************************************/
@@ -1930,25 +1958,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_WAIT_FOR_EVENT:
-		{
-			tpiEventEntry *pEntry;
-
-			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
-				rt_mutex_lock(&priv->lockEventList);
-				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
-
-				list_del(&pEntry->list);
-				rt_mutex_unlock(&priv->lockEventList);
-
-				if (put_user(pEntry->event, (u32 __user *) usr_addr)) {
-					status = -EFAULT;
-				} else {
-					status = 0;
-				}
-
-				kfree(pEntry);
-			}
-		}
+		status = wait_for_reset_event(usr_addr, priv);
 		break;
 
 	case KB_GET_LAST_MESSAGE:
