@@ -574,15 +574,14 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 	config.allow_c_comments = 1;
 	config.allow_yaml_comments = 1;
 
-	ret = do_tree(&config, filename, &root_structure);
-	if (ret)
-		return ret;
+	if (do_tree(&config, filename, &root_structure))
+		return -EINVAL;
 
 	devs = find_devices(root_structure, NULL, 1);
 	if (devs == NULL) {
 		pr_err("find_devices returned NULL\n");
 		free_tree(root_structure);
-		return 3;
+		return -EINVAL;
 	}
 
 	pr_info("found %d devices in configuration file\n", devs->i16uNumDevices);
@@ -596,7 +595,7 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 	if (!ent) {
 		kfree(devs);
 		free_tree(root_structure);
-		return JSON_ERROR_NO_MEMORY;
+		return -ENOMEM;
 	}
 	ent->i16uNumEntries = cnt;
 	cnt = 0;
@@ -688,7 +687,7 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 		kfree(ent);
 		kfree(devs);
 		free_tree(root_structure);
-		return JSON_ERROR_NO_MEMORY;
+		return -ENOMEM;
 	}
 	cl->i16uNumEntries = exported_outputs;
 	d = 0;
