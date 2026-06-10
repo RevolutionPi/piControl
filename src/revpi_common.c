@@ -165,7 +165,7 @@ void revpi_check_timeout(void)
 	ktime_t now = ktime_get();
 	struct list_head *pCon;
 
-	my_rt_mutex_lock(&piDev_g.lockListCon);
+	rt_mutex_lock(&piDev_g.lockListCon);
 	list_for_each(pCon, &piDev_g.listCon) {
 		tpiControlInst *pos_inst;
 		pos_inst = list_entry(pCon, tpiControlInst, list);
@@ -174,7 +174,7 @@ void revpi_check_timeout(void)
 			if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
 				// set all outputs to 0
 				int i;
-				my_rt_mutex_lock(&piDev_g.lockPI);
+				rt_mutex_lock(&piDev_g.lockPI);
 				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 					if (RevPiDevice_getDev(i)->i8uActive) {
 						memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);

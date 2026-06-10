@@ -160,7 +160,7 @@ static struct sk_buff *revpi_gate_create_packet(
 	struct sk_buff *skb;
 
 	skb = alloc_skb(hlen + sizeof(MODGATECOM_TransportLayer) +
-			payload_len + tlen, GFP_ATOMIC);
+			payload_len + tlen, GFP_KERNEL);
 	if (!skb)
 		return NULL;
 
@@ -437,7 +437,7 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 		pr_debug("%s: id request\n", dev->name);
 		rcv_tl = (MODGATECOM_TransportLayer *)skb_network_header(rcv);
 
-		conn = kzalloc(sizeof(*conn), GFP_ATOMIC);
+		conn = kzalloc(sizeof(*conn), GFP_KERNEL);
 		if (!conn)
 			goto drop;
 

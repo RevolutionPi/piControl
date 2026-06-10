@@ -129,7 +129,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 		}
 
 		PiBridgeMaster_FWUReset();
-		printUserMsg(priv,"update firmware success");
+		printUserMsg(priv, "firmware update successful");
 		ret = 1;	// success
 	}
 
@@ -139,7 +139,7 @@ laError:
 	kfree(filename);
 	close_filename(input);
 	if (ret < 0)
-		printUserMsg(priv, "update firmware fail");
+		printUserMsg(priv, "firmware update failed");
 	return ret;
 }
 
@@ -305,9 +305,11 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	upload_len = fw->size - flash_offset;
 	dev_addr = sdev->i8uAddress;
 
-	if (fwuEnterFwuMode(dev_addr) < 0) {
-		pr_err("error entering firmware update mode\n");
-		return -EIO;
+	if (!(mask & PICONTROL_FIRMWARE_RESCUE_MODE)) {
+		if (fwuEnterFwuMode(dev_addr) < 0) {
+			pr_err("error entering firmware update mode\n");
+			return -EIO;
+		}
 	}
 
 	/* Old mGates always use 2 as device address */

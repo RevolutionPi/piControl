@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
-#include <linux/pibridge_comm.h>
+#include <linux/bitfield.h>
 #include <linux/cpufreq.h>
+#include <linux/jiffies.h>
+#include <linux/pibridge_comm.h>
 #include <linux/thermal.h>
 
 #include "common_define.h"
@@ -20,6 +22,7 @@
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
+#define BAUD_SWITCH_MAX_RETRIES 3	// max. retries for switching the bus baudrate
 
 /* The number of cycles after which the comm error counter is decreased */
 #define COMM_ERROR_CYCLES		(1<<3) /* must be power of 2! */
@@ -27,18 +30,26 @@
 /* Error limit for error log message */
 #define COMM_ERROR_LOG_LIMIT		10
 
+static const u32 pibridge_baud_table[] = {
+	[PIBRIDGE_BAUD_INDEX_115200]  = PIBRIDGE_MIN_BAUDRATE,
+	[PIBRIDGE_BAUD_INDEX_500000]  = 500000,
+	[PIBRIDGE_BAUD_INDEX_1000000] = 1000000,
+	[PIBRIDGE_BAUD_INDEX_1500000] = 1500000,
+};
+
 static int init_retry = MAX_INIT_RETRIES;
-static volatile TBOOL bEntering_s = bTRUE;
+static int baud_switch_retries;
+static volatile bool bEntering_s = true;
 EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
 static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
 
-static INT32U i32uFWUAddress, i32uFWUSerialNum, i32uFWUFlashAddr, i32uFWUlength, i8uFWUScanned;
-static INT32S i32sRetVal;
+static u32 i32uFWUAddress, i32uFWUSerialNum, i32uFWUFlashAddr, i32uFWUlength, i8uFWUScanned;
+static s32 i32sRetVal;
 static char *pcFWUdata;
 
 void PiBridgeMaster_Stop(void)
 {
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_fini();
 	piCore_g.eBridgeState = piBridgeStop;
@@ -49,27 +60,33 @@ void PiBridgeMaster_Stop(void)
 void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
 	set_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
-	bEntering_s = bFALSE;
+	bEntering_s = false;
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
+}
+
+static void pibridge_reinit(void)
+{
+	lockdep_assert_held(&piCore_g.lockBridgeState);
+
+	piCore_g.eBridgeState = piBridgeInit;
+	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
+	eRunStatus_s = enPiBridgeMasterStatus_Init;
+	bEntering_s = true;
+	RevPiDevice_setStatus(0xff, 0);
+	RevPiDevice_init();
 }
 
 void PiBridgeMaster_Reset(void)
 {
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
-	piCore_g.eBridgeState = piBridgeInit;
-	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
-	eRunStatus_s = enPiBridgeMasterStatus_Init;
-	bEntering_s = bTRUE;
-	RevPiDevice_setStatus(0xff, 0);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	init_retry = MAX_INIT_RETRIES;
-
-	RevPiDevice_init();
+	pibridge_reinit();
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
@@ -158,14 +175,16 @@ int PiBridgeMaster_Adjust(void)
 {
 	int i, j;
 	int result = 0, found;
-	uint8_t *state;
 
 	if (piDev_g.devs == NULL || piDev_g.ent == NULL) {
 		// config file could not be read, do nothing
 		return -1;
 	}
 
-	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
+	u8 *state __free(kfree) = kcalloc(piDev_g.devs->i16uNumDevices,
+			sizeof(u8), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
 
 	// Schleife über alle Module die automatisch erkannt wurden
 	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
@@ -262,7 +281,6 @@ int PiBridgeMaster_Adjust(void)
 		}
 	}
 
-	kfree(state);
 	return result;
 }
 
@@ -277,15 +295,8 @@ void PiBridgeMaster_setDefaults(void)
 
 	for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
 		if (piDev_g.ent->ent[i].i32uDefault != 0) {
-			pr_info_master2("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
-					piDev_g.ent->ent[i].i8uAddress,
-					piDev_g.ent->ent[i].i8uType,
-					piDev_g.ent->ent[i].i16uBitLength,
-					piDev_g.ent->ent[i].i16uOffset,
-					piDev_g.ent->ent[i].i8uBitPos, piDev_g.ent->ent[i].i32uDefault);
-
 			if (piDev_g.ent->ent[i].i16uBitLength == 1) {
-				INT8U i8uValue, i8uMask, bit;
+				u8 i8uValue, i8uMask, bit;
 				unsigned int offset;
 
 				offset = piDev_g.ent->ent[i].i16uOffset;
@@ -304,20 +315,147 @@ void PiBridgeMaster_setDefaults(void)
 				piDev_g.ai8uPIDefault[offset] = i8uValue;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 8) {
 				piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset] =
-				    (INT8U) piDev_g.ent->ent[i].i32uDefault;
+				    (u8) piDev_g.ent->ent[i].i32uDefault;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 16
 				   && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN - 1) {
-				INT16U *pi16uPtr = (INT16U *) & piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
+				u16 *pi16uPtr = (u16 *) & piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
 
-				*pi16uPtr = (INT16U) piDev_g.ent->ent[i].i32uDefault;
+				*pi16uPtr = (u16) piDev_g.ent->ent[i].i32uDefault;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 32
 				   && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN - 3) {
-				INT32U *pi32uPtr = (INT32U *) & piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
+				u32 *pi32uPtr = (u32 *) & piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
 
-				*pi32uPtr = (INT32U) piDev_g.ent->ent[i].i32uDefault;
+				*pi32uPtr = (u32) piDev_g.ent->ent[i].i32uDefault;
 			}
 		}
 	}
+}
+
+/*
+ * Compute the highest baudrate supported by all active IO modules.
+ * Reads the 2-bit baudrate index from each module's feature descriptor
+ * (bits 2-3 of i16uFeatureDescriptor), which was already received
+ * during discovery. Legacy modules have these bits zeroed (= 115200).
+ * Skips device 0 (the base/master device) which is not an IO module.
+ * Returns PIBRIDGE_BAUD_INDEX_115200 if no IO modules are present.
+ */
+static u8 pibridge_get_max_common_baudrate(void)
+{
+	u32 master_max = pibridge_get_max_baudrate(piCore_g.pibridge);
+	u8 min_index = PIBRIDGE_BAUD_INDEX_MAX;
+	u8 max_index = 0;
+	bool found = false;
+	SDevice *dev;
+	u8 baud_idx;
+	int i;
+
+	/* Start with the master's hardware-limited max baud as the ceiling. */
+	if (master_max) {
+		while ((min_index > PIBRIDGE_BAUD_INDEX_115200) &&
+		       (pibridge_baud_table[min_index] > master_max))
+			min_index--;
+	}
+
+	for (i = 1; i < RevPiDevice_getDevCnt(); i++) {
+		dev = RevPiDevice_getDev(i);
+		if (!dev->i8uActive)
+			continue;
+		if (dev->sId.i16uModulType >= PICONTROL_SW_OFFSET)
+			continue;
+		if (!(dev->sId.i16uFeatureDescriptor &
+		      MODGATE_feature_RS485DataExchange))
+			continue;
+		found = true;
+		baud_idx = FIELD_GET(MODGATE_feature_Baudrate,
+				     dev->sId.i16uFeatureDescriptor);
+		if (baud_idx > max_index)
+			max_index = baud_idx;
+		if (baud_idx < min_index)
+			min_index = baud_idx;
+	}
+
+	if (!found)
+		return PIBRIDGE_BAUD_INDEX_115200;
+
+	if (min_index < max_index)
+		pr_warn("one or more modules limits baudrate to %u, check for a firmware update\n",
+			pibridge_baud_table[min_index]);
+
+	return min_index;
+}
+
+/*
+ * Send a baudrate change command as a GW protocol broadcast.
+ */
+static int pibridge_modules_set_baudrate(u8 baud_index)
+{
+	return piIoComm_sendRS485Tel(eCmdPiIoSetBaudrate,
+				    MODGATE_RS485_BROADCAST_ADDR,
+				    &baud_index, sizeof(baud_index),
+				    NULL, 0);
+}
+
+/*
+ * Configure the baudrate for cyclic IO. Sends eCmdPiIoSetBaudrate as
+ * a GW broadcast to switch all modules, then reconfigures the master
+ * UART. Called during the config phase before startDataExchange.
+ *
+ * On failure, falls back via bus reset. Gives up after
+ * BAUD_SWITCH_MAX_RETRIES attempts and stays at 115200.
+ */
+static void pibridge_configure_baudrate(void)
+{
+	u8 negotiated = pibridge_get_max_common_baudrate();
+	u32 new_baud;
+	int ret;
+
+	if (negotiated <= PIBRIDGE_BAUD_INDEX_115200)
+		return;
+
+	if (baud_switch_retries >= BAUD_SWITCH_MAX_RETRIES) {
+		pr_warn("baudrate switch failed %d times, staying at %u\n",
+			baud_switch_retries,
+			pibridge_baud_table[PIBRIDGE_BAUD_INDEX_115200]);
+		return;
+	}
+
+	new_baud = pibridge_baud_table[negotiated];
+
+	ret = pibridge_modules_set_baudrate(negotiated);
+	if (ret) {
+		pr_err("failed to send SET_BAUD broadcast: %d\n", ret);
+		goto fallback;
+	}
+
+	/*
+	 * Guard time: let modules process the broadcast
+	 * and reconfigure their UARTs.
+	 */
+	usleep_range(5000, 6000);
+
+	ret = pibridge_set_baudrate(piCore_g.pibridge, new_baud);
+	if (ret) {
+		pr_err("failed to switch master to %u baud: %d\n",
+		       new_baud, ret);
+		goto fallback;
+	}
+
+	baud_switch_retries = 0;
+	return;
+
+fallback:
+	/*
+	 * Recovery: trigger a full bus reset. The Init state resets
+	 * the master UART to 115200 and sends a new present signal
+	 * on sniff-2. Module firmware must reset its UART to 115200
+	 * when it detects the present signal -- this is the only
+	 * safe way to recover modules stuck at the higher rate.
+	 */
+	baud_switch_retries++;
+	pr_warn("baudrate switch failed (attempt %d/%d), triggering bus reset\n",
+		baud_switch_retries, BAUD_SWITCH_MAX_RETRIES);
+	// baudrate is reset to default in Init state handler
+	pibridge_reinit();
 }
 
 static void handle_pibridge_ethernet(void)
@@ -350,21 +488,34 @@ static void handle_pibridge_ethernet(void)
 
 int PiBridgeMaster_Run(void)
 {
-	static kbUT_Timer tTimeoutTimer_s;
-	static kbUT_Timer tConfigTimeoutTimer_s;
+	static unsigned long timeout_deadline;
+	static unsigned long config_deadline;
 	static int error_cnt;
 	static u16 last_led;
 	static u8 last_output;
-	static unsigned long last_update;
+	static unsigned long next_update;
 	int ret = 0;
 	int i;
 
-	my_rt_mutex_lock(&piCore_g.lockBridgeState);
+	rt_mutex_lock(&piCore_g.lockBridgeState);
 	if (piCore_g.eBridgeState != piBridgeStop) {
 		switch (eRunStatus_s) {
 		case enPiBridgeMasterStatus_Init:	// Do some initializations and go to next state
 			pr_debug("Enter Init State\n");
 			handle_pibridge_ethernet();
+
+			/*
+			 * Reset baudrate in case a previous negotiation
+			 * changed it. Discovery must always run at the
+			 * baseline rate.
+			 */
+			if (pibridge_get_baudrate(piCore_g.pibridge) != PIBRIDGE_MIN_BAUDRATE) {
+				ret = pibridge_set_baudrate(piCore_g.pibridge,
+							   PIBRIDGE_MIN_BAUDRATE);
+				if (ret)
+					pr_err("failed to reset baudrate: %d\n", ret);
+			}
+
 			// configure PiBridge Sniff lines as input
 			piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
 			piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
@@ -372,7 +523,7 @@ int PiBridgeMaster_Run(void)
 			piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
 
 			eRunStatus_s = enPiBridgeMasterStatus_MasterIsPresentSignalling1;
-			bEntering_s = bTRUE;
+			bEntering_s = true;
 			break;
 			// *****************************************************************************************
 
@@ -380,7 +531,7 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_debug("Enter PresentSignalling1 State\n");
 
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 				piIoComm_writeSniff2A(enGpioValue_High, enGpioMode_Output);
 				piIoComm_writeSniff2B(enGpioValue_High, enGpioMode_Output);
 
@@ -398,10 +549,10 @@ int PiBridgeMaster_Run(void)
 
 				piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
 				piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
-				kbUT_TimerStart(&tTimeoutTimer_s, 30);
+				timeout_deadline = jiffies + msecs_to_jiffies(30);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
-				kbUT_TimerStart(&tConfigTimeoutTimer_s, END_CONFIG_TIME);
+			if (time_after_eq(jiffies, timeout_deadline)) {
+				config_deadline = jiffies + msecs_to_jiffies(END_CONFIG_TIME);
 				if (piDev_g.only_left_pibridge) {
 					// the RevPi Connect has I/O modules only on the left side
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
@@ -409,7 +560,7 @@ int PiBridgeMaster_Run(void)
 					// start serching for I/O modules on the right side
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionRight;
 				}
-				bEntering_s = bTRUE;
+				bEntering_s = true;
 			}
 			break;
 			// *****************************************************************************************
@@ -428,20 +579,20 @@ int PiBridgeMaster_Run(void)
 				else
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
 			}
-			bEntering_s = bTRUE;
+			bEntering_s = true;
 			break;
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_ConfigRightStart:
 			if (bEntering_s) {
 				pr_debug("Enter ConfigRightStart State\n");
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Output);
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
-				bEntering_s = bTRUE;
+				bEntering_s = true;
 			}
 			break;
 			// *****************************************************************************************
@@ -450,19 +601,19 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_debug("Enter ConfigDialogueRight State\n");
 				error_cnt = 0;
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 			}
 			// Write configuration data to the currently selected slave
-			if (RevPiDevice_writeNextConfigurationRight() == bFALSE) {
+			if (RevPiDevice_writeNextConfigurationRight() == false) {
 				error_cnt++;
 				if (error_cnt > MAX_CONFIG_RETRIES) {
 					// no more slaves on the right side, configure left slaves
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
-					bEntering_s = bTRUE;
+					bEntering_s = true;
 				}
 			} else {
 				eRunStatus_s = enPiBridgeMasterStatus_SlaveDetectionRight;
-				bEntering_s = bTRUE;
+				bEntering_s = true;
 			}
 			break;
 			// *****************************************************************************************
@@ -470,18 +621,20 @@ int PiBridgeMaster_Run(void)
 		case enPiBridgeMasterStatus_SlaveDetectionRight:
 			if (bEntering_s) {
 				pr_debug("Enter SlaveDetectionRight State\n");
-				bEntering_s = bFALSE;
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				bEntering_s = false;
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				if (piIoComm_readSniff2B() == enGpioValue_High) {
 					// configure next right slave
 					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueRight;
-					bEntering_s = bTRUE;
+					RevPiDevice_setRightModuleTermination(false);
+					bEntering_s = true;
 				} else {
 					// no more slaves on the right side, configure left slaves
 					eRunStatus_s = enPiBridgeMasterStatus_InitialSlaveDetectionLeft;
-					bEntering_s = bTRUE;
+					RevPiDevice_setRightModuleTermination(true);
+					bEntering_s = true;
 				}
 			}
 			break;
@@ -503,20 +656,20 @@ int PiBridgeMaster_Run(void)
 					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
 				}
 			}
-			bEntering_s = bTRUE;
+			bEntering_s = true;
 			break;
 			// *****************************************************************************************
 
 		case enPiBridgeMasterStatus_ConfigLeftStart:
 			if (bEntering_s) {
 				pr_debug("Enter ConfigLeftStart State\n");
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 				piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Output);
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
-				bEntering_s = bTRUE;
+				bEntering_s = true;
 			}
 			break;
 			// *****************************************************************************************
@@ -525,19 +678,19 @@ int PiBridgeMaster_Run(void)
 			if (bEntering_s) {
 				pr_debug("Enter ConfigDialogueLeft State\n");
 				error_cnt = 0;
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 			}
 			// Write configuration data to the currently selected slave
-			if (RevPiDevice_writeNextConfigurationLeft() == bFALSE) {
+			if (RevPiDevice_writeNextConfigurationLeft() == false) {
 				error_cnt++;
 				if (error_cnt > MAX_CONFIG_RETRIES) {
 					// no more slaves on the right side, configure left slaves
 					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
-					bEntering_s = bTRUE;
+					bEntering_s = true;
 				}
 			} else {
 				eRunStatus_s = enPiBridgeMasterStatus_SlaveDetectionLeft;
-				bEntering_s = bTRUE;
+				bEntering_s = true;
 			}
 			break;
 			// *****************************************************************************************
@@ -545,18 +698,20 @@ int PiBridgeMaster_Run(void)
 		case enPiBridgeMasterStatus_SlaveDetectionLeft:
 			if (bEntering_s) {
 				pr_debug("Enter SlaveDetectionLeft State\n");
-				bEntering_s = bFALSE;
-				kbUT_TimerStart(&tTimeoutTimer_s, 10);
+				bEntering_s = false;
+				timeout_deadline = jiffies + msecs_to_jiffies(10);
 			}
-			if (kbUT_TimerExpired(&tTimeoutTimer_s)) {
+			if (time_after_eq(jiffies, timeout_deadline)) {
 				if (piIoComm_readSniff2A() == enGpioValue_High) {
 					// configure next left slave
 					eRunStatus_s = enPiBridgeMasterStatus_ConfigDialogueLeft;
-					bEntering_s = bTRUE;
+					RevPiDevice_setLeftModuleTermination(false);
+					bEntering_s = true;
 				} else {
 					// no more slaves on the left
 					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
-					bEntering_s = bTRUE;
+					RevPiDevice_setLeftModuleTermination(true);
+					bEntering_s = true;
 				}
 			}
 			break;
@@ -573,7 +728,7 @@ int PiBridgeMaster_Run(void)
 			ret = 0;
 
 			eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
-			bEntering_s = bFALSE;
+			bEntering_s = false;
 			break;
 
 		case enPiBridgeMasterStatus_EndOfConfig:
@@ -628,9 +783,19 @@ int PiBridgeMaster_Run(void)
 #endif
 				PiBridgeMaster_setDefaults();
 
-				my_rt_mutex_lock(&piDev_g.lockPI);
+				rt_mutex_lock(&piDev_g.lockPI);
 				memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
 				rt_mutex_unlock(&piDev_g.lockPI);
+
+				/* Set base termination if possible. */
+				if (RevPiDevice_setBaseTermination()) {
+					pr_debug("PiBridge termination for base device not supported\n");
+				} else {
+					pr_info("PiBridge termination enabled for base device\n");
+				}
+
+				pibridge_configure_baudrate();
+
 				msleep(100);	// wait a while
 				pr_info("start data exchange\n");
 				RevPiDevice_startDataexchange();
@@ -639,7 +804,7 @@ int PiBridgeMaster_Run(void)
 				// send config messages
 				PiBridgeMaster_Configure();
 
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 				ret = 0;
 			} else {
 				/* Start cycle measurement */
@@ -689,17 +854,10 @@ int PiBridgeMaster_Run(void)
 		case enPiBridgeMasterStatus_InitRetry:
 			if (bEntering_s) {
 				pr_info_master("Enter Initialization Retry\n");
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 			}
-			if (kbUT_TimerExpired(&tConfigTimeoutTimer_s)) {
-				piCore_g.eBridgeState = piBridgeInit;
-				clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
-				eRunStatus_s = enPiBridgeMasterStatus_Init;
-				bEntering_s = bTRUE;
-				RevPiDevice_setStatus(0xff, 0);
-
-				RevPiDevice_init();
-			}
+			if (time_after_eq(jiffies, config_deadline))
+				pibridge_reinit();
 			break;
 
 		default:
@@ -715,12 +873,14 @@ int PiBridgeMaster_Run(void)
 				// wait for the timeout in the module
 				pr_info("initialization of module not finished (%d,%d,%d) -> retry\n", piIoComm_readSniff2A(), piIoComm_readSniff2B(), (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE));
 				eRunStatus_s = enPiBridgeMasterStatus_InitRetry;
-				bEntering_s = bTRUE;
+				bEntering_s = true;
 				piCore_g.eBridgeState = piBridgeInit;
 				clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 				init_retry--;
 			} else {
 				pr_info("set state to running\n");
+				if (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE)
+					pr_warn("Not all configured modules detected on PiBridge!\n");
 				if (piDev_g.revpi_gate_supported)
 					revpi_gate_init();
 				piCore_g.eBridgeState = piBridgeRun;
@@ -730,7 +890,23 @@ int PiBridgeMaster_Run(void)
 	} else	{		// piCore_g.eBridgeState == piBridgeStop
 		if (eRunStatus_s == enPiBridgeMasterStatus_EndOfConfig) {
 			pr_info("stop data exchange\n");
+
 			ret = piIoComm_gotoGateProtocol();
+
+			/*
+			 * Reset baudrate after switching to GW protocol.
+			 * Modules and master are still at the negotiated
+			 * rate. Use GW broadcast to switch all modules
+			 * back to 115200, then switch the master.
+			 */
+			if (pibridge_get_baudrate(piCore_g.pibridge) !=
+			    PIBRIDGE_MIN_BAUDRATE) {
+				pibridge_modules_set_baudrate(
+					PIBRIDGE_BAUD_INDEX_115200);
+				usleep_range(5000, 6000);
+				pibridge_set_baudrate(piCore_g.pibridge,
+						      PIBRIDGE_MIN_BAUDRATE);
+			}
 			pr_info("piIoComm_gotoGateProtocol returned %d\n", ret);
 			eRunStatus_s = enPiBridgeMasterStatus_Init;
 			piCore_g.data_exchange_running = false;
@@ -755,7 +931,7 @@ int PiBridgeMaster_Run(void)
 				pr_info("using address %d\n", i32uFWUAddress);
 
 				ret = 0;	// do not return errors here
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_ProgramSerialNum) {
 			if (bEntering_s) {
@@ -763,7 +939,7 @@ int PiBridgeMaster_Run(void)
 				pr_info("fwuWriteSerialNum returned %d\n", i32sRetVal);
 
 				ret = 0;	// do not return errors here
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUFlashErase) {
 			if (bEntering_s) {
@@ -771,7 +947,7 @@ int PiBridgeMaster_Run(void)
 				pr_info("fwuEraseFlash returned %d\n", i32sRetVal);
 
 				ret = 0;	// do not return errors here
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUFlashWrite) {
 			if (bEntering_s) {
@@ -780,7 +956,7 @@ int PiBridgeMaster_Run(void)
 							    pcFWUdata,
 							    i32uFWUlength);
 				ret = 0;	// do not return errors here
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 			}
 		} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUReset) {
 			if (bEntering_s) {
@@ -788,7 +964,7 @@ int PiBridgeMaster_Run(void)
 				pr_info("fwuResetModule returned %d\n", i32sRetVal);
 
 				ret = 0;	// do not return errors here
-				bEntering_s = bFALSE;
+				bEntering_s = false;
 			}
 		}
 
@@ -862,7 +1038,7 @@ int PiBridgeMaster_Run(void)
 	}
 
 	// update every 1 sec
-	if ((kbUT_getCurrentMs() - last_update) > 1000) {
+	if (time_after_eq(jiffies, next_update)) {
 		if (piDev_g.thermal_zone != NULL) {
 			int temp, ret;
 
@@ -882,19 +1058,19 @@ int PiBridgeMaster_Run(void)
 			cpufreq_quick_get(0) / 10000;
 
 
-		last_update = kbUT_getCurrentMs();
+		next_update = jiffies + msecs_to_jiffies(1000);
 	}
 
 	if (piCore_g.eBridgeState == piBridgeRun) {
 		//flip_process_image(&piCore_g.image, RevPiDevice_getCoreOffset());
 		if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-			INT8U *p1, *p2;
+			u8 *p1, *p2;
 			SRevPiProcessImage *pI1, *pI2;
 			p1 = piDev_g.ai8uPI + RevPiDevice_getCoreOffset();
-			p2 = (INT8U *)&piCore_g.image;
+			p2 = (u8 *)&piCore_g.image;
 			pI1 = (SRevPiProcessImage *)p1;
 			pI2 = (SRevPiProcessImage *)p2;
-			my_rt_mutex_lock(&piDev_g.lockPI);
+			rt_mutex_lock(&piDev_g.lockPI);
 			pI1->drv = pI2->drv;
 			// The size of _SRevPiProcessImage.usr was 5 bytes before the field rgb_leds was introduced
 			// with Connect 4 and the size changed to 7 bytes. In order to maintain compatibility with existing deviecs,
@@ -909,15 +1085,15 @@ int PiBridgeMaster_Run(void)
 
 //-------------------------------------------------------------------------------------------------------------------------
 // the following functions are called from the ioctl funtion which is executed in the application task
-// they block using msleep until their task is completed, which is signalled by reseting the flags bEntering_s to bFALSE.
+// they block using msleep until their task is completed, which is signalled by reseting the flags bEntering_s to false.
 
-INT32S PiBridgeMaster_FWUModeEnter(INT32U address, INT8U i8uScanned)
+s32 PiBridgeMaster_FWUModeEnter(u32 address, u8 i8uScanned)
 {
 	if (piCore_g.eBridgeState == piBridgeStop) {
 		i32uFWUAddress = address;
 		i8uFWUScanned = i8uScanned;
 		eRunStatus_s = enPiBridgeMasterStatus_FWUMode;
-		bEntering_s = bTRUE;
+		bEntering_s = true;
 		do {
 			msleep(10);
 		} while (bEntering_s);
@@ -926,12 +1102,12 @@ INT32S PiBridgeMaster_FWUModeEnter(INT32U address, INT8U i8uScanned)
 	return -1;
 }
 
-INT32S PiBridgeMaster_FWUsetSerNum(INT32U serNum)
+s32 PiBridgeMaster_FWUsetSerNum(u32 serNum)
 {
 	if (piCore_g.eBridgeState == piBridgeStop) {
 		i32uFWUSerialNum = serNum;
 		eRunStatus_s = enPiBridgeMasterStatus_ProgramSerialNum;
-		bEntering_s = bTRUE;
+		bEntering_s = true;
 		do {
 			msleep(10);
 		} while (bEntering_s);
@@ -940,11 +1116,11 @@ INT32S PiBridgeMaster_FWUsetSerNum(INT32U serNum)
 	return -1;
 }
 
-INT32S PiBridgeMaster_FWUflashErase(void)
+s32 PiBridgeMaster_FWUflashErase(void)
 {
 	if (piCore_g.eBridgeState == piBridgeStop) {
 		eRunStatus_s = enPiBridgeMasterStatus_FWUFlashErase;
-		bEntering_s = bTRUE;
+		bEntering_s = true;
 		do {
 			msleep(10);
 		} while (bEntering_s);
@@ -953,14 +1129,14 @@ INT32S PiBridgeMaster_FWUflashErase(void)
 	return -1;
 }
 
-INT32S PiBridgeMaster_FWUflashWrite(INT32U flashAddr, char *data, INT32U length)
+s32 PiBridgeMaster_FWUflashWrite(u32 flashAddr, char *data, u32 length)
 {
 	if (piCore_g.eBridgeState == piBridgeStop) {
 		i32uFWUFlashAddr = flashAddr;
 		pcFWUdata = data;
 		i32uFWUlength = length;
 		eRunStatus_s = enPiBridgeMasterStatus_FWUFlashWrite;
-		bEntering_s = bTRUE;
+		bEntering_s = true;
 		do {
 			msleep(10);
 		} while (bEntering_s);
@@ -969,11 +1145,11 @@ INT32S PiBridgeMaster_FWUflashWrite(INT32U flashAddr, char *data, INT32U length)
 	return -1;
 }
 
-INT32S PiBridgeMaster_FWUReset(void)
+s32 PiBridgeMaster_FWUReset(void)
 {
 	if (piCore_g.eBridgeState == piBridgeStop) {
 		eRunStatus_s = enPiBridgeMasterStatus_FWUReset;
-		bEntering_s = bTRUE;
+		bEntering_s = true;
 		do {
 			msleep(10);
 		} while (bEntering_s);

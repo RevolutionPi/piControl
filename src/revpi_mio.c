@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2020-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2020-2026 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
 
@@ -24,9 +24,13 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 	int ret;
 
 	/*copy: from process image:output to request*/
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(&req, req_data, sizeof(req));
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(&req, req_data, sizeof(req));
+		rt_mutex_unlock(&piDev_g.lockPI);
+	} else {
+		memset(&req, 0, sizeof(req));
+	}
 
 	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
 			      IOP_TYP1_CMD_DATA, &req, sizeof(req), &resp,
@@ -42,9 +46,11 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 	}
 
 	/*copy: from response to process image:input*/
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(resp_data, &resp, sizeof(*resp_data));
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(resp_data, &resp, sizeof(*resp_data));
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	return 0;
 }
@@ -52,7 +58,7 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 			       size_t ch_cnt, SMioAnalogResponseData *resp_data)
 {
-	size_t compressed = (MIO_AIO_PORT_CNT - ch_cnt) * sizeof(INT16U);
+	size_t compressed = (MIO_AIO_PORT_CNT - ch_cnt) * sizeof(u16);
 	SMioAnalogResponseData resp;
 	int ret;
 
@@ -71,9 +77,11 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 	}
 
 	/*copy: from response to process image*/
-	rt_mutex_lock(&piDev_g.lockPI);
-	memcpy(resp_data, &resp, sizeof(*resp_data));
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		memcpy(resp_data, &resp, sizeof(*resp_data));
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	return 0;
 }
@@ -146,30 +154,39 @@ int revpi_mio_cycle(unsigned char devno)
 					 dev->i16uOutputOffset);
 	img_in = (struct mio_img_in *)(piDev_g.ai8uPI + dev->i16uInputOffset);
 
-	ret = revpi_mio_cycle_dio(dev, &img_out->dio, &img_in->dio);
-	if (ret)
-		return ret;
+	if (mio_list[dev->i8uPriv].dio_enabled) {
+		ret = revpi_mio_cycle_dio(dev, &img_out->dio, &img_in->dio);
+		if (ret)
+			return ret;
+	}
 
 	/* for the AIO cycle */
-	my_rt_mutex_lock(&piDev_g.lockPI);
-	io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
 
-	io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
+		io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
 						&img_out->aio.i16uOutputVoltage,
 						MIO_AIO_PORT_CNT, 2);
-	/* force to update from process image */
-	io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
+		/* force to update from process image */
+		io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
 
-	if (io_req_ex.i8uChannels) {
-		/* preserve analog output values for later caching */
-		memcpy(&pending_values.i16uOutputVoltage,
-			&img_out->aio.i16uOutputVoltage,
-			sizeof(unsigned short) * MIO_AIO_PORT_CNT);
-		ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
+		if (io_req_ex.i8uChannels) {
+			/* preserve analog output values for later caching */
+			memcpy(&pending_values.i16uOutputVoltage,
+				&img_out->aio.i16uOutputVoltage,
+				sizeof(unsigned short) * MIO_AIO_PORT_CNT);
+			ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
 						&pending_values.i16uOutputVoltage,
 						io_req_ex.i8uChannels, 2);
+		}
+		rt_mutex_unlock(&piDev_g.lockPI);
+	} else {
+		memset(&io_req_ex, 0, sizeof(io_req_ex));
+		memset(&pending_values, 0, sizeof(pending_values));
+		io_req_ex.i8uChannels = (1 << MIO_AIO_PORT_CNT) - 1;
+		ch_cnt = MIO_AIO_PORT_CNT;
 	}
-	rt_mutex_unlock(&piDev_g.lockPI);
 	ret = revpi_mio_cycle_aio(dev, &io_req_ex, ch_cnt, &img_in->aio);
 
 	if (ret)
@@ -221,7 +238,8 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		addr, e_cnt, mio_cnt, MIO_CONF_BASE);
 
 	for (i = 0; i < e_cnt; i++) {
-		offset = ent[i].i16uOffset;
+		offset = ent[i].i16uDeviceOffset;
+
 		switch (offset) {
 		case 0 ... MIO_CONF_BASE - 1:
 			/*nothing to do for input and output */
@@ -230,7 +248,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 			conf->dio.i8uEncoderMode = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_IOMOD ... MIO_CONF_PUL -1:
-			arr_idx = (offset - MIO_CONF_IOMOD) / sizeof(INT8U);
+			arr_idx = (offset - MIO_CONF_IOMOD) / sizeof(u8);
 			conf->dio.i8uIoMode[arr_idx] = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_PUL:
@@ -240,12 +258,12 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 			conf->dio.i8uPulseRetrigMode = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_FPWM ... MIO_CONF_PLEN - 1:
-			arr_idx = (offset - MIO_CONF_FPWM) / sizeof(INT16U);
+			arr_idx = (offset - MIO_CONF_FPWM) / sizeof(u16);
 			conf->dio.i16uPwmFrequency[arr_idx]
 							= ent[i].i32uDefault;
 			break;
 		case MIO_CONF_PLEN ... MIO_CONF_AIM - 1:
-			arr_idx = (offset - MIO_CONF_PLEN) / sizeof(INT16U);
+			arr_idx = (offset - MIO_CONF_PLEN) / sizeof(u16);
 			conf->dio.i16uPulseLength[arr_idx]
 							= ent[i].i32uDefault;
 			break;
@@ -254,7 +272,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 				|= ent[i].i32uDefault << ent[i].i8uBitPos;
 			break;
 		case MIO_CONF_THR ... MIO_CONF_WSIZE - 1:
-			arr_idx = (offset - MIO_CONF_THR) / sizeof(INT16U);
+			arr_idx = (offset - MIO_CONF_THR) / sizeof(u16);
 			conf->aio_i.i16uVolt[arr_idx] = ent[i].i32uDefault;
 			break;
 		case MIO_CONF_WSIZE:
@@ -265,7 +283,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 				|= ent[i].i32uDefault << ent[i].i8uBitPos;
 			break;
 		case MIO_CONF_OUTV ... MIO_CONF_END - 1:
-			arr_idx = (offset - MIO_CONF_OUTV) / sizeof(INT16U);
+			arr_idx = (offset - MIO_CONF_OUTV) / sizeof(u16);
 			conf->aio_o.i16uVolt[arr_idx] = ent[i].i32uDefault;
 			break;
 		default:
@@ -274,7 +292,29 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		}
 	}
 
-	pr_debug("dio  :%*ph\n", (int) sizeof(conf->dio), &conf->dio);
+	/*
+	 * Force pullup off for disabled channels: the firmware reuses the
+	 * output stage as a software pullup for input modes, so leaving the
+	 * user's pullup bit set on a DISABLED channel would still drive the
+	 * line. "Disabled" must mean off regardless of the pullup setting.
+	 */
+	for (i = 0; i < 4; i++) {
+		if (conf->dio.i8uIoMode[i] == MIO_GPIO_DISABLED)
+			conf->dio.i8uPullup &= ~(1 << i);
+	}
+
+	/* Skip digital exchange if all 4 channels are disabled */
+	conf->dio_enabled = (conf->dio.i8uIoMode[0] != MIO_GPIO_DISABLED) ||
+			    (conf->dio.i8uIoMode[1] != MIO_GPIO_DISABLED) ||
+			    (conf->dio.i8uIoMode[2] != MIO_GPIO_DISABLED) ||
+			    (conf->dio.i8uIoMode[3] != MIO_GPIO_DISABLED);
+
+	if (conf->dio_enabled)
+		pr_info("MIO addr %d: digital IO enabled (additional bus exchange per cycle)\n",
+			addr);
+
+	pr_debug("dio  :%*ph (enabled: %d)\n", (int) sizeof(conf->dio),
+		 &conf->dio, conf->dio_enabled);
 	pr_debug("aio-i:%*ph\n", (int) sizeof(conf->aio_i), &conf->aio_i);
 	pr_debug("aio-o:%*ph\n", (int) sizeof(conf->aio_o), &conf->aio_o);
 
@@ -317,6 +357,28 @@ int revpi_mio_init(unsigned char devno)
 	if (ret) {
 		pr_err("talk with mio for conf dio err(devno:%d, ret:%d)\n",
 		       devno, ret);
+	}
+
+	/*
+	 * One-shot DIO data exchange when the digital ios are disabled, so
+	 * the firmware's update path runs once and ensures that the output
+	 * stage for these channels in the OFF state (i8uPullup was forced to
+	 * 0 in revpi_mio_config). Without this, on hardware where MCU OUT
+	 * default 0 means "output active" (older MIO active-low logic),
+	 * the line would stay driven by the GPIO_Init default forever.
+	 */
+	if (!conf->dio_enabled) {
+		SMioDigitalRequestData zero_req;
+		SMioDigitalResponseData zero_resp;
+
+		memset(&zero_req, 0, sizeof(zero_req));
+		ret = pibridge_req_io(piCore_g.pibridge, addr,
+				      IOP_TYP1_CMD_DATA, &zero_req,
+				      sizeof(zero_req), &zero_resp,
+				      sizeof(zero_resp));
+		if (ret != sizeof(zero_resp))
+			pr_warn("MIO addr %d: one-shot dio init failed (ret:%d)\n",
+				addr, ret);
 	}
 
 	/*aio in*/

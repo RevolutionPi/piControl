@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #ifndef PRODUCTS_PIBASE_PIKERNELMOD_PICONTROLINTERN_H_
@@ -66,11 +66,11 @@ typedef struct spiControlDev {
 	unsigned int revpi_gate_supported:1;
 
 	// process image stuff
-	INT8U ai8uPI[KB_PI_LEN];
-	INT8U ai8uPIDefault[KB_PI_LEN];
+	u8 ai8uPI[KB_PI_LEN];
+	u8 ai8uPIDefault[KB_PI_LEN];
 	struct rt_mutex lockPI;
-#define PICONTROL_DEV_FLAG_STOP_IO		(1 << 0)
-#define PICONTROL_DEV_FLAG_RUNNING		(2 << 0)
+#define PICONTROL_DEV_FLAG_STOP_IO		0
+#define PICONTROL_DEV_FLAG_RUNNING		1
 	unsigned long flags;
 	piDevices *devs;
 	piEntries *ent;
@@ -78,7 +78,6 @@ typedef struct spiControlDev {
 	/* Protect internal resources, like devs, ent, cl, etc. during
 	   execution of ioctls. This is especially needed during reset. */
 	struct rt_mutex lockIoctl;
-	piConnectionList *connl;
 	ktime_t tLastOutput1, tLastOutput2;
 
 	// handle open connections and notification

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2023-2026 KUNBUS GmbH
 
 // RevPi RO module (Relais Output)
 
@@ -55,8 +55,6 @@ int revpi_ro_config(u8 addr, int num_entries, SEntryInfo *pEnt)
 	memset(itm, 0, sizeof(*itm));
 	itm->addr = addr;
 
-	pr_info_dio("%s: RO config done for addr %d \n", __func__, addr);
-
 	for (i = 0; i < num_entries; i++) {
 		entry = &pEnt[i];
 
@@ -64,9 +62,9 @@ int revpi_ro_config(u8 addr, int num_entries, SEntryInfo *pEnt)
 		 * Set initial thresholds for wearout warning (0 means wearout
 		 * warning is deactivated).
 		 */
-		if ((entry->i16uOffset >= ENTRY_THRESH_FIRST) &&
-		    (entry->i16uOffset <= ENTRY_THRESH_LAST)) {
-			thr_idx = (entry->i16uOffset - ENTRY_THRESH_FIRST) / 4;
+		if ((entry->i16uDeviceOffset >= ENTRY_THRESH_FIRST) &&
+		    (entry->i16uDeviceOffset <= ENTRY_THRESH_LAST)) {
+			thr_idx = (entry->i16uDeviceOffset - ENTRY_THRESH_FIRST) / 4;
 			itm->config.thresh[thr_idx] = entry->i32uDefault;
 		}
 	}
@@ -113,9 +111,13 @@ int revpi_ro_cycle(unsigned int devnum)
 	img_in = (struct revpi_ro_img_in *) (piDev_g.ai8uPI +
 					     dev->i16uInputOffset);
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	state_out = img_out->target_state;
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		state_out = img_out->target_state;
+		rt_mutex_unlock(&piDev_g.lockPI);
+	} else {
+		memset(&state_out, 0, sizeof(state_out));
+	}
 
 	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
 			      IOP_TYP1_CMD_DATA, &state_out, sizeof(state_out),
@@ -131,9 +133,11 @@ int revpi_ro_cycle(unsigned int devnum)
 		return ret;
 	}
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	img_in->status = status_in;
-	rt_mutex_unlock(&piDev_g.lockPI);
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		rt_mutex_lock(&piDev_g.lockPI);
+		img_in->status = status_in;
+		rt_mutex_unlock(&piDev_g.lockPI);
+	}
 
 	return 0;
 }

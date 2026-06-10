@@ -181,7 +181,9 @@ void RevPiDevice_init(void)
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
-	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_RIGHT - 1;	// first address of a left side module
+	RevPiDevices_s.gatewayRight = false;
+	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_LEFT;		// first address of a left side module
+	RevPiDevices_s.gatewayLeft = false;
 	RevPiDevice_resetDevCnt();	// counter for detected devices
 	RevPiDevices_s.i16uErrorCnt = 0;
 
@@ -245,7 +247,7 @@ void RevPiDevice_init(void)
 	RevPiDevice_incDevCnt();
 }
 
-void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval)
+void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval)
 {
 	if (r) {
 		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
@@ -277,8 +279,8 @@ void revpi_dev_update_state(INT8U i8uDevice, INT32U r, int *retval)
 //-------------------------------------------------------------------------------------------------
 int RevPiDevice_run(void)
 {
-	INT8U i8uDevice = 0;
-	INT32U r;
+	u8 i8uDevice = 0;
+	u32 r;
 	int retval = 0;
 	SDevice *dev;
 
@@ -348,19 +350,17 @@ int RevPiDevice_run(void)
 	return retval;
 }
 
-TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp * pModgateId_p)
+bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pModgateId_p)
 {
-	INT32U ret_l;
-	INT16U i16uLen_l = sizeof(MODGATECOM_IDResp);
+	u32 ret_l;
+	u16 i16uLen_l = sizeof(MODGATECOM_IDResp);
 	//
 	ret_l =
-	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (INT8U *) pModgateId_p, &i16uLen_l);
+	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (u8 *) pModgateId_p, &i16uLen_l);
 	msleep(3);		// wait a while
 	if (ret_l) {
-#ifdef DEBUG_DEVICE
 		pr_err("piIoComm_sendRS485Tel(GetDeviceInfo) failed %d\n", ret_l);
-#endif
-		return bFALSE;
+		return false;
 	} else {
 		pr_debug("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
 	}
@@ -373,18 +373,15 @@ TBOOL RevPiDevice_writeNextConfiguration(INT8U i8uAddress_p, MODGATECOM_IDResp *
 		if (ret_l) {
 			ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
 			msleep(3);		// wait a while
-			if (ret_l) {
-#ifdef DEBUG_DEVICE
+			if (ret_l)
 				pr_err("piIoComm_sendRS485Tel(PiIoSetAddress) failed %d\n", ret_l);
-#endif
-			}
 		}
-		return bFALSE;
+		return false;
 	}
-	return bTRUE;
+	return true;
 }
 
-TBOOL RevPiDevice_writeNextConfigurationRight(void)
+bool RevPiDevice_writeNextConfigurationRight(void)
 {
 	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressRight, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressRight;
@@ -400,7 +397,6 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset +
 			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
 		}
-#ifdef DEBUG_DEVICE
 		pr_info("found %d. device on right side. Moduletype %d. Designated address %d\n",
 			RevPiDevice_getDevCnt() + 1, RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType,
 			RevPiDevices_s.i8uAddressRight);
@@ -408,19 +404,24 @@ TBOOL RevPiDevice_writeNextConfigurationRight(void)
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
 		pr_debug("output offset %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
-#endif
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
+
+		if (RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFeatureDescriptor &
+		    MODGATE_feature_IODataExchange) {
+			RevPiDevices_s.gatewayRight = true;
+		}
+
 		RevPiDevice_incDevCnt();
 		RevPiDevices_s.i8uAddressRight++;
-		return bTRUE;
+		return true;
 	} else {
 		//TODO restart with reset
 	}
-	return bFALSE;
+	return false;
 }
 
-TBOOL RevPiDevice_writeNextConfigurationLeft(void)
+bool RevPiDevice_writeNextConfigurationLeft(void)
 {
 	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressLeft, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressLeft;
@@ -436,7 +437,6 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset +
 			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
 		}
-#ifdef DEBUG_DEVICE
 		pr_info("found %d. device on left side. Moduletype %d. Designated address %d\n",
 			RevPiDevice_getDevCnt() + 1,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType, RevPiDevices_s.i8uAddressLeft);
@@ -446,38 +446,29 @@ TBOOL RevPiDevice_writeNextConfigurationLeft(void)
 		pr_debug("output offset %5d  len %3d\n",
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
 			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
-#endif
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
 		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
+
+		if (RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFeatureDescriptor &
+		    MODGATE_feature_IODataExchange) {
+			RevPiDevices_s.gatewayLeft = true;
+		}
+
 		RevPiDevice_incDevCnt();
 		RevPiDevices_s.i8uAddressLeft--;
-		return bTRUE;
+		return true;
 	} else {
 		//TODO restart with reset
 	}
-	return bFALSE;
+	return false;
 }
 
 void RevPiDevice_startDataexchange(void)
 {
-	INT32U ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
+	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
 	msleep(90);		// wait a while
-	if (ret_l) {
-#ifdef DEBUG_DEVICE
+	if (ret_l)
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
-#endif
-	}
-}
-
-void RevPiDevice_stopDataexchange(void)
-{
-	INT32U ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
-	msleep(90);		// wait a while
-	if (ret_l) {
-#ifdef DEBUG_DEVICE
-		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
-#endif
-	}
 }
 
 u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
@@ -497,19 +488,19 @@ u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
 	return REV_PI_DEV_UNDEF;
 }
 
-INT8U RevPiDevice_setStatus(INT8U clr, INT8U set)
+u8 RevPiDevice_setStatus(u8 clr, u8 set)
 {
 	RevPiDevices_s.i8uStatus &= ~clr;
 	RevPiDevices_s.i8uStatus |= set;
 	return RevPiDevices_s.i8uStatus;
 }
 
-INT8U RevPiDevice_getStatus(void)
+u8 RevPiDevice_getStatus(void)
 {
 	return RevPiDevices_s.i8uStatus;
 }
 
-SDevice *RevPiDevice_getDev(INT8U idx)
+SDevice *RevPiDevice_getDev(u8 idx)
 {
 	// idx==i8uDeviceCount is allowed. This enables to add data to the next entry before RevPiDevice_incDevCnt is called.
 	if (idx <= RevPiDevices_s.i8uDeviceCount)
@@ -530,23 +521,23 @@ void RevPiDevice_incDevCnt(void)
 	}
 }
 
-INT8U RevPiDevice_getDevCnt(void)
+u8 RevPiDevice_getDevCnt(void)
 {
 	return RevPiDevices_s.i8uDeviceCount;
 }
 
-INT8U RevPiDevice_getAddrLeft(void)
+u8 RevPiDevice_getAddrLeft(void)
 {
 	return RevPiDevices_s.i8uAddressLeft;
 }
 
-INT8U RevPiDevice_getAddrRight(void)
+u8 RevPiDevice_getAddrRight(void)
 {
 	return RevPiDevices_s.i8uAddressRight;
 }
 
 
-INT16U RevPiDevice_getErrCnt(void)
+u16 RevPiDevice_getErrCnt(void)
 {
 	return RevPiDevices_s.i16uErrorCnt;
 }
@@ -559,4 +550,86 @@ void RevPiDevice_setCoreOffset(unsigned int offset)
 unsigned int RevPiDevice_getCoreOffset(void)
 {
 	return RevPiDevices_s.offset;
+}
+
+static int RevPiDevice_setModuleTermination(u8 address, bool terminate)
+{
+	u8 data;
+	int ret;
+
+	data = terminate ? 0 : 1;
+
+	ret = piIoComm_sendRS485Tel(eCmdPiIoSetTermination, address, &data,
+				    sizeof(data), NULL, 0);
+	if (ret) {
+		pr_err("Failed to %s termination for module (address %d): %d\n",
+			terminate ? "enable" : "disable", address, ret);
+		goto fail;
+	}
+
+	if (terminate)
+		pr_info("PiBridge termination enabled for module %d\n",
+			address);
+	else
+		pr_debug("PiBridge termination disabled for module %d\n",
+			address);
+fail:
+
+	return ret;
+}
+
+int RevPiDevice_setRightModuleTermination(bool terminate)
+{
+	int ret;
+
+	if ((RevPiDevices_s.i8uAddressRight == REV_PI_DEV_FIRST_RIGHT) ||
+	     RevPiDevices_s.gatewayRight)
+		return -EOPNOTSUPP;
+	/*
+	 * The PiBridge protocol requires gaps between messages so wait a while
+	 * before and after sending the command for module termination.
+	 */
+	msleep(3);
+
+	ret = RevPiDevice_setModuleTermination(RevPiDevices_s.i8uAddressRight - 1,
+					       terminate);
+	msleep(3);
+
+	return ret;
+}
+
+int RevPiDevice_setLeftModuleTermination(bool terminate)
+{
+	int ret;
+
+	if ((RevPiDevices_s.i8uAddressLeft == REV_PI_DEV_FIRST_LEFT) ||
+	     RevPiDevices_s.gatewayLeft)
+		return -EOPNOTSUPP;
+	/*
+	 * The PiBridge protocol requires gaps between messages so wait a while
+	 * before and after sending the command for module termination.
+	 */
+	msleep(3);
+
+	ret = RevPiDevice_setModuleTermination(RevPiDevices_s.i8uAddressLeft + 1,
+					       terminate);
+	msleep(3);
+
+	return ret;
+}
+
+int RevPiDevice_setBaseTermination(void)
+{
+	bool terminable;
+
+	terminable = piCore_g.gpio_rs485_term &&
+		     ((RevPiDevices_s.i8uAddressLeft == REV_PI_DEV_FIRST_LEFT) ||
+		      (RevPiDevices_s.i8uAddressRight == REV_PI_DEV_FIRST_RIGHT));
+
+	if (!terminable)
+		return -EOPNOTSUPP;
+
+	gpiod_set_value_cansleep(piCore_g.gpio_rs485_term, 1);
+
+	return 0;
 }

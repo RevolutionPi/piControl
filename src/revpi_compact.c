@@ -252,15 +252,12 @@ static int revpi_compact_poll_ain(void *data)
 		smp_rmb();
 		if (machine->ain_should_reset) {
 			/* determine which channels are enabled */
-			pr_info_aio("AIn Reset: config %d %d %d %d %d %d %d %d\n",
-				machine->config.ain[0], machine->config.ain[1], machine->config.ain[2], machine->config.ain[3],
-				machine->config.ain[4], machine->config.ain[5], machine->config.ain[6], machine->config.ain[7]);
 
 			for (i = 0, numchans = 0; i < ARRAY_SIZE(chan); i++) {
 				unsigned long config = machine->config.ain[i];
 
 				if (!test_bit(AIN_ENABLED, &config)) {
-					my_rt_mutex_lock(&piDev_g.lockPI);
+					rt_mutex_lock(&piDev_g.lockPI);
 					image->drv.ain[i] = 0;
 					rt_mutex_unlock(&piDev_g.lockPI);
 					continue;
@@ -287,11 +284,6 @@ static int revpi_compact_poll_ain(void *data)
 			i = 0;
 			smp_store_release(&machine->ain_should_reset, false);
 			complete(&machine->ain_reset);
-			pr_info_aio("AIn Reset: ct %dms, %d active: %d %d %d %d %d %d %d %d    %d %d %d %d %d %d %d %d\n",
-				(1000 / numchans), numchans,
-				mux[0], mux[1], mux[2], mux[3], mux[4], mux[5], mux[6], mux[7],
-				chan[0], chan[1], chan[2], chan[3], chan[4], chan[5], chan[6], chan[7]
-				);
 		}
 
 		if (!numchans)
@@ -300,7 +292,7 @@ static int revpi_compact_poll_ain(void *data)
 		/* poll ain */
 		ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
 
-		my_rt_mutex_lock(&piDev_g.lockPI);
+		rt_mutex_lock(&piDev_g.lockPI);
 		assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
 		if (ret < 0) {
 			image->drv.ain[chan[i]] = 0;
@@ -324,7 +316,7 @@ static int revpi_compact_poll_ain(void *data)
 			GetPt100Temperature(resistance, &raw);
 		}
 
-		my_rt_mutex_lock(&piDev_g.lockPI);
+		rt_mutex_lock(&piDev_g.lockPI);
 		image->drv.ain[chan[i]] = raw;
 		rt_mutex_unlock(&piDev_g.lockPI);
 
@@ -348,7 +340,7 @@ next_chan:
 			*/
 			freq = cpufreq_quick_get(0);
 
-			my_rt_mutex_lock(&piDev_g.lockPI);
+			rt_mutex_lock(&piDev_g.lockPI);
 			if (piDev_g.thermal_zone != NULL && !ret)
 				image->drv.i8uCPUTemperature = temp / 1000;
 			image->drv.i8uCPUFrequency = freq / 10;
@@ -374,15 +366,11 @@ static int match_name(struct device *dev, const void *data)
 		return sysfs_streq(name, dev_name(dev));
 }
 
-INT32U revpi_compact_config(uint8_t i8uAddress, uint16_t i16uNumEntries, SEntryInfo * pEnt)
+u32 revpi_compact_config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 {
-	uint16_t i;
+	u16 i;
 
 	for (i = 0; i < i16uNumEntries; i++) {
-		pr_info_aio("addr %2d  type %d  len %3d  offset %3d  value %d 0x%x\n",
-			    pEnt[i].i8uAddress, pEnt[i].i8uType, pEnt[i].i16uBitLength, pEnt[i].i16uOffset,
-			    pEnt[i].i32uDefault, pEnt[i].i32uDefault);
-
 		switch (pEnt[i].i16uOffset) {
 		case RevPi_Compact_OFFSET_DInDebounce:
 			revpi_compact_config_g.din_debounce = pEnt[i].i32uDefault;
@@ -423,7 +411,6 @@ void revpi_compact_adjust_config(void)
 {
 	int i, j;
 	int result = 0, found;
-	uint8_t *state;
 
 	RevPiDevice_init();
 
@@ -432,7 +419,10 @@ void revpi_compact_adjust_config(void)
 		return;
 	}
 
-	state = kcalloc(piDev_g.devs->i16uNumDevices, sizeof(uint8_t), GFP_KERNEL);
+	u8 *state __free(kfree) = kcalloc(piDev_g.devs->i16uNumDevices,
+			sizeof(u8), GFP_KERNEL);
+	if (!state)
+		return;
 
 	// Schleife über alle Module die automatisch erkannt wurden
 	for (j = 0; j < RevPiDevice_getDevCnt(); j++) {
@@ -527,8 +517,6 @@ void revpi_compact_adjust_config(void)
 			RevPiDevice_incDevCnt();
 		}
 	}
-
-	kfree(state);
 }
 
 int revpi_compact_probe(struct platform_device *pdev)
@@ -749,7 +737,7 @@ int revpi_compact_reset(void)
 	int ret;
 
 	/* disallow access to process image while offsets are changed */
-	my_rt_mutex_lock(&piDev_g.lockPI);
+	rt_mutex_lock(&piDev_g.lockPI);
 	revpi_compact_adjust_config();
 	memset(&image->usr, 0, sizeof(image->usr));
 	if (piDev_g.ent)

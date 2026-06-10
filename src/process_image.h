@@ -12,6 +12,7 @@
 #include <linux/hrtimer.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
+#include <linux/version.h>
 #include "revpi_compact.h"
 
 struct cycletimer {
@@ -64,8 +65,13 @@ static inline void cycletimer_init_on_stack(struct cycletimer *ct, u32 cycletime
 {
 	struct hrtimer *timer = &ct->timer;
 
+#if KERNEL_VERSION(6, 13, 0) > LINUX_VERSION_CODE
 	hrtimer_init_on_stack(timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 	timer->function = wake_up_sleeper;
+#else
+	hrtimer_setup_on_stack(timer, wake_up_sleeper, CLOCK_MONOTONIC,
+			       HRTIMER_MODE_ABS_HARD);
+#endif
 	init_completion(&ct->timer_expired);
 	cycletimer_change(ct, cycletime);
 }
@@ -94,7 +100,7 @@ static __always_inline int test_bit_in_byte(u8 nr, u8 * addr)
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {			\
 		if (((typeof(shadow))(piDev_g.ai8uPI + (offset))) == 0 || (shadow) == 0) \
 			pr_err("NULL pointer: %p %p\n", ((typeof(shadow))(piDev_g.ai8uPI + (offset))), (shadow)); \
-		my_rt_mutex_lock(&piDev_g.lockPI);					\
+		rt_mutex_lock(&piDev_g.lockPI);					\
 		((typeof(shadow))(piDev_g.ai8uPI + (offset)))->drv = (shadow)->drv;	\
 		(shadow)->usr = ((typeof(shadow))(piDev_g.ai8uPI + (offset)))->usr;	\
 		rt_mutex_unlock(&piDev_g.lockPI);					\

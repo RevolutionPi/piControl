@@ -89,3 +89,29 @@ needs to be copied into the modules folder:
 ```
 sudo cp piControl.ko /lib/modules/$(uname -r)/extra/piControl.ko
 ```
+
+## Tools
+
+### pibridge-cycles.py
+
+Collect and plot PiBridge cycle time data for benchmarking and jitter analysis.
+
+Collect samples on a RevPi:
+
+```
+python3 tools/pibridge-cycles.py collect -d 60 -o run.csv
+```
+
+Plot results:
+
+```
+python3 tools/pibridge-cycles.py plot run.csv -o jitter.png
+```
+
+Compare multiple runs:
+
+```
+python3 tools/pibridge-cycles.py plot run_115200.csv run_1500000.csv -t "Baudrate comparison"
+```
+
+Requires `matplotlib` and `numpy` for plotting.

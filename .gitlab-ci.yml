@@ -40,7 +40,7 @@ coverity-submit:
         -Wf'${Package}\n' linux-headers-*-rpi-v8 \
         | sort -u \
         | head -n1 \
-        | grep -Eo '([[:digit:]]+\.){2}[[:digit:]]-revpi[[:digit:]]+-rpi-v[[:digit:]]+')"
+        | grep -Eo '([[:digit:]]+\.){2}[[:digit:]]+-revpi[[:digit:]]+-rpi-v[[:digit:]]+')"
     - ./cov-analysis-linux-arm64*/bin/cov-build
         --dir cov-int
         make -j$(nproc) KDIR=/usr/src/linux-headers-"${headers_ver}"/

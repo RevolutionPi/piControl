@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/fs.h>
 #include <linux/slab.h>
@@ -15,7 +15,6 @@
 #include "revpi_ro.h"
 
 #define TOKEN_DEVICES       "Devices"
-#define TOKEN_CONNECTIONS   "Connections"
 #define TOKEN_TYPE          "productType"
 #define TOKEN_POSITION      "position"
 #define TOKEN_INPUT         "inp"
@@ -23,14 +22,10 @@
 #define TOKEN_MEMORY        "mem"
 #define TOKEN_CONFIG        "config"
 #define TOKEN_OFFSET        "offset"
-#define TOKEN_SRC_GUID      "srcGUID"
-#define TOKEN_SRC_NAME      "srcAttrname"
-#define TOKEN_DEST_GUID     "destGUID"
-#define TOKEN_DEST_NAME     "destAttrname"
 
 struct json_val_elem {
 	char *key;
-	uint32_t key_length;
+	u32 key_length;
 	struct json_val *val;
 };
 
@@ -43,8 +38,6 @@ typedef struct json_val {
 		struct json_val_elem **object;
 	} u;
 } json_val_t;
-
-char *indent_string = NULL;
 
 char *string_of_errors[] = {
 	[JSON_ERROR_NO_MEMORY] = "out of memory",
@@ -66,8 +59,6 @@ struct file *open_filename(const char *filename, int flags)
 	struct file *input;
 	input = filp_open(filename, flags, 0);
 
-	pr_info_config("filp_open %s %x  %d %x\n", filename, (int)filename, (int)input, (int)input);
-
 	if (IS_ERR(input)) {
 		pr_err("error: cannot open file %s\n", filename);
 		return NULL;
@@ -84,10 +75,10 @@ int process_file(json_parser * parser, struct file *input, int *retlines, int *r
 {
 #define BUFFLEN     4096
 	int ret = 0;
-	int32_t read;
-	uint32_t lines, col, i, len;
+	s32 read;
+	u32 lines, col, i, len;
 	char *buffer;
-	uint32_t processed;
+	u32 processed;
 
 	buffer = kmalloc(BUFFLEN, GFP_KERNEL);
 	if (buffer == NULL) {
@@ -157,7 +148,7 @@ static void *tree_create_structure(int is_object)
 	return v;
 }
 
-static char *memalloc_copy_length(const char *src, uint32_t n)
+static char *memalloc_copy_length(const char *src, u32 n)
 {
 	char *dest;
 
@@ -169,7 +160,7 @@ static char *memalloc_copy_length(const char *src, uint32_t n)
 	return dest;
 }
 
-static void *tree_create_data(int type, const char *data, uint32_t length)
+static void *tree_create_data(int type, const char *data, u32 length)
 {
 	json_val_t *v;
 
@@ -186,7 +177,7 @@ static void *tree_create_data(int type, const char *data, uint32_t length)
 	return v;
 }
 
-static int tree_append(void *structure, char *key, uint32_t key_length, void *obj)
+static int tree_append(void *structure, char *key, u32 key_length, void *obj)
 {
 	json_val_t *parent = structure;
 	if (key) {
@@ -198,7 +189,7 @@ static int tree_append(void *structure, char *key, uint32_t key_length, void *ob
 				return 1;
 			memset(parent->u.object, 0, 2 * sizeof(json_val_t *));
 		} else {
-			uint32_t newsize = parent->length + 1 + 1;	/* +1 for null */
+			u32 newsize = parent->length + 1 + 1;	/* +1 for null */
 			void *newptr;
 
 			newptr = krealloc(parent->u.object, newsize * sizeof(json_val_t *), GFP_KERNEL);
@@ -223,7 +214,7 @@ static int tree_append(void *structure, char *key, uint32_t key_length, void *ob
 				return 1;
 			memset(parent->u.array, 0, (1 + 1) * sizeof(json_val_t *));
 		} else {
-			uint32_t newsize = parent->length + 1 + 1;	/* +1 for null */
+			u32 newsize = parent->length + 1 + 1;	/* +1 for null */
 			void *newptr;
 
 			newptr = krealloc(parent->u.object, newsize * sizeof(json_val_t *), GFP_KERNEL);
@@ -351,8 +342,6 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 		return NULL;
 	}
 
-	pr_info_config("find_devices type %d   lvl %d\n", element->type, lvl);
-
 	switch (element->type) {
 	case JSON_OBJECT_BEGIN:
 		if (lvl == 200) {
@@ -397,8 +386,11 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 	case JSON_ARRAY_BEGIN:
 		if (lvl == 100) {
 			int entries = 0;
-			ret = kmalloc(sizeof(piDevices) + element->length * sizeof(SDeviceInfo), GFP_KERNEL);
-			memset(ret, 0, sizeof(piDevices) + element->length * sizeof(SDeviceInfo));
+			ret = kzalloc(sizeof(piDevices) +
+				      element->length * sizeof(SDeviceInfo),
+				      GFP_KERNEL);
+			if (!ret)
+				return NULL;
 			ret->i16uNumDevices = element->length;
 			for (i = 0; i < element->length; i++) {
 				ret->dev[i].i16uFirstEntry = entries;
@@ -500,7 +492,6 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 							}
 						}
 					}
-					//pr_info_config("export: >%s< t %d l %d\n", array[4]->u.data, array[4]->type, array[4]->length);
 					if (array[4]->type == JSON_TRUE ||
 					    (array[4]->type == JSON_STRING && strcmp(array[4]->u.data, "true") == 0)
 					    ) {
@@ -541,200 +532,39 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 	}
 }
 
-static SEntryInfo *search_entry(piEntries * ent, char *strName)
+static bool device_ranges_valid(SDeviceInfo *dev)
 {
-	int i;
-	for (i = 0; i < ent->i16uNumEntries; i++) {
-		if (strcmp(ent->ent[i].strVarName, strName) == 0)
-			return &ent->ent[i];
+	if ((dev->i16uInputOffset + dev->i16uInputLength) > KB_PI_LEN) {
+		pr_err("Invalid input range (offset: %u, length: %u)\n",
+			dev->i16uInputOffset,
+			dev->i16uInputLength);
+		return false;
 	}
-	return NULL;
+
+	if ((dev->i16uOutputOffset + dev->i16uOutputLength) > KB_PI_LEN) {
+		pr_err("Invalid output range (offset: %u, length: %u)\n",
+			dev->i16uOutputOffset,
+			dev->i16uOutputLength);
+		return false;
+	}
+
+	if ((dev->i16uConfigOffset + dev->i16uConfigLength) > KB_PI_LEN) {
+		pr_err("Invalid config range (offset: %u, length: %u)\n",
+			dev->i16uConfigOffset,
+			dev->i16uConfigLength);
+		return false;
+	}
+
+	return true;
 }
 
-static piConnectionList *find_connections(json_val_t * element, piDevices * devs, piEntries * ent, piConnection * conn,
-					  int lvl)
-{
-	int i;
-	piConnectionList *ret = NULL;
-
-	if (!element) {
-		pr_err("error: no element in print tree\n");
-		return NULL;
-	}
-
-	pr_info_config("find_connections type %d   lvl %d\n", element->type, lvl);
-
-	switch (element->type) {
-	case JSON_OBJECT_BEGIN:
-		if (lvl == 200) {
-
-		} else {
-			// The variable name are unique in th whole configuration, therefore it is not necessary to compare the GUIDs
-			// also. This is guaranteed by PiCtory.
-//			char strSrcGUID[50];
-//			char strDstGUID[50];
-			char strSrcName[32];
-			char strDstName[32];
-//			strSrcGUID[0] = 0;
-//			strDstGUID[0] = 0;
-			strSrcName[0] = 0;
-			strDstName[0] = 0;
-
-			for (i = 0; i < element->length; i++) {
-				if (lvl == 1 && strcmp(element->u.object[i]->key, TOKEN_CONNECTIONS) == 0) {	// we found the connections list -> increase lvl
-					if (ret != NULL) {
-						pr_err("error: there should by only one '%s' element\n",
-							  element->u.object[i]->key);
-						return NULL;
-					}
-					ret = find_connections(element->u.object[i]->val, devs, ent, conn, 100);
-				} else if (lvl == 101) {	// we found a connection, parse elements
-//					if (strcmp(element->u.object[i]->key, TOKEN_SRC_GUID) == 0)
-//					{
-//						strncpy(strSrcGUID, element->u.object[i]->val->u.data, sizeof(strSrcGUID)-1);
-//						strSrcGUID[sizeof(strSrcGUID)-1] = 0;
-//					}
-//					else if (strcmp(element->u.object[i]->key, TOKEN_DEST_GUID) == 0)
-//					{
-//						strncpy(strDstGUID, element->u.object[i]->val->u.data, sizeof(strDstGUID)-1);
-//						strDstGUID[sizeof(strDstGUID)-1] = 0;
-//					}
-//					else
-					if (strcmp(element->u.object[i]->key, TOKEN_SRC_NAME) == 0) {
-						strncpy(strSrcName, element->u.object[i]->val->u.data,
-							sizeof(strSrcName) - 1);
-						strSrcName[sizeof(strSrcName) - 1] = 0;
-					} else if (strcmp(element->u.object[i]->key, TOKEN_DEST_NAME) == 0) {
-						strncpy(strDstName, element->u.object[i]->val->u.data,
-							sizeof(strDstName) - 1);
-						strDstName[sizeof(strDstName) - 1] = 0;
-					}
-				} else {
-					// the other objects are not processed
-					//ret = find_connections(element->u.object[i]->val, NULL, lvl + 1);
-				}
-			}
-
-			if (lvl == 101) {
-				if (	/*    strSrcGUID[0] != 0
-					   &&  strDstGUID[0] != 0
-					   && */ strSrcName[0] != 0
-					   && strDstName[0] != 0) {
-					SEntryInfo *pSrcEntry, *pDstEntry;
-					pSrcEntry = search_entry(ent, strSrcName);
-					if (pSrcEntry == NULL) {
-						pr_err("error: connection variable %s unknown\n", strSrcName);
-						return NULL;
-					}
-					pDstEntry = search_entry(ent, strDstName);
-					if (pDstEntry == NULL) {
-						pr_err("error: connection variable %s unknown\n", strDstName);
-						return NULL;
-					}
-					conn->i16uSrcAddr = pSrcEntry->i16uOffset;
-					conn->i16uDestAddr = pDstEntry->i16uOffset;
-					conn->i8uLength = pSrcEntry->i16uBitLength;
-					if (conn->i8uLength < 8) {
-						conn->i8uSrcBit = pSrcEntry->i8uBitPos;
-						conn->i8uDestBit = pDstEntry->i8uBitPos;
-					} else {
-						conn->i8uSrcBit = 0;
-						conn->i8uDestBit = 0;
-					}
-					return NULL;	// return value is not used in this recursive call
-				} else {
-					pr_err("error: attributes of connection %d are missing\n", i + 1);
-					return NULL;
-				}
-			}
-		}
-		break;
-	case JSON_ARRAY_BEGIN:
-		if (lvl == 100) {
-			ret = kzalloc(sizeof(piConnectionList) + element->length * sizeof(piConnection), GFP_KERNEL);
-			ret->i16uNumEntries = element->length;
-			for (i = 0; i < element->length; i++) {
-				find_connections(element->u.array[i], devs, ent, &ret->conn[i], lvl + 1);
-			}
-		} else {
-//			for (i = 0; i < element->length; i++)
-//			{
-//				ret = find_connections(element->u.array[i], devs, ent, conn, lvl + 1);
-//			}
-		}
-		break;
-		break;
-	case JSON_FALSE:
-	case JSON_TRUE:
-	case JSON_NULL:
-		break;
-	case JSON_INT:
-		break;
-	case JSON_STRING:
-		break;
-	case JSON_FLOAT:
-		break;
-	default:
-		pr_err("error: unhandled type %d\n", element->type);
-		break;
-	}
-	return ret;
-}
-
-#ifdef DEBUG_CONFIG
-static int print_tree_iter(json_val_t * element, int lvl)
-{
-	int i;
-	char sLvl[] = "############";
-
-	if (!element) {
-		pr_info_config("error: no element in print tree\n");
-		return -1;
-	}
-
-	sLvl[lvl] = 0;
-
-	switch (element->type) {
-	case JSON_OBJECT_BEGIN:
-		pr_info_config("%s object begin (%d element)\n", sLvl, element->length);
-		for (i = 0; i < element->length; i++) {
-			pr_info_config("%s key: %s\n", sLvl, element->u.object[i]->key);
-			print_tree_iter(element->u.object[i]->val, lvl + 1);
-		}
-		pr_info_config("%s object end\n", sLvl);
-		break;
-	case JSON_ARRAY_BEGIN:
-		pr_info_config("%s array begin\n", sLvl);
-		for (i = 0; i < element->length; i++) {
-			print_tree_iter(element->u.array[i], lvl + 1);
-		}
-		pr_info_config("%s array end\n", sLvl);
-		break;
-	case JSON_FALSE:
-	case JSON_TRUE:
-	case JSON_NULL:
-		pr_info_config("%s constant\n", sLvl);
-		break;
-	case JSON_INT:
-		pr_info_config("%s integer: %s\n", sLvl, element->u.data);
-		break;
-	case JSON_STRING:
-		pr_info_config("%s string: %s\n", sLvl, element->u.data);
-		break;
-	case JSON_FLOAT:
-		pr_info_config("%s float: %s\n", sLvl, element->u.data);
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-#endif
-
-int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piCopylist ** cl,
-		  piConnectionList ** connl)
+int piConfigParse(const char *filename, piDevices **devices_list,
+		  piEntries **entries_list, piCopylist **copy_list)
 {
 	int ret = 0, i, cnt, d, idx[4], exported_outputs;
+	piDevices *devs;
+	piEntries *ent;
+	piCopylist *cl;
 	json_config config;
 	json_val_t *root_structure;
 
@@ -744,258 +574,232 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	config.allow_c_comments = 1;
 	config.allow_yaml_comments = 1;
 
-	*devs = NULL;
-	*ent = NULL;
-	*cl = NULL;
-	*connl = NULL;
+	if (do_tree(&config, filename, &root_structure))
+		return -EINVAL;
 
-	ret = do_tree(&config, filename, &root_structure);
-	if (ret)
-		return ret;
-
-#ifdef DEBUG_CONFIG
-	print_tree_iter(root_structure, 1);
-#endif
-
-	*devs = find_devices(root_structure, NULL, 1);
-	if (*devs == NULL) {
+	devs = find_devices(root_structure, NULL, 1);
+	if (devs == NULL) {
 		pr_err("find_devices returned NULL\n");
-		return 3;
+		free_tree(root_structure);
+		return -EINVAL;
 	}
 
-	pr_info("found %d devices in configuration file\n", (*devs)->i16uNumDevices);
+	pr_info("found %d devices in configuration file\n", devs->i16uNumDevices);
 
 	cnt = 0;
-	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
-		pr_info_config("device %d has %d entries, from %d. Offsets: Base=%3d"
-			       //" In=%3d Out=%3d Conf=%3d"
-			       "\n",
-			       i, (*devs)->dev[i].i16uEntries, (*devs)->dev[i].i16uFirstEntry,
-			       (*devs)->dev[i].i16uBaseOffset
-			       //, (*devs)->dev[i].i16uInputOffset, (*devs)->dev[i].i16uOutputOffset, (*devs)->dev[i].i16uConfigOffset
-		    );
-		cnt += (*devs)->dev[i].i16uEntries;
-	}
+	for (i = 0; i < devs->i16uNumDevices; i++)
+		cnt += devs->dev[i].i16uEntries;
 	pr_debug("%d entries in total\n", cnt);
 
-	*ent = kmalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
-	memset(*ent, 0, sizeof(piEntries) + cnt * sizeof(SEntryInfo));
-	(*ent)->i16uNumEntries = cnt;
-	cnt = 0;
-	find_entries(root_structure, *ent, &cnt, 0, 0, 1);
-
-	// copy the config value into the module driver
-	piDIOComm_InitStart();
-	piAIOComm_InitStart();
-	revpi_mio_reset();
-	revpi_ro_reset();
-
-	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
-		pr_info_config("device %d typ %d has %d entries. Offsets: Base=%3d"
-			       " In=%3d Out=%3d Conf=%3d"
-			       "\n",
-			       i, (*devs)->dev[i].i16uModuleType, (*devs)->dev[i].i16uEntries,
-			       (*devs)->dev[i].i16uBaseOffset, (*devs)->dev[i].i16uInputOffset,
-			       (*devs)->dev[i].i16uOutputOffset, (*devs)->dev[i].i16uConfigOffset);
-
-		switch ((*devs)->dev[i].i16uModuleType) {
-		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			piDIOComm_Config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			piAIOComm_Config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
-			revpi_compact_config((*devs)->dev[i].i8uAddress,
-					     (*devs)->dev[i].i16uEntries,
-					     &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_MIO:
-			revpi_mio_config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_RO:
-			revpi_ro_config((*devs)->dev[i].i8uAddress,
-					(*devs)->dev[i].i16uEntries,
-					&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		}
-
+	ent = kzalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
+	if (!ent) {
+		kfree(devs);
+		free_tree(root_structure);
+		return -ENOMEM;
 	}
+	ent->i16uNumEntries = cnt;
+	cnt = 0;
+	find_entries(root_structure, ent, &cnt, 0, 0, 1);
 
 	// now correct the offsets with the base offset of the module
 	d = 0;
 	i = 0;
 	exported_outputs = 0;
 	idx[0] = idx[1] = idx[2] = idx[3] = 0;
-	while (i < (*ent)->i16uNumEntries && d < (*devs)->i16uNumDevices) {
-		if ((*ent)->ent[i].i8uAddress != (*devs)->dev[d].i8uAddress) {
-			(*devs)->dev[d].i16uInputLength /= 8;
-			(*devs)->dev[d].i16uOutputLength /= 8;
-			(*devs)->dev[d].i16uConfigLength /= 8;
+	while (i < ent->i16uNumEntries && d < devs->i16uNumDevices && !ret) {
+		if (ent->ent[i].i8uAddress != devs->dev[d].i8uAddress) {
+			devs->dev[d].i16uInputLength /= 8;
+			devs->dev[d].i16uOutputLength /= 8;
+			devs->dev[d].i16uConfigLength /= 8;
 
-			pr_info_config("device %d typ %d adjusted. Offsets: Base=%3d\n"
-				       "offset In=%3d Out=%3d Conf=%3d\n"
-				       "length In=%3d Out=%3d Conf=%3d\n",
-				       d, (*devs)->dev[d].i16uModuleType, (*devs)->dev[d].i16uBaseOffset,
-				       (*devs)->dev[d].i16uInputOffset, (*devs)->dev[d].i16uOutputOffset,
-				       (*devs)->dev[d].i16uConfigOffset, (*devs)->dev[d].i16uInputLength,
-				       (*devs)->dev[d].i16uOutputLength, (*devs)->dev[d].i16uConfigLength);
+			if (!device_ranges_valid(&devs->dev[d]))
+				ret = -EINVAL;
 
 			d++;	// goto next device
 			idx[0] = idx[1] = idx[2] = idx[3] = 0;
 		} else {
-			uint8_t type = (*ent)->ent[i].i8uType;
+			u8 type = ent->ent[i].i8uType;
 			if (type == 0x82)
 				exported_outputs++;
 
 			type &= 0x7f;	// remove export flag
 
-			(*ent)->ent[i].i16uOffset += (*devs)->dev[d].i16uBaseOffset;
+			ent->ent[i].i16uDeviceOffset = ent->ent[i].i16uOffset;
+			ent->ent[i].i16uOffset += devs->dev[d].i16uBaseOffset;
 			if (type == 1)	// Input
 			{
-				if (idx[0] == 0 || (*devs)->dev[d].i16uInputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[0] == 0 || devs->dev[d].i16uInputOffset > ent->ent[i].i16uOffset) {
 					idx[0]++;
-					(*devs)->dev[d].i16uInputOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uInputOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uInputLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uInputLength += ent->ent[i].i16uBitLength;
 			} else if (type == 2)	// Output
 			{
-				if (idx[1] == 0 || (*devs)->dev[d].i16uOutputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[1] == 0 || devs->dev[d].i16uOutputOffset > ent->ent[i].i16uOffset) {
 					idx[1]++;
-					(*devs)->dev[d].i16uOutputOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uOutputOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uOutputLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uOutputLength += ent->ent[i].i16uBitLength;
 			} else if (type == 3)	// Memory
 			{
-				if (idx[2] == 0 || (*devs)->dev[d].i16uConfigOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[2] == 0 || devs->dev[d].i16uConfigOffset > ent->ent[i].i16uOffset) {
 					idx[2]++;
-					(*devs)->dev[d].i16uConfigOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uConfigOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uConfigLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uConfigLength += ent->ent[i].i16uBitLength;
 			} else if (type == 4)	// Config
 			{
-				if (idx[0] == 0 || (*devs)->dev[d].i16uInputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[3] == 0 || devs->dev[d].i16uConfigOffset > ent->ent[i].i16uOffset) {
 					idx[3]++;
-					(*devs)->dev[d].i16uConfigOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uConfigOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uConfigLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uConfigLength += ent->ent[i].i16uBitLength;
 			}
 
-			while ((*ent)->ent[i].i8uBitPos >= 8) {
-				(*ent)->ent[i].i8uBitPos -= 8;
-				(*ent)->ent[i].i16uOffset++;
+			while (ent->ent[i].i8uBitPos >= 8) {
+				ent->ent[i].i8uBitPos -= 8;
+				ent->ent[i].i16uOffset++;
+				ent->ent[i].i16uDeviceOffset++;
 			}
 
-			pr_info_config("addr %2d  type %d  len %3d  offset %3d\n", (*ent)->ent[i].i8uAddress,
-				       (*ent)->ent[i].i8uType, (*ent)->ent[i].i16uBitLength, (*ent)->ent[i].i16uOffset);
 			i++;
 		}
 	}
-	if (d < (*devs)->i16uNumDevices) {
-		(*devs)->dev[d].i16uInputLength /= 8;
-		(*devs)->dev[d].i16uOutputLength /= 8;
-		(*devs)->dev[d].i16uConfigLength /= 8;
+	if (d < devs->i16uNumDevices) {
+		devs->dev[d].i16uInputLength /= 8;
+		devs->dev[d].i16uOutputLength /= 8;
+		devs->dev[d].i16uConfigLength /= 8;
 
-		pr_info_config("device %d typ %d adjusted. Offsets: Base=%3d\n"
-			       "offset In=%3d Out=%3d Conf=%3d\n"
-			       "length In=%3d Out=%3d Conf=%3d\n",
-			       d, (*devs)->dev[d].i16uModuleType, (*devs)->dev[d].i16uBaseOffset,
-			       (*devs)->dev[d].i16uInputOffset, (*devs)->dev[d].i16uOutputOffset,
-			       (*devs)->dev[d].i16uConfigOffset, (*devs)->dev[d].i16uInputLength,
-			       (*devs)->dev[d].i16uOutputLength, (*devs)->dev[d].i16uConfigLength);
+		if (!device_ranges_valid(&devs->dev[d]))
+			ret = -EINVAL;
 	}
 
-	*connl = find_connections(root_structure, *devs, *ent, NULL, 1);
-
-#ifdef DEBUG_CONFIG
-	for (i = 0; i < (*connl)->i16uNumEntries; i++) {
-		pr_info_config("connection %2d: %d bits from %d/%d to %d/%d\n",
-			       i, (*connl)->conn[i].i8uLength,
-			       (*connl)->conn[i].i16uSrcAddr, (*connl)->conn[i].i8uSrcBit,
-			       (*connl)->conn[i].i16uDestAddr, (*connl)->conn[i].i8uDestBit);
+	if (ret) {
+		kfree(ent);
+		kfree(devs);
+		free_tree(root_structure);
+		return ret;
 	}
-#endif
 
 	// Generate Copy List
-	*cl = kmalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
-	(*cl)->i16uNumEntries = exported_outputs;
+	cl = kzalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
+	if (!cl) {
+		kfree(ent);
+		kfree(devs);
+		free_tree(root_structure);
+		return -ENOMEM;
+	}
+	cl->i16uNumEntries = exported_outputs;
 	d = 0;
-	for (i = 0; i < (*ent)->i16uNumEntries && d <= exported_outputs; i++) {
-		if ((*ent)->ent[i].i8uType == 0x82) {
+	for (i = 0; i < ent->i16uNumEntries && d <= exported_outputs; i++) {
+		if (ent->ent[i].i8uType == 0x82) {
 			if (d == exported_outputs) {
-				pr_err("### internal error 1 ### %d %d  %d %d\n", i, (*ent)->i16uNumEntries, d,
+				pr_err("### internal error 1 ### %d %d  %d %d\n", i, ent->i16uNumEntries, d,
 				       exported_outputs);
 				exported_outputs = 0;
 			} else {
-				(*cl)->ent[d].i16uAddr = (*ent)->ent[i].i16uOffset;
-				(*cl)->ent[d].i8uBitMask =
-				    (0xff >> (8 - (*ent)->ent[i].i16uBitLength)) << (*ent)->ent[i].i8uBitPos;
-				(*cl)->ent[d].i16uLength = (*ent)->ent[i].i16uBitLength;
+				cl->ent[d].i16uAddr = ent->ent[i].i16uOffset;
+				cl->ent[d].i8uBitMask =
+				    (0xff >> (8 - ent->ent[i].i16uBitLength)) << ent->ent[i].i8uBitPos;
+				cl->ent[d].i16uLength = ent->ent[i].i16uBitLength;
 				d++;
 			}
 		}
 	}
 
-	pr_info_config("cl: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[0].i16uAddr, (*cl)->ent[0].i8uBitMask,
-		       (*cl)->ent[0].i16uLength);
-
 	// prüfe ob die Einträge aufsteigend sortiert sind
 	for (d = 1; d < exported_outputs; d++) {
-		if (((*cl)->ent[d - 1].i16uAddr > (*cl)->ent[d].i16uAddr)
-		    || (((*cl)->ent[d - 1].i16uAddr == (*cl)->ent[d].i16uAddr)
-			&& ((*cl)->ent[d - 1].i8uBitMask & (*cl)->ent[d].i8uBitMask)
+		if ((cl->ent[d - 1].i16uAddr > cl->ent[d].i16uAddr)
+		    || ((cl->ent[d - 1].i16uAddr == cl->ent[d].i16uAddr)
+			&& (cl->ent[d - 1].i8uBitMask & cl->ent[d].i8uBitMask)
 		    )
 		    ) {
 			pr_err("### internal error 2 ### %d\n", d);
 			exported_outputs = 0;
 			break;
-		} else {
-			pr_info_config("cl: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[d].i16uAddr,
-				       (*cl)->ent[d].i8uBitMask, (*cl)->ent[d].i16uLength);
 		}
 	}
 
 	i = 0;
 	for (d = 1; d < exported_outputs; d++) {
-		if ((*cl)->ent[i].i16uAddr == (*cl)->ent[d].i16uAddr
-		    && (*cl)->ent[i].i16uLength < 8 && (*cl)->ent[d].i16uLength < 8) {
+		if (cl->ent[i].i16uAddr == cl->ent[d].i16uAddr
+		    && cl->ent[i].i16uLength < 8 && cl->ent[d].i16uLength < 8) {
 			// fasse die beiden Einträge zusammen
-			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
-			(*cl)->ent[i].i8uBitMask |= (*cl)->ent[d].i8uBitMask;
-		} else if ((*cl)->ent[i].i16uLength >= 8
-			   && (*cl)->ent[d].i16uLength >= 8
-			   && (*cl)->ent[d].i16uAddr == (*cl)->ent[i].i16uAddr + (*cl)->ent[i].i16uLength / 8) {
+			cl->ent[i].i16uLength += cl->ent[d].i16uLength;
+			cl->ent[i].i8uBitMask |= cl->ent[d].i8uBitMask;
+		} else if (cl->ent[i].i16uLength >= 8
+			   && cl->ent[d].i16uLength >= 8
+			   && cl->ent[d].i16uAddr == cl->ent[i].i16uAddr + cl->ent[i].i16uLength / 8) {
 			// fasse die beiden Einträge zusammen
-			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
+			cl->ent[i].i16uLength += cl->ent[d].i16uLength;
 		} else {
 			// gehe zum nächsten Eintrag
-			pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
-				       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
+			pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, cl->ent[i].i16uAddr,
+				       cl->ent[i].i8uBitMask, cl->ent[i].i16uLength);
 
 			i++;
-			(*cl)->ent[i].i16uAddr = (*cl)->ent[d].i16uAddr;
-			(*cl)->ent[i].i8uBitMask = (*cl)->ent[d].i8uBitMask;
-			(*cl)->ent[i].i16uLength = (*cl)->ent[d].i16uLength;
+			cl->ent[i].i16uAddr = cl->ent[d].i16uAddr;
+			cl->ent[i].i8uBitMask = cl->ent[d].i8uBitMask;
+			cl->ent[i].i16uLength = cl->ent[d].i16uLength;
 		}
 	}
 	if (exported_outputs > 0) {
-		pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
-			       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
+		pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, cl->ent[i].i16uAddr,
+			       cl->ent[i].i8uBitMask, cl->ent[i].i16uLength);
 		i++;
 	}
 
-	pr_info_config("copylist has %d entries\n", i);
-	(*cl)->i16uNumEntries = i;
+	cl->i16uNumEntries = i;
 
 	free_tree(root_structure);
+
+	/* Parsing ok, configure devices and replace old parsed data with new */
+	// copy the config value into the module driver
+	piDIOComm_InitStart();
+	piAIOComm_InitStart();
+	revpi_mio_reset();
+	revpi_ro_reset();
+
+	for (i = 0; i < devs->i16uNumDevices; i++) {
+		switch (devs->dev[i].i16uModuleType) {
+		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+			piDIOComm_Config(devs->dev[i].i8uAddress,
+					 devs->dev[i].i16uEntries,
+					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_AIO:
+			piAIOComm_Config(devs->dev[i].i8uAddress,
+					 devs->dev[i].i16uEntries,
+					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
+			revpi_compact_config(devs->dev[i].i8uAddress,
+					     devs->dev[i].i16uEntries,
+					     &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_MIO:
+			revpi_mio_config(devs->dev[i].i8uAddress,
+					 devs->dev[i].i16uEntries,
+					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_RO:
+			revpi_ro_config(devs->dev[i].i8uAddress,
+					devs->dev[i].i16uEntries,
+					&ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		}
+
+	}
+
+	kfree(*devices_list);
+	kfree(*entries_list);
+	kfree(*copy_list);
+
+	*devices_list = devs;
+	*entries_list = ent;
+	*copy_list = cl;
 
 	return ret;
 }
@@ -1008,10 +812,6 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 	int i;
 
 	for (i = 0; i < entries->i16uNumEntries; i++) {
-		pr_info_aio("addr %2d  type %2x  len %3d  offset %3d+%d  default %x\n",
-			    ent->i8uAddress, ent->i8uType, ent->i16uBitLength,
-			    ent->i16uOffset, ent->i8uBitPos, ent->i32uDefault);
-
 		ent = &entries->ent[i];
 		type = ent->i8uType & ENTRY_INFO_TYPE_MASK;
 

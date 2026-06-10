@@ -87,8 +87,9 @@ typedef struct SDeviceInfoStr {
 	__u8 i8uModuleState;
 	/* 0 means that the module is not present and no data is available */
 	__u8 i8uActive;
+	__u16 i16uFeatures;
 	/* space for future extensions */
-	__u8 i8uReserve[30];		
+	__u8 i8uReserve[30];
 } SDeviceInfo;
 
 typedef struct SPIValueStr {

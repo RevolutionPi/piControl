@@ -96,7 +96,7 @@ static int revpi_flat_poll_dout(void *data)
 
 	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
 	while (!kthread_should_stop()) {
-		my_rt_mutex_lock(&piDev_g.lockPI);
+		rt_mutex_lock(&piDev_g.lockPI);
 		image->drv.button = gpiod_get_value_cansleep(flat->button_desc);
 		usr_image->drv = image->drv;
 
@@ -163,7 +163,7 @@ static int revpi_flat_handle_ain(struct revpi_flat *flat, bool mode_current)
 
 	ain_val = (int) div_s64(ain_val, 1000000000LL);
 
-	my_rt_mutex_lock(&piDev_g.lockPI);
+	rt_mutex_lock(&piDev_g.lockPI);
 	image->drv.ain = ain_val;
 	rt_mutex_unlock(&piDev_g.lockPI);
 
@@ -205,7 +205,7 @@ static int revpi_flat_poll_ain(void *data)
 		*/
 		freq = cpufreq_quick_get(0);
 
-		my_rt_mutex_lock(&piDev_g.lockPI);
+		rt_mutex_lock(&piDev_g.lockPI);
 		if ((piDev_g.thermal_zone != NULL) && !ret)
 			image->drv.cpu_temp = temperature / 1000;
 		image->drv.cpu_freq = freq / 10;
@@ -279,7 +279,7 @@ static void revpi_flat_adjust_config(void)
 
 static void revpi_flat_set_defaults(void)
 {
-	my_rt_mutex_lock(&piDev_g.lockPI);
+	rt_mutex_lock(&piDev_g.lockPI);
 	memset(piDev_g.ai8uPI, 0, sizeof(piDev_g.ai8uPI));
 	if (piDev_g.ent)
 		revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
