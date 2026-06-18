@@ -20,6 +20,7 @@
 #include "piFirmwareUpdate.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
+#define MAX_MODULE_CONFIG_RETRIES 3	// max. retries for the config telegram of a single module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
 #define BAUD_SWITCH_MAX_RETRIES 3	// max. retries for switching the bus baudrate
@@ -90,9 +91,33 @@ void PiBridgeMaster_Reset(void)
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
+/*
+ * Send the configuration telegram(s) to a single module. Returns 0 on
+ * success, REVPI_MODULE_NOT_CONFIGURED if the module is not part of the
+ * PiCtory configuration or a negative error code on a communication failure.
+ */
+static int pibridge_master_init_module(int dev, u16 type)
+{
+	switch (type) {
+	case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+	case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+	case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+		return piDIOComm_Init(dev);
+	case KUNBUS_FW_DESCR_TYP_PI_AIO:
+		return piAIOComm_Init(dev);
+	case KUNBUS_FW_DESCR_TYP_PI_MIO:
+		return revpi_mio_init(dev);
+	case KUNBUS_FW_DESCR_TYP_PI_RO:
+		return revpi_ro_init(dev);
+	}
+
+	return 0;
+}
+
 static void PiBridgeMaster_Configure(void)
 {
 	SDevice *sdev;
+	int retry;
 	int ret;
 	int i;
 
@@ -103,70 +128,28 @@ static void PiBridgeMaster_Configure(void)
 		if (!sdev->i8uActive)
 			continue;
 
-		switch (sdev->sId.i16uModulType) {
-		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			ret = piDIOComm_Init(i);
+		/*
+		 * Retry module initialization, except if it is not defined in
+		 * the configuration file.
+		 */
+		retry = 0;
+		do {
+			ret = pibridge_master_init_module(i, sdev->sId.i16uModulType);
+		} while ((ret != 0) && (ret != REVPI_MODULE_NOT_CONFIGURED) &&
+			 (++retry <= MAX_MODULE_CONFIG_RETRIES));
 
-			pr_debug("piDIOComm_Init(%d) done %d\n",
-				sdev->i8uAddress, ret);
+		pr_debug("configuration of module at address %u done (ret %d, %d retries)\n",
+			sdev->i8uAddress, ret, retry);
 
-			if (ret != 0) {
-				// init failed -> deactive module
-				if (ret == 4) {
-					pr_err("piDIOComm_Init(%d): Module not configured in PiCtory\n",
-						sdev->i8uAddress);
-				} else {
-					pr_err("piDIOComm_Init(%d) failed, error %d\n",
-						sdev->i8uAddress, ret);
-				}
-				sdev->i8uActive = 0;
-			}
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			ret = piAIOComm_Init(i);
-
-			pr_debug("piAIOComm_Init(%d) done %d\n", sdev->i8uAddress, ret);
-
-			if (ret != 0) {
-				// init failed -> deactive module
-				if (ret == 4) {
-					pr_err("piAIOComm_Init(%d): Module not configured in PiCtory\n",
-						sdev->i8uAddress);
-				} else {
-					pr_err("piAIOComm_Init(%d) failed, error %d\n",
-						sdev->i8uAddress, ret);
-				}
-				sdev->i8uActive = 0;
-			}
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_MIO:
-			ret = revpi_mio_init(i);
-
-			if (ret) {
-				pr_err("mio init failed in status-Continue(ret:%d)\n",
-					ret);
-				sdev->i8uActive = 0;
-			}
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_RO:
-			ret = revpi_ro_init(i);
-
-			pr_debug("revpi_ro_init(%d) done %d\n", sdev->i8uAddress, ret);
-
-			if (ret != 0) {
-				// init failed -> deactivate module
-				if (ret == 4) {
-					pr_err("revpi_ro_init(%d): Module not configured in PiCtory\n",
-						sdev->i8uAddress);
-				} else {
-					pr_err("revpi_ro_init(%d) failed, error %d\n",
-						sdev->i8uAddress, ret);
-				}
-				sdev->i8uActive = 0;
-			}
-			break;
+		if (ret != 0) {
+			// init failed -> deactivate module
+			if (ret == REVPI_MODULE_NOT_CONFIGURED)
+				pr_err("configuration of module at address %u failed: not configured in PiCtory\n",
+					sdev->i8uAddress);
+			else
+				pr_err("configuration of module at address %u failed, error %d\n",
+					sdev->i8uAddress, ret);
+			sdev->i8uActive = 0;
 		}
 	}
 }
