@@ -127,6 +127,22 @@ static void PiBridgeMaster_Configure(void)
 	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 		sdev = RevPiDevice_getDev(i);
 
+		/*
+		 * Gateways are not configured over the PiBridge. Record the
+		 * index of the first one on each side, even when it is not
+		 * connected yet, so revpi_core_gate_connected() can track it,
+		 * and move on.
+		 */
+		if (module_is_gateway(sdev->sId.i16uModulType & PICONTROL_NOT_CONNECTED_MASK)) {
+			if ((piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF)
+			    && (sdev->i8uAddress >= REV_PI_DEV_FIRST_RIGHT))
+				piCore_g.i8uRightMGateIdx = i;
+			else if ((piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF)
+				 && (sdev->i8uAddress < REV_PI_DEV_FIRST_RIGHT))
+				piCore_g.i8uLeftMGateIdx = i;
+			continue;
+		}
+
 		if (!sdev->i8uActive)
 			continue;
 

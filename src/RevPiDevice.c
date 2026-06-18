@@ -313,31 +313,8 @@ int RevPiDevice_run(void)
 				revpi_dev_update_state(i8uDevice, r, &retval);
 				break;
 
-			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN:
-			case KUNBUS_FW_DESCR_TYP_MG_DEV_NET:
-			case KUNBUS_FW_DESCR_TYP_MG_ETHERCAT:
-			case KUNBUS_FW_DESCR_TYP_MG_ETHERNET_IP:
-			case KUNBUS_FW_DESCR_TYP_MG_POWERLINK:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFIBUS:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_IRT:
-			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN_MASTER:
-			case KUNBUS_FW_DESCR_TYP_MG_SERCOS3:
-			case KUNBUS_FW_DESCR_TYP_MG_SERIAL:
-			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_RTU:
-			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_TCP:
-			case KUNBUS_FW_DESCR_TYP_MG_DMX:
-				if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
-				    && dev->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
-					piCore_g.i8uRightMGateIdx = i8uDevice;
-				} else if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
-					   && dev->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
-					piCore_g.i8uLeftMGateIdx = i8uDevice;
-				}
-				break;
-
 			default:
-				//TODO
-				// user devices are ignored here
+				// ignore base device, virtual modules and gateways
 				break;
 			}
 			trace_picontrol_cyclic_device_data_stop(dev->i8uAddress);
