@@ -262,7 +262,13 @@ int PiBridgeMaster_Adjust(void)
 				RevPiDevice_getDev(j)->i8uActive = 1;
 				RevPiDevice_getDev(j)->sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
 			} else {
-				RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
+				/*
+				 * Some gateways can be discovered over RS485, some only
+				 * over the PiBridge Ethernet after start-up, so absence
+				 * from the RS485 scan does not mean a gateway is missing.
+				 */
+				if (!module_is_gateway(piDev_g.devs->dev[i].i16uModuleType))
+					RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
 				RevPiDevice_getDev(j)->i8uActive = 0;
 				RevPiDevice_getDev(j)->sId.i16uModulType =
 				    piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;

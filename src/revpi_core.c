@@ -92,6 +92,8 @@ void revpi_core_gate_connected(SDevice *revpi_dev, bool connected)
 	if (!revpi_dev)
 		return;
 
+	revpi_dev->i8uActive = connected ? 1 : 0;
+
 	if (revpi_dev == RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx))
 		status = PICONTROL_STATUS_LEFT_GATEWAY;
 	else if (revpi_dev == RevPiDevice_getDev(piCore_g.i8uRightMGateIdx))
