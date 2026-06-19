@@ -36,7 +36,7 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 			      IOP_TYP1_CMD_DATA, &req, sizeof(req), &resp,
 			      sizeof(resp));
 	if (ret != sizeof(resp)) {
-		pr_debug("MIO addr %2d: dio communication failed (req:%zu,ret:%d)\n",
+		pr_debug("MIO addr %u: dio communication failed (req:%zu,ret:%d)\n",
 			dev->i8uAddress, sizeof(resp), ret);
 
 		if (ret >= 0)
@@ -67,7 +67,7 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 			      sizeof(*req_data) - compressed, &resp,
 			      sizeof(resp));
 	if (ret != sizeof(resp)) {
-		pr_debug("MIO addr %2d: aio communication failed (req:%zd,ret:%d)\n",
+		pr_debug("MIO addr %u: aio communication failed (req:%zd,ret:%d)\n",
 			dev->i8uAddress, sizeof(resp), ret);
 
 		if (ret >= 0)
@@ -310,7 +310,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 			    (conf->dio.i8uIoMode[3] != MIO_GPIO_DISABLED);
 
 	if (conf->dio_enabled)
-		pr_info("MIO addr %d: digital IO enabled (additional bus exchange per cycle)\n",
+		pr_info("MIO addr %u: digital IO enabled (additional bus exchange per cycle)\n",
 			addr);
 
 	pr_debug("dio  :%*ph (enabled: %d)\n", (int) sizeof(conf->dio),
