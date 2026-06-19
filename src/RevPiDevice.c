@@ -174,6 +174,8 @@ int RevPiDevice_hat_serial(void)
 
 void RevPiDevice_init(void)
 {
+	int i;
+
 	pr_debug("RevPiDevice_init()\n");
 
 	piCore_g.cycle_num = 0;
@@ -185,6 +187,12 @@ void RevPiDevice_init(void)
 	RevPiDevices_s.gatewayLeft = false;
 	RevPiDevice_resetDevCnt();	// counter for detected devices
 	RevPiDevices_s.i16uErrorCnt = 0;
+
+	// start each (re)configuration with a clean per-module error state
+	for (i = 0; i < ARRAY_SIZE(RevPiDevices_s.dev); i++) {
+		RevPiDevices_s.dev[i].i16uErrorCnt = 0;
+		RevPiDevices_s.dev[i].i8uModuleState = IOSTATE_OFFLINE;
+	}
 
 	// RevPi as first entry to device list
 	RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = 0;
@@ -248,20 +256,29 @@ void RevPiDevice_init(void)
 
 void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval)
 {
+	SDevice *dev = RevPiDevice_getDev(i8uDevice);
+
 	if (r) {
-		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
-			RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
-		}
-		else
-			RevPiDevice_getDev(i8uDevice)->i8uModuleState = IOSTATE_OFFLINE;
+		if (dev->i16uErrorCnt < U16_MAX)
+			dev->i16uErrorCnt++;
+		// the module is reported offline from PiBridgeMaster_checkErrorLimits()
+		// once the configured error limit is reached
 		*retval -= 1;	// tell calling function that an error occured
-		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
+		if (dev->i16uErrorCnt > 1) {
 			// the first error is ignored
-			RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
+			if ((RevPiDevices_s.i16uErrorCnt + dev->i16uErrorCnt) > U16_MAX)
+				RevPiDevices_s.i16uErrorCnt = U16_MAX;
+			else
+				RevPiDevices_s.i16uErrorCnt += dev->i16uErrorCnt;
 		}
 	} else {
-		RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
-		RevPiDevice_getDev(i8uDevice)->i8uModuleState = IOSTATE_CYCLIC_IO;
+		u16 offline_limit = piCore_g.image.usr.i16uRS485ErrorLimit2;
+
+		/* report recovery only for a module that had reached the offline limit */
+		if (offline_limit && dev->i16uErrorCnt >= offline_limit)
+			pr_info("module at address %u back online\n", dev->i8uAddress);
+		dev->i16uErrorCnt = 0;
+		dev->i8uModuleState = IOSTATE_CYCLIC_IO;
 	}
 }
 
