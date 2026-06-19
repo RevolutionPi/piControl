@@ -39,8 +39,9 @@ static const u32 pibridge_baud_table[] = {
 };
 
 static int init_retry = MAX_INIT_RETRIES;
-static int baud_switch_retries;
 static volatile bool bEntering_s = true;
+static int baud_switch_retries;
+static bool module_init_failed;
 EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
 static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
 
@@ -79,6 +80,7 @@ static void pibridge_reinit(void)
 	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
 	bEntering_s = true;
+	module_init_failed = false;
 	RevPiDevice_setStatus(0xff, 0);
 	RevPiDevice_init();
 }
@@ -143,13 +145,16 @@ static void PiBridgeMaster_Configure(void)
 
 		if (ret != 0) {
 			// init failed -> deactivate module
-			if (ret == REVPI_MODULE_NOT_CONFIGURED)
+			sdev->i8uActive = 0;
+			if (ret == REVPI_MODULE_NOT_CONFIGURED) {
 				pr_err("configuration of module at address %u failed: not configured in PiCtory\n",
 					sdev->i8uAddress);
-			else
+			} else {
 				pr_err("configuration of module at address %u failed, error %d\n",
 					sdev->i8uAddress, ret);
-			sdev->i8uActive = 0;
+				// a real init failure may succeed on an init retry
+				module_init_failed = true;
+			}
 		}
 	}
 }
@@ -851,10 +856,14 @@ int PiBridgeMaster_Run(void)
 		if (ret && piCore_g.eBridgeState != piBridgeRun) {
 			if (init_retry > 0
 			    && (piIoComm_readSniff2A() || piIoComm_readSniff2B()
-				|| (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE))) {
+				|| (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE)
+				|| module_init_failed)) {
 				// at least one IO module did not complete the initialization process
 				// wait for the timeout in the module
-				pr_info("initialization of module not finished (%d,%d,%d) -> retry\n", piIoComm_readSniff2A(), piIoComm_readSniff2B(), (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE));
+				pr_info("initialization of module not finished (%d,%d,%d,%d) -> retry\n",
+					piIoComm_readSniff2A(), piIoComm_readSniff2B(),
+					(RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE),
+					module_init_failed);
 				eRunStatus_s = enPiBridgeMasterStatus_InitRetry;
 				bEntering_s = true;
 				piCore_g.eBridgeState = piBridgeInit;
