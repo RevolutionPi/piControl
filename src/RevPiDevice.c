@@ -352,7 +352,8 @@ bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pMo
 	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (u8 *) pModgateId_p, &i16uLen_l);
 	msleep(3);		// wait a while
 	if (ret_l) {
-		pr_err("piIoComm_sendRS485Tel(GetDeviceInfo) failed %d\n", ret_l);
+		pr_err("GetDeviceInfo for designated address %u failed: %d\n",
+			i8uAddress_p, ret_l);
 		return false;
 	} else {
 		pr_debug("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
@@ -367,7 +368,8 @@ bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pMo
 			ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
 			msleep(3);		// wait a while
 			if (ret_l)
-				pr_err("piIoComm_sendRS485Tel(PiIoSetAddress) failed %d\n", ret_l);
+				pr_err("PiIoSetAddress for designated address %u failed: %d\n",
+					i8uAddress_p, ret_l);
 		}
 		return false;
 	}
