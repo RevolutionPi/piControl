@@ -177,7 +177,6 @@ void RevPiDevice_init(void)
 	pr_debug("RevPiDevice_init()\n");
 
 	piCore_g.cycle_num = 0;
-	piCore_g.comm_errors = 0;
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module

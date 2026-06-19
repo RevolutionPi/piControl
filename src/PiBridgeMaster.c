@@ -25,12 +25,6 @@
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
 #define BAUD_SWITCH_MAX_RETRIES 3	// max. retries for switching the bus baudrate
 
-/* The number of cycles after which the comm error counter is decreased */
-#define COMM_ERROR_CYCLES		(1<<3) /* must be power of 2! */
-#define COMM_ERROR_CYCLES_MASK		(COMM_ERROR_CYCLES - 1)
-/* Error limit for error log message */
-#define COMM_ERROR_LOG_LIMIT		10
-
 static const u32 pibridge_baud_table[] = {
 	[PIBRIDGE_BAUD_INDEX_115200]  = PIBRIDGE_MIN_BAUDRATE,
 	[PIBRIDGE_BAUD_INDEX_500000]  = 500000,
@@ -878,22 +872,7 @@ int PiBridgeMaster_Run(void)
 				piCore_g.data_exchange_running = true;
 			}
 
-			/*
-			 * Decrease error counter after each COMM_ERROR_CYCLES
-			 * to let the accumulated errors 'drain out' if there
-			 * are not more errors at this time.
-			 */
-			if (piCore_g.comm_errors &&
-			    (!(piCore_g.cycle_num & COMM_ERROR_CYCLES_MASK)))
-				piCore_g.comm_errors--;
-
 			if (RevPiDevice_run()) {
-				piCore_g.comm_errors++;
-
-				if (piCore_g.comm_errors > COMM_ERROR_LOG_LIMIT) {
-					pr_warn_ratelimited("Error during piBridge communication\n");
-					piCore_g.comm_errors = 0;
-				}
 				// an error occured, check error limits
 				PiBridgeMaster_checkErrorLimits();
 			} else {

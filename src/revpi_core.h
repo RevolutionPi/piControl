@@ -105,8 +105,6 @@ typedef struct _SRevPiCore {
 	struct task_struct *pIoThread;
 
 	u64 cycle_num;
-	/* Number of communication errors */
-	u32 comm_errors;
 	bool data_exchange_running;
 } SRevPiCore;
 
