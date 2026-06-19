@@ -498,22 +498,59 @@ static void handle_pibridge_ethernet(void)
 
 static void PiBridgeMaster_checkErrorLimits(void)
 {
-	if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
-	    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
-		pr_err("too many communication errors -> set state to stopped\n");
-		if (piDev_g.revpi_gate_supported)
-			revpi_gate_fini();
-		piCore_g.eBridgeState = piBridgeStop;
-		clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
-	} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
-		   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
-		// bad communication with inputs -> set inputs to default values
-		pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
-			RevPiDevice_getDev(0)->i16uErrorCnt, RevPiDevice_getDev(1)->i16uErrorCnt,
-			RevPiDevice_getDev(2)->i16uErrorCnt, RevPiDevice_getDev(3)->i16uErrorCnt,
-			RevPiDevice_getDev(4)->i16uErrorCnt, RevPiDevice_getDev(5)->i16uErrorCnt,
-			RevPiDevice_getDev(6)->i16uErrorCnt, RevPiDevice_getDev(7)->i16uErrorCnt);
+	unsigned int limit1 = piCore_g.image.usr.i16uRS485ErrorLimit1;
+	unsigned int limit2 = piCore_g.image.usr.i16uRS485ErrorLimit2;
+	SDevice *sdev;
+	int i;
+
+	/*
+	 * Only modules in the cyclic RS485 exchange accumulate i16uErrorCnt,
+	 * so gateways and the base device never trip these limits.
+	 */
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		sdev = RevPiDevice_getDev(i);
+
+		if (limit1 > 0 && sdev->i16uErrorCnt == limit1 + 1)
+			pr_warn("module at address %u warning threshold reached after %u communication errors\n",
+				sdev->i8uAddress, sdev->i16uErrorCnt);
+
+		if (limit2 > 0 && sdev->i16uErrorCnt >= limit2 &&
+		    sdev->i8uModuleState != IOSTATE_OFFLINE) {
+			pr_err("module at address %u offline after %u communication errors\n",
+			       sdev->i8uAddress, sdev->i16uErrorCnt);
+			sdev->i8uModuleState = IOSTATE_OFFLINE;
+		}
 	}
+}
+
+/*
+ * Return whether a configured non-gateway module is currently unavailable,
+ * either because it was never detected during the scan or because it stopped
+ * responding during cyclic operation. Used to keep PICONTROL_STATUS_MISSING_MODULE
+ * in sync with the live module state.
+ */
+static bool PiBridgeMaster_moduleMissing(void)
+{
+	u16 offline_limit = piCore_g.image.usr.i16uRS485ErrorLimit2;
+	int i;
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		SDevice *dev = RevPiDevice_getDev(i);
+
+		/* gateways are intentionally not reported as missing */
+		if (module_is_gateway(dev->sId.i16uModulType & PICONTROL_NOT_CONNECTED_MASK))
+			continue;
+
+		/* configured but not connected */
+		if (dev->sId.i16uModulType > PICONTROL_NOT_CONNECTED)
+			return true;
+
+		/* reached the offline error limit during operation */
+		if (offline_limit && dev->i16uErrorCnt >= offline_limit)
+			return true;
+	}
+
+	return false;
 }
 
 int PiBridgeMaster_Run(void)
@@ -863,6 +900,11 @@ int PiBridgeMaster_Run(void)
 				ret = 1;
 			}
 			piCore_g.image.drv.i16uRS485ErrorCnt = RevPiDevice_getErrCnt();
+
+			if (PiBridgeMaster_moduleMissing())
+				RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
+			else
+				RevPiDevice_setStatus(PICONTROL_STATUS_MISSING_MODULE, 0);
 			break;
 			// *****************************************************************************************
 
