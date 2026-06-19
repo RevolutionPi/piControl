@@ -496,6 +496,26 @@ static void handle_pibridge_ethernet(void)
 	}
 }
 
+static void PiBridgeMaster_checkErrorLimits(void)
+{
+	if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
+	    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
+		pr_err("too many communication errors -> set state to stopped\n");
+		if (piDev_g.revpi_gate_supported)
+			revpi_gate_fini();
+		piCore_g.eBridgeState = piBridgeStop;
+		clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
+	} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
+		   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
+		// bad communication with inputs -> set inputs to default values
+		pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
+			RevPiDevice_getDev(0)->i16uErrorCnt, RevPiDevice_getDev(1)->i16uErrorCnt,
+			RevPiDevice_getDev(2)->i16uErrorCnt, RevPiDevice_getDev(3)->i16uErrorCnt,
+			RevPiDevice_getDev(4)->i16uErrorCnt, RevPiDevice_getDev(5)->i16uErrorCnt,
+			RevPiDevice_getDev(6)->i16uErrorCnt, RevPiDevice_getDev(7)->i16uErrorCnt);
+	}
+}
+
 int PiBridgeMaster_Run(void)
 {
 	static unsigned long timeout_deadline;
@@ -838,22 +858,7 @@ int PiBridgeMaster_Run(void)
 					piCore_g.comm_errors = 0;
 				}
 				// an error occured, check error limits
-				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
-				    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
-					pr_err("too many communication errors -> set state to stopped\n");
-					if (piDev_g.revpi_gate_supported)
-						revpi_gate_fini();
-					piCore_g.eBridgeState = piBridgeStop;
-					clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
-				} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
-					   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
-					// bad communication with inputs -> set inputs to default values
-					pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
-						RevPiDevice_getDev(0)->i16uErrorCnt, RevPiDevice_getDev(1)->i16uErrorCnt,
-						RevPiDevice_getDev(2)->i16uErrorCnt, RevPiDevice_getDev(3)->i16uErrorCnt,
-						RevPiDevice_getDev(4)->i16uErrorCnt, RevPiDevice_getDev(5)->i16uErrorCnt,
-						RevPiDevice_getDev(6)->i16uErrorCnt, RevPiDevice_getDev(7)->i16uErrorCnt);
-				}
+				PiBridgeMaster_checkErrorLimits();
 			} else {
 				ret = 1;
 			}
