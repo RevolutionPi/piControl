@@ -21,6 +21,11 @@
 
 #define REVPI_MGATE_MAX				2
 
+/* a module *_Init() callback returns this when the module is present on the
+ * bus but not part of the PiCtory configuration
+ */
+#define REVPI_MODULE_NOT_CONFIGURED		4
+
 typedef enum {
 	piBridgeStop = 0,
 	piBridgeInit = 1,	// MGate Protocol

@@ -88,7 +88,7 @@ int revpi_ro_init(unsigned int devnum)
 	}
 
 	if (i == num_devices)
-		return 4;  // unknown device
+		return REVPI_MODULE_NOT_CONFIGURED;
 
 	return pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
 			       &itm->config, sizeof(struct revpi_ro_config),

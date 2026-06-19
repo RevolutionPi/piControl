@@ -346,10 +346,8 @@ int revpi_mio_init(unsigned char devno)
 		}
 	}
 
-	if (!conf) {
-		pr_err("fail to find the mio module(devno:%d)\n", devno);
-		return -ENODATA;
-	}
+	if (!conf)
+		return REVPI_MODULE_NOT_CONFIGURED;
 
 	/*dio*/
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,

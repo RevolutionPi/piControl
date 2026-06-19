@@ -86,7 +86,7 @@ u32 piDIOComm_Init(u8 i8uDevice_p)
 	int ret;
 	int i;
 
-	ret = 4;  // unknown device
+	ret = REVPI_MODULE_NOT_CONFIGURED;
 
 	for (i = 0; i < i8uConfigured_s; i++) {
 		if (dioConfig_s[i].i8uAddr == addr) {

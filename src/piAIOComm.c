@@ -214,7 +214,7 @@ u32 piAIOComm_Init(u8 devnum)
 	}
 
 	if (dev_idx == num_aios)
-		return 4; // unknown device
+		return REVPI_MODULE_NOT_CONFIGURED;
 
 	snd_buf = &aioIn1Config_s[dev_idx];
 
