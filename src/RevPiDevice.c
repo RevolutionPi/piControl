@@ -460,7 +460,9 @@ bool RevPiDevice_writeNextConfigurationLeft(void)
 
 void RevPiDevice_startDataexchange(void)
 {
-	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
+	u8 checksum = pibridge_get_iop_crc16(piCore_g.pibridge) ? 1 : 0;
+	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR,
+					  &checksum, sizeof(checksum), NULL, 0);
 	msleep(90);		// wait a while
 	if (ret_l)
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);

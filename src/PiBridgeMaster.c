@@ -480,6 +480,46 @@ fallback:
 	pibridge_reinit();
 }
 
+/* True only if every active RS485 IO module advertises CRC-16 (descriptor bit 4) */
+static bool pibridge_modules_support_crc16(void)
+{
+	bool any_without = false;
+	bool any_with = false;
+	SDevice *dev;
+	int i;
+
+	for (i = 1; i < RevPiDevice_getDevCnt(); i++) {
+		dev = RevPiDevice_getDev(i);
+		if (!dev->i8uActive)
+			continue;
+		if (dev->sId.i16uModulType >= PICONTROL_SW_OFFSET)
+			continue;
+		if (!(dev->sId.i16uFeatureDescriptor &
+		      MODGATE_feature_RS485DataExchange))
+			continue;
+		if (dev->sId.i16uFeatureDescriptor &
+		    MODGATE_feature_ExtendedChecksum)
+			any_with = true;
+		else
+			any_without = true;
+	}
+
+	if (any_with && any_without)
+		pr_warn("one or more modules lack CRC-16 support, staying on XOR checksum, check for a firmware update\n");
+
+	return any_with && !any_without;
+}
+
+/*
+ * Decide the bus-wide IO checksum: CRC-16 only if every module supports it,
+ * else XOR. The modules are told which one to use in the start-of-data-exchange
+ * command; here we only set the master side.
+ */
+static void pibridge_configure_checksum(void)
+{
+	pibridge_set_iop_crc16(piCore_g.pibridge, pibridge_modules_support_crc16());
+}
+
 static void handle_pibridge_ethernet(void)
 {
 	piDev_g.pibridge_mode_ethernet_left = false;
@@ -873,6 +913,7 @@ int PiBridgeMaster_Run(void)
 					pr_info("PiBridge termination enabled for base device\n");
 				}
 
+				pibridge_configure_checksum();
 				pibridge_configure_baudrate();
 
 				msleep(100);	// wait a while
@@ -965,6 +1006,8 @@ int PiBridgeMaster_Run(void)
 				pibridge_set_baudrate(piCore_g.pibridge,
 						      PIBRIDGE_MIN_BAUDRATE);
 			}
+			/* modules fall back to XOR in GW protocol, so match it */
+			pibridge_set_iop_crc16(piCore_g.pibridge, false);
 			pr_info("piIoComm_gotoGateProtocol returned %d\n", ret);
 			eRunStatus_s = enPiBridgeMasterStatus_Init;
 			piCore_g.data_exchange_running = false;
