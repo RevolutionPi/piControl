@@ -502,6 +502,10 @@ process:
 		 * seen our acknowledgement within its stop-and-wait timeout.
 		 * Re-send the reply to re-acknowledge its counter; do not
 		 * advance any counter or touch the process image.
+		 *
+		 * Deliberately do not refresh destroy_work here: a duplicate is
+		 * not fresh data, so a peer that only ever retransmits the same
+		 * frame must still time out and be torn down.
 		 */
 		if (tl->i8uCounter == conn->in_ctr &&
 		    conn->state == MODGATE_ST_ID_RESP &&
@@ -509,8 +513,6 @@ process:
 			pr_debug("%s: received duplicate data packet, re-acking\n",
 				 dev->name);
 			revpi_gate_send_cyclicpd(conn);
-			mod_delayed_work(system_highpri_wq, &conn->destroy_work,
-					 MG_AL_TIMEOUT);
 			kfree_skb(skb);
 			ret = NET_RX_DROP;
 			goto unlock;
