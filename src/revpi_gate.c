@@ -12,7 +12,6 @@
 
 #define ETH_P_KUNBUSGW	0x419C		/* KUNBUS Gateway [ NOT AN OFFICIALLY REGISTERED ID ] */
 #define MG_AL_TIMEOUT	msecs_to_jiffies(80)
-#define MG_AL_SEND	msecs_to_jiffies(20)
 #define KS8851_FIFO_SZ	(12 * SZ_1K)
 
 static LIST_HEAD(revpi_gate_connections);
@@ -42,7 +41,6 @@ static const struct nf_hook_ops revpi_gate_nf_hook_ops = {
  * @list_node: node in @revpi_gate_connections list
  * @dev: network device over which the neighbor is reachable;
  *	only one neighbor per network device is supported
- * @send_work: work item to send a data packet on silence of neighbor
  * @destroy_work: work item to destroy connection on timeout
  * @state: current state machine position;
  *	there's only two states, see revpi_gate_state()
@@ -61,7 +59,6 @@ struct revpi_gate_connection {
 	struct list_head list_node;
 	struct net_device *dev;
 	struct nf_hook_ops nf_hook_ops;
-	struct delayed_work send_work;
 	struct delayed_work destroy_work;
 	MODGATE_AL_Status state;
 	SDevice *revpi_dev;
@@ -112,11 +109,10 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	synchronize_srcu(&revpi_gate_srcu);
 
 	/*
-	 * The work items may be rescheduled if a valid packet is processed
+	 * The destroy work may be rescheduled if a valid packet is processed
 	 * concurrently.  Only after synchronize_srcu() is that guaranteed
-	 * to no longer happen, so cancel them now.
+	 * to no longer happen, so cancel it now.
 	 */
-	cancel_delayed_work_sync(&conn->send_work);
 	cancel_delayed_work(&conn->destroy_work);
 
 	if (conn->revpi_dev &&
@@ -212,25 +208,25 @@ static struct sk_buff *revpi_gate_create_cyclicpd_packet(
 }
 
 /**
- * revpi_gate_send_work() - send a data packet on silence of neighbor
- * @work: send work item embedded in a struct revpi_gate_connection
+ * revpi_gate_send_cyclicpd() - send a data packet to the neighbor
+ * @conn: connection to the neighbor
  *
- * Normally a data packet is only sent in response to a data packet from the
- * neighbor.  However a data packet is also sent if the neighbor has been
- * silent for a while.  The idea is to get the data exchange going again
- * after a packet was lost.
+ * Build a cyclicPD packet from the current output process image and transmit
+ * it.  The packet acknowledges the neighbor's last counter (copied from
+ * @conn->in_ctr by revpi_gate_create_packet()).
+ *
+ * The gateway firmware runs a strict stop-and-wait link layer: it keeps at
+ * most one unacknowledged packet in flight and silently discards any packet
+ * whose acknowledgement is older than its outstanding window.  The driver
+ * therefore never transmits on its own accord; it only ever sends in direct
+ * response to a received packet.  Recovering from a lost packet is left to
+ * the gateway, which retransmits and ultimately restarts the handshake.
  */
-static void revpi_gate_send_work(struct work_struct *work)
+static void revpi_gate_send_cyclicpd(struct revpi_gate_connection *conn)
 {
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct revpi_gate_connection *conn = container_of(dwork,
-		       struct revpi_gate_connection, send_work);
 	struct net_device *dev = conn->dev;
 	MODGATECOM_CyclicPD *al;
 	struct sk_buff *skb;
-
-	pr_debug("%s: sending data packet voluntarily\n",
-		dev->name);
 
 	skb = revpi_gate_create_cyclicpd_packet(conn, &al);
 	if (!skb)
@@ -327,7 +323,6 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 		goto drop;
 	}
 
-	mod_delayed_work(system_highpri_wq, &conn->send_work, MG_AL_SEND);
 	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
@@ -412,7 +407,11 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 
 	conn->state = MODGATE_ST_ID_RESP;
 	revpi_core_gate_connected(conn->revpi_dev, true);
-	queue_delayed_work(system_highpri_wq, &conn->send_work, MG_AL_SEND);
+	/*
+	 * Do not send a data packet here: the gateway initiates the cyclic
+	 * exchange once it has processed this ID response.  The driver only
+	 * ever replies to received packets.
+	 */
 	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
@@ -455,7 +454,6 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 		conn->state = MODGATE_ST_ID_REQ;
 		conn->in_ctr = rcv_tl->i8uCounter;
 		INIT_LIST_HEAD(&conn->list_node);
-		INIT_DELAYED_WORK(&conn->send_work, revpi_gate_send_work);
 		INIT_DELAYED_WORK(&conn->destroy_work, revpi_gate_destroy_work);
 
 		mutex_lock(&revpi_gate_lock);
@@ -464,7 +462,6 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 	} else {
 		pr_warn("%s: id request, resetting connection\n", dev->name);
 		conn->state = MODGATE_ST_ID_REQ;
-		cancel_delayed_work_sync(&conn->send_work);
 		revpi_core_gate_connected(conn->revpi_dev, false);
 	}
 
@@ -520,17 +517,19 @@ process:
 
 	if (conn) {
 		/*
-		 * Some versions of the RevPi Gate firmware resend packets
-		 * if they haven't received a packet in a while.  React by
-		 * enqueuing the send work for immediate execution.
+		 * The gateway retransmits its last data packet when it has not
+		 * seen our acknowledgement within its stop-and-wait timeout.
+		 * Re-send the reply to re-acknowledge its counter; do not
+		 * advance any counter or touch the process image.
 		 */
 		if (tl->i8uCounter == conn->in_ctr &&
 		    conn->state == MODGATE_ST_ID_RESP &&
 		    tl->i16uCmd == MODGATE_AL_CMD_cyclicPD) {
-			pr_err("%s: received duplicate data packet\n",
-			       dev->name);
-			mod_delayed_work(system_highpri_wq, &conn->send_work,
-									  0);
+			pr_debug("%s: received duplicate data packet, re-acking\n",
+				 dev->name);
+			revpi_gate_send_cyclicpd(conn);
+			mod_delayed_work(system_highpri_wq, &conn->destroy_work,
+					 MG_AL_TIMEOUT);
 			kfree_skb(skb);
 			ret = NET_RX_DROP;
 			goto unlock;
