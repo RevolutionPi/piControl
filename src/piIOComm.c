@@ -160,19 +160,16 @@ s32 piIoComm_sendRS485Tel(u16 i16uCmd_p, u8 i8uAddress_p,
 
 s32 piIoComm_gotoGateProtocol(void)
 {
-	SIOGeneric sRequest_l;
 	int ret;
 
-	sRequest_l.uHeader.sHeaderTyp2.bitCommand = IOP_TYP2_CMD_GOTO_GATE_PROTOCOL;
-	sRequest_l.uHeader.sHeaderTyp2.bitIoHeaderType = 1;
-	sRequest_l.uHeader.sHeaderTyp2.bitReqResp = 0;
-	sRequest_l.uHeader.sHeaderTyp2.bitLength = 0;
-	sRequest_l.uHeader.sHeaderTyp2.bitDataPart1 = 0;
-
-	sRequest_l.ai8uData[0] = piIoComm_Crc8((u8 *) &sRequest_l,
-						IOPROTOCOL_HEADER_LENGTH);
-
-	ret = piIoComm_send((u8 *) &sRequest_l, IOPROTOCOL_HEADER_LENGTH + 1);
+	/*
+	 * Send GOTO_GATE_PROTOCOL broadcast telegram via pibridge driver.
+	 * As pibridge_req_send_io only handles unicast telegrams, we need to make
+	 * use of the broadcast quirk, which changes the header type to broadcast
+	 * when the address matches 0x3f (which is actually the command).
+	 */
+	ret = pibridge_req_send_io(piCore_g.pibridge,
+				   IOP_TYP2_CMD_GOTO_GATE_PROTOCOL, 0, NULL, 0);
 	if (ret)
 		pr_info("dev all: send ioprotocol send error %d\n", ret);
 	return 0;
