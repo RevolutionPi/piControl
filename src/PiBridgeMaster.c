@@ -88,6 +88,18 @@ void PiBridgeMaster_Reset(void)
 }
 
 /*
+ * Return whether the module type is handled by user space software (and thus
+ * not configured over the PiBridge).
+ */
+static bool module_is_software(u16 type)
+{
+	return type >= PICONTROL_SW_OFFSET ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_CAN ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_BT ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_MBUS;
+}
+
+/*
  * Send the configuration telegram(s) to a single module. Returns 0 on
  * success, REVPI_MODULE_NOT_CONFIGURED if the module is not part of the
  * PiCtory configuration or a negative error code on a communication failure.
@@ -107,7 +119,8 @@ static int pibridge_master_init_module(int dev, u16 type)
 		return revpi_ro_init(dev);
 	}
 
-	return 0;
+	/* a module type that is neither a gateway nor software belongs here */
+	return -EINVAL;
 }
 
 static void PiBridgeMaster_Configure(void)
@@ -120,6 +133,10 @@ static void PiBridgeMaster_Configure(void)
 	/* configure each module */
 	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 		sdev = RevPiDevice_getDev(i);
+
+		/* the base device (the RevPi itself) is not configured here */
+		if (sdev->i8uAddress == 0)
+			continue;
 
 		/*
 		 * Gateways are not configured over the PiBridge. Record the
@@ -136,6 +153,10 @@ static void PiBridgeMaster_Configure(void)
 				piCore_g.i8uLeftMGateIdx = i;
 			continue;
 		}
+
+		/* software modules are configured by user space, not here */
+		if (module_is_software(sdev->sId.i16uModulType))
+			continue;
 
 		if (!sdev->i8uActive)
 			continue;
@@ -247,10 +268,7 @@ int PiBridgeMaster_Adjust(void)
 	for (i = 0; i < piDev_g.devs->i16uNumDevices; i++) {
 		if (state[i] == 0) {
 			j = RevPiDevice_getDevCnt();
-			if ( piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET
-			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_CAN
-			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_BT
-			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_MBUS) {
+			if (module_is_software(piDev_g.devs->dev[i].i16uModuleType)) {
 				// if a module is already defined as software module in the RAP file,
 				// it is handled by user space software and therefore always active
 				RevPiDevice_getDev(j)->i8uActive = 1;
