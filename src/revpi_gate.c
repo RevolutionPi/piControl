@@ -12,7 +12,6 @@
 
 #define ETH_P_KUNBUSGW	0x419C		/* KUNBUS Gateway [ NOT AN OFFICIALLY REGISTERED ID ] */
 #define MG_AL_TIMEOUT	msecs_to_jiffies(80)
-#define KS8851_FIFO_SZ	(12 * SZ_1K)
 
 static LIST_HEAD(revpi_gate_connections);
 static DEFINE_MUTEX(revpi_gate_lock);		/* serializes list add/del */
@@ -251,8 +250,7 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 {
 	MODGATECOM_TransportLayer *rcv_tl;
 	MODGATECOM_CyclicPD *al, *rcv_al;
-	struct sk_buff *skb = NULL;
-	u8 backlog = 0;
+	struct sk_buff *skb;
 
 	if (!conn) {
 		pr_err("%s: received data packet without connection\n",
@@ -265,23 +263,9 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 	}
 
 	rcv_tl = (MODGATECOM_TransportLayer *)skb_network_header(rcv);
-	if (rcv_tl->i8uACK != conn->out_ctr) {
+	if (rcv_tl->i8uACK != conn->out_ctr)
 		pr_warn("%s: received data packet ack %#hhx, expected %#hhx\n",
 			dev->name, rcv_tl->i8uACK, conn->out_ctr);
-
-		backlog = conn->out_ctr - rcv_tl->i8uACK;
-
-		/* i8uACK has already wrapped around but out_ctr hasn't yet */
-		if (conn->out_ctr < rcv_tl->i8uACK)
-			backlog++;
-
-		/*
-		 * Computed backlog is in an implausible range,
-		 * e.g. neighbor sent a bogus ack for a future packet.
-		 */
-		if (backlog > KS8851_FIFO_SZ / MODGATE_LL_MAX_LEN)
-			backlog = 0;
-	}
 
 	rcv_al = (MODGATECOM_CyclicPD *)pskb_pull(rcv, sizeof(*rcv_tl));
 	if (!pskb_may_pull(rcv, sizeof(*rcv_al)) ||
@@ -295,14 +279,13 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 	}
 
 	/*
-	 * Only send an answer packet if neighbor is not lagging behind.
-	 * If it is, remain silent to allow its RX FIFO to drain.
+	 * Always answer a received data packet.  The reply carries the
+	 * acknowledgement of the neighbor's counter, without which the
+	 * gateway's stop-and-wait link layer cannot send its next packet.
 	 */
-	if (!backlog) {
-		skb = revpi_gate_create_cyclicpd_packet(conn, &al);
-		if (!skb)
-			goto drop;
-	}
+	skb = revpi_gate_create_cyclicpd_packet(conn, &al);
+	if (!skb)
+		goto drop;
 
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
@@ -310,15 +293,13 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 		rt_mutex_lock(&piDev_g.lockPI);
 		memcpy(conn->in + rcv_al->i16uOffset, rcv_al->i8uData,
 		       rcv_al->i16uDataLen);
-		if (skb)
-			memcpy(al->i8uData, conn->out, conn->out_len);
+		memcpy(al->i8uData, conn->out, conn->out_len);
 		rt_mutex_unlock(&piDev_g.lockPI);
 	} else {
-		if (skb)
-			memset(al->i8uData, 0, conn->out_len);
+		memset(al->i8uData, 0, conn->out_len);
 	}
 
-	if (skb && dev_queue_xmit(skb)) {
+	if (dev_queue_xmit(skb)) {
 		pr_err("%s: failed to transmit data packet\n", dev->name);
 		goto drop;
 	}
