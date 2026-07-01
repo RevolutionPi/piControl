@@ -821,7 +821,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 {
 	tpiControlInst *priv;
 
-	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
+	priv = kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
