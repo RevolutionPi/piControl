@@ -634,8 +634,8 @@ void revpi_gate_init(void)
 
 	th = kthread_run(&revpi_gate_rcv_loop, NULL, "revpi_gate_rcv");
 	if (IS_ERR(th)) {
-		pr_err("piControl: cannot run revpi_gate_rcv_thread (%ld), reset driver to retry\n",
-		       PTR_ERR(th));
+		pr_err("piControl: cannot run revpi_gate_rcv_thread (%pe), reset driver to retry\n",
+		       th);
 		return;
 	}
 	revpi_gate_rcv_thread = th;
