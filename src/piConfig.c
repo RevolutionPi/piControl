@@ -209,10 +209,10 @@ static int tree_append(void *structure, char *key, u32 key_length, void *obj)
 		parent->u.object[parent->length] = NULL;
 	} else {
 		if (parent->length == 0) {
-			parent->u.array = kmalloc((1 + 1) * sizeof(json_val_t *), GFP_KERNEL);	/* +1 for null */
+			/* +1 for null */
+			parent->u.array = kzalloc((1 + 1) * sizeof(json_val_t *), GFP_KERNEL);
 			if (!parent->u.array)
 				return 1;
-			memset(parent->u.array, 0, (1 + 1) * sizeof(json_val_t *));
 		} else {
 			u32 newsize = parent->length + 1 + 1;	/* +1 for null */
 			void *newptr;
