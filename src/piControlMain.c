@@ -1468,7 +1468,7 @@ static int set_exported_outputs(tpiControlInst *priv, unsigned long usr_addr)
 		return -EINVAL;
 	}
 
-	if (piDev_g.cl == 0 || piDev_g.cl->i16uNumEntries == 0)
+	if (piDev_g.cl == NULL || piDev_g.cl->i16uNumEntries == 0)
 		return 0;	// nothing to do
 
 	now = ktime_get();
@@ -1890,7 +1890,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			cnt = 0;
 			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (pData != 0 && RevPiDevice_getDev(i)->i8uAddress != *pData) {
+				if (pData != NULL && RevPiDevice_getDev(i)->i8uAddress != *pData) {
 					// if pData is not 0, we want to update one specific module
 					// -> update all others
 					pr_info("skip %d addr %d\n", i, RevPiDevice_getDev(i)->i8uAddress);
