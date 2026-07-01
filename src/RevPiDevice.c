@@ -563,7 +563,7 @@ static int RevPiDevice_setModuleTermination(u8 address, bool terminate)
 				    sizeof(data), NULL, 0);
 	if (ret) {
 		pr_err("Failed to %s termination for module (address %d): %d\n",
-			terminate ? "enable" : "disable", address, ret);
+			str_enable_disable(terminate), address, ret);
 		goto fail;
 	}
 
