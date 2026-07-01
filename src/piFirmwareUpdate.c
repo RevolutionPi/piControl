@@ -134,8 +134,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	}
 
 laError:
-	if (data)
-		kfree(data);
+	kfree(data);
 	kfree(filename);
 	close_filename(input);
 	if (ret < 0)
