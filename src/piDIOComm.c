@@ -25,7 +25,7 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 {
 	u16 i;
 
-	if (i8uConfigured_s >= sizeof(dioConfig_s) / sizeof(SDioConfig)) {
+	if (i8uConfigured_s >= ARRAY_SIZE(dioConfig_s)) {
 		pr_err("max. number of DIOs reached\n");
 		return -1;
 	}
