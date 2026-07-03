@@ -696,33 +696,34 @@ static int piControlReset(tpiControlInst * priv)
 		list_for_each(pCon, &piDev_g.listCon) {
 			tpiControlInst *pos_inst;
 			pos_inst = list_entry(pCon, tpiControlInst, list);
-			if (pos_inst != priv) {
-				struct list_head *pEv;
-				tpiEventEntry *pEntry;
-				bool found = false;
+			if (pos_inst == priv)
+				continue;
 
-				// add the event to the list only, if it not already there
-				scoped_guard(rt_mutex, &pos_inst->lockEventList) {
-					list_for_each(pEv, &pos_inst->piEventList) {
-						pEntry = list_entry(pEv, tpiEventEntry, list);
-						if (pEntry->event == piEvReset) {
-							found = true;
-							break;
-						}
-					}
+			struct list_head *pEv;
+			tpiEventEntry *pEntry;
+			bool found = false;
 
-					if (!found) {
-						pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
-						if (pEntry) {
-							pEntry->event = piEvReset;
-							list_add_tail(&pEntry->list,
-								      &pos_inst->piEventList);
-						}
+			// add the event to the list only, if it not already there
+			scoped_guard(rt_mutex, &pos_inst->lockEventList) {
+				list_for_each(pEv, &pos_inst->piEventList) {
+					pEntry = list_entry(pEv, tpiEventEntry, list);
+					if (pEntry->event == piEvReset) {
+						found = true;
+						break;
 					}
 				}
-				if (!found && pEntry)
-					wake_up(&pos_inst->wq);
+
+				if (!found) {
+					pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
+					if (pEntry) {
+						pEntry->event = piEvReset;
+						list_add_tail(&pEntry->list,
+							      &pos_inst->piEventList);
+					}
+				}
 			}
+			if (!found && pEntry)
+				wake_up(&pos_inst->wq);
 		}
 	}
 
