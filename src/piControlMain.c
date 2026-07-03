@@ -670,7 +670,6 @@ err_unreg_chrdev_region:
 /*****************************************************************************/
 static int piControlReset(tpiControlInst * priv)
 {
-	int status = -EFAULT;
 	int timeout = 10000;	// ms
 
 	/* start application */
@@ -688,48 +687,46 @@ static int piControlReset(tpiControlInst * priv)
 		PiBridgeMaster_Reset();
 	}
 
-	if (!waitRunning(timeout)) {
-		status = -ETIMEDOUT;
-	} else {
-		struct list_head *pCon;
+	if (!waitRunning(timeout))
+		return -ETIMEDOUT;
 
-		scoped_guard(rt_mutex, &piDev_g.lockListCon) {
-			list_for_each(pCon, &piDev_g.listCon) {
-				tpiControlInst *pos_inst;
-				pos_inst = list_entry(pCon, tpiControlInst, list);
-				if (pos_inst != priv) {
-					struct list_head *pEv;
-					tpiEventEntry *pEntry;
-					bool found = false;
+	struct list_head *pCon;
 
-					// add the event to the list only, if it not already there
-					scoped_guard(rt_mutex, &pos_inst->lockEventList) {
-						list_for_each(pEv, &pos_inst->piEventList) {
-							pEntry = list_entry(pEv, tpiEventEntry, list);
-							if (pEntry->event == piEvReset) {
-								found = true;
-								break;
-							}
-						}
+	scoped_guard(rt_mutex, &piDev_g.lockListCon) {
+		list_for_each(pCon, &piDev_g.listCon) {
+			tpiControlInst *pos_inst;
+			pos_inst = list_entry(pCon, tpiControlInst, list);
+			if (pos_inst != priv) {
+				struct list_head *pEv;
+				tpiEventEntry *pEntry;
+				bool found = false;
 
-						if (!found) {
-							pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
-							if (pEntry) {
-								pEntry->event = piEvReset;
-								list_add_tail(&pEntry->list,
-									      &pos_inst->piEventList);
-							}
+				// add the event to the list only, if it not already there
+				scoped_guard(rt_mutex, &pos_inst->lockEventList) {
+					list_for_each(pEv, &pos_inst->piEventList) {
+						pEntry = list_entry(pEv, tpiEventEntry, list);
+						if (pEntry->event == piEvReset) {
+							found = true;
+							break;
 						}
 					}
-					if (!found && pEntry)
-						wake_up(&pos_inst->wq);
+
+					if (!found) {
+						pEntry = kmalloc(sizeof(tpiEventEntry), GFP_KERNEL);
+						if (pEntry) {
+							pEntry->event = piEvReset;
+							list_add_tail(&pEntry->list,
+								      &pos_inst->piEventList);
+						}
+					}
 				}
+				if (!found && pEntry)
+					wake_up(&pos_inst->wq);
 			}
 		}
-
-		status = 0;
 	}
-	return status;
+
+	return 0;
 }
 
 #if KERNEL_VERSION(6, 11, 0) <= LINUX_VERSION_CODE
