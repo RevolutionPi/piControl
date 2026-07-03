@@ -290,14 +290,14 @@ static int revpi_compact_poll_ain(void *data)
 			/* poll ain */
 			ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
 
-			rt_mutex_lock(&piDev_g.lockPI);
-			assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
-			if (ret < 0) {
-				image->drv.ain[chan[i]] = 0;
-				rt_mutex_unlock(&piDev_g.lockPI);
-			} else {
-				rt_mutex_unlock(&piDev_g.lockPI);
+			scoped_guard(rt_mutex, &piDev_g.lockPI) {
+				assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
+				if (ret < 0) {
+					image->drv.ain[chan[i]] = 0;
+				}
+			}
 
+			if (ret >= 0) {
 				/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
 				tmp = shift_right((s64)raw * 12500 * 100000000LL, 21);
 				raw = (int)div_s64(tmp, 100000000LL) + 6250;
