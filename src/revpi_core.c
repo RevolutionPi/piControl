@@ -114,6 +114,35 @@ static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static void revpi_core_logirts_timeout_reset(void)
+{
+	int i;
+
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
+				u16 len = piDev_g.cl->ent[i].i16uLength;
+				u16 addr = piDev_g.cl->ent[i].i16uAddr;
+
+				if (len >= 8) {
+					len /= 8;
+					memset(piDev_g.ai8uPI + addr, 0, len);
+				} else {
+					u8 val;
+					u8 mask = piDev_g.cl->ent[i].i8uBitMask;
+
+					val = piDev_g.ai8uPI[addr];
+					val &= ~mask;
+					piDev_g.ai8uPI[addr] = val;
+				}
+			}
+		}
+	}
+
+	piDev_g.tLastOutput1 = ktime_set(0, 0);
+	piDev_g.tLastOutput2 = ktime_set(0, 0);
+}
+
 static int piIoThread(void *data)
 {
 	struct picontrol_cycle *cycle = &piDev_g.cycle;
@@ -164,34 +193,11 @@ static int piIoThread(void *data)
 		if (piDev_g.tLastOutput1 != piDev_g.tLastOutput2) {
 			tDiff = 2 * ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
 			if (ktime_to_ns(ktime_sub(now, piDev_g.tLastOutput1)) > tDiff && isRunning()) {
-				int i;
 				// the outputs were not written by logiCAD for more than twice the normal period
 				// the logiRTS must have been stopped or crashed
 				// -> set all outputs to 0
 				pr_info("logiRTS timeout, set all output to 0\n");
-				if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO,
-					&piDev_g.flags)) {
-					scoped_guard(rt_mutex, &piDev_g.lockPI) {
-						for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
-							u16 len = piDev_g.cl->ent[i].i16uLength;
-							u16 addr = piDev_g.cl->ent[i].i16uAddr;
-
-							if (len >= 8) {
-								len /= 8;
-								memset(piDev_g.ai8uPI + addr, 0, len);
-							} else {
-								u8 val;
-								u8 mask = piDev_g.cl->ent[i].i8uBitMask;
-
-								val = piDev_g.ai8uPI[addr];
-								val &= ~mask;
-								piDev_g.ai8uPI[addr] = val;
-							}
-						}
-					}
-				}
-				piDev_g.tLastOutput1 = ktime_set(0, 0);
-				piDev_g.tLastOutput2 = ktime_set(0, 0);
+				revpi_core_logirts_timeout_reset();
 			}
 		}
 
