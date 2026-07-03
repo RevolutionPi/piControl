@@ -162,8 +162,7 @@ static int piIoThread(void *data)
 		piCore_g.image.drv.i8uIOCycle = last_cycle / 1000;
 
 		if (piDev_g.tLastOutput1 != piDev_g.tLastOutput2) {
-			tDiff = ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
-			tDiff = tDiff << 1;	// multiply by 2
+			tDiff = 2 * ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
 			if (ktime_to_ns(ktime_sub(now, piDev_g.tLastOutput1)) > tDiff && isRunning()) {
 				int i;
 				// the outputs were not written by logiCAD for more than twice the normal period
