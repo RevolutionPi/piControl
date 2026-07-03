@@ -36,6 +36,7 @@ MODULE_DESCRIPTION("piControl Driver");
 MODULE_VERSION("2.7.0");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
+	       "lan743x "		/* connect 5 eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
 	       "spi-bcm2835aux "	/* compact spi2 i/o */
 	       "gpio-max3191x "		/* compact din */
