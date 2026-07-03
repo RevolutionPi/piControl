@@ -96,18 +96,18 @@ static int revpi_flat_poll_dout(void *data)
 
 	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
 	while (!kthread_should_stop()) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		image->drv.button = gpiod_get_value_cansleep(flat->button_desc);
-		usr_image->drv = image->drv;
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			image->drv.button = gpiod_get_value_cansleep(flat->button_desc);
+			usr_image->drv = image->drv;
 
-		if (usr_image->usr.dout != image->usr.dout)
-			dout_val = usr_image->usr.dout;
+			if (usr_image->usr.dout != image->usr.dout)
+				dout_val = usr_image->usr.dout;
 
-		if (usr_image->usr.aout != image->usr.aout)
-			aout_val = usr_image->usr.aout;
+			if (usr_image->usr.aout != image->usr.aout)
+				aout_val = usr_image->usr.aout;
 
-		image->usr = usr_image->usr;
-		rt_mutex_unlock(&piDev_g.lockPI);
+			image->usr = usr_image->usr;
+		}
 
 		if (dout_val != -1) {
 			gpiod_set_value_cansleep(flat->digout, !!dout_val);
@@ -163,9 +163,9 @@ static int revpi_flat_handle_ain(struct revpi_flat *flat, bool mode_current)
 
 	ain_val = (int) div_s64(ain_val, 1000000000LL);
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	image->drv.ain = ain_val;
-	rt_mutex_unlock(&piDev_g.lockPI);
+	scoped_guard(rt_mutex, &piDev_g.lockPI) {
+		image->drv.ain = ain_val;
+	}
 
 	return 0;
 }
@@ -205,13 +205,13 @@ static int revpi_flat_poll_ain(void *data)
 		*/
 		freq = cpufreq_quick_get(0);
 
-		rt_mutex_lock(&piDev_g.lockPI);
-		if ((piDev_g.thermal_zone != NULL) && !ret)
-			image->drv.cpu_temp = temperature / 1000;
-		image->drv.cpu_freq = freq / 10;
-		leds = image->usr.leds;
-		ain_mode_current = !!image->usr.ain_mode_current;
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			if ((piDev_g.thermal_zone != NULL) && !ret)
+				image->drv.cpu_temp = temperature / 1000;
+			image->drv.cpu_freq = freq / 10;
+			leds = image->usr.leds;
+			ain_mode_current = !!image->usr.ain_mode_current;
+		}
 
 		if (prev_leds != leds)
 			revpi_led_trigger_event(prev_leds, leds);
@@ -279,11 +279,10 @@ static void revpi_flat_adjust_config(void)
 
 static void revpi_flat_set_defaults(void)
 {
-	rt_mutex_lock(&piDev_g.lockPI);
+	guard(rt_mutex)(&piDev_g.lockPI);
 	memset(piDev_g.ai8uPI, 0, sizeof(piDev_g.ai8uPI));
 	if (piDev_g.ent)
 		revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
-	rt_mutex_unlock(&piDev_g.lockPI);
 }
 
 int revpi_flat_reset(void)
