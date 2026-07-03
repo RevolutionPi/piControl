@@ -286,41 +286,39 @@ static int revpi_compact_poll_ain(void *data)
 			complete(&machine->ain_reset);
 		}
 
-		if (!numchans)
-			goto next_chan; /* only update core freq and temp */
+		if (numchans) {
+			/* poll ain */
+			ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
 
-		/* poll ain */
-		ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
+			rt_mutex_lock(&piDev_g.lockPI);
+			assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
+			if (ret < 0) {
+				image->drv.ain[chan[i]] = 0;
+				rt_mutex_unlock(&piDev_g.lockPI);
+			} else {
+				rt_mutex_unlock(&piDev_g.lockPI);
 
-		rt_mutex_lock(&piDev_g.lockPI);
-		assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
-		if (ret < 0) {
-			image->drv.ain[chan[i]] = 0;
-			rt_mutex_unlock(&piDev_g.lockPI);
-			goto next_chan;
+				/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
+				tmp = shift_right((s64)raw * 12500 * 100000000LL, 21);
+				raw = (int)div_s64(tmp, 100000000LL) + 6250;
+
+				if (rtd[i]) {
+					/*
+					 * resistance in Ohm = raw value in mV / 2.5 mA,
+					 * scaled by 10 for PT1000 or by 100 for PT100
+					 * to match up with values in pt100_table.inc
+					 */
+					int resistance = pt1k[i] ? raw * 100 / 25
+								 : raw * 1000 / 25;
+					GetPt100Temperature(resistance, &raw);
+				}
+
+				rt_mutex_lock(&piDev_g.lockPI);
+				image->drv.ain[chan[i]] = raw;
+				rt_mutex_unlock(&piDev_g.lockPI);
+			}
 		}
-		rt_mutex_unlock(&piDev_g.lockPI);
 
-		/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
-		tmp = shift_right((s64)raw * 12500 * 100000000LL, 21);
-		raw = (int)div_s64(tmp, 100000000LL) + 6250;
-
-		if (rtd[i]) {
-			/*
-			 * resistance in Ohm = raw value in mV / 2.5 mA,
-			 * scaled by 10 for PT1000 or by 100 for PT100
-			 * to match up with values in pt100_table.inc
-			 */
-			int resistance = pt1k[i] ? raw * 100 / 25
-						 : raw * 1000 / 25;
-			GetPt100Temperature(resistance, &raw);
-		}
-
-		rt_mutex_lock(&piDev_g.lockPI);
-		image->drv.ain[chan[i]] = raw;
-		rt_mutex_unlock(&piDev_g.lockPI);
-
-next_chan:
 		if (++i >= numchans) {
 			int ret;
 			int freq;
