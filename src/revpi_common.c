@@ -165,31 +165,30 @@ void revpi_check_timeout(void)
 	ktime_t now = ktime_get();
 	struct list_head *pCon;
 
-	rt_mutex_lock(&piDev_g.lockListCon);
-	list_for_each(pCon, &piDev_g.listCon) {
-		tpiControlInst *pos_inst;
-		pos_inst = list_entry(pCon, tpiControlInst, list);
+	scoped_guard(rt_mutex, &piDev_g.lockListCon) {
+		list_for_each(pCon, &piDev_g.listCon) {
+			tpiControlInst *pos_inst;
+			pos_inst = list_entry(pCon, tpiControlInst, list);
 
-		if (pos_inst->tTimeoutDurationMs != 0) {
-			if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
-				// set all outputs to 0
-				int i;
-				rt_mutex_lock(&piDev_g.lockPI);
-				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-					if (RevPiDevice_getDev(i)->i8uActive) {
-						memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
+			if (pos_inst->tTimeoutDurationMs != 0) {
+				if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
+					// set all outputs to 0
+					int i;
+					scoped_guard(rt_mutex, &piDev_g.lockPI) {
+						for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+							if (RevPiDevice_getDev(i)->i8uActive) {
+								memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
+							}
+						}
 					}
-				}
-				rt_mutex_unlock(&piDev_g.lockPI);
-				pos_inst->tTimeoutTS = ktime_add_ms(ktime_get(), pos_inst->tTimeoutDurationMs);
+					pos_inst->tTimeoutTS = ktime_add_ms(ktime_get(), pos_inst->tTimeoutDurationMs);
 
-				// this must only be done for one connection
-				rt_mutex_unlock(&piDev_g.lockListCon);
-				return;
+					// this must only be done for one connection
+					return;
+				}
 			}
 		}
 	}
-	rt_mutex_unlock(&piDev_g.lockListCon);
 }
 
 void revpi_power_led_red_run(void)
