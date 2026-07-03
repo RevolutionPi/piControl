@@ -257,9 +257,9 @@ static int revpi_compact_poll_ain(void *data)
 				unsigned long config = machine->config.ain[i];
 
 				if (!test_bit(AIN_ENABLED, &config)) {
-					rt_mutex_lock(&piDev_g.lockPI);
-					image->drv.ain[i] = 0;
-					rt_mutex_unlock(&piDev_g.lockPI);
+					scoped_guard(rt_mutex, &piDev_g.lockPI) {
+						image->drv.ain[i] = 0;
+					}
 					continue;
 				}
 
@@ -313,9 +313,9 @@ static int revpi_compact_poll_ain(void *data)
 					GetPt100Temperature(resistance, &raw);
 				}
 
-				rt_mutex_lock(&piDev_g.lockPI);
-				image->drv.ain[chan[i]] = raw;
-				rt_mutex_unlock(&piDev_g.lockPI);
+				scoped_guard(rt_mutex, &piDev_g.lockPI) {
+					image->drv.ain[chan[i]] = raw;
+				}
 			}
 		}
 
@@ -338,11 +338,11 @@ static int revpi_compact_poll_ain(void *data)
 			*/
 			freq = cpufreq_quick_get(0);
 
-			rt_mutex_lock(&piDev_g.lockPI);
-			if (piDev_g.thermal_zone != NULL && !ret)
-				image->drv.i8uCPUTemperature = temp / 1000;
-			image->drv.i8uCPUFrequency = freq / 10;
-			rt_mutex_unlock(&piDev_g.lockPI);
+			scoped_guard(rt_mutex, &piDev_g.lockPI) {
+				if (piDev_g.thermal_zone != NULL && !ret)
+					image->drv.i8uCPUTemperature = temp / 1000;
+				image->drv.i8uCPUFrequency = freq / 10;
+			}
 		}
 
 		cycletimer_sleep(&ct, &machine->stats);
@@ -735,12 +735,12 @@ int revpi_compact_reset(void)
 	int ret;
 
 	/* disallow access to process image while offsets are changed */
-	rt_mutex_lock(&piDev_g.lockPI);
-	revpi_compact_adjust_config();
-	memset(&image->usr, 0, sizeof(image->usr));
-	if (piDev_g.ent)
-		revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
-	rt_mutex_unlock(&piDev_g.lockPI);
+	scoped_guard(rt_mutex, &piDev_g.lockPI) {
+		revpi_compact_adjust_config();
+		memset(&image->usr, 0, sizeof(image->usr));
+		if (piDev_g.ent)
+			revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
+	}
 
 	machine->config = revpi_compact_config_g;
 
