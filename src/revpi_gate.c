@@ -117,9 +117,9 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		conn->revpi_dev->i8uModuleState = FBSTATE_LINK;
-		rt_mutex_lock(&piDev_g.lockPI);
-		memset(conn->in, 0, conn->in_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memset(conn->in, 0, conn->in_len);
+		}
 	}
 
 	if (conn->nf_hook_ops.dev)
@@ -233,9 +233,9 @@ static void revpi_gate_send_cyclicpd(struct revpi_gate_connection *conn)
 
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(al->i8uData, conn->out, conn->out_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(al->i8uData, conn->out, conn->out_len);
+		}
 	} else {
 		memset(al->i8uData, 0, conn->out_len);
 	}
@@ -290,11 +290,11 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		conn->revpi_dev->i8uModuleState = rcv_al->i8uFieldbusStatus;
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(conn->in + rcv_al->i16uOffset, rcv_al->i8uData,
-		       rcv_al->i16uDataLen);
-		memcpy(al->i8uData, conn->out, conn->out_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(conn->in + rcv_al->i16uOffset, rcv_al->i8uData,
+			       rcv_al->i16uDataLen);
+			memcpy(al->i8uData, conn->out, conn->out_len);
+		}
 	} else {
 		memset(al->i8uData, 0, conn->out_len);
 	}
