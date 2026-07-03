@@ -25,9 +25,9 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 
 	/*copy: from process image:output to request*/
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(&req, req_data, sizeof(req));
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(&req, req_data, sizeof(req));
+		}
 	} else {
 		memset(&req, 0, sizeof(req));
 	}
@@ -47,9 +47,9 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 
 	/*copy: from response to process image:input*/
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(resp_data, &resp, sizeof(*resp_data));
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(resp_data, &resp, sizeof(*resp_data));
+		}
 	}
 
 	return 0;
@@ -78,9 +78,9 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 
 	/*copy: from response to process image*/
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(resp_data, &resp, sizeof(*resp_data));
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(resp_data, &resp, sizeof(*resp_data));
+		}
 	}
 
 	return 0;
@@ -162,25 +162,25 @@ int revpi_mio_cycle(unsigned char devno)
 
 	/* for the AIO cycle */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
 
-		io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
-						&img_out->aio.i16uOutputVoltage,
-						MIO_AIO_PORT_CNT, 2);
-		/* force to update from process image */
-		io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
+			io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
+							&img_out->aio.i16uOutputVoltage,
+							MIO_AIO_PORT_CNT, 2);
+			/* force to update from process image */
+			io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
 
-		if (io_req_ex.i8uChannels) {
-			/* preserve analog output values for later caching */
-			memcpy(&pending_values.i16uOutputVoltage,
-				&img_out->aio.i16uOutputVoltage,
-				sizeof(unsigned short) * MIO_AIO_PORT_CNT);
-			ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
-						&pending_values.i16uOutputVoltage,
-						io_req_ex.i8uChannels, 2);
+			if (io_req_ex.i8uChannels) {
+				/* preserve analog output values for later caching */
+				memcpy(&pending_values.i16uOutputVoltage,
+					&img_out->aio.i16uOutputVoltage,
+					sizeof(unsigned short) * MIO_AIO_PORT_CNT);
+				ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
+							&pending_values.i16uOutputVoltage,
+							io_req_ex.i8uChannels, 2);
+			}
 		}
-		rt_mutex_unlock(&piDev_g.lockPI);
 	} else {
 		memset(&io_req_ex, 0, sizeof(io_req_ex));
 		memset(&pending_values, 0, sizeof(pending_values));
