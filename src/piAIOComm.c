@@ -256,10 +256,10 @@ u32 piAIOComm_sendCyclicTelegram(u8 devnum)
 	addr = revpi_dev->i8uAddress;
 
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(snd_buf, piDev_g.ai8uPI + revpi_dev->i16uOutputOffset,
-		       AIO_OUTPUT_DATA_LEN);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(snd_buf, piDev_g.ai8uPI + revpi_dev->i16uOutputOffset,
+			       AIO_OUTPUT_DATA_LEN);
+		}
 	} else {
 		memset(snd_buf, 0, AIO_OUTPUT_DATA_LEN);
 	}
@@ -278,10 +278,10 @@ u32 piAIOComm_sendCyclicTelegram(u8 devnum)
 	}
 
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, rcv_buf,
-		       AIO_INPUT_DATA_LEN);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, rcv_buf,
+			       AIO_INPUT_DATA_LEN);
+		}
 	}
 
 	return 0;
