@@ -71,12 +71,21 @@ class _CycleTrigger:
         self._use_ioctl = False
         self._last_sample_mono = 0.0
 
-        # Polling parameters (used only in fallback path)
-        self._poll_interval = 0.001
-        self._min_gap = 0.0
-        if cycle_target_us and cycle_target_us >= 500:
-            self._poll_interval = max(0.0005, (cycle_target_us / 1e6) * 0.3)
-            self._min_gap = (cycle_target_us / 1e6) * 0.8
+        # Polling fallback: sample about twice per cycle so none is missed.
+        # Use the fixed cycle_duration if set, else the measured last cycle.
+        # Never leave the gap at 0, that would busy-loop.
+        period_us = cycle_target_us if (cycle_target_us and cycle_target_us >= 500) else 0
+        if not period_us:
+            try:
+                period_us = _read_sysfs(SYSFS_CYCLE)
+            except OSError:
+                period_us = 0
+        if period_us >= 100:
+            self._min_gap = (period_us / 1e6) * 0.5
+            self._poll_interval = max(0.0005, (period_us / 1e6) * 0.25)
+        else:
+            self._min_gap = 0.001
+            self._poll_interval = 0.0005
 
         # Try the ioctl once to probe support
         try:
