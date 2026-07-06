@@ -1,4 +1,4 @@
-.TH PICONTROL_IOCTL 4 2018-01-23 "Linux" "Revolution Pi Programmer's Manual"
+.TH PICONTROL_IOCTL 4 2026-07-06 "Linux" "Revolution Pi Programmer's Manual"
 .SH NAME
 picontrol_ioctl \- ioctls for piControl driver
 .SH SYNOPSIS
@@ -349,6 +349,39 @@ if (ioctl(PiControlHandle_g, KB_GET_LAST_MESSAGE, cMsg) == 0 && cMsg[0])
 .in
 
 
+.SH FILES
+The IO cycle can be tuned and inspected through sysfs attributes below
+.IR /sys/class/piControl/piControl0/ .
+.TP
+.I cycle_duration
+Fixed IO cycle duration in microseconds.
+.B 0
+(the default) runs the cycle as fast as possible.
+A non-zero value paces the cycle to a fixed period and is clamped to the
+range 50 to 45000 microseconds.
+.TP
+.I max_cycle_deviation
+Deviation from the cycle duration in microseconds that is tolerated before
+a cycle is counted in
+.IR cycles_exceeded .
+.TP
+.I last_cycle
+Duration of the last IO cycle in microseconds.
+.TP
+.I min_cycle
+Shortest observed IO cycle duration in microseconds. Writing resets it.
+.TP
+.I max_cycle
+Longest observed IO cycle duration in microseconds. Writing resets it.
+.TP
+.I cycles_exceeded
+Number of cycles that exceeded
+.IR max_cycle_deviation .
+.TP
+.I cycles_missed
+Number of missed cycles when a fixed
+.I cycle_duration
+is set and a cycle overruns it.
 .SH SEE ALSO
 .BR ioctl (2)
 .SH COLOPHON

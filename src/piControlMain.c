@@ -56,8 +56,8 @@ MODULE_PARM_DESC(picontrol_max_cycle_deviation,
 	"Specify the max tolerated deviation from a fixed io-cycle in usecs.");
 
 module_param(picontrol_cycle_duration, uint, S_IRUSR);
-MODULE_PARM_DESC(picontrol_cycle_duration, "Specify a fixed io-cycle duration in usecs. "
-					   "Use 0 to use the fastest possible io-cycle duration.");
+MODULE_PARM_DESC(picontrol_cycle_duration,
+	"Specify a fixed io-cycle duration in usecs. Use 0 (the default) for the fastest possible io-cycle duration.");
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
 /******************************************************************************/
@@ -249,7 +249,9 @@ static ssize_t cycle_duration_store(struct device *dev,
 		return -EINVAL;
 
 	val = min(val, PICONTROL_CYCLE_MAX_DURATION);
-	val = max(val, PICONTROL_CYCLE_MIN_DURATION);
+	/* 0 means run as fast as possible; only floor a real fixed period */
+	if (val)
+		val = max(val, PICONTROL_CYCLE_MIN_DURATION);
 
 	write_seqlock(&cycle->lock);
 	cycle->duration = val;

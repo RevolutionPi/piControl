@@ -15,8 +15,8 @@
 #include "PiBridgeMaster.h"
 #include "RevPiDevice.h"
 
-#define PICONTROL_CYCLE_MIN_DURATION		500
-#define PICONTROL_DEFAULT_CYCLE_DURATION	PICONTROL_CYCLE_MIN_DURATION /* as fast as possible */
+#define PICONTROL_CYCLE_MIN_DURATION		50 /* usecs, min cycle step */
+#define PICONTROL_DEFAULT_CYCLE_DURATION	0 /* as fast as possible */
 #define PICONTROL_CYCLE_MAX_DURATION		45000 /* usecs */
 
 #define REVPI_MGATE_MAX				2

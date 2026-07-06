@@ -121,6 +121,7 @@ static int piIoThread(void *data)
 	unsigned int last_cycle;
 	unsigned int cycle_ref;
 	ktime_t cycle_duration;
+	unsigned int duration;
 	ktime_t time;
 	ktime_t now;
 	s64 tDiff;
@@ -197,7 +198,11 @@ static int piIoThread(void *data)
 
 		revpi_check_timeout();
 
-		cycle_duration = ns_to_ktime(piControl_get_cycle_duration() *
+		duration = piControl_get_cycle_duration();
+
+		/* 0 runs as fast as possible, floored to the min step */
+		cycle_duration = ns_to_ktime(max_t(unsigned int, duration,
+						   PICONTROL_CYCLE_MIN_DURATION) *
 					     NSEC_PER_USEC);
 
 		needed_cycles = hrtimer_forward_now(&cycle->timer,
@@ -216,13 +221,12 @@ static int piIoThread(void *data)
 				cycle->max = last_cycle;
 
 			/*
-			 * If specified with a value higher than the min, check
-			 * deviation against the set fixed cycle duration. If no
-			 * fix duration is set, check * against the current min
-			 * cycle duration.
+			 * Check deviation against the fixed cycle duration if
+			 * one is set, otherwise against the current min cycle
+			 * duration.
 			 */
 			if (cycle->max_deviation) {
-				cycle_ref = cycle->duration != PICONTROL_CYCLE_MIN_DURATION ?
+				cycle_ref = cycle->duration ?
 						cycle->duration : cycle->min;
 
 				if (last_cycle > (cycle_ref +
@@ -233,8 +237,7 @@ static int piIoThread(void *data)
 				}
 			}
 
-			if (needed_cycles > 1 &&
-			    cycle->duration != PICONTROL_CYCLE_MIN_DURATION) {
+			if (needed_cycles > 1 && cycle->duration) {
 				pr_debug("got %u missed cycles\n", needed_cycles - 1);
 				cycle->missed += (needed_cycles - 1);
 			}
