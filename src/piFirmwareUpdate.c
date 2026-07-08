@@ -41,6 +41,8 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	}
 
 	filename = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!filename)
+		return -ENOMEM;
 
 	sprintf(filename, FIRMWARE_PATH "/fw_%05d_%03d.fwu", pDev_p->sId.i16uModulType, pDev_p->sId.i16uHW_Revision);
 
@@ -134,8 +136,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	}
 
 laError:
-	if (data)
-		kfree(data);
+	kfree(data);
 	kfree(filename);
 	close_filename(input);
 	if (ret < 0)

@@ -12,12 +12,12 @@
 
 typedef struct _piEntries {
 	u16 i16uNumEntries;
-	SEntryInfo ent[0];
+	SEntryInfo ent[];
 } piEntries;
 
 typedef struct _piDevices {
 	u16 i16uNumDevices;
-	SDeviceInfo dev[0];
+	SDeviceInfo dev[];
 } piDevices;
 
 typedef struct _piCopyEntry {
@@ -28,7 +28,7 @@ typedef struct _piCopyEntry {
 
 typedef struct _piCopylist {
 	u16 i16uNumEntries;
-	piCopyEntry ent[0];
+	piCopyEntry ent[];
 } piCopylist;
 
 int piConfigParse(const char *filename, piDevices **devices_list,

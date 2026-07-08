@@ -20,15 +20,10 @@
 #include "piFirmwareUpdate.h"
 
 #define MAX_CONFIG_RETRIES 3		// max. retries for configuring a IO module
+#define MAX_MODULE_CONFIG_RETRIES 3	// max. retries for the config telegram of a single module
 #define MAX_INIT_RETRIES 1		// max. retries for configuring all IO modules
 #define END_CONFIG_TIME	3000		// max. time for configuring IO modules, same timeout is used in the modules
 #define BAUD_SWITCH_MAX_RETRIES 3	// max. retries for switching the bus baudrate
-
-/* The number of cycles after which the comm error counter is decreased */
-#define COMM_ERROR_CYCLES		(1<<3) /* must be power of 2! */
-#define COMM_ERROR_CYCLES_MASK		(COMM_ERROR_CYCLES - 1)
-/* Error limit for error log message */
-#define COMM_ERROR_LOG_LIMIT		10
 
 static const u32 pibridge_baud_table[] = {
 	[PIBRIDGE_BAUD_INDEX_115200]  = PIBRIDGE_MIN_BAUDRATE,
@@ -38,8 +33,9 @@ static const u32 pibridge_baud_table[] = {
 };
 
 static int init_retry = MAX_INIT_RETRIES;
-static int baud_switch_retries;
 static volatile bool bEntering_s = true;
+static int baud_switch_retries;
+static bool module_init_failed;
 EPiBridgeMasterStatus eRunStatus_s = enPiBridgeMasterStatus_Init;
 static enPiBridgeState eBridgeStateLast_s = piBridgeStop;
 
@@ -78,6 +74,7 @@ static void pibridge_reinit(void)
 	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
 	bEntering_s = true;
+	module_init_failed = false;
 	RevPiDevice_setStatus(0xff, 0);
 	RevPiDevice_init();
 }
@@ -90,9 +87,46 @@ void PiBridgeMaster_Reset(void)
 	rt_mutex_unlock(&piCore_g.lockBridgeState);
 }
 
+/*
+ * Return whether the module type is handled by user space software (and thus
+ * not configured over the PiBridge).
+ */
+static bool module_is_software(u16 type)
+{
+	return type >= PICONTROL_SW_OFFSET ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_CAN ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_BT ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_MBUS;
+}
+
+/*
+ * Send the configuration telegram(s) to a single module. Returns 0 on
+ * success, REVPI_MODULE_NOT_CONFIGURED if the module is not part of the
+ * PiCtory configuration or a negative error code on a communication failure.
+ */
+static int pibridge_master_init_module(int dev, u16 type)
+{
+	switch (type) {
+	case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+	case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+	case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+		return piDIOComm_Init(dev);
+	case KUNBUS_FW_DESCR_TYP_PI_AIO:
+		return piAIOComm_Init(dev);
+	case KUNBUS_FW_DESCR_TYP_PI_MIO:
+		return revpi_mio_init(dev);
+	case KUNBUS_FW_DESCR_TYP_PI_RO:
+		return revpi_ro_init(dev);
+	}
+
+	/* a module type that is neither a gateway nor software belongs here */
+	return -EINVAL;
+}
+
 static void PiBridgeMaster_Configure(void)
 {
 	SDevice *sdev;
+	int retry;
 	int ret;
 	int i;
 
@@ -100,73 +134,58 @@ static void PiBridgeMaster_Configure(void)
 	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 		sdev = RevPiDevice_getDev(i);
 
+		/* the base device (the RevPi itself) is not configured here */
+		if (sdev->i8uAddress == 0)
+			continue;
+
+		/*
+		 * Gateways are not configured over the PiBridge. Record the
+		 * index of the first one on each side, even when it is not
+		 * connected yet, so revpi_core_gate_connected() can track it,
+		 * and move on.
+		 */
+		if (module_is_gateway(sdev->sId.i16uModulType & PICONTROL_NOT_CONNECTED_MASK)) {
+			if ((piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF)
+			    && (sdev->i8uAddress >= REV_PI_DEV_FIRST_RIGHT))
+				piCore_g.i8uRightMGateIdx = i;
+			else if ((piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF)
+				 && (sdev->i8uAddress < REV_PI_DEV_FIRST_RIGHT))
+				piCore_g.i8uLeftMGateIdx = i;
+			continue;
+		}
+
+		/* software modules are configured by user space, not here */
+		if (module_is_software(sdev->sId.i16uModulType))
+			continue;
+
 		if (!sdev->i8uActive)
 			continue;
 
-		switch (sdev->sId.i16uModulType) {
-		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			ret = piDIOComm_Init(i);
+		/*
+		 * Retry module initialization, except if it is not defined in
+		 * the configuration file.
+		 */
+		retry = 0;
+		do {
+			ret = pibridge_master_init_module(i, sdev->sId.i16uModulType);
+		} while ((ret != 0) && (ret != REVPI_MODULE_NOT_CONFIGURED) &&
+			 (++retry <= MAX_MODULE_CONFIG_RETRIES));
 
-			pr_debug("piDIOComm_Init(%d) done %d\n",
-				sdev->i8uAddress, ret);
+		pr_debug("configuration of module at address %u done (ret %d, %d retries)\n",
+			sdev->i8uAddress, ret, retry);
 
-			if (ret != 0) {
-				// init failed -> deactive module
-				if (ret == 4) {
-					pr_err("piDIOComm_Init(%d): Module not configured in PiCtory\n",
-						sdev->i8uAddress);
-				} else {
-					pr_err("piDIOComm_Init(%d) failed, error %d\n",
-						sdev->i8uAddress, ret);
-				}
-				sdev->i8uActive = 0;
+		if (ret != 0) {
+			// init failed -> deactivate module
+			sdev->i8uActive = 0;
+			if (ret == REVPI_MODULE_NOT_CONFIGURED) {
+				pr_err("configuration of module at address %u failed: not configured in PiCtory\n",
+					sdev->i8uAddress);
+			} else {
+				pr_err("configuration of module at address %u failed, error %d\n",
+					sdev->i8uAddress, ret);
+				// a real init failure may succeed on an init retry
+				module_init_failed = true;
 			}
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			ret = piAIOComm_Init(i);
-
-			pr_debug("piAIOComm_Init(%d) done %d\n", sdev->i8uAddress, ret);
-
-			if (ret != 0) {
-				// init failed -> deactive module
-				if (ret == 4) {
-					pr_err("piAIOComm_Init(%d): Module not configured in PiCtory\n",
-						sdev->i8uAddress);
-				} else {
-					pr_err("piAIOComm_Init(%d) failed, error %d\n",
-						sdev->i8uAddress, ret);
-				}
-				sdev->i8uActive = 0;
-			}
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_MIO:
-			ret = revpi_mio_init(i);
-
-			if (ret) {
-				pr_err("mio init failed in status-Continue(ret:%d)\n",
-					ret);
-				sdev->i8uActive = 0;
-			}
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_RO:
-			ret = revpi_ro_init(i);
-
-			pr_debug("revpi_ro_init(%d) done %d\n", sdev->i8uAddress, ret);
-
-			if (ret != 0) {
-				// init failed -> deactivate module
-				if (ret == 4) {
-					pr_err("revpi_ro_init(%d): Module not configured in PiCtory\n",
-						sdev->i8uAddress);
-				} else {
-					pr_err("revpi_ro_init(%d) failed, error %d\n",
-						sdev->i8uAddress, ret);
-				}
-				sdev->i8uActive = 0;
-			}
-			break;
 		}
 	}
 }
@@ -249,16 +268,19 @@ int PiBridgeMaster_Adjust(void)
 	for (i = 0; i < piDev_g.devs->i16uNumDevices; i++) {
 		if (state[i] == 0) {
 			j = RevPiDevice_getDevCnt();
-			if ( piDev_g.devs->dev[i].i16uModuleType >= PICONTROL_SW_OFFSET
-			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_CAN
-			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_BT
-			  || piDev_g.devs->dev[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_CON_MBUS) {
+			if (module_is_software(piDev_g.devs->dev[i].i16uModuleType)) {
 				// if a module is already defined as software module in the RAP file,
 				// it is handled by user space software and therefore always active
 				RevPiDevice_getDev(j)->i8uActive = 1;
 				RevPiDevice_getDev(j)->sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
 			} else {
-				RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
+				/*
+				 * Some gateways can be discovered over RS485, some only
+				 * over the PiBridge Ethernet after start-up, so absence
+				 * from the RS485 scan does not mean a gateway is missing.
+				 */
+				if (!module_is_gateway(piDev_g.devs->dev[i].i16uModuleType))
+					RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
 				RevPiDevice_getDev(j)->i8uActive = 0;
 				RevPiDevice_getDev(j)->sId.i16uModulType =
 				    piDev_g.devs->dev[i].i16uModuleType | PICONTROL_NOT_CONNECTED;
@@ -458,6 +480,46 @@ fallback:
 	pibridge_reinit();
 }
 
+/* True only if every active RS485 IO module advertises CRC-16 (descriptor bit 4) */
+static bool pibridge_modules_support_crc16(void)
+{
+	bool any_without = false;
+	bool any_with = false;
+	SDevice *dev;
+	int i;
+
+	for (i = 1; i < RevPiDevice_getDevCnt(); i++) {
+		dev = RevPiDevice_getDev(i);
+		if (!dev->i8uActive)
+			continue;
+		if (dev->sId.i16uModulType >= PICONTROL_SW_OFFSET)
+			continue;
+		if (!(dev->sId.i16uFeatureDescriptor &
+		      MODGATE_feature_RS485DataExchange))
+			continue;
+		if (dev->sId.i16uFeatureDescriptor &
+		    MODGATE_feature_ExtendedChecksum)
+			any_with = true;
+		else
+			any_without = true;
+	}
+
+	if (any_with && any_without)
+		pr_warn("one or more modules lack CRC-16 support, staying on XOR checksum, check for a firmware update\n");
+
+	return any_with && !any_without;
+}
+
+/*
+ * Decide the bus-wide IO checksum: CRC-16 only if every module supports it,
+ * else XOR. The modules are told which one to use in the start-of-data-exchange
+ * command; here we only set the master side.
+ */
+static void pibridge_configure_checksum(void)
+{
+	pibridge_set_iop_crc16(piCore_g.pibridge, pibridge_modules_support_crc16());
+}
+
 static void handle_pibridge_ethernet(void)
 {
 	piDev_g.pibridge_mode_ethernet_left = false;
@@ -484,6 +546,63 @@ static void handle_pibridge_ethernet(void)
 			pr_info("piright: Set to backplane mode\n");
 		}
 	}
+}
+
+static void PiBridgeMaster_checkErrorLimits(void)
+{
+	unsigned int limit1 = piCore_g.image.usr.i16uRS485ErrorLimit1;
+	unsigned int limit2 = piCore_g.image.usr.i16uRS485ErrorLimit2;
+	SDevice *sdev;
+	int i;
+
+	/*
+	 * Only modules in the cyclic RS485 exchange accumulate i16uErrorCnt,
+	 * so gateways and the base device never trip these limits.
+	 */
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		sdev = RevPiDevice_getDev(i);
+
+		if (limit1 > 0 && sdev->i16uErrorCnt == limit1 + 1)
+			pr_warn("module at address %u warning threshold reached after %u communication errors\n",
+				sdev->i8uAddress, sdev->i16uErrorCnt);
+
+		if (limit2 > 0 && sdev->i16uErrorCnt >= limit2 &&
+		    sdev->i8uModuleState != IOSTATE_OFFLINE) {
+			pr_err("module at address %u offline after %u communication errors\n",
+			       sdev->i8uAddress, sdev->i16uErrorCnt);
+			sdev->i8uModuleState = IOSTATE_OFFLINE;
+		}
+	}
+}
+
+/*
+ * Return whether a configured non-gateway module is currently unavailable,
+ * either because it was never detected during the scan or because it stopped
+ * responding during cyclic operation. Used to keep PICONTROL_STATUS_MISSING_MODULE
+ * in sync with the live module state.
+ */
+static bool PiBridgeMaster_moduleMissing(void)
+{
+	u16 offline_limit = piCore_g.image.usr.i16uRS485ErrorLimit2;
+	int i;
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		SDevice *dev = RevPiDevice_getDev(i);
+
+		/* gateways are intentionally not reported as missing */
+		if (module_is_gateway(dev->sId.i16uModulType & PICONTROL_NOT_CONNECTED_MASK))
+			continue;
+
+		/* configured but not connected */
+		if (dev->sId.i16uModulType > PICONTROL_NOT_CONNECTED)
+			return true;
+
+		/* reached the offline error limit during operation */
+		if (offline_limit && dev->i16uErrorCnt >= offline_limit)
+			return true;
+	}
+
+	return false;
 }
 
 int PiBridgeMaster_Run(void)
@@ -794,6 +913,7 @@ int PiBridgeMaster_Run(void)
 					pr_info("PiBridge termination enabled for base device\n");
 				}
 
+				pibridge_configure_checksum();
 				pibridge_configure_baudrate();
 
 				msleep(100);	// wait a while
@@ -811,43 +931,18 @@ int PiBridgeMaster_Run(void)
 				piCore_g.data_exchange_running = true;
 			}
 
-			/*
-			 * Decrease error counter after each COMM_ERROR_CYCLES
-			 * to let the accumulated errors 'drain out' if there
-			 * are not more errors at this time.
-			 */
-			if (piCore_g.comm_errors &&
-			    (!(piCore_g.cycle_num & COMM_ERROR_CYCLES_MASK)))
-				piCore_g.comm_errors--;
-
 			if (RevPiDevice_run()) {
-				piCore_g.comm_errors++;
-
-				if (piCore_g.comm_errors > COMM_ERROR_LOG_LIMIT) {
-					pr_warn_ratelimited("Error during piBridge communication\n");
-					piCore_g.comm_errors = 0;
-				}
 				// an error occured, check error limits
-				if (piCore_g.image.usr.i16uRS485ErrorLimit2 > 0
-				    && piCore_g.image.usr.i16uRS485ErrorLimit2 < RevPiDevice_getErrCnt()) {
-					pr_err("too many communication errors -> set state to stopped\n");
-					if (piDev_g.revpi_gate_supported)
-						revpi_gate_fini();
-					piCore_g.eBridgeState = piBridgeStop;
-					clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
-				} else if (piCore_g.image.usr.i16uRS485ErrorLimit1 > 0
-					   && piCore_g.image.usr.i16uRS485ErrorLimit1 < RevPiDevice_getErrCnt()) {
-					// bad communication with inputs -> set inputs to default values
-					pr_err("too many communication errors -> set inputs to default %d %d %d %d   %d %d %d %d\n",
-						RevPiDevice_getDev(0)->i16uErrorCnt, RevPiDevice_getDev(1)->i16uErrorCnt,
-						RevPiDevice_getDev(2)->i16uErrorCnt, RevPiDevice_getDev(3)->i16uErrorCnt,
-						RevPiDevice_getDev(4)->i16uErrorCnt, RevPiDevice_getDev(5)->i16uErrorCnt,
-						RevPiDevice_getDev(6)->i16uErrorCnt, RevPiDevice_getDev(7)->i16uErrorCnt);
-				}
+				PiBridgeMaster_checkErrorLimits();
 			} else {
 				ret = 1;
 			}
 			piCore_g.image.drv.i16uRS485ErrorCnt = RevPiDevice_getErrCnt();
+
+			if (PiBridgeMaster_moduleMissing())
+				RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
+			else
+				RevPiDevice_setStatus(PICONTROL_STATUS_MISSING_MODULE, 0);
 			break;
 			// *****************************************************************************************
 
@@ -868,10 +963,14 @@ int PiBridgeMaster_Run(void)
 		if (ret && piCore_g.eBridgeState != piBridgeRun) {
 			if (init_retry > 0
 			    && (piIoComm_readSniff2A() || piIoComm_readSniff2B()
-				|| (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE))) {
+				|| (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE)
+				|| module_init_failed)) {
 				// at least one IO module did not complete the initialization process
 				// wait for the timeout in the module
-				pr_info("initialization of module not finished (%d,%d,%d) -> retry\n", piIoComm_readSniff2A(), piIoComm_readSniff2B(), (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE));
+				pr_info("initialization of module not finished (%d,%d,%d,%d) -> retry\n",
+					piIoComm_readSniff2A(), piIoComm_readSniff2B(),
+					(RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE),
+					module_init_failed);
 				eRunStatus_s = enPiBridgeMasterStatus_InitRetry;
 				bEntering_s = true;
 				piCore_g.eBridgeState = piBridgeInit;
@@ -907,6 +1006,8 @@ int PiBridgeMaster_Run(void)
 				pibridge_set_baudrate(piCore_g.pibridge,
 						      PIBRIDGE_MIN_BAUDRATE);
 			}
+			/* modules fall back to XOR in GW protocol, so match it */
+			pibridge_set_iop_crc16(piCore_g.pibridge, false);
 			pr_info("piIoComm_gotoGateProtocol returned %d\n", ret);
 			eRunStatus_s = enPiBridgeMasterStatus_Init;
 			piCore_g.data_exchange_running = false;

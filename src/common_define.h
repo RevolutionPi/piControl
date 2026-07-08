@@ -58,6 +58,31 @@ typedef struct S_KUNBUS_REV_NUMBER {
 #define KUNBUS_FW_DESCR_TYP_INTERN                                  0xffff
 #define KUNBUS_FW_DESCR_TYP_UNDEFINED                               0xffff
 
+/*
+ * Return whether the module type is a fieldbus gateway (mGate)
+ */
+static inline bool module_is_gateway(u16 type)
+{
+	switch (type) {
+	case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN:
+	case KUNBUS_FW_DESCR_TYP_MG_DEV_NET:
+	case KUNBUS_FW_DESCR_TYP_MG_ETHERCAT:
+	case KUNBUS_FW_DESCR_TYP_MG_ETHERNET_IP:
+	case KUNBUS_FW_DESCR_TYP_MG_POWERLINK:
+	case KUNBUS_FW_DESCR_TYP_MG_PROFIBUS:
+	case KUNBUS_FW_DESCR_TYP_MG_PROFINET_IRT:
+	case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN_MASTER:
+	case KUNBUS_FW_DESCR_TYP_MG_SERCOS3:
+	case KUNBUS_FW_DESCR_TYP_MG_SERIAL:
+	case KUNBUS_FW_DESCR_TYP_MG_MODBUS_RTU:
+	case KUNBUS_FW_DESCR_TYP_MG_MODBUS_TCP:
+	case KUNBUS_FW_DESCR_TYP_MG_DMX:
+		return true;
+	}
+
+	return false;
+}
+
 #define KUNBUS_FW_DESCR_MAC_ADDR_LEN                  6	//!< number of bytes in a MAC Address
 
 typedef struct S_KUNBUS_FW_DESCR {

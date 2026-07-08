@@ -71,12 +71,21 @@ class _CycleTrigger:
         self._use_ioctl = False
         self._last_sample_mono = 0.0
 
-        # Polling parameters (used only in fallback path)
-        self._poll_interval = 0.001
-        self._min_gap = 0.0
-        if cycle_target_us and cycle_target_us >= 500:
-            self._poll_interval = max(0.0005, (cycle_target_us / 1e6) * 0.3)
-            self._min_gap = (cycle_target_us / 1e6) * 0.8
+        # Polling fallback: sample about twice per cycle so none is missed.
+        # Use the fixed cycle_duration if set, else the measured last cycle.
+        # Never leave the gap at 0, that would busy-loop.
+        period_us = cycle_target_us if (cycle_target_us and cycle_target_us >= 500) else 0
+        if not period_us:
+            try:
+                period_us = _read_sysfs(SYSFS_CYCLE)
+            except OSError:
+                period_us = 0
+        if period_us >= 100:
+            self._min_gap = (period_us / 1e6) * 0.5
+            self._poll_interval = max(0.0005, (period_us / 1e6) * 0.25)
+        else:
+            self._min_gap = 0.001
+            self._poll_interval = 0.0005
 
         # Try the ioctl once to probe support
         try:
@@ -234,74 +243,133 @@ def cmd_collect(args: argparse.Namespace) -> None:
         print(f"\nSaved {sample_count} samples to {logfile}")
 
 
-def load_csv(path: str | Path):
-    """Load cycle time data from a CSV file into numpy arrays.
+# Cycle times are small integers, so the whole distribution fits in a
+# bincount of this size. 65 ms is far above any real cycle.
+_HIST_SIZE = 1 << 16
+
+
+def load_csv(path: str | Path, n_points: int = 4000):
+    """Load cycle time data, aggregated to bounded memory.
+
+    The file is read in chunks. The cycle time distribution is kept as a
+    bincount histogram and the time series is downsampled to an envelope of
+    at most ``n_points`` min/max/mean blocks, so memory does not grow with
+    the file size.
 
     Parameters
     ----------
     path : str or Path
         Path to CSV with ``timestamp``, ``cycle_time_us`` and optional
         ``rx_err`` columns.
+    n_points : int
+        Maximum number of time-series envelope blocks.
 
     Returns
     -------
-    tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]
-        Timestamps, cycle times, and per-sample error deltas.
+    dict
+        Envelope arrays, histogram, error samples and precomputed stats.
     """
     import numpy as np
+    import pandas as pd
 
-    # Peek at the header to determine column count
     with open(path) as f:
         header = f.readline().strip().split(",")
-
     has_err = "rx_err" in header
-    usecols = (0, 1, 2) if has_err else (0, 1)
+    usecols = [0, 1, 2] if has_err else [0, 1]
 
-    data = np.loadtxt(
-        path,
-        delimiter=",",
-        skiprows=1,
-        usecols=usecols,
-        dtype=np.float64,
-    )
+    hist = np.zeros(_HIST_SIZE, dtype=np.int64)
+    trel: list[float] = []
+    cmin: list[int] = []
+    cmax: list[int] = []
+    cmean: list[float] = []
+    err_trel: list = []
+    err_c: list = []
+    err_total = 0
+    t0 = None
 
-    ts = data[:, 0]
-    cycles = data[:, 1].astype(np.int64)
-    errors = (
-        data[:, 2].astype(np.int64) if has_err else np.zeros(len(ts), dtype=np.int64)
-    )
-    return ts, cycles, errors
+    # Estimate the row count from the file size to pick an envelope block
+    # size that yields about n_points blocks.
+    est_rows = max(1, os.path.getsize(path) // 26)
+    rpb = max(1, est_rows // n_points)
+    left_c = np.empty(0, dtype=np.int64)
+    left_t = np.empty(0, dtype=np.float64)
 
+    for df in pd.read_csv(
+        path, header=0, usecols=usecols, dtype=np.float64, chunksize=1_000_000
+    ):
+        a = df.to_numpy()
+        ts = a[:, 0].astype(np.float64)
+        cyc = a[:, 1].astype(np.int64)
+        np.clip(cyc, 0, _HIST_SIZE - 1, out=cyc)
+        if t0 is None:
+            t0 = ts[0]
 
-def _compute_stats(cycles, errors):
-    """Compute summary statistics for a cycle dataset.
+        bc = np.bincount(cyc)
+        hist[: bc.size] += bc
 
-    Returns a dict with mean, p99, std, min, max, and error totals.
-    Computed once and reused for plot labels and final summary.
-    """
-    import numpy as np
+        if has_err:
+            err = a[:, 2].astype(np.int64)
+            err_total += int(err.sum())
+            m = err > 0
+            if m.any():
+                err_trel.append(ts[m] - t0)
+                err_c.append(cyc[m])
+
+        # Aggregate full rpb-sized blocks; keep the remainder for next chunk.
+        c = np.concatenate((left_c, cyc))
+        t = np.concatenate((left_t, ts))
+        nb = c.size // rpb
+        if nb:
+            cc = c[: nb * rpb].reshape(nb, rpb)
+            tt = t[: nb * rpb].reshape(nb, rpb)
+            cmin.append(cc.min(axis=1))
+            cmax.append(cc.max(axis=1))
+            cmean.append(cc.mean(axis=1))
+            trel.append(tt.mean(axis=1) - t0)
+        left_c = c[nb * rpb :]
+        left_t = t[nb * rpb :]
+
+    if left_c.size:
+        cmin.append(np.array([left_c.min()]))
+        cmax.append(np.array([left_c.max()]))
+        cmean.append(np.array([left_c.mean()]))
+        trel.append(np.array([left_t.mean() - t0]))
+
+    total = int(hist.sum())
+    nz = np.nonzero(hist)[0]
+    w = hist[nz]
+    mean = float((nz * w).sum() / total)
+    std = float(np.sqrt((w * (nz - mean) ** 2).sum() / total))
+    p99 = int(nz[np.searchsorted(np.cumsum(w), 0.99 * total)])
 
     return {
-        "mean": float(np.mean(cycles)),
-        "p99": float(np.percentile(cycles, 99)),
-        "std": float(np.std(cycles)),
-        "min": int(cycles.min()),
-        "max": int(cycles.max()),
-        "err_total": int(errors.sum()),
+        "trel": np.concatenate(trel) if trel else np.empty(0),
+        "cmin": np.concatenate(cmin) if cmin else np.empty(0),
+        "cmax": np.concatenate(cmax) if cmax else np.empty(0),
+        "cmean": np.concatenate(cmean) if cmean else np.empty(0),
+        "hist": hist,
+        "err_trel": np.concatenate(err_trel) if err_trel else np.empty(0),
+        "err_c": np.concatenate(err_c) if err_c else np.empty(0),
+        "stats": {
+            "mean": mean,
+            "std": std,
+            "min": int(nz[0]),
+            "max": int(nz[-1]),
+            "p99": p99,
+            "err_total": err_total,
+            "count": total,
+        },
     }
 
 
 def _plot_single(
     ax_ts,
     ax_hist,
-    ts,
-    cycles,
-    errors,
-    stats,
+    data,
     title: str | None = None,
     cycle_target: int | None = None,
 ) -> None:
-    """Plot time series and histogram for a single dataset.
+    """Plot the time series envelope and histogram for one dataset.
 
     Parameters
     ----------
@@ -309,10 +377,8 @@ def _plot_single(
         Axes for the time series plot.
     ax_hist : matplotlib.axes.Axes
         Axes for the histogram.
-    ts, cycles, errors : numpy.ndarray
-        Data arrays.
-    stats : dict
-        Pre-computed statistics from _compute_stats().
+    data : dict
+        Aggregated dataset from load_csv().
     title : str or None
         Plot title.
     cycle_target : int or None
@@ -320,33 +386,34 @@ def _plot_single(
     """
     import numpy as np
 
-    t_rel = ts - ts[0]
-    has_errors = stats["err_total"] > 0
+    st = data["stats"]
+    trel = data["trel"]
+    has_errors = st["err_total"] > 0
 
-    # Rasterize the time series when there are many samples. This renders
-    # the line as a bitmap instead of vector paths, which is orders of
-    # magnitude faster for both drawing and saving.
-    ax_ts.plot(
-        t_rel,
-        cycles,
-        linewidth=0.5,
-        alpha=0.7,
+    # Time series envelope: min-max band plus per-block mean.
+    ax_ts.fill_between(
+        trel,
+        data["cmin"],
+        data["cmax"],
         color="#2196F3",
-        rasterized=len(cycles) > 10000,
+        alpha=0.25,
+        linewidth=0,
+        label="min-max",
     )
+    ax_ts.plot(trel, data["cmean"], linewidth=0.8, color="#1976D2", label="mean")
     ax_ts.axhline(
-        stats["mean"],
+        st["mean"],
         color="#F44336",
         linestyle="--",
         linewidth=1,
-        label=f"Mean: {stats['mean']:.0f} us",
+        label=f"Mean: {st['mean']:.0f} us",
     )
     ax_ts.axhline(
-        stats["p99"],
+        st["p99"],
         color="#FF9800",
         linestyle=":",
         linewidth=1,
-        label=f"P99: {stats['p99']:.0f} us",
+        label=f"P99: {st['p99']:.0f} us",
     )
 
     if cycle_target and cycle_target > 500:
@@ -358,15 +425,14 @@ def _plot_single(
             label=f"Target: {cycle_target} us",
         )
 
-    if has_errors:
-        err_mask = errors > 0
+    if has_errors and data["err_trel"].size:
         ax_ts.scatter(
-            t_rel[err_mask],
-            cycles[err_mask],
+            data["err_trel"],
+            data["err_c"],
             color="#F44336",
             s=20,
             zorder=5,
-            label=f"RX errors ({stats['err_total']} total)",
+            label=f"RX errors ({st['err_total']} total)",
         )
 
     if title:
@@ -376,23 +442,22 @@ def _plot_single(
     ax_ts.legend(loc="upper right")
     ax_ts.grid(True, alpha=0.3)
 
-    bins = np.arange(stats["min"] - 10, stats["max"] + 50, 10)
-    ax_hist.hist(
-        cycles,
-        bins=bins,
-        color="#2196F3",
-        alpha=0.7,
-        edgecolor="white",
-        linewidth=0.3,
+    # Histogram straight from the exact bincount.
+    hist = data["hist"]
+    lo = max(st["min"] - 10, 0)
+    hi = st["max"] + 1
+    vals = np.arange(lo, hi)
+    ax_hist.fill_between(
+        vals, hist[lo:hi], step="mid", color="#2196F3", alpha=0.7
     )
-    ax_hist.axvline(stats["mean"], color="#F44336", linestyle="--", linewidth=1)
-    ax_hist.axvline(stats["p99"], color="#FF9800", linestyle=":", linewidth=1)
+    ax_hist.axvline(st["mean"], color="#F44336", linestyle="--", linewidth=1)
+    ax_hist.axvline(st["p99"], color="#FF9800", linestyle=":", linewidth=1)
     ax_hist.set_xlabel("Cycle time (us)")
     ax_hist.set_ylabel("Count")
-    err_str = f", errors: {stats['err_total']}" if has_errors else ""
+    err_str = f", errors: {st['err_total']}" if has_errors else ""
     ax_hist.set_title(
-        f"Distribution\n(std: {stats['std']:.0f} us, "
-        f"min: {stats['min']}, max: {stats['max']}{err_str})"
+        f"Distribution\n(std: {st['std']:.0f} us, "
+        f"min: {st['min']}, max: {st['max']}{err_str})"
     )
     ax_hist.grid(True, alpha=0.3)
 
@@ -410,10 +475,10 @@ def cmd_plot(args: argparse.Namespace) -> None:
 
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        import numpy as np
     except ImportError:
         print(
-            "matplotlib and numpy required: pip install matplotlib numpy",
+            "matplotlib, numpy and pandas required: "
+            "pip install matplotlib numpy pandas",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -430,22 +495,18 @@ def cmd_plot(args: argparse.Namespace) -> None:
     print(f"Loading {n} file(s)...")
     t_load_start = time.monotonic()
     datasets = [load_csv(p) for p in args.files]
+    all_stats = [d["stats"] for d in datasets]
     print(f"Loaded in {time.monotonic() - t_load_start:.1f}s")
 
-    # Compute stats once per dataset and reuse for plot and final summary
-    all_stats = [_compute_stats(c, e) for (_, c, e) in datasets]
-
     if n == 1:
-        ts, cycles, errors = datasets[0]
+        data = datasets[0]
 
         fig, (ax_ts, ax_hist) = plt.subplots(
             2, 1, figsize=(14, 8), gridspec_kw={"height_ratios": [3, 1]}
         )
 
-        title = args.title or f"PiBridge Cycle Time ({len(cycles)} samples)"
-        _plot_single(
-            ax_ts, ax_hist, ts, cycles, errors, all_stats[0], title, args.cycle_target
-        )
+        title = args.title or f"PiBridge Cycle Time ({all_stats[0]['count']} samples)"
+        _plot_single(ax_ts, ax_hist, data, title, args.cycle_target)
     else:
         fig, axes = plt.subplots(
             n,
@@ -457,17 +518,14 @@ def cmd_plot(args: argparse.Namespace) -> None:
         title = args.title or "PiBridge Cycle Time Comparison"
         fig.suptitle(title, fontsize=14)
 
-        for i, ((ts, cycles, errors), label, stats) in enumerate(
+        for i, (data, label, stats) in enumerate(
             zip(datasets, labels, all_stats)
         ):
             _plot_single(
                 axes[i][0],
                 axes[i][1],
-                ts,
-                cycles,
-                errors,
-                stats,
-                f"{label} ({len(cycles)} samples)",
+                data,
+                f"{label} ({stats['count']} samples)",
                 args.cycle_target,
             )
 

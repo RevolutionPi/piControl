@@ -36,7 +36,7 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 			      IOP_TYP1_CMD_DATA, &req, sizeof(req), &resp,
 			      sizeof(resp));
 	if (ret != sizeof(resp)) {
-		pr_debug("MIO addr %2d: dio communication failed (req:%zu,ret:%d)\n",
+		pr_debug("MIO addr %u: dio communication failed (req:%zu,ret:%d)\n",
 			dev->i8uAddress, sizeof(resp), ret);
 
 		if (ret >= 0)
@@ -67,7 +67,7 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 			      sizeof(*req_data) - compressed, &resp,
 			      sizeof(resp));
 	if (ret != sizeof(resp)) {
-		pr_debug("MIO addr %2d: aio communication failed (req:%zd,ret:%d)\n",
+		pr_debug("MIO addr %u: aio communication failed (req:%zd,ret:%d)\n",
 			dev->i8uAddress, sizeof(resp), ret);
 
 		if (ret >= 0)
@@ -310,7 +310,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 			    (conf->dio.i8uIoMode[3] != MIO_GPIO_DISABLED);
 
 	if (conf->dio_enabled)
-		pr_info("MIO addr %d: digital IO enabled (additional bus exchange per cycle)\n",
+		pr_info("MIO addr %u: digital IO enabled (additional bus exchange per cycle)\n",
 			addr);
 
 	pr_debug("dio  :%*ph (enabled: %d)\n", (int) sizeof(conf->dio),
@@ -346,18 +346,14 @@ int revpi_mio_init(unsigned char devno)
 		}
 	}
 
-	if (!conf) {
-		pr_err("fail to find the mio module(devno:%d)\n", devno);
-		return -ENODATA;
-	}
+	if (!conf)
+		return REVPI_MODULE_NOT_CONFIGURED;
 
 	/*dio*/
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
 			      &conf->dio, sizeof(conf->dio), NULL, 0);
-	if (ret) {
-		pr_err("talk with mio for conf dio err(devno:%d, ret:%d)\n",
-		       devno, ret);
-	}
+	if (ret)
+		pr_err("MIO addr %u: dio config failed (ret:%d)\n", addr, ret);
 
 	/*
 	 * One-shot DIO data exchange when the digital ios are disabled, so
@@ -377,7 +373,7 @@ int revpi_mio_init(unsigned char devno)
 				      sizeof(zero_req), &zero_resp,
 				      sizeof(zero_resp));
 		if (ret != sizeof(zero_resp))
-			pr_warn("MIO addr %d: one-shot dio init failed (ret:%d)\n",
+			pr_warn("MIO addr %u: one-shot dio init failed (ret:%d)\n",
 				addr, ret);
 	}
 
@@ -385,15 +381,13 @@ int revpi_mio_init(unsigned char devno)
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
 			      &conf->aio_i, sizeof(conf->aio_i), NULL, 0);
 	if (ret)
-		pr_err("talk with mio for conf aio_i err(devno:%d, ret:%d)\n",
-		       devno, ret);
+		pr_err("MIO addr %u: aio input config failed (ret:%d)\n", addr, ret);
 
 	/*aio out*/
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
 			      &conf->aio_o, sizeof(conf->aio_o), NULL, 0);
 	if (ret)
-		pr_err("talk with mio for conf aio_o err(devno:%d, ret:%d)\n",
-		       devno, ret);
+		pr_err("MIO addr %u: aio output config failed (ret:%d)\n", addr, ret);
 
 	pr_debug("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
 

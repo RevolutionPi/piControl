@@ -33,9 +33,10 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.7.0");
+MODULE_VERSION("2.8.0");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
+	       "lan743x "		/* connect 5 eth gateways */
 	       "spi-bcm2835 "		/* core spi0 eth gateways */
 	       "spi-bcm2835aux "	/* compact spi2 i/o */
 	       "gpio-max3191x "		/* compact din */
@@ -55,8 +56,8 @@ MODULE_PARM_DESC(picontrol_max_cycle_deviation,
 	"Specify the max tolerated deviation from a fixed io-cycle in usecs.");
 
 module_param(picontrol_cycle_duration, uint, S_IRUSR);
-MODULE_PARM_DESC(picontrol_cycle_duration, "Specify a fixed io-cycle duration in usecs. "
-					   "Use 0 to use the fastest possible io-cycle duration.");
+MODULE_PARM_DESC(picontrol_cycle_duration,
+	"Specify a fixed io-cycle duration in usecs. Use 0 (the default) for the fastest possible io-cycle duration.");
 /******************************************************************************/
 /******************************  Prototypes  **********************************/
 /******************************************************************************/
@@ -248,7 +249,9 @@ static ssize_t cycle_duration_store(struct device *dev,
 		return -EINVAL;
 
 	val = min(val, PICONTROL_CYCLE_MAX_DURATION);
-	val = max(val, PICONTROL_CYCLE_MIN_DURATION);
+	/* 0 means run as fast as possible; only floor a real fixed period */
+	if (val)
+		val = max(val, PICONTROL_CYCLE_MIN_DURATION);
 
 	write_seqlock(&cycle->lock);
 	cycle->duration = val;
@@ -821,7 +824,7 @@ static int piControlOpen(struct inode *inode, struct file *file)
 {
 	tpiControlInst *priv;
 
-	priv = (tpiControlInst *) kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
+	priv = kzalloc(sizeof(tpiControlInst), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -1231,9 +1234,6 @@ static int send_internal_gate_msg(unsigned long usr_addr)
 	if (copy_from_user(req, tel, sizeof(*tel)))
 		return -EFAULT;
 
-	if (req->datalen > MAX_TELEGRAM_DATA_SIZE)
-		return -EINVAL;
-
 	ret = send_internal_gate_telegram(req, resp);
 	if (ret > 0) {
 		if (copy_to_user(tel, resp, sizeof(*tel)))
@@ -1468,7 +1468,7 @@ static int set_exported_outputs(tpiControlInst *priv, unsigned long usr_addr)
 		return -EINVAL;
 	}
 
-	if (piDev_g.cl == 0 || piDev_g.cl->i16uNumEntries == 0)
+	if (piDev_g.cl == NULL || piDev_g.cl->i16uNumEntries == 0)
 		return 0;	// nothing to do
 
 	now = ktime_get();
@@ -1562,6 +1562,34 @@ static int find_variable(unsigned long usr_addr)
 		pr_err("failed to copy spi variable to user\n");
 		return -EFAULT;
 	}
+
+	return ret;
+}
+
+static int wait_for_reset_event(unsigned long usr_addr, tpiControlInst *priv)
+{
+	tpiEventEntry *pEntry = NULL;
+	int ret;
+
+	while (!pEntry) {
+		ret = wait_event_interruptible(priv->wq,
+					       !list_empty(&priv->piEventList));
+		if (ret)
+			return ret;
+
+		rt_mutex_lock(&priv->lockEventList);
+		if (!list_empty(&priv->piEventList)) {
+			pEntry = list_first_entry(&priv->piEventList,
+						  tpiEventEntry, list);
+			list_del(&pEntry->list);
+		}
+		rt_mutex_unlock(&priv->lockEventList);
+	}
+
+	if (put_user(pEntry->event, (u32 __user *) usr_addr))
+		ret = -EFAULT;
+
+	kfree(pEntry);
 
 	return ret;
 }
@@ -1862,7 +1890,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			cnt = 0;
 			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (pData != 0 && RevPiDevice_getDev(i)->i8uAddress != *pData) {
+				if (pData != NULL && RevPiDevice_getDev(i)->i8uAddress != *pData) {
 					// if pData is not 0, we want to update one specific module
 					// -> update all others
 					pr_info("skip %d addr %d\n", i, RevPiDevice_getDev(i)->i8uAddress);
@@ -1930,25 +1958,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		break;
 
 	case KB_WAIT_FOR_EVENT:
-		{
-			tpiEventEntry *pEntry;
-
-			if (wait_event_interruptible(priv->wq, !list_empty(&priv->piEventList)) == 0) {
-				rt_mutex_lock(&priv->lockEventList);
-				pEntry = list_first_entry(&priv->piEventList, tpiEventEntry, list);
-
-				list_del(&pEntry->list);
-				rt_mutex_unlock(&priv->lockEventList);
-
-				if (put_user(pEntry->event, (u32 __user *) usr_addr)) {
-					status = -EFAULT;
-				} else {
-					status = 0;
-				}
-
-				kfree(pEntry);
-			}
-		}
+		status = wait_for_reset_event(usr_addr, priv);
 		break;
 
 	case KB_GET_LAST_MESSAGE:

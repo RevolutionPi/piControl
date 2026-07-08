@@ -88,7 +88,7 @@ int revpi_ro_init(unsigned int devnum)
 	}
 
 	if (i == num_devices)
-		return 4;  // unknown device
+		return REVPI_MODULE_NOT_CONFIGURED;
 
 	return pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
 			       &itm->config, sizeof(struct revpi_ro_config),
@@ -124,7 +124,7 @@ int revpi_ro_cycle(unsigned int devnum)
 			      &status_in, sizeof(status_in));
 
 	if (ret != sizeof(status_in)) {
-		pr_debug("RO addr %2d: communication failed (req:%zu,ret:%d)\n",
+		pr_debug("RO addr %u: communication failed (req:%zu,ret:%d)\n",
 			dev->i8uAddress, sizeof(status_in), ret);
 
 		if (ret >= 0)

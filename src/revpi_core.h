@@ -15,11 +15,16 @@
 #include "PiBridgeMaster.h"
 #include "RevPiDevice.h"
 
-#define PICONTROL_CYCLE_MIN_DURATION		500
-#define PICONTROL_DEFAULT_CYCLE_DURATION	PICONTROL_CYCLE_MIN_DURATION /* as fast as possible */
+#define PICONTROL_CYCLE_MIN_DURATION		50 /* usecs, min cycle step */
+#define PICONTROL_DEFAULT_CYCLE_DURATION	0 /* as fast as possible */
 #define PICONTROL_CYCLE_MAX_DURATION		45000 /* usecs */
 
 #define REVPI_MGATE_MAX				2
+
+/* a module *_Init() callback returns this when the module is present on the
+ * bus but not part of the PiCtory configuration
+ */
+#define REVPI_MODULE_NOT_CONFIGURED		4
 
 typedef enum {
 	piBridgeStop = 0,
@@ -100,8 +105,6 @@ typedef struct _SRevPiCore {
 	struct task_struct *pIoThread;
 
 	u64 cycle_num;
-	/* Number of communication errors */
-	u32 comm_errors;
 	bool data_exchange_running;
 } SRevPiCore;
 

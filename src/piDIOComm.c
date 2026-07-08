@@ -25,7 +25,7 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 {
 	u16 i;
 
-	if (i8uConfigured_s >= sizeof(dioConfig_s) / sizeof(SDioConfig)) {
+	if (i8uConfigured_s >= ARRAY_SIZE(dioConfig_s)) {
 		pr_err("max. number of DIOs reached\n");
 		return -1;
 	}
@@ -86,7 +86,7 @@ u32 piDIOComm_Init(u8 i8uDevice_p)
 	int ret;
 	int i;
 
-	ret = 4;  // unknown device
+	ret = REVPI_MODULE_NOT_CONFIGURED;
 
 	for (i = 0; i < i8uConfigured_s; i++) {
 		if (dioConfig_s[i].i8uAddr == addr) {
@@ -166,7 +166,7 @@ u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 	ret = pibridge_req_io(piCore_g.pibridge, addr, cmd, snd_buf, snd_len,
 			      in_buf, rcv_len);
 	if (ret != rcv_len) {
-		pr_debug("DIO addr %2d: communication failed (req:%u,ret:%d)\n",
+		pr_debug("DIO addr %u: communication failed (req:%u,ret:%d)\n",
 			addr, rcv_len, ret);
 
 		if (ret >= 0)

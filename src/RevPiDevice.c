@@ -174,10 +174,11 @@ int RevPiDevice_hat_serial(void)
 
 void RevPiDevice_init(void)
 {
+	int i;
+
 	pr_debug("RevPiDevice_init()\n");
 
 	piCore_g.cycle_num = 0;
-	piCore_g.comm_errors = 0;
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
 	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
@@ -186,6 +187,12 @@ void RevPiDevice_init(void)
 	RevPiDevices_s.gatewayLeft = false;
 	RevPiDevice_resetDevCnt();	// counter for detected devices
 	RevPiDevices_s.i16uErrorCnt = 0;
+
+	// start each (re)configuration with a clean per-module error state
+	for (i = 0; i < ARRAY_SIZE(RevPiDevices_s.dev); i++) {
+		RevPiDevices_s.dev[i].i16uErrorCnt = 0;
+		RevPiDevices_s.dev[i].i8uModuleState = IOSTATE_OFFLINE;
+	}
 
 	// RevPi as first entry to device list
 	RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = 0;
@@ -249,20 +256,29 @@ void RevPiDevice_init(void)
 
 void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval)
 {
+	SDevice *dev = RevPiDevice_getDev(i8uDevice);
+
 	if (r) {
-		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
-			RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
-		}
-		else
-			RevPiDevice_getDev(i8uDevice)->i8uModuleState = IOSTATE_OFFLINE;
+		if (dev->i16uErrorCnt < U16_MAX)
+			dev->i16uErrorCnt++;
+		// the module is reported offline from PiBridgeMaster_checkErrorLimits()
+		// once the configured error limit is reached
 		*retval -= 1;	// tell calling function that an error occured
-		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
+		if (dev->i16uErrorCnt > 1) {
 			// the first error is ignored
-			RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
+			if ((RevPiDevices_s.i16uErrorCnt + dev->i16uErrorCnt) > U16_MAX)
+				RevPiDevices_s.i16uErrorCnt = U16_MAX;
+			else
+				RevPiDevices_s.i16uErrorCnt += dev->i16uErrorCnt;
 		}
 	} else {
-		RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
-		RevPiDevice_getDev(i8uDevice)->i8uModuleState = IOSTATE_CYCLIC_IO;
+		u16 offline_limit = piCore_g.image.usr.i16uRS485ErrorLimit2;
+
+		/* report recovery only for a module that had reached the offline limit */
+		if (offline_limit && dev->i16uErrorCnt >= offline_limit)
+			pr_info("module at address %u back online\n", dev->i8uAddress);
+		dev->i16uErrorCnt = 0;
+		dev->i8uModuleState = IOSTATE_CYCLIC_IO;
 	}
 }
 
@@ -313,31 +329,8 @@ int RevPiDevice_run(void)
 				revpi_dev_update_state(i8uDevice, r, &retval);
 				break;
 
-			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN:
-			case KUNBUS_FW_DESCR_TYP_MG_DEV_NET:
-			case KUNBUS_FW_DESCR_TYP_MG_ETHERCAT:
-			case KUNBUS_FW_DESCR_TYP_MG_ETHERNET_IP:
-			case KUNBUS_FW_DESCR_TYP_MG_POWERLINK:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFIBUS:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_IRT:
-			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN_MASTER:
-			case KUNBUS_FW_DESCR_TYP_MG_SERCOS3:
-			case KUNBUS_FW_DESCR_TYP_MG_SERIAL:
-			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_RTU:
-			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_TCP:
-			case KUNBUS_FW_DESCR_TYP_MG_DMX:
-				if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
-				    && dev->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
-					piCore_g.i8uRightMGateIdx = i8uDevice;
-				} else if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
-					   && dev->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
-					piCore_g.i8uLeftMGateIdx = i8uDevice;
-				}
-				break;
-
 			default:
-				//TODO
-				// user devices are ignored here
+				// ignore base device, virtual modules and gateways
 				break;
 			}
 			trace_picontrol_cyclic_device_data_stop(dev->i8uAddress);
@@ -359,7 +352,8 @@ bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pMo
 	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (u8 *) pModgateId_p, &i16uLen_l);
 	msleep(3);		// wait a while
 	if (ret_l) {
-		pr_err("piIoComm_sendRS485Tel(GetDeviceInfo) failed %d\n", ret_l);
+		pr_err("GetDeviceInfo for designated address %u failed: %d\n",
+			i8uAddress_p, ret_l);
 		return false;
 	} else {
 		pr_debug("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
@@ -374,7 +368,8 @@ bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pMo
 			ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
 			msleep(3);		// wait a while
 			if (ret_l)
-				pr_err("piIoComm_sendRS485Tel(PiIoSetAddress) failed %d\n", ret_l);
+				pr_err("PiIoSetAddress for designated address %u failed: %d\n",
+					i8uAddress_p, ret_l);
 		}
 		return false;
 	}
@@ -465,7 +460,9 @@ bool RevPiDevice_writeNextConfigurationLeft(void)
 
 void RevPiDevice_startDataexchange(void)
 {
-	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
+	u8 checksum = pibridge_get_iop_crc16(piCore_g.pibridge) ? 1 : 0;
+	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR,
+					  &checksum, sizeof(checksum), NULL, 0);
 	msleep(90);		// wait a while
 	if (ret_l)
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
@@ -563,7 +560,7 @@ static int RevPiDevice_setModuleTermination(u8 address, bool terminate)
 				    sizeof(data), NULL, 0);
 	if (ret) {
 		pr_err("Failed to %s termination for module (address %d): %d\n",
-			terminate ? "enable" : "disable", address, ret);
+			str_enable_disable(terminate), address, ret);
 		goto fail;
 	}
 
