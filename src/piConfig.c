@@ -399,7 +399,7 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 			}
 		} else {
 			for (i = 0; i < element->length; i++) {
-				ret = find_devices(element->u.array[i], 0, lvl + 1);
+				ret = find_devices(element->u.array[i], NULL, lvl + 1);
 			}
 		}
 		break;
