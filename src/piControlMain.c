@@ -74,13 +74,13 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 /******************************************************************************/
 
 static struct file_operations piControlFops = {
-owner:	THIS_MODULE,
-read:	piControlRead,
-write:	piControlWrite,
-llseek:piControlSeek,
-open:	piControlOpen,
-unlocked_ioctl:piControlIoctl,
-release:piControlRelease
+	.owner = THIS_MODULE,
+	.read = piControlRead,
+	.write = piControlWrite,
+	.llseek = piControlSeek,
+	.open = piControlOpen,
+	.unlocked_ioctl = piControlIoctl,
+	.release = piControlRelease,
 };
 
 tpiControlDev piDev_g = {
