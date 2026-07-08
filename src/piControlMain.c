@@ -892,7 +892,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 
 	priv = (tpiControlInst *) file->private_data;
 
-	dev_dbg(priv->dev, "piControlRead Count: %zu, Pos: %llu", count, *ppos);
+	dev_dbg(priv->dev, "%s Count: %zu, Pos: %llu", __func__, count, *ppos);
 
 	if (*ppos < 0 || *ppos >= KB_PI_LEN) {
 		return 0;	// end of file
@@ -906,7 +906,7 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 
 	scoped_guard(rt_mutex, &piDev_g.lockPI) {
 		if (copy_to_user(pBuf, pPd, nread) != 0) {
-			pr_err("piControlRead: copy_to_user failed");
+			pr_err("%s: copy_to_user failed", __func__);
 			return -EFAULT;
 		}
 	}
@@ -930,7 +930,7 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 
 	priv = (tpiControlInst *) file->private_data;
 
-	dev_dbg(priv->dev, "piControlWrite Count: %zu, Pos: %llu", count, *ppos);
+	dev_dbg(priv->dev, "%s Count: %zu, Pos: %llu", __func__, count, *ppos);
 
 	if (*ppos < 0 || *ppos >= KB_PI_LEN) {
 		return 0;	// end of file
@@ -944,7 +944,7 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 
 	scoped_guard(rt_mutex, &piDev_g.lockPI) {
 		if (copy_from_user(pPd, pBuf, nwrite) != 0) {
-			pr_err("piControlWrite: copy_from_user failed");
+			pr_err("%s: copy_from_user failed", __func__);
 			return -EFAULT;
 		}
 	}
@@ -1453,7 +1453,7 @@ static int set_exported_outputs(tpiControlInst *priv, unsigned long usr_addr)
 		return -EAGAIN;
 
 	if (usr_addr == 0) {
-		pr_err("piControlIoctl: illegal parameter\n");
+		pr_err("%s: illegal parameter\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1824,7 +1824,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				if (PiBridgeMaster_FWUModeEnter(snum_data[0], 1) == 0) {
 
 					if (PiBridgeMaster_FWUsetSerNum(snum_data[1]) == 0) {
-						pr_info("piControlIoctl: set serial number to %u in module %u", snum_data[1], snum_data[0]);
+						pr_info("%s: set serial number to %u in module %u", __func__, snum_data[1], snum_data[0]);
 					}
 
 					PiBridgeMaster_FWUReset();
@@ -1951,7 +1951,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_GET_LAST_MESSAGE:
 		{
 			if (copy_to_user((void *)usr_addr, priv->pcErrorMessage, sizeof(priv->pcErrorMessage))) {
-				pr_err("piControlIoctl: copy_to_user failed");
+				pr_err("%s: copy_to_user failed", __func__);
 				return -EFAULT;
 			}
 			status = 0;
