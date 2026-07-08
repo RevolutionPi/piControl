@@ -18,7 +18,7 @@ checkpatch:
 
 coverity-submit:
   stage: publish
-  image: registry.gitlab.com/revolutionpi/infrastructure/docker-images/build-container/build-container-bookworm:arm64-latest
+  image: registry.gitlab.com/revolutionpi/infrastructure/docker-images/build-container/build-container-trixie:arm64-latest
   tags:
     - self-hosted
     - host-arm64
