@@ -1,3 +1,59 @@
+picontrol (2.8.0-1+deb13+1) trixie; urgency=medium
+
+  [ Thomas Böhler ]
+  * Build for linux-image-6.18.37-revpi0-rpi-v8 (= 6.18.37-revpi0-
+    1+deb13+1)
+
+  [ Lino Sanfilippo ]
+  * Fix race while waiting for reset event
+
+  [ Thomas Böhler ]
+  * piControlMain: don't cast returned value of memory allocation
+  * piControlMain: compare pointer to NULL instead of 0
+  * piFirmwareUpdate: remove unnecessary NULL check before freeing
+  * piFirmwareUpdate: check if allocation for filename succeeded
+  * RevPiDevice: use str_enable_disable helper
+  * piDIOComm: use ARRAY_SIZE helper
+  * revpi_gate: use %pe format specifier for printing PTR_ERR()
+  * piConfig: use C99's flexible array members
+  * piConfig: use kzalloc instead of kmalloc + memset
+
+  [ Nicolai Buchwitz ]
+  * Remove unused AioCommStatus enum
+  * Add a constant for the not-configured module return code
+  * Retry the configuration telegram of a module
+  * Retry initialization when a module failed to configure
+  * Add helper to identify gateway modules
+  * Determine gateway module indices during configuration
+  * Do not flag a gateway absent from the RS485 scan as missing
+  * Move the RS485 error limit handling into a helper
+  * Report unavailable modules via the RevPiStatus byte
+  * Drop the redundant piBridge communication error log
+  * Rework the RS485 per-module error counter
+  * Include the module address in the detection error messages
+  * Reword the MIO configuration error messages
+  * Unify the per-module log message style
+  * Reject unknown module types during configuration
+
+  [ Thomas Böhler ]
+  * Revert "Check gate message datalen from user"
+
+  [ Nicolai Buchwitz ]
+  * revpi_gate: transmit only in response to received packets
+  * revpi_gate: answer every received data packet
+  * revpi_gate: tear down a peer that only retransmits a stale frame
+  * piControlMain: Add softdep for lan743x
+  * Send GOTO_GATE through the pibridge driver
+  * Negotiate a CRC-16 checksum for the IO protocol
+  * revpi_core: shrink the IO cycle step to 50 us
+  * pibridge-cycles: stream large logs when plotting
+  * pibridge-cycles: throttle sampling when free running
+
+  [ Thomas Böhler ]
+  * Release v2.8.0
+
+ -- Thomas Böhler <t.boehler@kunbus.com>  Wed, 08 Jul 2026 12:47:52 +0200
+
 picontrol (2.7.0-1+deb13+1) trixie; urgency=medium
 
   [ Thomas Böhler ]
