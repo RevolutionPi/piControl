@@ -24,9 +24,19 @@ coverity-submit:
     - host-arm64
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
   variables:
     DEBIAN_FRONTEND: noninteractive
   script:
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = schedule ]; then
+        # version should be dynamically retrieved
+        git fetch -q --tags --unshallow origin
+        VERSION="$(git describe --match "v*" "$CI_COMMIT_BRANCH")"
+      elif [ "$CI_COMMIT_TAG" ]; then
+        VERSION="$CI_COMMIT_TAG"
+      fi
+    - printf 'Building and submitting version %s\n' "$VERSION"
     - apt update && apt-get build-dep -y picontrol
     - |
       curl \
@@ -50,6 +60,6 @@ coverity-submit:
         --form token="$COVERITY_SCAN_TOKEN" \
         --form email="$CI_EMAIL" \
         --form file=@picontrol.tar.gz \
-        --form version="$CI_COMMIT_TAG" \
-        --form description="Automated release submit for $CI_COMMIT_TAG" \
+        --form version="$VERSION" \
+        --form description="Automated release submit for $VERSION" \
         "https://scan.coverity.com/builds?project=$CI_PROJECT_NAME"
