@@ -37,7 +37,9 @@ coverity-submit:
         VERSION="$CI_COMMIT_TAG"
       fi
     - printf 'Building and submitting version %s\n' "$VERSION"
-    - apt update && apt-get build-dep -y picontrol
+    - apt update
+    - apt install -y linux-headers-revpi-v8
+    - apt-get build-dep -y picontrol
     - |
       curl \
         -sSfLo /tmp/cov-analysis-linux-arm64.tar.gz \
