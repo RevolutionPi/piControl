@@ -7,7 +7,9 @@
 
 #include "piControl.h"
 #include "IoProtocol.h"
+#include <linux/cleanup.h>
 #include <linux/ioctl.h>
+#include <linux/rtmutex.h>
 #include <linux/types.h>
 
 #define PICONFIG_FILE					"/etc/revpi/config.rsc"
@@ -127,5 +129,7 @@ typedef struct SEntryInfoStr
 #define PICONTROL_LED_RGB_A5_RED			0x1000
 #define PICONTROL_LED_RGB_A5_GREEN			0x2000
 #define PICONTROL_LED_RGB_A5_BLUE			0x4000
+
+DEFINE_GUARD(rt_mutex, struct rt_mutex *, rt_mutex_lock(_T), rt_mutex_unlock(_T));
 
 #endif /* PICONTROL_INTERN_H */
