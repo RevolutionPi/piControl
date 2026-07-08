@@ -33,7 +33,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.7.0");
+MODULE_VERSION("2.8.0");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "lan743x "		/* connect 5 eth gateways */
