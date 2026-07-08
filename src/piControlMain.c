@@ -962,13 +962,10 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 /*****************************************************************************/
 static loff_t piControlSeek(struct file *file, loff_t off, int whence)
 {
-	tpiControlInst *priv;
 	loff_t newpos;
 
 	if (!isRunning())
 		return -EAGAIN;
-
-	priv = (tpiControlInst *) file->private_data;
 
 	switch (whence) {
 	case 0:		/* SEEK_SET */
