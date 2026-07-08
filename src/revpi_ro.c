@@ -112,9 +112,9 @@ int revpi_ro_cycle(unsigned int devnum)
 					     dev->i16uInputOffset);
 
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		state_out = img_out->target_state;
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			state_out = img_out->target_state;
+		}
 	} else {
 		memset(&state_out, 0, sizeof(state_out));
 	}
@@ -134,9 +134,9 @@ int revpi_ro_cycle(unsigned int devnum)
 	}
 
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		img_in->status = status_in;
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			img_in->status = status_in;
+		}
 	}
 
 	return 0;
