@@ -73,7 +73,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 /******************************  Global Vars  *********************************/
 /******************************************************************************/
 
-static struct file_operations piControlFops = {
+static const struct file_operations piControlFops = {
 	.owner = THIS_MODULE,
 	.read = piControlRead,
 	.write = piControlWrite,
