@@ -247,7 +247,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		case MIO_CONF_EMOD:
 			conf->dio.i8uEncoderMode = ent[i].i32uDefault;
 			break;
-		case MIO_CONF_IOMOD ... MIO_CONF_PUL -1:
+		case MIO_CONF_IOMOD ... MIO_CONF_PUL - 1:
 			arr_idx = (offset - MIO_CONF_IOMOD) / sizeof(u8);
 			conf->dio.i8uIoMode[arr_idx] = ent[i].i32uDefault;
 			break;
