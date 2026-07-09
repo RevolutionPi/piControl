@@ -719,6 +719,8 @@ static int piControlReset(tpiControlInst * priv)
 						pEntry->event = piEvReset;
 						list_add_tail(&pEntry->list,
 							      &pos_inst->piEventList);
+					} else {
+						pr_err("Unable to allocate event during reset\n");
 					}
 				}
 			}
