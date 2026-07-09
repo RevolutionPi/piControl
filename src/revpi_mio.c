@@ -12,8 +12,9 @@ static struct mio_config mio_list[REVPI_MIO_MAX];
 /* the counter of the MIO module */
 static int mio_cnt;
 /* store the sent analog request.
-   the field i8uChannels of struct SMioAnalogRequestData takes no function here,
-   but it could be used for the debuging purpose */
+ * the field i8uChannels of struct SMioAnalogRequestData takes no function here,
+ * but it could be used for the debuging purpose
+ */
 static SMioAnalogRequestData mio_aio_request_last[REVPI_MIO_MAX];
 
 static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
@@ -23,7 +24,7 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 	SMioDigitalRequestData req;
 	int ret;
 
-	/*copy: from process image:output to request*/
+	/* copy: from process image:output to request */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		scoped_guard(rt_mutex, &piDev_g.lockPI) {
 			memcpy(&req, req_data, sizeof(req));
@@ -45,7 +46,7 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 		return ret;
 	}
 
-	/*copy: from response to process image:input*/
+	/* copy: from response to process image:input */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		scoped_guard(rt_mutex, &piDev_g.lockPI) {
 			memcpy(resp_data, &resp, sizeof(*resp_data));
@@ -76,7 +77,7 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 		return ret;
 	}
 
-	/*copy: from response to process image*/
+	/* copy: from response to process image */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		scoped_guard(rt_mutex, &piDev_g.lockPI) {
 			memcpy(resp_data, &resp, sizeof(*resp_data));
@@ -87,13 +88,13 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 }
 
 /*
-	compare to get the changed values of channels
-	input parameters:
-		a, b: data of two messages
-		count: count of channels
-		step: number of bytes for a channel
-	return:	bit map of changed channels
-*/
+ *	compare to get the changed values of channels
+ *	input parameters:
+ *		a, b: data of two messages
+ *		count: count of channels
+ *		step: number of bytes for a channel
+ *	return:	bit map of changed channels
+ */
 static unsigned long revpi_chnl_cmp(void *a, void *b, int count, int step)
 {
 	unsigned char *pa, *pb;
@@ -111,13 +112,13 @@ static unsigned long revpi_chnl_cmp(void *a, void *b, int count, int step)
 }
 
 /*
-	compress the channel, only data of changed channel will be taken
-	input parameters:
-		dst, dst: compress from src to dst
-		bitmap: compress according to
-		step: number of bytes for a channel
-	return: the count of channels has been taken.
-*/
+ *	compress the channel, only data of changed channel will be taken
+ *	input parameters:
+ *		dst, dst: compress from src to dst
+ *		bitmap: compress according to
+ *		step: number of bytes for a channel
+ *	return: the count of channels has been taken.
+ */
 static unsigned int revpi_chnl_compress(void *dst, void *src,
 					unsigned long bitmap, int step)
 {
@@ -229,9 +230,9 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 
 	conf->addr = addr;
 
-	/*0=input (InputThreshold)*/
+	/* 0=input (InputThreshold) */
 	conf->aio_i.i8uDirection = 0;
-	/*1=output(Fixed Output)*/
+	/* 1=output(Fixed Output) */
 	conf->aio_o.i8uDirection = 1;
 
 	pr_debug("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd)\n",
@@ -349,7 +350,7 @@ int revpi_mio_init(unsigned char devno)
 	if (!conf)
 		return REVPI_MODULE_NOT_CONFIGURED;
 
-	/*dio*/
+	/* dio */
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
 			      &conf->dio, sizeof(conf->dio), NULL, 0);
 	if (ret)
@@ -377,13 +378,13 @@ int revpi_mio_init(unsigned char devno)
 				addr, ret);
 	}
 
-	/*aio in*/
+	/* aio in */
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
 			      &conf->aio_i, sizeof(conf->aio_i), NULL, 0);
 	if (ret)
 		pr_err("MIO addr %u: aio input config failed (ret:%d)\n", addr, ret);
 
-	/*aio out*/
+	/* aio out */
 	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
 			      &conf->aio_o, sizeof(conf->aio_o), NULL, 0);
 	if (ret)

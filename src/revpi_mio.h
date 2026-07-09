@@ -43,15 +43,15 @@ typedef enum {
 #define MIO_CONF_END	(MIO_CONF_OUTV + sizeof(u16) * MIO_AIO_PORT_CNT)
 
 /*
-because of the limitation of length field in UIoProtocolHeader, which has 5 bits,
-only maximum 31 bytes of data can be transmitted once, so the mio configurations
-is transmitted in 3 times.
-
-to make the struct mio_config can be directly used as the buffer for the
-request  IOP_TYP1_CMD_CFG(digital) and IOP_TYP1_CMD_DATA4(analog), complete
-structs for digital, analog input and analog output configurations are put here,
-despite of the repeated headers
-*/
+ * because of the limitation of length field in UIoProtocolHeader, which has 5 bits,
+ * only maximum 31 bytes of data can be transmitted once, so the mio configurations
+ * is transmitted in 3 times.
+ *
+ * to make the struct mio_config can be directly used as the buffer for the
+ * request  IOP_TYP1_CMD_CFG(digital) and IOP_TYP1_CMD_DATA4(analog), complete
+ * structs for digital, analog input and analog output configurations are put here,
+ * despite of the repeated headers
+ */
 struct mio_config {
 	u8 addr;
 	bool dio_enabled;        /* false if all 4 DIO channels disabled */
