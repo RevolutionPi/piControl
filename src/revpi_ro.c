@@ -16,11 +16,11 @@
 struct revpi_ro_img_out {
 	struct revpi_ro_target_state target_state;
 	u32 thresh[REVPI_RO_NUM_RELAYS];
-} __attribute__((__packed__));
+} __packed;
 
 struct revpi_ro_img_in {
 	struct revpi_ro_status status;
-} __attribute__((__packed__));
+} __packed;
 
 /* Number of registered RO devices */
 static unsigned int num_devices;

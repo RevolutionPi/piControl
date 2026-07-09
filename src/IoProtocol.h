@@ -62,14 +62,14 @@ typedef union {
 	u8 bitLength : 5;
 	u8 bitDataPart1 : 3;
     }sHeaderTyp2;
-} __attribute__((__packed__)) UIoProtocolHeader;
+} __packed UIoProtocolHeader;
 
 //-----------------------------------------------------------------------------
 // generic data structure for request and response
 typedef struct {
     UIoProtocolHeader uHeader;
     u8 ai8uData[IOPROTOCOL_MAXDATA_LENGTH + 1];    // one more byte for CRC
-} __attribute__((__packed__)) SIOGeneric;
+} __packed SIOGeneric;
 
 // ----------------- BROADCAST messages -------------------------------------
 
@@ -86,7 +86,7 @@ typedef struct { // IOP_TYP1_CMD_CFG
 
     u8  i8uInputDebounce;            // 0=Off, 1=25us, 2=750us, 3=3ms, 4-255 not allowed
     u32 i32uInputMode;               // bitfield, 2 bits per channel: 00=direct, 01=counter, rising edge, 10=counter, falling edge, 11=encoder
-} __attribute__((__packed__)) SDioConfig;
+} __packed SDioConfig;
 
 
 //-----------------------------------------------------------------------------
@@ -95,21 +95,21 @@ typedef struct { // IOP_TYP1_CMD_DATA
     UIoProtocolHeader uHeader;
     u16 i16uOutput;
     u8  i8uCrc;
-} __attribute__((__packed__)) SDioRequest;
+} __packed SDioRequest;
 
 // Request for Digital IO modules: output with variable number of pwm values
 struct pwm_data {		// IOP_TYP1_CMD_DATA2
 	u16 output;
 	u16 channels;		// bitfield pwm channel
 	u8 value[16];		// [0-100] pwm value in %
-} __attribute__((__packed__));
+} __packed;
 
 // Request for Digital IO modules: reset counter values
 typedef struct { // IOP_TYP1_CMD_DATA3
     UIoProtocolHeader uHeader;
     u16 i16uChannels;    // bitfield counter channel
     u8  i8uCrc;
-} __attribute__((__packed__)) SDioCounterReset;
+} __packed SDioCounterReset;
 
 
 //-----------------------------------------------------------------------------
@@ -138,7 +138,7 @@ typedef struct { // IOP_TYP1_CMD_DATA
     u16 i16uOutputStatus;            // 0=error on output pin (thermal shutdown, over load, open load in high side mode)
     SDioModuleStatus sDioModuleStatus;
     u8 i8uCrc;
-} __attribute__((__packed__)) SDioResponse;
+} __packed SDioResponse;
 
 // Answer if Digital IO modules: digital input and status, with counter or encoder values
 typedef struct { // IOP_TYP1_CMD_DATA2
@@ -148,7 +148,7 @@ typedef struct { // IOP_TYP1_CMD_DATA2
     SDioModuleStatus sDioModuleStatus;
     u32 ai32uCounters[16];           // dummy array, contains only values for the activated counters/encoders
     u8 i8uCrc;
-} __attribute__((__packed__)) SDioCounterResponse;
+} __packed SDioCounterResponse;
 
 //-----------------------------------------------------------------------------
 // ----------------- ANALOG IO modules -------------------------------------
@@ -248,7 +248,7 @@ typedef struct {
     s16                i16sA1; // Scaling A1
     u16                i16uA2; // Scaling A2
     s16                i16sB;  // Scaling B
-} __attribute__((__packed__)) SAioOutputConfig;
+} __packed SAioOutputConfig;
 
 // Input configuration
 typedef struct {
@@ -258,7 +258,7 @@ typedef struct {
     s16              i16sA1; // Scaling A1
     u16              i16uA2; // Scaling A2
     s16              i16sB;  // Scaling B
-} __attribute__((__packed__)) SAioInputConfig;
+} __packed SAioInputConfig;
 
 // RTD configuration, 7 Bytes
 typedef struct {
@@ -269,24 +269,24 @@ typedef struct {
     s16 i16sA1;              // Scaling A1
     u16 i16uA2;              // Scaling A2
     s16 i16sB;               // Scaling B
-} __attribute__((__packed__)) SAioRtdConfig;
+} __packed SAioRtdConfig;
 
 // AIO configuration, 31 Bytes
 typedef struct { // IOP_TYP1_CMD_CFG
     u8 i8uInputSampleRate;
     SAioRtdConfig sAioRtdConfig[AIO_MAX_RTD];
     SAioOutputConfig sAioOutputConfig[AIO_MAX_OUTPUTS];
-} __attribute__((__packed__)) SAioConfig;
+} __packed SAioConfig;
 
 typedef struct { // IOP_TYP1_CMD_DATA2 (Input 1+2) or IOP_TYP1_CMD_DATA3 (Input 3+4)
     SAioInputConfig sAioInputConfig[AIO_HALF_INPUTS];		// 16 Bytes
-} __attribute__((__packed__)) SAioInConfig;
+} __packed SAioInConfig;
 
 //-----------------------------------------------------------------------------
 // Data request for Analog IO modules, 4 Bytes
 typedef struct { // IOP_TYP1_CMD_DATA
     s16 i16sOutputValue[AIO_MAX_OUTPUTS]; // Output value in mV or uA
-} __attribute__((__packed__)) SAioRequest;
+} __packed SAioRequest;
 
 //-----------------------------------------------------------------------------
 // Data response of Analog IO modules, 20 Bytes
@@ -296,14 +296,14 @@ typedef struct { // IOP_TYP1_CMD_DATA
     s16 i16sRtdValue[AIO_MAX_RTD];       // RTD value in 0,1°C
     u8 i8uRtdStatus[AIO_MAX_RTD];        // RTD status
     u8 i8uOutputStatus[AIO_MAX_OUTPUTS]; // Output status
-} __attribute__((__packed__)) SAioResponse;
+} __packed SAioResponse;
 
 //-----------------------------------------------------------------------------
 // Data request for raw values of Analog IO modules, 0 Bytes
 typedef struct { // IOP_TYP1_CMD_DATA4
     UIoProtocolHeader uHeader;
     u8  i8uCrc;
-} __attribute__((__packed__)) SAioRawRequest;
+} __packed SAioRawRequest;
 
 //-----------------------------------------------------------------------------
 // Data response for raw values of Analog IO modules, 10 Bytes
@@ -314,7 +314,7 @@ typedef struct { // IOP_TYP1_CMD_DATA4
     u16 i16uInternalTemperatureSensor;
     u16 i16uRtdValue[AIO_MAX_RTD];
     u8  i8uCrc;
-} __attribute__((__packed__)) SAioRawResponse;
+} __packed SAioRawResponse;
 
 //-----------------------------------------------------------------------------
 // Data request for rtd scaling values of Analog IO modules, 0 Bytes
@@ -323,13 +323,13 @@ typedef struct {
     s16 i16sRtd3wireOffset[AIO_MAX_RTD];
     u16 i16uRtd4wireFactor[AIO_MAX_RTD];
     s16 i16sRtd4wireOffset[AIO_MAX_RTD];
-}__attribute__((__packed__)) SAioRtdScaling;
+}__packed SAioRtdScaling;
 
 typedef struct { // IOP_TYP1_CMD_DATA5
     UIoProtocolHeader uHeader;
     SAioRtdScaling sRtdScaling;
     u8  i8uCrc;
-} __attribute__((__packed__)) SAioScalingRequest;
+} __packed SAioScalingRequest;
 
 //-----------------------------------------------------------------------------
 // Data response for rtd scaling values of Analog IO modules, 1 Byte
@@ -337,7 +337,7 @@ typedef struct { // IOP_TYP1_CMD_DATA5
     UIoProtocolHeader uHeader;
     u8  i8uSuccess; // 1: Success
     u8  i8uCrc;
-} __attribute__((__packed__)) SAioScalingResponse;
+} __packed SAioScalingResponse;
 
 //-----------------------------------------------------------------------------
 
@@ -489,60 +489,60 @@ typedef struct {
 /* Initial configuration request data */
 struct revpi_ro_config {
 	u32 thresh[REVPI_RO_NUM_RELAYS];
-} __attribute__((__packed__));
+} __packed;
 
 /* Cyclic request data */
 struct revpi_ro_target_state {
 	/* Bitmask, 1 for active (closed), 0 for inactive (open) relais */
 	u8 mask;
-} __attribute__((__packed__));
+} __packed;
 
 /* Cyclic response data */
 struct revpi_ro_status {
 	/* Bitmask, 1 for pending warning */
 	u8 relays_warning;
-} __attribute__((__packed__));
+} __packed;
 
 /* Asynchronous response data */
 struct revpi_ro_counters {
 	u32 count[REVPI_RO_NUM_RELAYS];
-} __attribute__((__packed__));
+} __packed;
 
 /* requests and responses */
 struct revpi_ro_config_request { // IOP_TYP1_CMD_CFG
 	UIoProtocolHeader hdr;
 	struct revpi_ro_config config;
 	u8 crc;
-} __attribute__((__packed__));
+} __packed;
 
 struct revpi_ro_config_response {
 	UIoProtocolHeader hdr;
 	u8 crc;
-} __attribute__((__packed__));
+} __packed;
 
 struct revpi_ro_target_state_request { // IOP_TYP1_CMD_DATA
 	UIoProtocolHeader hdr;
 	struct revpi_ro_target_state target_state;
 	u8 crc;
-} __attribute__((__packed__));
+} __packed;
 
 struct revpi_ro_status_response {
 	UIoProtocolHeader hdr;
 	struct revpi_ro_status status;
 	u8 crc;
-} __attribute__((__packed__));
+} __packed;
 
 /* Asynchronous telegram */
 struct revpi_ro_counters_request { // IOP_TYP1_CMD_DATA2
 	UIoProtocolHeader hdr;
 	u8 crc;
-} __attribute__((__packed__));
+} __packed;
 
 struct revpi_ro_counters_response {
 	UIoProtocolHeader hdr;
 	struct revpi_ro_counters counters;
 	u8 crc;
-} __attribute__((__packed__));
+} __packed;
 
 
 #pragma pack(pop)

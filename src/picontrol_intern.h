@@ -28,7 +28,7 @@ struct io_telegram {
 	__u8 datalen   :5;
 	__u8 command   :3;   /* 0 for broadcast*/
 	__u8 data[IOPROTOCOL_MAXDATA_LENGTH + 1];
-} __attribute__((__packed__));
+} __packed;
 
 struct io_telegram2 {
 	__u8 command   :6;
@@ -37,7 +37,7 @@ struct io_telegram2 {
 	__u8 datalen   :5;
 	__u8 dpart1    :3;
 	__u8 data[IOPROTOCOL_MAXDATA_LENGTH + 1];
-} __attribute__((__packed__));
+} __packed;
 
 /* send an I/O-Protocol message and return response */
 #define  KB_INTERN_IO_MSG				_IO(KB_IOC_MAGIC, 101 )
@@ -49,7 +49,7 @@ struct modgate_telegram {
 	__u16 sequence;
 	__u8 datalen;
 	__u8 data[MAX_TELEGRAM_DATA_SIZE];
-} __attribute__((__packed__));
+} __packed;
 
 /* send a Gateway-Protocol message and return response */
 #define  KB_INTERN_GATE_MSG				_IO(KB_IOC_MAGIC, 102)

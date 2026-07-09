@@ -32,7 +32,7 @@ typedef struct {
     u8   i8uACK;             //Acknowledge
     u8   i8uCounter;
 #endif
-} __attribute__((__packed__)) MODGATECOM_LinkLayer;
+} __packed MODGATECOM_LinkLayer;
 
 //**********************************************************************************************
 // Transport Layer
@@ -47,7 +47,7 @@ typedef struct {
     u32  i32uError;
     u8   i8uVersion;
     u8   i8uReserved;
-} __attribute__((__packed__)) MODGATECOM_TransportLayer;
+} __packed MODGATECOM_TransportLayer;
 
 //**********************************************************************************************
 // Application Layer
@@ -92,7 +92,7 @@ typedef struct {
     u16  i16uFBS_InputLength;
     u16  i16uFBS_OutputLength;
     u16  i16uFeatureDescriptor;
-} __attribute__((__packed__)) MODGATECOM_IDResp;
+} __packed MODGATECOM_IDResp;
 
 //**********************************************************************************************
 typedef struct {
@@ -100,7 +100,7 @@ typedef struct {
     u16  i16uOffset;
     u16  i16uDataLen;
     u8   i8uData[0];     // dummy declaration for up to MODGATE_MAX_PD_DATALEN bytes
-} __attribute__((__packed__)) MODGATECOM_CyclicPD;
+} __packed MODGATECOM_CyclicPD;
 
 #define MODGATE_LL_MAX_LEN                  ((sizeof(MODGATECOM_LinkLayer) + sizeof(MODGATECOM_TransportLayer) + sizeof(MODGATECOM_CyclicPD) + MODGATE_MAX_PD_DATALEN + 3) & 0xfffffffc)
 
