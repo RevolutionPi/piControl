@@ -361,6 +361,7 @@ void PiBridgeMaster_setDefaults(void)
 static u8 pibridge_get_max_common_baudrate(void)
 {
 	u32 master_max = pibridge_get_max_baudrate(piCore_g.pibridge);
+	u8 master_index = PIBRIDGE_BAUD_INDEX_MAX;
 	u8 min_index = PIBRIDGE_BAUD_INDEX_MAX;
 	u8 max_index = 0;
 	bool found = false;
@@ -368,11 +369,11 @@ static u8 pibridge_get_max_common_baudrate(void)
 	u8 baud_idx;
 	int i;
 
-	/* Start with the master's hardware-limited max baud as the ceiling. */
+	/* The master's hardware-limited max baud is the overall ceiling. */
 	if (master_max) {
-		while ((min_index > PIBRIDGE_BAUD_INDEX_115200) &&
-		       (pibridge_baud_table[min_index] > master_max))
-			min_index--;
+		while ((master_index > PIBRIDGE_BAUD_INDEX_115200) &&
+		       (pibridge_baud_table[master_index] > master_max))
+			master_index--;
 	}
 
 	for (i = 1; i < RevPiDevice_getDevCnt(); i++) {
@@ -396,11 +397,12 @@ static u8 pibridge_get_max_common_baudrate(void)
 	if (!found)
 		return PIBRIDGE_BAUD_INDEX_115200;
 
-	if (min_index < max_index)
+	/* Only hint if a module is the limit, not the base device. */
+	if (min_index < min(max_index, master_index))
 		pr_warn("one or more modules limits baudrate to %u, check for a firmware update\n",
 			pibridge_baud_table[min_index]);
 
-	return min_index;
+	return min(min_index, master_index);
 }
 
 /*
