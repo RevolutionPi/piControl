@@ -11,6 +11,7 @@
 #define TFPGA_HEAD_DATA_OFFSET			6
 #define	CHUNK_TRANSMISSION_ATTEMPTS		100
 #define	FLASH_ERASE_ATTEMPTS			5
+#define	FLASH_UPLOAD_ATTEMPTS			3
 
 // ret < 0: error
 // ret == 0: no update needed
@@ -242,7 +243,7 @@ int erase_flash(unsigned int dev_addr)
 		return ret;
 
 	if (attempts != FLASH_ERASE_ATTEMPTS)
-		pr_warn("%u attempts to erase flash required\n",
+		pr_warn("flash erase needed %u retries\n",
 			FLASH_ERASE_ATTEMPTS - attempts);
 	return 0;
 }
@@ -254,11 +255,11 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	unsigned int flash_offset;
 	unsigned int upload_len;
 	unsigned int dev_addr;
+	unsigned int attempt;
 	bool force_upload;
 	bool old_gateway;
 	TFileHead *hdr;
 	bool update;
-	int ret = 0;
 
 	force_upload  = !!(mask & PICONTROL_FIRMWARE_FORCE_UPLOAD);
 	/*
@@ -335,26 +336,42 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 
 	msleep(500);
 
-	if (erase_flash(dev_addr)) {
-		pr_err("failed to erase flash\n");
-		ret = -EIO;
-		goto reset;
+	for (attempt = 1; attempt <= FLASH_UPLOAD_ATTEMPTS; attempt++) {
+		if (attempt > 1)
+			pr_warn("retrying firmware upload (attempt %u of %u)\n",
+				attempt, FLASH_UPLOAD_ATTEMPTS);
+
+		if (erase_flash(dev_addr)) {
+			pr_err("failed to erase flash\n");
+			continue;
+		}
+		if (flash_firmware(dev_addr, hdr->dat.ulFlashStart,
+				   (unsigned char *) desc, upload_len)) {
+			pr_err("Errors while flashing firmware\n");
+			continue;
+		}
+		break;
 	}
-	if (flash_firmware(dev_addr, hdr->dat.ulFlashStart,
-			   (unsigned char *) desc, upload_len) < 0) {
-		pr_err("Errors while flashing firmware\n");
-		ret = -EIO;
-		goto reset;
+
+	/*
+	 * Do not reset the module when the upload failed. Old bootloaders
+	 * start a half written application, which crashes and leaves the
+	 * module unreachable until it is reflashed over SWD. In update
+	 * mode the module stays recoverable with another update attempt.
+	 */
+	if (attempt > FLASH_UPLOAD_ATTEMPTS) {
+		pr_err("firmware upload failed, module stays in update mode, run the update again\n");
+		return -EIO;
 	}
 
 	pr_info("Firmware upload successful.");
-reset:
+
 	/* a driven sniff pin traps old modules in the ROM bootloader */
 	piIoComm_releaseSniffPins();
 	if (fwuResetModule(dev_addr) < 0) {
 		pr_err("failed to reset after firmware update\n");
-		ret = -EIO;
+		return -EIO;
 	}
 
-	return ret;
+	return 0;
 }
