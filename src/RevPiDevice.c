@@ -6,6 +6,7 @@
 
 #include "RevPiDevice.h"
 #include "piAIOComm.h"
+#include "piControl.h"
 #include "piDIOComm.h"
 #include "revpi_core.h"
 #include "revpi_mio.h"
@@ -533,6 +534,52 @@ u8 RevPiDevice_getAddrLeft(void)
 u8 RevPiDevice_getAddrRight(void)
 {
 	return RevPiDevices_s.i8uAddressRight;
+}
+
+/*
+ * True when no physical device is configured beyond the given address,
+ * so the module at this address is the last device on the right side.
+ * The device list also contains devices which are missing from the
+ * scan, like gateways with old firmware or a module waiting in update
+ * mode. The configuration does not change during a firmware update,
+ * so it reflects the physical positions.
+ */
+static bool RevPiDevice_isLastRightDevice(u8 addr)
+{
+	SDevice *sdev;
+	u16 type;
+	int i;
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		sdev = RevPiDevice_getDev(i);
+		type = sdev->sId.i16uModulType & PICONTROL_NOT_CONNECTED_MASK;
+
+		/* only physical devices occupy a position */
+		if (type == 0 || type >= PICONTROL_SW_OFFSET)
+			continue;
+
+		if (sdev->i8uAddress > addr)
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * Address used by the bootloader of the module during a firmware
+ * update. The bootloader derives it from the sniff 1B pin: 2 when the
+ * module is the last device on the right, 1 otherwise.
+ */
+u8 RevPiDevice_getFwuAddress(u8 addr)
+{
+	/* modules on the left side never sit at the right end */
+	if (addr < REV_PI_DEV_FIRST_RIGHT)
+		return 1;
+
+	if (RevPiDevice_isLastRightDevice(addr))
+		return 2;
+
+	return 1;
 }
 
 

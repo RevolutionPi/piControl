@@ -1021,14 +1021,7 @@ int PiBridgeMaster_Run(void)
 					i32sRetVal = fwuEnterFwuMode(i32uFWUAddress);
 					pr_info("fwuEnterFwuMode returned %d\n", i32sRetVal);
 
-					if (i32uFWUAddress < REV_PI_DEV_FIRST_RIGHT) {
-						i32uFWUAddress = 1;	// address must be 1 in the following calls
-					} else {
-						if (i32uFWUAddress == RevPiDevice_getAddrRight() - 1)
-							i32uFWUAddress = 2;	// address must be 2 in the following calls
-						else
-							i32uFWUAddress = 1;	// address must be 1 in the following calls
-					}
+					i32uFWUAddress = RevPiDevice_getFwuAddress(i32uFWUAddress);
 					pr_info("using address %d\n", i32uFWUAddress);
 
 					ret = 0;	// do not return errors here

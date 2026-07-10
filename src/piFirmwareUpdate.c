@@ -317,14 +317,11 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	/* Old mGates always use 2 as device address */
 	if (!sdev->i8uScan)
 		dev_addr = 2;
-	else if (dev_addr < REV_PI_DEV_FIRST_RIGHT) {
-		dev_addr = 1;
-	} else {
-		if (dev_addr == RevPiDevice_getAddrRight() - 1)
-			dev_addr = 2;
-		else
-			dev_addr = 1;
-	}
+	else
+		dev_addr = RevPiDevice_getFwuAddress(dev_addr);
+
+	pr_info("using bootloader address %u for module %u\n", dev_addr,
+		sdev->i8uAddress);
 
 	msleep(500);
 

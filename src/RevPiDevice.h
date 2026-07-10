@@ -66,6 +66,7 @@ u8 RevPiDevice_getDevCnt(void);
 
 u8 RevPiDevice_getAddrLeft(void);
 u8 RevPiDevice_getAddrRight(void);
+u8 RevPiDevice_getFwuAddress(u8 addr);
 
 u16 RevPiDevice_getErrCnt(void);
 SDevice *RevPiDevice_getDev(u8 idx);
