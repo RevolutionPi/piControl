@@ -30,8 +30,6 @@ typedef enum _EGpioMode
     enGpioMode_Output,
 } EGpioMode;
 
-u8 piIoComm_Crc8(u8 *pi8uFrame_p, u16 i16uLen_p);
-
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p);

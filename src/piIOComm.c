@@ -30,17 +30,6 @@ int piIoComm_send(u8 * buf_p, u16 i16uLen_p)
 	return 0;
 }
 
-
-u8 piIoComm_Crc8(u8 * pi8uFrame_p, u16 i16uLen_p)
-{
-	u8 i8uRv_l = 0;
-
-	while (i16uLen_p--) {
-		i8uRv_l = i8uRv_l ^ pi8uFrame_p[i16uLen_p];
-	}
-	return i8uRv_l;
-}
-
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
 {
 	piIoComm_writeSniff(piCore_g.gpio_sniff1a, eVal_p, eMode_p);
