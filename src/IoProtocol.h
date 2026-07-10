@@ -323,7 +323,7 @@ typedef struct {
     s16 i16sRtd3wireOffset[AIO_MAX_RTD];
     u16 i16uRtd4wireFactor[AIO_MAX_RTD];
     s16 i16sRtd4wireOffset[AIO_MAX_RTD];
-}__packed SAioRtdScaling;
+} __packed SAioRtdScaling;
 
 typedef struct { // IOP_TYP1_CMD_DATA5
     UIoProtocolHeader uHeader;
