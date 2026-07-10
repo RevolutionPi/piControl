@@ -73,6 +73,18 @@ void piIoComm_writeSniff2B(EGpioValue eVal_p, EGpioMode eMode_p)
 	}
 }
 
+/*
+ * On old modules a driven low sniff pin pulls BOOT0 high and a reset
+ * then hangs in the ROM bootloader until the next power cycle.
+ */
+void piIoComm_releaseSniffPins(void)
+{
+	piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+	piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+	piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
+	piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
+}
+
 void piIoComm_writeSniff(struct gpio_desc *pGpio, EGpioValue eVal_p, EGpioMode eMode_p)
 {
 	if (eMode_p == enGpioMode_Input) {

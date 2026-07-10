@@ -1058,6 +1058,7 @@ int PiBridgeMaster_Run(void)
 				}
 			} else if (eRunStatus_s == enPiBridgeMasterStatus_FWUReset) {
 				if (bEntering_s) {
+					piIoComm_releaseSniffPins();
 					i32sRetVal = fwuResetModule(i32uFWUAddress);
 					pr_info("fwuResetModule returned %d\n", i32sRetVal);
 

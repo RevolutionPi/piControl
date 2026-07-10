@@ -4,6 +4,7 @@
 #include <linux/firmware.h>
 #include "fwuFlashFileMain.h"
 #include "piFirmwareUpdate.h"
+#include "piIOComm.h"
 #include "RS485FwuCommand.h"
 #include "revpi_core.h"
 
@@ -341,6 +342,8 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 
 	pr_info("Firmware upload successful.");
 reset:
+	/* a driven sniff pin traps old modules in the ROM bootloader */
+	piIoComm_releaseSniffPins();
 	if (fwuResetModule(dev_addr) < 0) {
 		pr_err("failed to reset after firmware update\n");
 		ret = -EIO;

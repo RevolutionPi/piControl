@@ -37,6 +37,7 @@ void piIoComm_writeSniff1B(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff2A(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff2B(EGpioValue eVal_p, EGpioMode eMode_p);
 void piIoComm_writeSniff(struct gpio_desc *, EGpioValue eVal_p, EGpioMode eMode_p);
+void piIoComm_releaseSniffPins(void);
 EGpioValue piIoComm_readSniff1A(void);
 EGpioValue piIoComm_readSniff1B(void);
 EGpioValue piIoComm_readSniff2A(void);
