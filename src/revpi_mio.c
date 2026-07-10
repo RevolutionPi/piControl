@@ -13,7 +13,7 @@ static struct mio_config mio_list[REVPI_MIO_MAX];
 static int mio_cnt;
 /* store the sent analog request.
  * the field i8uChannels of struct SMioAnalogRequestData takes no function here,
- * but it could be used for the debuging purpose
+ * but it could be used for the debugging purpose
  */
 static SMioAnalogRequestData mio_aio_request_last[REVPI_MIO_MAX];
 
