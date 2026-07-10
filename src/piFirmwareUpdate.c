@@ -337,9 +337,20 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	msleep(500);
 
 	for (attempt = 1; attempt <= FLASH_UPLOAD_ATTEMPTS; attempt++) {
-		if (attempt > 1)
+		if (attempt > 1) {
 			pr_warn("retrying firmware upload (attempt %u of %u)\n",
 				attempt, FLASH_UPLOAD_ATTEMPTS);
+
+			/*
+			 * A module which missed the unconfirmed broadcast
+			 * stays in the IO protocol and disturbs the upload.
+			 * Try again to move it to gate protocol.
+			 */
+			piIoComm_gotoGateProtocol();
+
+			/* let the other parsers discard the incomplete frame */
+			msleep(50);
+		}
 
 		if (erase_flash(dev_addr)) {
 			pr_err("failed to erase flash\n");
