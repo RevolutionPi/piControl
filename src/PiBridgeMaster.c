@@ -759,11 +759,12 @@ int PiBridgeMaster_Run(void)
 			case enPiBridgeMasterStatus_InitialSlaveDetectionLeft:
 				pr_debug("Enter InitialSlaveDetectionLeft State\n");
 
+				/* release even in ethernet mode, see piIoComm_releaseSniffPins */
+				piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+
 				if (piDev_g.pibridge_mode_ethernet_left) {
 					eRunStatus_s = enPiBridgeMasterStatus_EndOfConfig;
 				} else {
-					piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
-
 					if (piIoComm_readSniff2A() == enGpioValue_High) {
 						// configure first left slave
 						eRunStatus_s = enPiBridgeMasterStatus_ConfigLeftStart;
