@@ -351,7 +351,7 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 	conn->in_len = min(KB_PD_LEN, rcv_al->i16uFBS_OutputLength);
 	conn->out_len = min(KB_PD_LEN, rcv_al->i16uFBS_InputLength);
 
-	i = revpi_core_find_gate(dev, rcv_al->i16uModulType);
+	i = revpi_core_find_gate(dev, rcv_al);
 	if (i == REV_PI_DEV_UNDEF) {
 		/*
 		 * Gateway is either not configured or module type

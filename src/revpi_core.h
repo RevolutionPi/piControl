@@ -110,7 +110,7 @@ typedef struct _SRevPiCore {
 
 extern SRevPiCore piCore_g;
 
-u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type);
+u8 revpi_core_find_gate(struct net_device *netdev, MODGATECOM_IDResp *id_resp);
 void revpi_core_gate_connected(SDevice *revpi_dev, bool connected);
 int revpi_core_probe(struct platform_device *pdev);
 void revpi_core_remove(struct platform_device *pdev);

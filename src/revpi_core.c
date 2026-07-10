@@ -34,13 +34,55 @@ static const struct kthread_prio revpi_core_kthread_prios[] = {
 
 SRevPiCore piCore_g;
 
+/*
+ * Add a gateway that is missing in the PiCtory configuration to the device
+ * list as present but inactive, like an RS-485 enumerated module that is
+ * not part of the configuration. The entry is only informational: it has
+ * no process image offsets and is never activated.
+ */
+static void revpi_core_register_unconfigured_gate(struct net_device *netdev,
+						  bool is_right,
+						  MODGATECOM_IDResp *id_resp)
+{
+	SDevice *sdev;
+
+	/* the device list is rebuilt while the bridge is not running */
+	if (!isRunning())
+		return;
+
+	/* already registered by an earlier id handshake */
+	if (RevPiDevice_find_by_side_and_type(is_right,
+			id_resp->i16uModulType) != REV_PI_DEV_UNDEF)
+		return;
+
+	if (RevPiDevice_getDevCnt() >= REV_PI_DEV_CNT_MAX - 1) {
+		pr_warn("%s: cannot register gateway, device list is full\n",
+			netdev->name);
+		return;
+	}
+
+	sdev = RevPiDevice_getDev(RevPiDevice_getDevCnt());
+	memset(sdev, 0, sizeof(*sdev));
+	sdev->i8uAddress = is_right ? RevPiDevice_getAddrRight() :
+				      RevPiDevice_getAddrLeft();
+	sdev->sId = *id_resp;
+	sdev->i8uModuleState = IOSTATE_OFFLINE;
+	RevPiDevice_incDevCnt();
+
+	RevPiDevice_setStatus(0, PICONTROL_STATUS_EXTRA_MODULE);
+
+	pr_info("%s: registered unconfigured gateway of type %u as present but inactive\n",
+		netdev->name, id_resp->i16uModulType);
+}
+
 /**
  * revpi_core_find_gate() - find RevPiDevice for given netdev
  * @netdev: network device used to communicate with a RevPi Gate
- * @module_type: module type of the RevPi Gate
+ * @id_resp: id response received from the RevPi Gate
  */
-u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
+u8 revpi_core_find_gate(struct net_device *netdev, MODGATECOM_IDResp *id_resp)
 {
+	u16 module_type = id_resp->i16uModulType;
 	bool is_right;
 	u8 *gate_idx;
 	int i;
@@ -74,6 +116,9 @@ u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 			*gate_idx = i;
 			RevPiDevice_getDev(i)->i8uActive = 1;
 			RevPiDevice_getDev(i)->sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
+		} else {
+			revpi_core_register_unconfigured_gate(netdev, is_right,
+							      id_resp);
 		}
 	}
 
