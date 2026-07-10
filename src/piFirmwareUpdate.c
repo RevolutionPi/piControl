@@ -255,11 +255,17 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	unsigned int upload_len;
 	unsigned int dev_addr;
 	bool force_upload;
+	bool old_gateway;
 	TFileHead *hdr;
 	bool update;
 	int ret = 0;
 
 	force_upload  = !!(mask & PICONTROL_FIRMWARE_FORCE_UPLOAD);
+	/*
+	 * Gateways with firmware from before the ModGateCom protocol do
+	 * not take part in the module scan.
+	 */
+	old_gateway = !sdev->i8uScan && module_is_gateway(module_type);
 
 	hdr = (TFileHead *) &fw->data[0];
 	if (hdr->dat.usType != module_type) {
@@ -307,6 +313,13 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	upload_len = fw->size - flash_offset;
 	dev_addr = sdev->i8uAddress;
 
+	/*
+	 * Old mGates always use 2 as device address, in application and
+	 * bootloader mode. They ignore their configured address.
+	 */
+	if (old_gateway)
+		dev_addr = 2;
+
 	if (!(mask & PICONTROL_FIRMWARE_RESCUE_MODE)) {
 		if (fwuEnterFwuMode(dev_addr) < 0) {
 			pr_err("error entering firmware update mode\n");
@@ -314,12 +327,8 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 		}
 	}
 
-	if (!sdev->i8uScan && module_is_gateway(module_type)) {
-		/* Old mGates always use 2 as device address */
-		dev_addr = 2;
-	} else {
+	if (!old_gateway)
 		dev_addr = RevPiDevice_getFwuAddress(dev_addr);
-	}
 
 	pr_info("using bootloader address %u for module %u\n", dev_addr,
 		sdev->i8uAddress);
