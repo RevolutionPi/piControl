@@ -254,6 +254,7 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	T_KUNBUS_APPL_DESCR *desc;
 	unsigned int flash_offset;
 	unsigned int upload_len;
+	unsigned int enter_addr;
 	unsigned int dev_addr;
 	unsigned int attempt;
 	bool force_upload;
@@ -312,24 +313,24 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	}
 
 	upload_len = fw->size - flash_offset;
-	dev_addr = sdev->i8uAddress;
 
 	/*
 	 * Old mGates always use 2 as device address, in application and
 	 * bootloader mode. They ignore their configured address.
 	 */
-	if (old_gateway)
-		dev_addr = 2;
+	enter_addr = old_gateway ? 2 : sdev->i8uAddress;
 
 	if (!(mask & PICONTROL_FIRMWARE_RESCUE_MODE)) {
-		if (fwuEnterFwuMode(dev_addr) < 0) {
+		if (fwuEnterFwuMode(enter_addr) < 0) {
 			pr_err("error entering firmware update mode\n");
 			return -EIO;
 		}
 	}
 
-	if (!old_gateway)
-		dev_addr = RevPiDevice_getFwuAddress(dev_addr);
+	if (old_gateway)
+		dev_addr = 2;
+	else
+		dev_addr = RevPiDevice_getFwuAddress(sdev->i8uAddress);
 
 	pr_info("using bootloader address %u for module %u\n", dev_addr,
 		sdev->i8uAddress);
@@ -350,6 +351,14 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 
 			/* let the other parsers discard the incomplete frame */
 			msleep(50);
+
+			/*
+			 * The module itself may have missed the broadcast
+			 * and with it the update mode request. Repeat it,
+			 * a module already in the bootloader ignores it.
+			 */
+			if (!(mask & PICONTROL_FIRMWARE_RESCUE_MODE))
+				fwuEnterFwuMode(enter_addr);
 		}
 
 		if (erase_flash(dev_addr)) {
