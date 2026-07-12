@@ -11,6 +11,9 @@
 #include "piIOComm.h"
 #include "RS485FwuCommand.h"
 
+/* bootloaders answer slower than applications */
+#define FWU_PROBE_TIMEOUT	100	/* msec */
+
 int fwuEnterFwuMode(u8 address)
 {
 	int ret;
@@ -124,6 +127,42 @@ int fwuWrite(u8 address, u32 flashAddr, char *data, u32 length)
 	}
 
 	return 0;
+}
+
+/*
+ * Return the module type of a device waiting in update mode on this
+ * address. The bootloader answers GetFwInfo but not GetDeviceInfo.
+ */
+int fwuDetectUpdateModeDevice(u8 address)
+{
+	u8 resp[MAX_FWU_DATA_SIZE];
+	struct fwu_info info;
+	int ret;
+
+	ret = pibridge_req_gate_tmt(piCore_g.pibridge, address, eCmdGetFwInfo,
+				    NULL, 0, resp, sizeof(resp),
+				    FWU_PROBE_TIMEOUT);
+	if (ret < 0)
+		return ret;
+	if (ret < sizeof(info))
+		return -EIO;
+
+	memcpy(&info, resp, sizeof(info));
+
+	ret = pibridge_req_gate_tmt(piCore_g.pibridge, address,
+				    eCmdGetDeviceInfo, NULL, 0, resp,
+				    sizeof(resp), FWU_PROBE_TIMEOUT);
+	if (ret >= 0)
+		return -ENODEV;
+
+	/*
+	 * The bootloader rejects GetDeviceInfo with an error response
+	 * which is not fully drained. Let it arrive, the next request
+	 * clears it from the fifo.
+	 */
+	usleep_range(5000, 10000);
+
+	return info.module_type;
 }
 
 int fwuResetModule (u8 address)
