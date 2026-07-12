@@ -357,8 +357,21 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 			 * and with it the update mode request. Repeat it,
 			 * a module already in the bootloader ignores it.
 			 */
-			if (!(mask & PICONTROL_FIRMWARE_RESCUE_MODE))
+			if (!(mask & PICONTROL_FIRMWARE_RESCUE_MODE)) {
 				fwuEnterFwuMode(enter_addr);
+				msleep(500);
+			}
+		}
+
+		/*
+		 * Only erase when a bootloader answers on the address. The
+		 * reported module type is deliberately not compared, some
+		 * bootloaders announce a wrong type.
+		 */
+		if (fwuDetectUpdateModeDevice(dev_addr) < 0) {
+			pr_err("no device in update mode on address %u\n",
+			       dev_addr);
+			continue;
 		}
 
 		if (erase_flash(dev_addr)) {
