@@ -640,6 +640,9 @@ int PiBridgeMaster_Run(void)
 				piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
 				piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
 
+				/* recover gateways stuck in bootloader (old pre modgatecom fw) */
+				quirk_recover_stuck_gateways();
+
 				eRunStatus_s = enPiBridgeMasterStatus_MasterIsPresentSignalling1;
 				bEntering_s = true;
 				break;

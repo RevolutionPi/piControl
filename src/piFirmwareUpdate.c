@@ -248,6 +248,34 @@ int erase_flash(unsigned int dev_addr)
 	return 0;
 }
 
+/* quirk for old gateways: recover from being stuck in the bootloader */
+void quirk_recover_stuck_gateways(void)
+{
+	bool gateway = false;
+	int module_type;
+	u8 addr;
+	int i;
+
+	for (i = 0; i < RevPiDevice_getDevCnt() && !gateway; i++) {
+		module_type = RevPiDevice_getDev(i)->sId.i16uModulType &
+			      PICONTROL_NOT_CONNECTED_MASK;
+		gateway = module_is_gateway(module_type);
+	}
+
+	if (!gateway)
+		return;
+
+	for (addr = 1; addr <= 2; addr++) {
+		module_type = fwuDetectUpdateModeDevice(addr);
+		if (module_type < 0 || !module_is_gateway(module_type))
+			continue;
+
+		pr_info("recovering gateway stuck in bootloader (address %u)\n",
+			addr);
+		fwuResetModule(addr);
+	}
+}
+
 int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 		    unsigned int module_type, unsigned int hw_rev)
 {
