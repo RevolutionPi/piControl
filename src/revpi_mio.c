@@ -114,7 +114,7 @@ static unsigned long revpi_chnl_cmp(void *a, void *b, int count, int step)
 /*
  *	compress the channel, only data of changed channel will be taken
  *	input parameters:
- *		dst, dst: compress from src to dst
+ *		dst, src: compress from src to dst
  *		bitmap: compress according to
  *		step: number of bytes for a channel
  *	return: the count of channels has been taken.
