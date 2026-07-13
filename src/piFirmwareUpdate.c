@@ -19,7 +19,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 {
 	struct file *input;
 	char *filename;
-	char *data = 0;
+	char *data = NULL;
 	loff_t length;
 	int ret = -EINVAL;
 	TFileHead header;
