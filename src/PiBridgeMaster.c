@@ -64,7 +64,7 @@ void PiBridgeMaster_Continue(void)
 	bEntering_s = false;
 }
 
-static void pibridge_reinit(void)
+static void pibridge_reinit(void) __must_hold(&piCore_g.lockBridgeState)
 {
 	lockdep_assert_held(&piCore_g.lockBridgeState);
 
