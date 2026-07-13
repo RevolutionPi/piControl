@@ -1475,7 +1475,7 @@ static int set_exported_outputs(tpiControlInst *priv, unsigned long usr_addr)
 			if (len >= 8) {
 				len /= 8;
 				if (copy_from_user(piDev_g.ai8uPI + addr,
-						   (void *)(usr_addr + addr),
+						   (void __user *)(usr_addr + addr),
 						   len) != 0) {
 					ret = -EFAULT;
 					break;
@@ -1522,7 +1522,7 @@ static int find_variable(unsigned long usr_addr)
 	if (!piDev_g.ent)
 		return -ENOENT;
 
-	usr_name = ((SPIVariable *) usr_addr)->strVarName;
+	usr_name = ((SPIVariable __user *) usr_addr)->strVarName;
 
 	namelen = strncpy_from_user(spi_var.strVarName, usr_name,
 				    sizeof(spi_var.strVarName) - 1);
@@ -1634,7 +1634,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return ret;
 
 			status = ret;
-			if (copy_to_user((void * __user) usr_addr, &dev_info, sizeof(dev_info))) {
+			if (copy_to_user((void __user *) usr_addr, &dev_info, sizeof(dev_info))) {
 				pr_err("failed to copy dev info to user\n");
 				return -EFAULT;
 			}
@@ -1952,7 +1952,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_LAST_MESSAGE:
 		{
-			if (copy_to_user((void *)usr_addr, priv->pcErrorMessage, sizeof(priv->pcErrorMessage))) {
+			if (copy_to_user((void __user *)usr_addr,
+					 priv->pcErrorMessage,
+					 sizeof(priv->pcErrorMessage))) {
 				pr_err("%s: copy_to_user failed", __func__);
 				return -EFAULT;
 			}
