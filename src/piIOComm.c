@@ -149,7 +149,7 @@ s32 piIoComm_sendRS485Tel(u16 i16uCmd_p, u8 i8uAddress_p,
 	if (ret != rcvlen) {
 		if (ret >= 0)
 			ret = -EIO;
-		pr_info_serial("Error sending gate request: %i\n", ret);
+		pr_debug("Error sending gate request: %i\n", ret);
 		return ret;
 	}
 

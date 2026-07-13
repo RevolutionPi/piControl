@@ -346,12 +346,21 @@ int RevPiDevice_run(void)
 
 bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pModgateId_p)
 {
+	int attempts = 3;
 	u32 ret_l;
 	u16 i16uLen_l = sizeof(MODGATECOM_IDResp);
-	//
-	ret_l =
-	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (u8 *) pModgateId_p, &i16uLen_l);
-	msleep(3);		// wait a while
+
+	/*
+	 * A gateway which booted too late for the master present pulse
+	 * answers scan requests as well, its late response corrupts the
+	 * following request. Retry silently like PiIoSetAddress does.
+	 */
+	do {
+		ret_l = piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0,
+					      (u8 *) pModgateId_p, &i16uLen_l);
+		msleep(3);	// wait a while
+	} while (ret_l && --attempts);
+
 	if (ret_l) {
 		pr_err("GetDeviceInfo for designated address %u failed: %d\n",
 			i8uAddress_p, ret_l);
