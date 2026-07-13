@@ -359,13 +359,15 @@ bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pMo
 		pr_debug("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
 	}
 
-	ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
+	ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, NULL);
 	msleep(3);		// wait a while
 	if (ret_l) {
-		ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
+		ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL,
+					      NULL);
 		msleep(3);		// wait a while
 		if (ret_l) {
-			ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
+			ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0,
+						      NULL, NULL);
 			msleep(3);		// wait a while
 			if (ret_l)
 				pr_err("PiIoSetAddress for designated address %u failed: %d\n",
@@ -462,7 +464,7 @@ void RevPiDevice_startDataexchange(void)
 {
 	u8 checksum = pibridge_get_iop_crc16(piCore_g.pibridge) ? 1 : 0;
 	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR,
-					  &checksum, sizeof(checksum), NULL, 0);
+					  &checksum, sizeof(checksum), NULL, NULL);
 	msleep(90);		// wait a while
 	if (ret_l)
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
@@ -557,7 +559,7 @@ static int RevPiDevice_setModuleTermination(u8 address, bool terminate)
 	data = terminate ? 0 : 1;
 
 	ret = piIoComm_sendRS485Tel(eCmdPiIoSetTermination, address, &data,
-				    sizeof(data), NULL, 0);
+				    sizeof(data), NULL, NULL);
 	if (ret) {
 		pr_err("Failed to %s termination for module (address %d): %d\n",
 			str_enable_disable(terminate), address, ret);

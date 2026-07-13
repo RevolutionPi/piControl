@@ -413,7 +413,7 @@ static int pibridge_modules_set_baudrate(u8 baud_index)
 	return piIoComm_sendRS485Tel(eCmdPiIoSetBaudrate,
 				    MODGATE_RS485_BROADCAST_ADDR,
 				    &baud_index, sizeof(baud_index),
-				    NULL, 0);
+				    NULL, NULL);
 }
 
 /*
