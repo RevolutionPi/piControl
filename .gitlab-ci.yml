@@ -32,7 +32,7 @@ coverity-submit:
       if [ "$CI_PIPELINE_SOURCE" = schedule ]; then
         # version should be dynamically retrieved
         git fetch -q --tags --unshallow origin
-        VERSION="$(git describe --match "v*" "$CI_COMMIT_BRANCH")"
+        VERSION="$(git describe --match "v*")"
       elif [ "$CI_COMMIT_TAG" ]; then
         VERSION="$CI_COMMIT_TAG"
       fi
