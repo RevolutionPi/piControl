@@ -14,7 +14,7 @@
 
 static SDeviceConfig RevPiDevices_s;
 
-const MODGATECOM_IDResp RevPiCore_ID_g = {
+static const MODGATECOM_IDResp RevPiCore_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CORE,
 	.i16uHW_Revision = 1,
@@ -26,7 +26,7 @@ const MODGATECOM_IDResp RevPiCore_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
-const MODGATECOM_IDResp RevPiCompact_ID_g = {
+static const MODGATECOM_IDResp RevPiCompact_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_COMPACT,
 	.i16uHW_Revision = 1,
@@ -38,7 +38,7 @@ const MODGATECOM_IDResp RevPiCompact_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
-const MODGATECOM_IDResp RevPiConnect_ID_g = {
+static const MODGATECOM_IDResp RevPiConnect_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT,
 	.i16uHW_Revision = 1,
@@ -50,7 +50,7 @@ const MODGATECOM_IDResp RevPiConnect_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
-const MODGATECOM_IDResp RevPiConnect4_ID_g = {
+static const MODGATECOM_IDResp RevPiConnect4_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT_4,
 	.i16uHW_Revision = 1,
@@ -62,7 +62,7 @@ const MODGATECOM_IDResp RevPiConnect4_ID_g = {
 	.i16uFeatureDescriptor = 0
 };
 
-const MODGATECOM_IDResp RevPiConnect5_ID_g = {
+static const MODGATECOM_IDResp RevPiConnect5_ID_g = {
 	.i32uSerialnumber = 1,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT_5,
 	.i16uHW_Revision = 1,
@@ -74,7 +74,7 @@ const MODGATECOM_IDResp RevPiConnect5_ID_g = {
 	.i16uFeatureDescriptor = 0
 };
 
-const MODGATECOM_IDResp RevPiFlat_ID_g = {
+static const MODGATECOM_IDResp RevPiFlat_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_FLAT,
 	.i16uHW_Revision = 1,
@@ -86,7 +86,7 @@ const MODGATECOM_IDResp RevPiFlat_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
-const MODGATECOM_IDResp RevPiGeneric_ID_g = {
+static const MODGATECOM_IDResp RevPiGeneric_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_REVPI_GENERIC_PB,
 	.i16uHW_Revision = 1,
