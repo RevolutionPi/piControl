@@ -39,7 +39,7 @@ typedef struct json_val {
 	} u;
 } json_val_t;
 
-char *string_of_errors[] = {
+static char *string_of_errors[] = {
 	[JSON_ERROR_NO_MEMORY] = "out of memory",
 	[JSON_ERROR_BAD_CHAR] = "bad character",
 	[JSON_ERROR_POP_EMPTY] = "stack empty",
