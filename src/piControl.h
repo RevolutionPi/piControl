@@ -12,7 +12,7 @@
 #define PICONTROL_DEVICE			"/dev/piControl0"
 /* max. length of error message */
 #define REV_PI_ERROR_MSG_LEN			256
-/* max. number of */
+/* max. number of devices connected to the PiBridge */
 #define REV_PI_DEV_CNT_MAX			64
 
 /*
