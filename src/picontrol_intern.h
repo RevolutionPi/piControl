@@ -13,8 +13,6 @@
 #include <linux/types.h>
 
 #define PICONFIG_FILE					"/etc/revpi/config.rsc"
-/* address of first module on the right side of the RevPi Core */
-#define REV_PI_DEV_FIRST_RIGHT				32
 
 // the following call are for KUNBUS internal use only.
 /* set serial num in piDIO, piDI or piDO (can be made only once) */

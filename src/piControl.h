@@ -16,6 +16,10 @@
 #define REV_PI_DEV_CNT_MAX			64
 /* length of the process image in bytes */
 #define PICONTROL_PROCESS_IMAGE_LEN		4096
+/* address of the first module on the right side of the RevPi */
+#define REV_PI_DEV_FIRST_RIGHT			32
+/* address of the first module on the left side of the RevPi */
+#define REV_PI_DEV_FIRST_LEFT			(REV_PI_DEV_FIRST_RIGHT - 1)
 
 /*
  *  Module Id
