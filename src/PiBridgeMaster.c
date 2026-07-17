@@ -316,7 +316,7 @@ void PiBridgeMaster_setDefaults(void)
 	if (piDev_g.ent == NULL)
 		return;
 
-	memset(piDev_g.ai8uPIDefault, 0, KB_PI_LEN);
+	memset(piDev_g.ai8uPIDefault, 0, PICONTROL_PROCESS_IMAGE_LEN);
 
 	for (i = 0; i < piDev_g.ent->i16uNumEntries; i++) {
 		if (piDev_g.ent->ent[i].i32uDefault != 0) {
@@ -330,7 +330,7 @@ void PiBridgeMaster_setDefaults(void)
 				offset += bit / 8;
 				bit %= 8;
 
-				if (offset > KB_PI_LEN - 1)
+				if (offset > PICONTROL_PROCESS_IMAGE_LEN - 1)
 					continue;
 
 				i8uValue = piDev_g.ai8uPIDefault[offset];
@@ -342,17 +342,20 @@ void PiBridgeMaster_setDefaults(void)
 					i8uValue &= ~i8uMask;
 				piDev_g.ai8uPIDefault[offset] = i8uValue;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 8) {
-				if (piDev_g.ent->ent[i].i16uOffset > KB_PI_LEN - 1)
+				if (piDev_g.ent->ent[i].i16uOffset >
+				    PICONTROL_PROCESS_IMAGE_LEN - 1)
 					continue;
 				piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset] =
 				    (u8) piDev_g.ent->ent[i].i32uDefault;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 16
-				   && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN - 1) {
+				   && piDev_g.ent->ent[i].i16uOffset <
+				      PICONTROL_PROCESS_IMAGE_LEN - 1) {
 				u16 *pi16uPtr = (u16 *) & piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
 
 				*pi16uPtr = (u16) piDev_g.ent->ent[i].i32uDefault;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 32
-				   && piDev_g.ent->ent[i].i16uOffset < KB_PI_LEN - 3) {
+				   && piDev_g.ent->ent[i].i16uOffset <
+				      PICONTROL_PROCESS_IMAGE_LEN - 3) {
 				u32 *pi32uPtr = (u32 *) & piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset];
 
 				*pi32uPtr = (u32) piDev_g.ent->ent[i].i32uDefault;
@@ -913,7 +916,8 @@ int PiBridgeMaster_Run(void)
 					PiBridgeMaster_setDefaults();
 
 					scoped_guard(rt_mutex, &piDev_g.lockPI) {
-						memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault, KB_PI_LEN);
+						memcpy(piDev_g.ai8uPI, piDev_g.ai8uPIDefault,
+						       PICONTROL_PROCESS_IMAGE_LEN);
 					}
 
 					/* Set base termination if possible. */

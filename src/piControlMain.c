@@ -886,13 +886,11 @@ static ssize_t piControlRead(struct file *file, char __user * pBuf, size_t count
 
 	dev_dbg(priv->dev, "%s Count: %zu, Pos: %llu", __func__, count, *ppos);
 
-	if (*ppos < 0 || *ppos >= KB_PI_LEN) {
+	if (*ppos < 0 || *ppos >= PICONTROL_PROCESS_IMAGE_LEN)
 		return 0;	// end of file
-	}
 
-	if (nread + *ppos > KB_PI_LEN) {
-		nread = KB_PI_LEN - *ppos;
-	}
+	if (nread + *ppos > PICONTROL_PROCESS_IMAGE_LEN)
+		nread = PICONTROL_PROCESS_IMAGE_LEN - *ppos;
 
 	pPd = piDev_g.ai8uPI + *ppos;
 
@@ -924,13 +922,11 @@ static ssize_t piControlWrite(struct file *file, const char __user * pBuf, size_
 
 	dev_dbg(priv->dev, "%s Count: %zu, Pos: %llu", __func__, count, *ppos);
 
-	if (*ppos < 0 || *ppos >= KB_PI_LEN) {
+	if (*ppos < 0 || *ppos >= PICONTROL_PROCESS_IMAGE_LEN)
 		return 0;	// end of file
-	}
 
-	if (nwrite + *ppos > KB_PI_LEN) {
-		nwrite = KB_PI_LEN - *ppos;
-	}
+	if (nwrite + *ppos > PICONTROL_PROCESS_IMAGE_LEN)
+		nwrite = PICONTROL_PROCESS_IMAGE_LEN - *ppos;
 
 	pPd = piDev_g.ai8uPI + *ppos;
 
@@ -969,14 +965,14 @@ static loff_t piControlSeek(struct file *file, loff_t off, int whence)
 		break;
 
 	case 2:		/* SEEK_END */
-		newpos = KB_PI_LEN + off;
+		newpos = PICONTROL_PROCESS_IMAGE_LEN + off;
 		break;
 
 	default:		/* can't happen */
 		return -EINVAL;
 	}
 
-	if (newpos < 0 || newpos >= KB_PI_LEN)
+	if (newpos < 0 || newpos >= PICONTROL_PROCESS_IMAGE_LEN)
 		return -EINVAL;
 
 	file->f_pos = newpos;
@@ -1670,7 +1666,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EFAULT;
 			}
 
-			if (spi_val.i16uAddress >= KB_PI_LEN) {
+			if (spi_val.i16uAddress >= PICONTROL_PROCESS_IMAGE_LEN) {
 				status = -EINVAL;
 			} else {
 				scoped_guard(rt_mutex, &piDev_g.lockPI) {
@@ -1708,7 +1704,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 				return -EFAULT;
 			}
 
-			if (spi_val.i16uAddress >= KB_PI_LEN) {
+			if (spi_val.i16uAddress >= PICONTROL_PROCESS_IMAGE_LEN) {
 				status = -EINVAL;
 			} else {
 				u8 i8uValue_l;

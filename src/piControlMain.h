@@ -66,8 +66,8 @@ typedef struct spiControlDev {
 	unsigned int revpi_gate_supported:1;
 
 	// process image stuff
-	u8 ai8uPI[KB_PI_LEN];
-	u8 ai8uPIDefault[KB_PI_LEN];
+	u8 ai8uPI[PICONTROL_PROCESS_IMAGE_LEN];
+	u8 ai8uPIDefault[PICONTROL_PROCESS_IMAGE_LEN];
 	struct rt_mutex lockPI;
 #define PICONTROL_DEV_FLAG_STOP_IO		0
 #define PICONTROL_DEV_FLAG_RUNNING		1

@@ -14,6 +14,8 @@
 #define REV_PI_ERROR_MSG_LEN			256
 /* max. number of devices connected to the PiBridge */
 #define REV_PI_DEV_CNT_MAX			64
+/* length of the process image in bytes */
+#define PICONTROL_PROCESS_IMAGE_LEN		4096
 
 /*
  *  Module Id

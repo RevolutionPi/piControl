@@ -543,21 +543,21 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 
 static bool device_ranges_valid(SDeviceInfo *dev)
 {
-	if ((dev->i16uInputOffset + dev->i16uInputLength) > KB_PI_LEN) {
+	if ((dev->i16uInputOffset + dev->i16uInputLength) > PICONTROL_PROCESS_IMAGE_LEN) {
 		pr_err("Invalid input range (offset: %u, length: %u)\n",
 			dev->i16uInputOffset,
 			dev->i16uInputLength);
 		return false;
 	}
 
-	if ((dev->i16uOutputOffset + dev->i16uOutputLength) > KB_PI_LEN) {
+	if ((dev->i16uOutputOffset + dev->i16uOutputLength) > PICONTROL_PROCESS_IMAGE_LEN) {
 		pr_err("Invalid output range (offset: %u, length: %u)\n",
 			dev->i16uOutputOffset,
 			dev->i16uOutputLength);
 		return false;
 	}
 
-	if ((dev->i16uConfigOffset + dev->i16uConfigLength) > KB_PI_LEN) {
+	if ((dev->i16uConfigOffset + dev->i16uConfigLength) > PICONTROL_PROCESS_IMAGE_LEN) {
 		pr_err("Invalid config range (offset: %u, length: %u)\n",
 			dev->i16uConfigOffset,
 			dev->i16uConfigLength);
@@ -780,7 +780,8 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 		u16 bytes = cl->ent[i].i16uLength >= 8 ?
 			    cl->ent[i].i16uLength / 8 : 1;
 
-		if (addr >= KB_PI_LEN || addr + bytes > KB_PI_LEN) {
+		if (addr >= PICONTROL_PROCESS_IMAGE_LEN ||
+		    addr + bytes > PICONTROL_PROCESS_IMAGE_LEN) {
 			pr_err("export entry %d out of range (addr %u, len %u)\n",
 			       i, addr, cl->ent[i].i16uLength);
 			kfree(cl);
@@ -884,7 +885,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 			offset += bit / 8;
 			bit %= 8;
 
-			if (offset > (KB_PI_LEN - 1)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 1)) {
 				pr_err("invalid offset for configuration parameter %u\n",
 				       offset);
 				continue;
@@ -899,7 +900,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 
 			mem[offset] = val;
 		} else if (ent->i16uBitLength == 8) {
-			if (offset > (KB_PI_LEN - 1)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 1)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;
@@ -908,7 +909,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 		} else if (ent->i16uBitLength == 16) {
 			u16 *valptr;
 
-			if (offset > (KB_PI_LEN - 2)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 2)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;
@@ -918,7 +919,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 		} else if (ent->i16uBitLength == 32) {
 			u32 *valptr;
 
-			if (offset > (KB_PI_LEN - 4)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 4)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;

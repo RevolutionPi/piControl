@@ -174,10 +174,10 @@ void revpi_zero_active_outputs(void)
 
 		if (!dev->i8uActive)
 			continue;
-		if (offset >= KB_PI_LEN)
+		if (offset >= PICONTROL_PROCESS_IMAGE_LEN)
 			continue;
-		if (offset + len > KB_PI_LEN)
-			len = KB_PI_LEN - offset;
+		if (offset + len > PICONTROL_PROCESS_IMAGE_LEN)
+			len = PICONTROL_PROCESS_IMAGE_LEN - offset;
 
 		memset(piDev_g.ai8uPI + offset, 0, len);
 	}
