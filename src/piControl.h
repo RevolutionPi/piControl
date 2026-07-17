@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: 2016-2025 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #ifndef PICONTROL_H_
 #define PICONTROL_H_
 
+#include <linux/const.h>
+#include <linux/ioctl.h>
 #include <linux/types.h>
 
 #define PICONTROL_DEVICE			"/dev/piControl0"
@@ -186,10 +188,10 @@ struct revpi_ro_ioctl_counters {
 	__u32 counter[REVPI_RO_NUM_RELAYS];
 } __attribute__((__packed__));
 
-#define REVPI_RO_RELAY_1_BIT			BIT(0)
-#define REVPI_RO_RELAY_2_BIT			BIT(1)
-#define REVPI_RO_RELAY_3_BIT			BIT(2)
-#define REVPI_RO_RELAY_4_BIT			BIT(3)
+#define REVPI_RO_RELAY_1_BIT			_BITUL(0)
+#define REVPI_RO_RELAY_2_BIT			_BITUL(1)
+#define REVPI_RO_RELAY_3_BIT			_BITUL(2)
+#define REVPI_RO_RELAY_4_BIT			_BITUL(3)
 
 struct pictl_calibrate {
 	/* Address of module in current configuration */
