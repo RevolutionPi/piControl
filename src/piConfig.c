@@ -758,6 +758,23 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 
 	cl->i16uNumEntries = i;
 
+	/* copylist offsets index the process image directly, keep them in range */
+	for (i = 0; i < cl->i16uNumEntries; i++) {
+		u16 addr = cl->ent[i].i16uAddr;
+		u16 bytes = cl->ent[i].i16uLength >= 8 ?
+			    cl->ent[i].i16uLength / 8 : 1;
+
+		if (addr >= KB_PI_LEN || addr + bytes > KB_PI_LEN) {
+			pr_err("export entry %d out of range (addr %u, len %u)\n",
+			       i, addr, cl->ent[i].i16uLength);
+			kfree(cl);
+			kfree(ent);
+			kfree(devs);
+			free_tree(root_structure);
+			return -EINVAL;
+		}
+	}
+
 	free_tree(root_structure);
 
 	/* Parsing ok, configure devices and replace old parsed data with new */
