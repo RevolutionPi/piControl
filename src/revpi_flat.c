@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2020-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2020-2026 KUNBUS GmbH
 
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
@@ -229,7 +229,7 @@ static int revpi_flat_match_iio_name(struct device *dev, const void *data)
 
 static void revpi_flat_adjust_config(void)
 {
-	SDeviceInfo *dev_info = piDev_g.devs->dev;
+	SDeviceInfo *dev_info;
 	SDevice *dev;
 	int i;
 
