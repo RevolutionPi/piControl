@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
  */
 
 #ifndef _REVPI_CORE_H
@@ -19,8 +19,6 @@
 #define PICONTROL_DEFAULT_CYCLE_DURATION	0 /* as fast as possible */
 #define PICONTROL_CYCLE_MAX_DURATION		45000 /* usecs */
 
-#define REVPI_MGATE_MAX				2
-
 /* a module *_Init() callback returns this when the module is present on the
  * bus but not part of the PiCtory configuration
  */
@@ -30,7 +28,6 @@ typedef enum {
 	piBridgeStop = 0,
 	piBridgeInit = 1,	// MGate Protocol
 	piBridgeRun = 2,	// IO Protocol
-	piBridgeDummy = 99	// dummy value to force update of led state
 } enPiBridgeState;
 
 typedef struct _SRevPiProcessImage {
@@ -60,8 +57,6 @@ typedef struct _SRevPiCore {
 	// piGate stuff
 	u8 i8uLeftMGateIdx;	// index of left GateModule in RevPiDevice_asDevice_m
 	u8 i8uRightMGateIdx;	// index of right GateModule in RevPiDevice_asDevice_m
-	u8 ai8uInput[KB_PD_LEN * REVPI_MGATE_MAX];
-	u8 ai8uOutput[KB_PD_LEN * REVPI_MGATE_MAX];
 
 	// piBridge stuff
 	struct rt_mutex lockBridgeState;

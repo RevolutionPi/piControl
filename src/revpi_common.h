@@ -25,9 +25,6 @@ void revpi_power_led_red_run(void);
 void revpi_check_timeout(void);
 void revpi_zero_active_outputs(void);
 
-extern char *lock_file;
-extern int lock_line;
-
 struct kthread_prio {
 	const char comm[TASK_COMM_LEN];
 	int prio;
