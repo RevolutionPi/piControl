@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
 
 #include <linux/firmware.h>
 #include "fwuFlashFileMain.h"
@@ -56,7 +56,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	}
 
 	read = kernel_read(input, (char *)&header, sizeof(header), &input->f_pos);
-	if (read <= 0) {
+	if (read < (int) sizeof(header)) {
 		pr_err("kernel_read returned %d: %s, %lld\n", read, filename, input->f_pos);
 		ret = -EINVAL;
 		goto laError;
@@ -87,6 +87,11 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	pr_info("firmware file length: %ld\n", (long int)length);
 
 	length -= header.ulLength + 6; // without header
+	if (length < (loff_t) sizeof(T_KUNBUS_APPL_DESCR)) {
+		pr_err("firmware file %s is too short\n", filename);
+		ret = -EINVAL;
+		goto laError;
+	}
 	data = kmalloc(length, GFP_KERNEL);
 	if (data == NULL) {
 		pr_err("out of memory\n");
@@ -298,6 +303,11 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	old_gateway = !sdev->i8uScan && module_is_gateway(module_type);
 
 	hdr = (TFileHead *) &fw->data[0];
+	if (fw->size < sizeof(*hdr)) {
+		pr_err("firmware corrupted: size %zu smaller than header\n",
+			fw->size);
+		return -EIO;
+	}
 	if (hdr->dat.usType != module_type) {
 		if (hdr->dat.usType != KUNBUS_FW_DESCR_TYP_PI_DIO_14)
 			return -EIO;
@@ -315,7 +325,8 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	   TFileHead structure */
 	flash_offset = hdr->ulLength + TFPGA_HEAD_DATA_OFFSET;
 
-	if (fw->size <= flash_offset) {
+	if (fw->size <= flash_offset ||
+	    fw->size - flash_offset < sizeof(*desc)) {
 		pr_err("firmware corrupted: invalid header length %u in firmware with size %zu\n",
 			hdr->ulLength, fw->size);
 		return -EIO;
