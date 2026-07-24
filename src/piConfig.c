@@ -8,6 +8,7 @@
 #include "json.h"
 #include "piAIOComm.h"
 #include "piConfig.h"
+#include "piControlMain.h"
 #include "piDIOComm.h"
 #include "project.h"
 #include "revpi_compact.h"
@@ -817,13 +818,16 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 
 	}
 
-	kfree(*devices_list);
-	kfree(*entries_list);
-	kfree(*copy_list);
+	/* IO thread reads the copylist under lockPI, swap under it too */
+	scoped_guard(rt_mutex, &piDev_g.lockPI) {
+		kfree(*devices_list);
+		kfree(*entries_list);
+		kfree(*copy_list);
 
-	*devices_list = devs;
-	*entries_list = ent;
-	*copy_list = cl;
+		*devices_list = devs;
+		*entries_list = ent;
+		*copy_list = cl;
+	}
 
 	return ret;
 }
