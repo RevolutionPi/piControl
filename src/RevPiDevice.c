@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
 #include <linux/of.h>
+#include <linux/spinlock.h>
 
 #include "RevPiDevice.h"
 #include "piAIOComm.h"
@@ -14,6 +15,7 @@
 #include "picontrol_trace.h"
 
 static SDeviceConfig RevPiDevices_s;
+static DEFINE_SPINLOCK(status_lock);
 
 static const MODGATECOM_IDResp RevPiCore_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
@@ -499,9 +501,14 @@ u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
 
 u8 RevPiDevice_setStatus(u8 clr, u8 set)
 {
-	RevPiDevices_s.i8uStatus &= ~clr;
-	RevPiDevices_s.i8uStatus |= set;
-	return RevPiDevices_s.i8uStatus;
+	u8 status;
+
+	spin_lock(&status_lock);
+	status = (RevPiDevices_s.i8uStatus & ~clr) | set;
+	RevPiDevices_s.i8uStatus = status;
+	spin_unlock(&status_lock);
+
+	return status;
 }
 
 u8 RevPiDevice_getStatus(void)
