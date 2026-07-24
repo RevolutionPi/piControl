@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #pragma once
 
 #include "common_define.h"
 #include "ModGateComMain.h"
+#include "piControl.h"
 #include "piIOComm.h"
 
 typedef struct _SRevPiProcessImage SRevPiProcessImage;
@@ -13,7 +14,6 @@ typedef struct _SRevPiProcessImage SRevPiProcessImage;
 #define REV_PI_DEV_UNDEF            255
 #define REV_PI_DEV_FIRST_RIGHT      32
 #define REV_PI_DEV_FIRST_LEFT	    (REV_PI_DEV_FIRST_RIGHT - 1)
-#define REV_PI_DEV_CNT_MAX          64
 #define REV_PI_DEV_DEFAULT_SERIAL   1
 
 typedef struct _SDevice
