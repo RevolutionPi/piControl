@@ -453,10 +453,17 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 				}
 			} else if (lvl == 200) {
 				if (element->u.object[i]->val->type == JSON_ARRAY_BEGIN) {
-					struct json_val **array = element->u.object[i]->val->u.array;
+					struct json_val *entry = element->u.object[i]->val;
+					struct json_val **array = entry->u.array;
 
 					if (*pIdxEntry >= pEnt->i16uNumEntries) {
 						pr_err("error: wrong entry index\n");
+						return;
+					}
+					/* every entry is an 8-element array (bitPos at index 7) */
+					if (entry->length < 8) {
+						pr_err("error: config entry has too few fields (%d)\n",
+						       entry->length);
 						return;
 					}
 					pEnt->ent[*pIdxEntry].i8uAddress = devAddr;
