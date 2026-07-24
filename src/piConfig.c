@@ -72,7 +72,7 @@ void close_filename(struct file *file)
 	filp_close(file, NULL);
 }
 
-int process_file(json_parser * parser, struct file *input, int *retlines, int *retcols)
+static int process_file(json_parser *parser, struct file *input, int *retlines, int *retcols)
 {
 #define BUFFLEN     4096
 	int ret = 0;
