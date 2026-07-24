@@ -390,86 +390,63 @@ bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pMo
 	return true;
 }
 
+static bool write_next_config_side(bool right)
+{
+	SDevice *dev = RevPiDevice_getDev(RevPiDevice_getDevCnt());
+	u8 addr = right ? RevPiDevices_s.i8uAddressRight :
+			  RevPiDevices_s.i8uAddressLeft;
+
+	if (!RevPiDevice_writeNextConfiguration(addr, &dev->sId))
+		return false;
+
+	dev->i8uAddress = addr;
+	if (RevPiDevice_getDevCnt() == 0) {
+		dev->i16uInputOffset = 0;
+		dev->i16uOutputOffset = dev->sId.i16uFBS_InputLength;
+	} else {
+		SDevice *prev = RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1);
+
+		dev->i16uInputOffset = prev->i16uOutputOffset +
+				       prev->sId.i16uFBS_OutputLength;
+		dev->i16uOutputOffset = dev->i16uInputOffset +
+					dev->sId.i16uFBS_InputLength;
+	}
+
+	pr_info("found %d. device on %s side. Moduletype %d. Designated address %d\n",
+		RevPiDevice_getDevCnt() + 1, right ? "right" : "left",
+		dev->sId.i16uModulType, addr);
+	pr_debug("input offset  %5d  len %3d\n", dev->i16uInputOffset,
+		 dev->sId.i16uFBS_InputLength);
+	pr_debug("output offset %5d  len %3d\n", dev->i16uOutputOffset,
+		 dev->sId.i16uFBS_OutputLength);
+
+	dev->i8uActive = 1;
+	dev->i8uScan = 1;
+
+	if (dev->sId.i16uFeatureDescriptor & MODGATE_feature_IODataExchange) {
+		if (right)
+			RevPiDevices_s.gatewayRight = true;
+		else
+			RevPiDevices_s.gatewayLeft = true;
+	}
+
+	RevPiDevice_incDevCnt();
+	if (right)
+		RevPiDevices_s.i8uAddressRight++;
+	else
+		RevPiDevices_s.i8uAddressLeft--;
+
+	return true;
+}
+
 bool RevPiDevice_writeNextConfigurationRight(void)
 {
-	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressRight, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressRight;
-		if (RevPiDevice_getDevCnt() == 0) {
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
-		} else {
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->i16uOutputOffset +
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->sId.i16uFBS_OutputLength;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset +
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
-		}
-		pr_info("found %d. device on right side. Moduletype %d. Designated address %d\n",
-			RevPiDevice_getDevCnt() + 1, RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType,
-			RevPiDevices_s.i8uAddressRight);
-		pr_debug("input offset  %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
-		pr_debug("output offset %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
-
-		if (RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFeatureDescriptor &
-		    MODGATE_feature_IODataExchange) {
-			RevPiDevices_s.gatewayRight = true;
-		}
-
-		RevPiDevice_incDevCnt();
-		RevPiDevices_s.i8uAddressRight++;
-		return true;
-	} else {
-		//TODO restart with reset
-	}
-	return false;
+	return write_next_config_side(true);
 }
 
 bool RevPiDevice_writeNextConfigurationLeft(void)
 {
-	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressLeft, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressLeft;
-		if (RevPiDevice_getDevCnt() == 0) {
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
-		} else {
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->i16uOutputOffset +
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->sId.i16uFBS_OutputLength;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset +
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
-		}
-		pr_info("found %d. device on left side. Moduletype %d. Designated address %d\n",
-			RevPiDevice_getDevCnt() + 1,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType, RevPiDevices_s.i8uAddressLeft);
-		pr_debug("input offset  %5d  len %3d\n",
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
-		pr_debug("output offset %5d  len %3d\n",
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
-
-		if (RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFeatureDescriptor &
-		    MODGATE_feature_IODataExchange) {
-			RevPiDevices_s.gatewayLeft = true;
-		}
-
-		RevPiDevice_incDevCnt();
-		RevPiDevices_s.i8uAddressLeft--;
-		return true;
-	} else {
-		//TODO restart with reset
-	}
-	return false;
+	return write_next_config_side(false);
 }
 
 void RevPiDevice_startDataexchange(void)
