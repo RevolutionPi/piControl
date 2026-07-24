@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
  */
 
 #ifndef _REVPI_COMMON_H
@@ -23,6 +23,7 @@ void revpi_led_trigger_event(u16 led_prev, u16 led);
 void revpi_power_led_red_set(enum revpi_power_led_mode mode);
 void revpi_power_led_red_run(void);
 void revpi_check_timeout(void);
+void revpi_zero_active_outputs(void);
 
 extern char *lock_file;
 extern int lock_line;

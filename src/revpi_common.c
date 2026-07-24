@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
 
 // revpi_common.c - common routines for RevPi machines
 
@@ -160,6 +160,29 @@ void revpi_power_led_red_set(enum revpi_power_led_mode mode)
 }
 
 
+/* clamp each range: lengths come from the device table without lockPI held */
+void revpi_zero_active_outputs(void)
+{
+	int i;
+
+	guard(rt_mutex)(&piDev_g.lockPI);
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		SDevice *dev = RevPiDevice_getDev(i);
+		u16 offset = dev->i16uOutputOffset;
+		u16 len = dev->sId.i16uFBS_OutputLength;
+
+		if (!dev->i8uActive)
+			continue;
+		if (offset >= KB_PI_LEN)
+			continue;
+		if (offset + len > KB_PI_LEN)
+			len = KB_PI_LEN - offset;
+
+		memset(piDev_g.ai8uPI + offset, 0, len);
+	}
+}
+
 void revpi_check_timeout(void)
 {
 	ktime_t now = ktime_get();
@@ -173,14 +196,7 @@ void revpi_check_timeout(void)
 			if (pos_inst->tTimeoutDurationMs != 0) {
 				if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
 					// set all outputs to 0
-					int i;
-					scoped_guard(rt_mutex, &piDev_g.lockPI) {
-						for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-							if (RevPiDevice_getDev(i)->i8uActive) {
-								memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-							}
-						}
-					}
+					revpi_zero_active_outputs();
 					pos_inst->tTimeoutTS = ktime_add_ms(ktime_get(), pos_inst->tTimeoutDurationMs);
 
 					// this must only be done for one connection

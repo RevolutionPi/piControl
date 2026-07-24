@@ -860,14 +860,7 @@ static int piControlRelease(struct inode *inode, struct file *file)
 
 	if (priv->tTimeoutDurationMs > 0) {
 		// if the watchdog is active, set all outputs to 0
-		int i;
-		scoped_guard(rt_mutex, &piDev_g.lockPI) {
-			for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-				if (RevPiDevice_getDev(i)->i8uActive) {
-					memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-				}
-			}
-		}
+		revpi_zero_active_outputs();
 	}
 
 	scoped_guard(rt_mutex, &piDev_g.lockListCon) {
