@@ -654,6 +654,9 @@ err_free_config:
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
 	kfree(piDev_g.cl);
+	piDev_g.ent = NULL;
+	piDev_g.devs = NULL;
+	piDev_g.cl = NULL;
 err_sysfs_remove:
 	piControl_deinit_sysfs();
 err_dev_destroy:
@@ -758,6 +761,9 @@ static int pibridge_remove(struct platform_device *pdev)
 	kfree(piDev_g.ent);
 	kfree(piDev_g.devs);
 	kfree(piDev_g.cl);
+	piDev_g.ent = NULL;
+	piDev_g.devs = NULL;
+	piDev_g.cl = NULL;
 	piControl_deinit_sysfs();
 	curdev = MKDEV(MAJOR(piControlMajor), MINOR(piControlMajor));
 	device_destroy(piControlClass, curdev);
