@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
 
@@ -9,26 +9,6 @@
 
 #include "picontrol_trace.h"
 
-
-int piIoComm_send(u8 * buf_p, u16 i16uLen_p)
-{
-	int written;
-
-	/* First clear receive FIFO to remove stale data */
-	pibridge_clear_fifo(piCore_g.pibridge);
-
-	written = pibridge_send(piCore_g.pibridge, buf_p, i16uLen_p);
-	if (written < 0) {
-		pr_info_serial("pibridge_send error: %i\n", written);
-		return written;
-	} else if (written != i16uLen_p) {
-		pr_info_serial("pibridge_send error: not all data written (%i/%i)\n",
-			written, i16uLen_p);
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
 
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
 {

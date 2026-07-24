@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #pragma once
@@ -50,4 +50,3 @@ s32 piIoComm_gotoGateProtocol(void);
 
 void revpi_io_build_header(UIoProtocolHeader *hdr,
 		unsigned char addr, unsigned char len, unsigned char cmd);
-int piIoComm_send(u8 * buf_p, u16 i16uLen_p);

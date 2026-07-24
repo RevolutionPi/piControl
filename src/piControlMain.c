@@ -114,13 +114,6 @@ static bool waitRunning(int timeout);	// ms
 /*****************************************************************************/
 /*       I N I T                                                             */
 /*****************************************************************************/
-#ifdef UART_TEST
-void piControlDummyReceive(u8 i8uChar_p)
-{
-	pr_info("Got character %c\n", i8uChar_p);
-}
-#endif
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
 static char *piControlClass_devnode(struct device *dev, umode_t * mode)
 #else

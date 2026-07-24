@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
  *
  * process_image.h - cyclic update of the process image
  */
@@ -88,11 +88,6 @@ static __always_inline void assign_bit_in_byte(u8 nr, u8 * addr, bool value)
 		*addr |= BIT(nr);
 	else
 		*addr &= ~BIT(nr);
-}
-
-static __always_inline int test_bit_in_byte(u8 nr, u8 * addr)
-{
-	return (*addr >> nr) & 1;
 }
 
 #define flip_process_image(shadow, offset)										\
