@@ -1225,7 +1225,8 @@ static int send_internal_gate_msg(unsigned long usr_addr)
 	if (!req)
 		return -ENOMEM;
 
-	struct modgate_telegram *resp __free(kfree) = kmalloc(sizeof(*resp), GFP_KERNEL);
+	/* zeroed: the whole struct is copied back, tail must not leak heap */
+	struct modgate_telegram *resp __free(kfree) = kzalloc(sizeof(*resp), GFP_KERNEL);
 	if (!resp)
 		return -ENOMEM;
 
