@@ -324,6 +324,9 @@ void PiBridgeMaster_setDefaults(void)
 				offset += bit / 8;
 				bit %= 8;
 
+				if (offset > KB_PI_LEN - 1)
+					continue;
+
 				i8uValue = piDev_g.ai8uPIDefault[offset];
 
 				i8uMask = (1 << bit);
@@ -333,6 +336,8 @@ void PiBridgeMaster_setDefaults(void)
 					i8uValue &= ~i8uMask;
 				piDev_g.ai8uPIDefault[offset] = i8uValue;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 8) {
+				if (piDev_g.ent->ent[i].i16uOffset > KB_PI_LEN - 1)
+					continue;
 				piDev_g.ai8uPIDefault[piDev_g.ent->ent[i].i16uOffset] =
 				    (u8) piDev_g.ent->ent[i].i32uDefault;
 			} else if (piDev_g.ent->ent[i].i16uBitLength == 16
