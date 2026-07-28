@@ -81,7 +81,7 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 u32 piDIOComm_Init(u8 i8uDevice_p)
 {
 	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
-	u8 snd_len = sizeof(SDioConfig);
+	u8 snd_len = sizeof(SDioConfig) - offsetof(SDioConfig, i16uOutputPushPull);
 	u8 *snd_buf;
 	int ret;
 	int i;
