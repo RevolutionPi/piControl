@@ -306,23 +306,23 @@ typedef struct { // IOP_TYP1_CMD_DATA4
 } __packed SAioRawRequest;
 
 //-----------------------------------------------------------------------------
-// Data response for raw values of Analog IO modules, 10 Bytes
+// Data response for raw values of Analog IO modules, 14 Bytes
 typedef struct { // IOP_TYP1_CMD_DATA4
     UIoProtocolHeader uHeader;
     u16 i16uInternalCurrentSensor;
     u16 i16uInternalVoltageSensor;
     u16 i16uInternalTemperatureSensor;
-    u16 i16uRtdValue[AIO_MAX_RTD];
+    u32 i32uRtdValue[AIO_MAX_RTD];
     u8  i8uCrc;
 } __packed SAioRawResponse;
 
 //-----------------------------------------------------------------------------
-// Data request for rtd scaling values of Analog IO modules, 0 Bytes
+// Data request for rtd scaling values of Analog IO modules, 10 Bytes
 typedef struct {
-    u16 i16uRtd3wireFactor[AIO_MAX_RTD];
-    s16 i16sRtd3wireOffset[AIO_MAX_RTD];
-    u16 i16uRtd4wireFactor[AIO_MAX_RTD];
-    s16 i16sRtd4wireOffset[AIO_MAX_RTD];
+    u8  i8uSensorType;    // 0x00 PT100, 0x01 PT1000, 0x10 voltage, 0xff complete
+    u8  i8uMethod;        // 0x00 3-wire, 0x01 4-wire, 0x11-0x14 voltage input 1-4
+    u16 i16uRtdFactor[AIO_MAX_RTD];
+    s16 i16sRtdOffset[AIO_MAX_RTD];
 } __packed SAioRtdScaling;
 
 typedef struct { // IOP_TYP1_CMD_DATA5
