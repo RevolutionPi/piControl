@@ -24,6 +24,12 @@ void revpi_power_led_red_set(enum revpi_power_led_mode mode);
 void revpi_power_led_red_run(void);
 void revpi_check_timeout(void);
 void revpi_zero_active_outputs(void);
+void revpi_fetch_output_data(void *dst, u16 offset, size_t len);
+void revpi_store_input_data(u16 offset, const void *src, size_t len);
+int revpi_cyclic_request(u8 addr, u8 cmd, void *snd, size_t snd_len,
+			 void *rcv, size_t rcv_len);
+int revpi_cyclic_exchange(u8 devnum, u8 cmd, void *out, size_t out_len,
+			  void *in, size_t in_len);
 
 struct kthread_prio {
 	const char comm[TASK_COMM_LEN];
