@@ -33,18 +33,10 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 		memset(&req, 0, sizeof(req));
 	}
 
-	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
-			      IOP_TYP1_CMD_DATA, &req, sizeof(req), &resp,
-			      sizeof(resp));
-	if (ret != sizeof(resp)) {
-		pr_debug("MIO addr %u: dio communication failed (req:%zu,ret:%d)\n",
-			dev->i8uAddress, sizeof(resp), ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
+	ret = revpi_cyclic_request(dev->i8uAddress, IOP_TYP1_CMD_DATA,
+				   &req, sizeof(req), &resp, sizeof(resp));
+	if (ret < 0)
 		return ret;
-	}
 
 	/* copy: from response to process image:input */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
@@ -63,19 +55,11 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 	SMioAnalogResponseData resp;
 	int ret;
 
-	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
-			      IOP_TYP1_CMD_DATA2, req_data,
-			      sizeof(*req_data) - compressed, &resp,
-			      sizeof(resp));
-	if (ret != sizeof(resp)) {
-		pr_debug("MIO addr %u: aio communication failed (req:%zd,ret:%d)\n",
-			dev->i8uAddress, sizeof(resp), ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
+	ret = revpi_cyclic_request(dev->i8uAddress, IOP_TYP1_CMD_DATA2,
+				   req_data, sizeof(*req_data) - compressed,
+				   &resp, sizeof(resp));
+	if (ret < 0)
 		return ret;
-	}
 
 	/* copy: from response to process image */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
