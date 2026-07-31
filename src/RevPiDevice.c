@@ -257,11 +257,11 @@ void RevPiDevice_init(void)
 	RevPiDevice_incDevCnt();
 }
 
-void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval)
+void revpi_dev_update_state(u8 i8uDevice, int r, int *retval)
 {
 	SDevice *dev = RevPiDevice_getDev(i8uDevice);
 
-	if (r) {
+	if (r < 0) {
 		if (dev->i16uErrorCnt < U16_MAX)
 			dev->i16uErrorCnt++;
 		// the module is reported offline from PiBridgeMaster_checkErrorLimits()
@@ -299,7 +299,7 @@ void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval)
 int RevPiDevice_run(void)
 {
 	u8 i8uDevice = 0;
-	u32 r;
+	int r;
 	int retval = 0;
 	SDevice *dev;
 

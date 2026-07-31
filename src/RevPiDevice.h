@@ -75,7 +75,7 @@ void RevPiDevice_setCoreOffset(unsigned int offset);
 unsigned int RevPiDevice_getCoreOffset(void);
 
 int RevPiDevice_hat_serial(void);
-void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval);
+void revpi_dev_update_state(u8 i8uDevice, int r, int *retval);
 void RevPiDevice_handle_internal_telegrams(void);
 int RevPiDevice_setBaseTermination(void);
 int RevPiDevice_setLeftModuleTermination(bool terminate);

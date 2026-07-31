@@ -102,7 +102,7 @@ u32 piDIOComm_Init(u8 i8uDevice_p)
 	return ret;
 }
 
-u32 piDIOComm_sendCyclicTelegram(u8 devnum)
+int piDIOComm_sendCyclicTelegram(u8 devnum)
 {
 	static u8 last_out[REV_PI_DEV_CNT_MAX][DIO_OUTPUT_DATA_LEN];
 	u8 in_buf[IOPROTOCOL_MAXDATA_LENGTH];
@@ -122,7 +122,7 @@ u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 	revpi_dev = RevPiDevice_getDev(devnum);
 
 	if (revpi_dev->sId.i16uFBS_OutputLength != DIO_OUTPUT_DATA_LEN)
-		return 4;
+		return -EINVAL;
 
 	addr = revpi_dev->i8uAddress;
 

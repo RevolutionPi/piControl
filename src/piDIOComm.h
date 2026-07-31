@@ -14,4 +14,4 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt);
 
 u32 piDIOComm_Init(u8 i8uDevice_p);
 
-u32 piDIOComm_sendCyclicTelegram(u8 i8uDevice_p);
+int piDIOComm_sendCyclicTelegram(u8 i8uDevice_p);

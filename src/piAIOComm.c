@@ -240,7 +240,7 @@ u32 piAIOComm_Init(u8 devnum)
 	return 0;
 }
 
-u32 piAIOComm_sendCyclicTelegram(u8 devnum)
+int piAIOComm_sendCyclicTelegram(u8 devnum)
 {
 	u8 snd_buf[AIO_OUTPUT_DATA_LEN];
 	u8 rcv_buf[AIO_INPUT_DATA_LEN];
@@ -251,7 +251,7 @@ u32 piAIOComm_sendCyclicTelegram(u8 devnum)
 	revpi_dev = RevPiDevice_getDev(devnum);
 
 	if (revpi_dev->sId.i16uFBS_OutputLength != AIO_OUTPUT_DATA_LEN)
-		return 4;
+		return -EINVAL;
 
 	addr = revpi_dev->i8uAddress;
 
