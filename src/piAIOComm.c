@@ -244,45 +244,12 @@ int piAIOComm_sendCyclicTelegram(u8 devnum)
 {
 	u8 snd_buf[AIO_OUTPUT_DATA_LEN];
 	u8 rcv_buf[AIO_INPUT_DATA_LEN];
-	SDevice *revpi_dev;
-	u8 addr;
-	int ret;
-
-	revpi_dev = RevPiDevice_getDev(devnum);
+	SDevice *revpi_dev = RevPiDevice_getDev(devnum);
 
 	if (revpi_dev->sId.i16uFBS_OutputLength != AIO_OUTPUT_DATA_LEN)
 		return -EINVAL;
 
-	addr = revpi_dev->i8uAddress;
-
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		scoped_guard(rt_mutex, &piDev_g.lockPI) {
-			memcpy(snd_buf, piDev_g.ai8uPI + revpi_dev->i16uOutputOffset,
-			       AIO_OUTPUT_DATA_LEN);
-		}
-	} else {
-		memset(snd_buf, 0, AIO_OUTPUT_DATA_LEN);
-	}
-
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA,
-			      snd_buf, AIO_OUTPUT_DATA_LEN, rcv_buf,
-			      AIO_INPUT_DATA_LEN);
-	if (ret != AIO_INPUT_DATA_LEN) {
-		pr_debug("AIO addr %u: communication failed (req:%zu,ret:%d)\n",
-			addr, AIO_INPUT_DATA_LEN, ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
-		return ret;
-	}
-
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		scoped_guard(rt_mutex, &piDev_g.lockPI) {
-			memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, rcv_buf,
-			       AIO_INPUT_DATA_LEN);
-		}
-	}
-
-	return 0;
+	return revpi_cyclic_exchange(devnum, IOP_TYP1_CMD_DATA,
+				     snd_buf, sizeof(snd_buf),
+				     rcv_buf, sizeof(rcv_buf));
 }
