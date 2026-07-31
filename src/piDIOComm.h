@@ -10,8 +10,8 @@
 
 void piDIOComm_InitStart(void);
 
-u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt);
+int piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo *pEnt);
 
-u32 piDIOComm_Init(u8 i8uDevice_p);
+int piDIOComm_Init(u8 i8uDevice_p);
 
 int piDIOComm_sendCyclicTelegram(u8 i8uDevice_p);

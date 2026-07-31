@@ -22,13 +22,13 @@ void piDIOComm_InitStart(void)
 	i8uConfigured_s = 0;
 }
 
-u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
+int piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo *pEnt)
 {
 	u16 i;
 
 	if (i8uConfigured_s >= ARRAY_SIZE(dioConfig_s)) {
 		pr_err("max. number of DIOs reached\n");
-		return -1;
+		return -ERANGE;
 	}
 
 	memset(&dioConfig_s[i8uConfigured_s], 0, sizeof(SDioConfig));
@@ -71,7 +71,7 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 	if (i8uNumCounter[i8uAddress] > DIO_MAX_COUNTERS) {
 		pr_err("invalid number of counters: %u (max: %u)\n",
 			i8uNumCounter[i8uAddress], DIO_MAX_COUNTERS);
-		return -1;
+		return -EINVAL;
 	}
 
 	i8uConfigured_s++;
@@ -79,7 +79,7 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 	return 0;
 }
 
-u32 piDIOComm_Init(u8 i8uDevice_p)
+int piDIOComm_Init(u8 i8uDevice_p)
 {
 	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
 	u8 snd_len = sizeof(SDioConfig) - offsetof(SDioConfig, i16uOutputPushPull);
@@ -93,9 +93,8 @@ u32 piDIOComm_Init(u8 i8uDevice_p)
 		if (dioConfig_s[i].i8uAddr == addr) {
 			snd_buf = (u8 *) &dioConfig_s[i].i16uOutputPushPull;
 
-			ret = pibridge_req_io(piCore_g.pibridge, addr,
-					      IOP_TYP1_CMD_CFG, snd_buf,
-					      snd_len, NULL, 0);
+			ret = revpi_send_config(addr, IOP_TYP1_CMD_CFG,
+						snd_buf, snd_len);
 			break;
 		}
 	}
