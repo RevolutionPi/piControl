@@ -5,6 +5,7 @@
 
 #include "piDIOComm.h"
 #include "common_define.h"
+#include "revpi_common.h"
 #include "revpi_core.h"
 
 #define DIO_OUTPUT_DATA_LEN		18
@@ -126,14 +127,8 @@ int piDIOComm_sendCyclicTelegram(u8 devnum)
 
 	addr = revpi_dev->i8uAddress;
 
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		scoped_guard(rt_mutex, &piDev_g.lockPI) {
-			memcpy(out_buf, piDev_g.ai8uPI + revpi_dev->i16uOutputOffset,
-			       DIO_OUTPUT_DATA_LEN);
-		}
-	} else {
-		memset(out_buf, 0, sizeof(out_buf));
-	}
+	revpi_fetch_output_data(out_buf, revpi_dev->i16uOutputOffset,
+				DIO_OUTPUT_DATA_LEN);
 
 	/* check if any PWM values have changed since last cycle */
 	if (!memcmp(out_buf + 2, last_out[addr] + 2, DIO_OUTPUT_DATA_LEN - 2)) {
@@ -163,17 +158,9 @@ int piDIOComm_sendCyclicTelegram(u8 devnum)
 
 	rcv_len = 3 * sizeof(u16) + i8uNumCounter[addr] * sizeof(u32);
 
-	ret = pibridge_req_io(piCore_g.pibridge, addr, cmd, snd_buf, snd_len,
-			      in_buf, rcv_len);
-	if (ret != rcv_len) {
-		pr_debug("DIO addr %u: communication failed (req:%u,ret:%d)\n",
-			addr, rcv_len, ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
+	ret = revpi_cyclic_request(addr, cmd, snd_buf, snd_len, in_buf, rcv_len);
+	if (ret < 0)
 		return ret;
-	}
 
 	memcpy(&data_in[0], in_buf, 3 * sizeof(u16));
 	memset(&data_in[6], 0, 64);
@@ -188,12 +175,8 @@ int piDIOComm_sendCyclicTelegram(u8 devnum)
 		}
 	}
 
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		scoped_guard(rt_mutex, &piDev_g.lockPI) {
-			memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, data_in,
+	revpi_store_input_data(revpi_dev->i16uInputOffset, data_in,
 			       sizeof(data_in));
-		}
-	}
 
 	return 0;
 }
