@@ -29,13 +29,13 @@ void piAIOComm_InitStart(void)
 	num_aios = 0;
 }
 
-u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
+int piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo *pEnt)
 {
 	u16 i;
 
 	if (num_aios >= AIO_MAX_DEVS) {
 		pr_err("max. number of AIOs reached\n");
-		return -1;
+		return -ERANGE;
 	}
 
 	aio_dev[num_aios] = addr;
@@ -199,7 +199,7 @@ u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 	return 0;
 }
 
-u32 piAIOComm_Init(u8 devnum)
+int piAIOComm_Init(u8 devnum)
 {
 	void *snd_buf;
 	int dev_idx;
@@ -217,25 +217,22 @@ u32 piAIOComm_Init(u8 devnum)
 		return REVPI_MODULE_NOT_CONFIGURED;
 
 	snd_buf = &aioIn1Config_s[dev_idx];
-
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA2,
-			      snd_buf, AIO_CONFIG_DATA2_LEN, NULL, 0);
-	if (ret)
-		return 3;
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA2, snd_buf,
+				AIO_CONFIG_DATA2_LEN);
+	if (ret < 0)
+		return ret;
 
 	snd_buf = &aioIn2Config_s[dev_idx];
-
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA3,
-			      snd_buf, AIO_CONFIG_DATA3_LEN, NULL, 0);
-	if (ret)
-		return 3;
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA3, snd_buf,
+				AIO_CONFIG_DATA3_LEN);
+	if (ret < 0)
+		return ret;
 
 	snd_buf = &aioConfig_s[dev_idx];
-
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
-			      snd_buf, AIO_CONFIG_DATA1_LEN, NULL, 0);
-	if (ret)
-		return 3;
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_CFG, snd_buf,
+				AIO_CONFIG_DATA1_LEN);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }

@@ -69,8 +69,8 @@
 
 void piAIOComm_InitStart(void);
 
-u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt);
+int piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo *pEnt);
 
-u32 piAIOComm_Init(u8 devnum);
+int piAIOComm_Init(u8 devnum);
 
 int piAIOComm_sendCyclicTelegram(u8 devnum);
