@@ -13,15 +13,6 @@
 
 #define REVPI_RO_MAX		10
 
-struct revpi_ro_img_out {
-	struct revpi_ro_target_state target_state;
-	u32 thresh[REVPI_RO_NUM_RELAYS];
-} __packed;
-
-struct revpi_ro_img_in {
-	struct revpi_ro_status status;
-} __packed;
-
 /* Number of registered RO devices */
 static unsigned int num_devices;
 
@@ -99,45 +90,8 @@ int revpi_ro_cycle(unsigned int devnum)
 {
 	struct revpi_ro_target_state state_out;
 	struct revpi_ro_status status_in;
-	struct revpi_ro_img_out *img_out;
-	struct revpi_ro_img_in *img_in;
-	SDevice *dev;
-	int ret;
 
-	dev = RevPiDevice_getDev(devnum);
-
-	img_out = (struct revpi_ro_img_out *) (piDev_g.ai8uPI +
-					       dev->i16uOutputOffset);
-	img_in = (struct revpi_ro_img_in *) (piDev_g.ai8uPI +
-					     dev->i16uInputOffset);
-
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		scoped_guard(rt_mutex, &piDev_g.lockPI) {
-			state_out = img_out->target_state;
-		}
-	} else {
-		memset(&state_out, 0, sizeof(state_out));
-	}
-
-	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
-			      IOP_TYP1_CMD_DATA, &state_out, sizeof(state_out),
-			      &status_in, sizeof(status_in));
-
-	if (ret != sizeof(status_in)) {
-		pr_debug("RO addr %u: communication failed (req:%zu,ret:%d)\n",
-			dev->i8uAddress, sizeof(status_in), ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
-		return ret;
-	}
-
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		scoped_guard(rt_mutex, &piDev_g.lockPI) {
-			img_in->status = status_in;
-		}
-	}
-
-	return 0;
+	return revpi_cyclic_exchange(devnum, IOP_TYP1_CMD_DATA,
+				     &state_out, sizeof(state_out),
+				     &status_in, sizeof(status_in));
 }
