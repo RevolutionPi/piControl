@@ -251,6 +251,19 @@ int revpi_cyclic_exchange(u8 devnum, u8 cmd, void *out, size_t out_len,
 	return 0;
 }
 
+/* Send a module configuration telegram (no reply expected). 0 or -errno. */
+int revpi_send_config(u8 addr, u8 cmd, void *buf, size_t len)
+{
+	int ret;
+
+	ret = pibridge_req_io(piCore_g.pibridge, addr, cmd, buf, len, NULL, 0);
+	if (ret < 0)
+		pr_debug("addr %u cmd %#x: config failed (ret:%d)\n",
+			 addr, cmd, ret);
+
+	return ret;
+}
+
 void revpi_check_timeout(void)
 {
 	ktime_t now = ktime_get();

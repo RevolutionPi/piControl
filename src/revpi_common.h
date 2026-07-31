@@ -30,6 +30,7 @@ int revpi_cyclic_request(u8 addr, u8 cmd, void *snd, size_t snd_len,
 			 void *rcv, size_t rcv_len);
 int revpi_cyclic_exchange(u8 devnum, u8 cmd, void *out, size_t out_len,
 			  void *in, size_t in_len);
+int revpi_send_config(u8 addr, u8 cmd, void *buf, size_t len);
 
 struct kthread_prio {
 	const char comm[TASK_COMM_LEN];
