@@ -335,9 +335,9 @@ int revpi_mio_init(unsigned char devno)
 		return REVPI_MODULE_NOT_CONFIGURED;
 
 	/* dio */
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
-			      &conf->dio, sizeof(conf->dio), NULL, 0);
-	if (ret)
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_CFG, &conf->dio,
+				sizeof(conf->dio));
+	if (ret < 0)
 		pr_err("MIO addr %u: dio config failed (ret:%d)\n", addr, ret);
 
 	/*
@@ -353,25 +353,24 @@ int revpi_mio_init(unsigned char devno)
 		SMioDigitalResponseData zero_resp;
 
 		memset(&zero_req, 0, sizeof(zero_req));
-		ret = pibridge_req_io(piCore_g.pibridge, addr,
-				      IOP_TYP1_CMD_DATA, &zero_req,
-				      sizeof(zero_req), &zero_resp,
-				      sizeof(zero_resp));
-		if (ret != sizeof(zero_resp))
+		ret = revpi_cyclic_request(addr, IOP_TYP1_CMD_DATA, &zero_req,
+					   sizeof(zero_req), &zero_resp,
+					   sizeof(zero_resp));
+		if (ret < 0)
 			pr_warn("MIO addr %u: one-shot dio init failed (ret:%d)\n",
 				addr, ret);
 	}
 
 	/* aio in */
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
-			      &conf->aio_i, sizeof(conf->aio_i), NULL, 0);
-	if (ret)
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA4, &conf->aio_i,
+				sizeof(conf->aio_i));
+	if (ret < 0)
 		pr_err("MIO addr %u: aio input config failed (ret:%d)\n", addr, ret);
 
 	/* aio out */
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
-			      &conf->aio_o, sizeof(conf->aio_o), NULL, 0);
-	if (ret)
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA4, &conf->aio_o,
+				sizeof(conf->aio_o));
+	if (ret < 0)
 		pr_err("MIO addr %u: aio output config failed (ret:%d)\n", addr, ret);
 
 	pr_debug("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
