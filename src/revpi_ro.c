@@ -39,7 +39,7 @@ int revpi_ro_config(u8 addr, int num_entries, SEntryInfo *pEnt)
 
 	if (num_devices >= REVPI_RO_MAX) {
 		pr_err("max. number of ROs (%u) exceeded\n", REVPI_RO_MAX);
-		return -1;
+		return -ERANGE;
 	}
 
 	itm = &ro_config_list[num_devices];
@@ -81,9 +81,8 @@ int revpi_ro_init(unsigned int devnum)
 	if (i == num_devices)
 		return REVPI_MODULE_NOT_CONFIGURED;
 
-	return pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
-			       &itm->config, sizeof(struct revpi_ro_config),
-			       NULL, 0);
+	return revpi_send_config(addr, IOP_TYP1_CMD_CFG, &itm->config,
+				 sizeof(struct revpi_ro_config));
 }
 
 int revpi_ro_cycle(unsigned int devnum)
