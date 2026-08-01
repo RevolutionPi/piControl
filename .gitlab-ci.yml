@@ -10,6 +10,14 @@ include:
     file: "kernel/linter-checkpatch.yml"
   - project: "revolutionpi/infrastructure/ci-templates"
     file: "reuse-lint.yml"
+  - project: "revolutionpi/infrastructure/ci-templates"
+    file: "testing/picontrol-device-test.yml"
+
+variables:
+  RELEASE: trixie
+  KERNEL_BRANCH: revpi-6.18
+  SQUAD_GROUP: revpi-ci-artifacts
+  SQUAD_PROJECT: picontrol
 
 checkpatch:
   variables:
