@@ -27,6 +27,10 @@ static u8 aio_dev[AIO_MAX_DEVS];
 void piAIOComm_InitStart(void)
 {
 	num_aios = 0;
+	memset(aioConfig_s, 0, sizeof(aioConfig_s));
+	memset(aioIn1Config_s, 0, sizeof(aioIn1Config_s));
+	memset(aioIn2Config_s, 0, sizeof(aioIn2Config_s));
+	memset(aio_dev, 0, sizeof(aio_dev));
 }
 
 int piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo *pEnt)
