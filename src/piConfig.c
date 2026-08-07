@@ -268,13 +268,14 @@ static int do_tree(json_config *config,
 	}
 
 	if (!json_parser_is_done(&parser)) { /* parsing incomplete */
-		if (parser.state == 0 && parser.stack_offset == 0)
-			pr_err("config.rsc is empty! "
-				"Probably needs to be configured in PiCtory\n");
-		else
+		if (parser.state == 0 && parser.stack_offset == 0) {
+			pr_warn("config.rsc is empty. Driver will remain uninitialized\n");
+			ret = -ENODATA;
+		} else {
 			pr_err("syntax error: offset %d  state %d\n",
 					parser.stack_offset, parser.state);
-		ret = 1;
+			ret = 1;
+		}
 		goto free_parser;
 	}
 
@@ -582,7 +583,21 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 	config.allow_c_comments = 1;
 	config.allow_yaml_comments = 1;
 
-	if (do_tree(&config, filename, &root_structure))
+	ret = do_tree(&config, filename, &root_structure);
+	if (ret == -ENODATA) {
+		devs = kzalloc(sizeof(*devs), GFP_KERNEL);
+		ent = kzalloc(sizeof(*ent), GFP_KERNEL);
+		cl = kzalloc(sizeof(*cl), GFP_KERNEL);
+		if (!devs || !ent || !cl) {
+			kfree(cl);
+			kfree(ent);
+			kfree(devs);
+			return -ENOMEM;
+		}
+		ret = 0;
+		goto install_config;
+	}
+	if (ret)
 		return -EINVAL;
 
 	devs = find_devices(root_structure, NULL, 1);
@@ -778,6 +793,7 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 
 	free_tree(root_structure);
 
+install_config:
 	/* Parsing ok, configure devices and replace old parsed data with new */
 	// copy the config value into the module driver
 	piDIOComm_InitStart();
