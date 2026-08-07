@@ -368,6 +368,8 @@ u32 revpi_compact_config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 {
 	u16 i;
 
+	memset(&revpi_compact_config_g, 0, sizeof(revpi_compact_config_g));
+
 	for (i = 0; i < i16uNumEntries; i++) {
 		switch (pEnt[i].i16uOffset) {
 		case RevPi_Compact_OFFSET_DInDebounce:
