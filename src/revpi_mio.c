@@ -337,8 +337,10 @@ int revpi_mio_init(unsigned char devno)
 	/* dio */
 	ret = revpi_send_config(addr, IOP_TYP1_CMD_CFG, &conf->dio,
 				sizeof(conf->dio));
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("MIO addr %u: dio config failed (ret:%d)\n", addr, ret);
+		return ret;
+	}
 
 	/*
 	 * One-shot DIO data exchange when the digital ios are disabled, so
@@ -356,22 +358,28 @@ int revpi_mio_init(unsigned char devno)
 		ret = revpi_cyclic_request(addr, IOP_TYP1_CMD_DATA, &zero_req,
 					   sizeof(zero_req), &zero_resp,
 					   sizeof(zero_resp));
-		if (ret < 0)
+		if (ret < 0) {
 			pr_warn("MIO addr %u: one-shot dio init failed (ret:%d)\n",
 				addr, ret);
+			return ret;
+		}
 	}
 
 	/* aio in */
 	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA4, &conf->aio_i,
 				sizeof(conf->aio_i));
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("MIO addr %u: aio input config failed (ret:%d)\n", addr, ret);
+		return ret;
+	}
 
 	/* aio out */
 	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA4, &conf->aio_o,
 				sizeof(conf->aio_o));
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("MIO addr %u: aio output config failed (ret:%d)\n", addr, ret);
+		return ret;
+	}
 
 	pr_debug("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
 
