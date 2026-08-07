@@ -790,32 +790,40 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
 		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
 		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			piDIOComm_Config(devs->dev[i].i8uAddress,
-					 devs->dev[i].i16uEntries,
-					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			ret = piDIOComm_Config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			piAIOComm_Config(devs->dev[i].i8uAddress,
-					 devs->dev[i].i16uEntries,
-					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			ret = piAIOComm_Config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
-			revpi_compact_config(devs->dev[i].i8uAddress,
-					     devs->dev[i].i16uEntries,
-					     &ent->ent[devs->dev[i].i16uFirstEntry]);
+			ret = revpi_compact_config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_MIO:
-			revpi_mio_config(devs->dev[i].i8uAddress,
-					 devs->dev[i].i16uEntries,
-					 &ent->ent[devs->dev[i].i16uFirstEntry]);
+			ret = revpi_mio_config(devs->dev[i].i8uAddress,
+					       devs->dev[i].i16uEntries,
+					       &ent->ent[devs->dev[i].i16uFirstEntry]);
 			break;
 		case KUNBUS_FW_DESCR_TYP_PI_RO:
-			revpi_ro_config(devs->dev[i].i8uAddress,
-					devs->dev[i].i16uEntries,
-					&ent->ent[devs->dev[i].i16uFirstEntry]);
+			ret = revpi_ro_config(devs->dev[i].i8uAddress,
+					      devs->dev[i].i16uEntries,
+					      &ent->ent[devs->dev[i].i16uFirstEntry]);
 			break;
 		}
 
+		if (ret) {
+			pr_err("failed to configure module at address %u: %d\n",
+			       devs->dev[i].i8uAddress, ret);
+			kfree(cl);
+			kfree(ent);
+			kfree(devs);
+			return ret;
+		}
 	}
 
 	/* IO thread reads the copylist under lockPI, swap under it too */

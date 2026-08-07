@@ -71,6 +71,8 @@ int piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo *pEnt)
 	if (i8uNumCounter[i8uAddress] > DIO_MAX_COUNTERS) {
 		pr_err("invalid number of counters: %u (max: %u)\n",
 			i8uNumCounter[i8uAddress], DIO_MAX_COUNTERS);
+		i8uNumCounter[i8uAddress] = 0;
+		i16uCounterAct[i8uAddress] = 0;
 		return -EINVAL;
 	}
 
