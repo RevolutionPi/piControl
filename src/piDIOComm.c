@@ -155,13 +155,13 @@ int piDIOComm_sendCyclicTelegram(u8 devnum)
 		cmd = IOP_TYP1_CMD_DATA2;
 	}
 
-	memcpy(last_out[addr], out_buf, sizeof(out_buf));
-
 	rcv_len = 3 * sizeof(u16) + i8uNumCounter[addr] * sizeof(u32);
 
 	ret = revpi_cyclic_request(addr, cmd, snd_buf, snd_len, in_buf, rcv_len);
 	if (ret < 0)
 		return ret;
+
+	memcpy(last_out[addr], out_buf, sizeof(out_buf));
 
 	memcpy(&data_in[0], in_buf, 3 * sizeof(u16));
 	memset(&data_in[6], 0, 64);
