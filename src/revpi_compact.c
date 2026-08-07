@@ -410,7 +410,7 @@ u32 revpi_compact_config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 void revpi_compact_adjust_config(void)
 {
 	int i, j;
-	int result = 0, found;
+	int found;
 
 	RevPiDevice_init();
 
@@ -435,7 +435,6 @@ void revpi_compact_adjust_config(void)
 					pr_warn("## address %d: incorrect module type %d != %d\n",
 						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uModulType,
 						piDev_g.devs->dev[i].i16uModuleType);
-					result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					break;
 				}
@@ -443,7 +442,6 @@ void revpi_compact_adjust_config(void)
 					pr_warn("## address %d: incorrect input length %d != %d\n",
 						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uFBS_InputLength,
 						piDev_g.devs->dev[i].i16uInputLength);
-					result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					break;
 				}
@@ -452,7 +450,6 @@ void revpi_compact_adjust_config(void)
 						RevPiDevice_getDev(j)->i8uAddress,
 						RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength,
 						piDev_g.devs->dev[i].i16uOutputLength);
-					result = PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					break;
 				}
