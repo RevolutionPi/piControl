@@ -127,7 +127,7 @@ u8 revpi_core_find_gate(struct net_device *netdev, MODGATECOM_IDResp *id_resp)
 
 /**
  * revpi_core_gate_connected() - react to state change of gateway connection
- * @idx: RevPiDevice index of gateway
+ * @revpi_dev: RevPiDevice of the gateway, may be NULL
  * @connected: new state of gateway connection
  */
 void revpi_core_gate_connected(SDevice *revpi_dev, bool connected)

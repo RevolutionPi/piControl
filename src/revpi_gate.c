@@ -40,6 +40,8 @@ static const struct nf_hook_ops revpi_gate_nf_hook_ops = {
  * @list_node: node in @revpi_gate_connections list
  * @dev: network device over which the neighbor is reachable;
  *	only one neighbor per network device is supported
+ * @nf_hook_ops: egress hook dropping all but gateway traffic on @dev;
+ *	@nf_hook_ops.dev is NULL if registration failed
  * @destroy_work: work item to destroy connection on timeout
  * @state: current state machine position;
  *	there's only two states, see revpi_gate_state()
@@ -134,6 +136,7 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 /**
  * revpi_gate_create_packet() - create skb for transmission
  * @conn: connection to the neighbor
+ * @cmd: command code to set in the Transport Layer header
  * @payload_len: size of payload following the Transport Layer header
  *
  * Create skb with enough room for the Transport Layer and an optional payload.
