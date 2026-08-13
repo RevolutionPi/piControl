@@ -3,6 +3,6 @@ Upstream-Name: piControl
 Upstream-Contact: KUNBUS GmbH <support@kunbus.com>
 Source: https://gitlab.com/revolutionpi/piControl
 
-Files: src/picontrol_ioctl.4
+Files: doc/picontrol_ioctl.4
 Copyright: 2018-2024 KUNBUS GmbH
 License: GPL-2.0-only
