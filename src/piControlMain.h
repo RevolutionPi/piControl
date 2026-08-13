@@ -132,7 +132,7 @@ extern tpiControlDev piDev_g;
 /******************************************************************************/
 
 bool isRunning(void);
-void printUserMsg(tpiControlInst *priv, const char *s, ...);
+__printf(2, 3) void printUserMsg(tpiControlInst * priv, const char *s, ...);
 unsigned int piControl_get_cycle_duration(void);
 
 #endif /* PRODUCTS_PIBASE_PIKERNELMOD_PICONTROLINTERN_H_ */
