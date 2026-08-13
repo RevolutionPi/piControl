@@ -49,8 +49,7 @@ The struct
 .I SDeviceInfo
 used by this ioctls is defined as
 
-.in +4n
-.nf
+.EX
 typedef struct SDeviceInfoStr {
     uint8_t     i8uAddress;             // Address of module in current configuration
     uint32_t    i32uSerialnumber;       // serial number of module
@@ -72,8 +71,7 @@ typedef struct SDeviceInfoStr {
     uint8_t     i8uActive;              // == 0 means that the module is not present and no data is available
     uint8_t     i8uReserve[30];         // space for future extensions without changing the size of the struct
 } SDeviceInfo;
-.fi
-.in
+.EE
 
 .TP
 .BI "KB_FIND_VARIABLE	SPIVariable *" argp
@@ -100,8 +98,7 @@ The struct
 .I SPIVariable
 used by this ioctl is defined as
 
-.in +4n
-.nf
+.EX
 typedef struct SPIVariableStr
 {
     char        strVarName[32]; // Variable name
@@ -110,8 +107,7 @@ typedef struct SPIVariableStr
     uint16_t    i16uLength;     // length of the variable in bits.
                                 // Possible values are 1, 8, 16 and 32
 } SPIVariable;
-.fi
-.in
+.EE
 
 .LP
 .SS Set and get values of the process image
@@ -142,16 +138,14 @@ The struct
 .I SPIValue
 used by this ioctl is defined as
 
-.in +4n
-.nf
+.EX
 typedef struct SPIValueStr
 {
     uint16_t    i16uAddress;  // Address of the byte in the process image
     uint8_t     i8uBit;       // 0-7 bit position, >= 8 whole byte
     uint8_t     i8uValue;     // Value: 0/1 for bit access, whole byte otherwise
 } SPIValue;
-.fi
-.in
+.EE
 
 .TP
 .BI "KB_SET_EXPORTED_OUTPUTS	const void *" argp
@@ -186,15 +180,13 @@ The struct
 .I SDIOResetCounter
 used by this ioctl is defined as
 
-.in +4n
-.nf
+.EX
 typedef struct SDIOResetCounterStr
 {
 	uint8_t     i8uAddress;             // Address of module in current configuration
 	uint16_t    i16uBitfield;           // bitfield, if bit n is 1, reset counter/encoder on input n
 } SDIOResetCounter;
-.fi
-.in
+.EE
 
 .TP
 .BI "KB_SET_EXPORTED_OUTPUTS	const void *" argp
@@ -207,15 +199,13 @@ The argument pointer must point to a copy of the complete process image.
 The typical usage is to read the complete process image with read(), change to output values for this cycle and write the
 marked output values back to the process image.
 
-.in +4n
-.nf
+.EX
 unsigned char PI[4096];
  \.\.\.
 read(fd, PI, 4096);
 /* change PI */
 ioctl(fd, KB_SET_EXPORTED_OUTPUTS, PI);
-.fi
-.in
+.EE
 
 .TP
 .BI "KB_SET_OUTPUT_WATCHDOG    unsigned int *" argp
@@ -241,16 +231,14 @@ The struct
 .I revpi_ro_ioctl_counters
 used by this ioctl is defined as
 
-.in +4n
-.nf
+.EX
 struct revpi_ro_ioctl_counters {
 	/* Address of module in current configuration, set by userspace. */
 	uint8_t addr;
 	/* Data returned from kernel */
 	uint32_t counter[REVPI_RO_NUM_RELAYS];
 } __attribute__((__packed__));
-.fi
-.in
+.EE
 
 
 .LP
@@ -266,8 +254,7 @@ At the moment there is only a reset event. It is sent to all waiting application
 .BR KB_RESET .
 The application has to stop its execution and update the offsets of the variables in the process image. Here is a small example:
 
-.in +4n
-.nf
+.EX
 int event;
 while (1)
 {
@@ -279,8 +266,7 @@ while (1)
    } while (event != KB_EVENT_RESET);
    //stop application
 }
-.fi
-.in
+.EE
 
 
 .TP
@@ -341,14 +327,12 @@ Get a message from the last ioctl call.
 .br
 Check, if the last ioctl() call produced a message and copy it to the buffer.
 
-.in +4n
-.nf
+.EX
 char cMsg[REV_PI_ERROR_MSG_LEN];
 
 if (ioctl(PiControlHandle_g, KB_GET_LAST_MESSAGE, cMsg) == 0 && cMsg[0])
     puts(cMsg);
-.fi
-.in
+.EE
 
 
 .SH FILES
