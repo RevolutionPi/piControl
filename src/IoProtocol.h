@@ -393,6 +393,10 @@ typedef struct {
 
 //-----------------------------------------------------------------------------
 // Request for Multi IO modules:
+
+// value of EMioCalibrationModes in the MIO firmware
+#define MIO_CALIBRATION_SAVE	4
+
 typedef struct {
 	//bitfield: mode
 	u8 i8uCalibrationMode;

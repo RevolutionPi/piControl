@@ -1363,6 +1363,7 @@ static int calibrate_aio(unsigned long usr_addr)
 	struct pictl_calibrate cali;
 	SMioCalibrationRequest req;
 	bool found = false;
+	u16 timeout;
 	int ret;
 	int i;
 
@@ -1401,9 +1402,15 @@ static int calibrate_aio(unsigned long usr_addr)
 	req.sData.i8uChannels = cali.channels;
 	req.sData.i8uPoint = cali.x_val;
 	req.sData.i16sCalibrationValue = cali.y_val;
+
+	/* SAVE blocks until the module has written its flash */
+	if (cali.mode == MIO_CALIBRATION_SAVE)
+		timeout = REV_PI_CALIB_SAVE_TIMEOUT;
+	else
+		timeout = REV_PI_IO_TIMEOUT;
+
 	/*the crc calculation will be done by Tel sending*/
-	ret = send_internal_io_telegram(&req, sizeof(req), NULL,
-					REV_PI_IO_TIMEOUT);
+	ret = send_internal_io_telegram(&req, sizeof(req), NULL, timeout);
 
 	pr_info("MIO calibrate header:0x%x, data:0x%x, status %d\n",
 		*(unsigned short *)&req.uHeader,
