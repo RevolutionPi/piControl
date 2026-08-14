@@ -86,6 +86,7 @@ typedef struct _SRevPiCore {
 	bool pendingUserTel;
 	SIOGeneric requestUserTel;
 	SIOGeneric responseUserTel;
+	u16 timeoutUserTel;	// msec, response timeout for this request
 	int statusUserTel;
 
 	// handle mGate telegrams

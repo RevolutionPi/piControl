@@ -1224,12 +1224,13 @@ static int send_internal_gate_msg(unsigned long usr_addr)
 }
 
 static int send_internal_io_telegram(void *req, unsigned int reqlen,
-				     SIOGeneric *resp)
+				     SIOGeneric *resp, u16 timeout)
 {
 	int ret;
 
 	scoped_guard(rt_mutex, &piCore_g.lockUserTel) {
 		memcpy(&piCore_g.requestUserTel, req, reqlen);
+		piCore_g.timeoutUserTel = timeout;
 		piCore_g.pendingUserTel = true;
 	}
 
@@ -1293,7 +1294,8 @@ static int reset_dio_counter(unsigned long usr_addr)
 	tel.uHeader.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA3;
 	tel.i16uChannels = res_cnt.i16uBitfield;
 
-	return send_internal_io_telegram(&tel, sizeof(tel), NULL);
+	return send_internal_io_telegram(&tel, sizeof(tel), NULL,
+					 REV_PI_IO_TIMEOUT);
 }
 
 static int get_ro_counter(unsigned long usr_addr)
@@ -1342,7 +1344,8 @@ static int get_ro_counter(unsigned long usr_addr)
 	hdr.sHeaderTyp1.bitLength = 0;
 	hdr.sHeaderTyp1.bitCommand = IOP_TYP1_CMD_DATA2;
 
-	ret = send_internal_io_telegram(&hdr, sizeof(hdr), &resp);
+	ret = send_internal_io_telegram(&hdr, sizeof(hdr), &resp,
+					REV_PI_IO_TIMEOUT);
 	if (!ret) {
 		if (copy_to_user(ioctl_get_counters->counter,
 				 resp.ai8uData,
@@ -1399,7 +1402,8 @@ static int calibrate_aio(unsigned long usr_addr)
 	req.sData.i8uPoint = cali.x_val;
 	req.sData.i16sCalibrationValue = cali.y_val;
 	/*the crc calculation will be done by Tel sending*/
-	ret = send_internal_io_telegram(&req, sizeof(req), NULL);
+	ret = send_internal_io_telegram(&req, sizeof(req), NULL,
+					REV_PI_IO_TIMEOUT);
 
 	pr_info("MIO calibrate header:0x%x, data:0x%x, status %d\n",
 		*(unsigned short *)&req.uHeader,
@@ -1424,7 +1428,8 @@ static int send_internal_io_msg(unsigned long usr_addr)
 	if (copy_from_user(&req, (const void __user *) usr_addr, sizeof(req)))
 		return -EFAULT;
 
-	ret = send_internal_io_telegram(&req, sizeof(req), &resp);
+	ret = send_internal_io_telegram(&req, sizeof(req), &resp,
+					REV_PI_IO_TIMEOUT);
 	if (!ret) {
 		if (copy_to_user((void __user *) usr_addr, &resp, sizeof(resp)))
 			ret = -EFAULT;
