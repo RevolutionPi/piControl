@@ -1,0 +1,75 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_GET_DEVICE_INFO 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_GET_DEVICE_INFO
+\- Get info of an expansion module connected to the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_GET_DEVICE_INFO, SDeviceInfo *" device ");"
+.sp
+.B "#include <piControl.h>"
+.sp
+.B "typedef struct SDeviceInfoStr SDeviceInfo;"
+.fi
+
+.SH DESCRIPTION
+Get information about a specified expansion module.
+
+There are 2 ways to specify which expansion module should be queried for the
+information, both involve setting a field in the
+.BR SDeviceInfo (2type)
+struct:
+The field
+.I i8uAddress
+must be set to get the information about the expansion module at a specific
+address.
+Alternatively, the field
+.I i16uModuleType
+can be set to find the first expansion module of a module type. See the
+.B BUGS
+section for more information on finding an expansion module by module type.
+
+.SH RETURN VALUE
+.B KB_GET_DEVICE_INFO
+returns any unspecified non-negative integer on success.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EFAULT
+Failure on copying values to/from caller.
+.TP
+.B ENXIO
+No expansion module for the given input was found.
+
+.SH BUGS
+
+Searching for a device with the
+.I i16uModuleType
+property requires setting the
+.I i8uAddress
+to an unused address before calling this
+.BR ioctl (2).
+If
+.I i8uAddress
+is not set to an unused address, this
+.BR ioctl (2)
+will either return a device with the given module type or a device that has the
+given address, whichever condition matches first.
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR KB_GET_DEVICE_INFO_LIST (2),
+.BR SDeviceInfo (2type)

@@ -1,0 +1,55 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH SPIVariable 2type 2026-08-14 "Linux"
+
+.SH NAME
+SPIVariable \- variable representation of piControl driver
+
+.SH LIBRARY
+piControl device driver ioctl interface
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.sp
+.B typedef struct SPIVariableStr {
+.BR "    char   strVarName[32];" "  /* Variable name */"
+.BR "    __u16  i16uAddress;" "     /* Address of the variable in process image */"
+.BR "    __u8   i8uBit;" "          /* which bit position, or whole byte */"
+.BR "    __u8   pad;" "             /* padding */"
+.BR "    __u16  i16uLength;" "      /* The length of the value */"
+.B } SPIVariable;
+.fi
+
+.SH DESCRIPTION
+
+.TP
+.I strVarName
+This field contains the name of the variable.
+A variable name can only be up to 32 characters long.
+.TP
+.I i16uAddress
+This field contains the address of the variable in the process image.
+.TP
+.I i8uBit
+This field contains the position of the bit to read if the field
+.I i16uLength
+is set to
+.BR 1 .
+.TP
+.I pad
+This field is padding and must be zeroed.
+.TP
+.I i16uLength
+This field contains the length of the variable. Valid values are
+.BR 1 ", " 8 ", " 16 ", and " 32 .
+If the value of this field is
+.B 1
+then the field
+.I i8uBit
+specifies which bit position contains the value.
+
+.SH SEE ALSO
+
+.BR ioctl (2),
+.BR KB_FIND_VARIABLE (2)

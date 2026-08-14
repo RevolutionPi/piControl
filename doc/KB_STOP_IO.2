@@ -1,0 +1,84 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_STOP_IO 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_STOP_IO \- stop, start, or toggle updating the process image of the
+piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_STOP_IO, int *" argp ");"
+.fi
+
+.SH DESCRIPTION
+Stop, start, or toggle updating the process image.
+
+If this
+.BR ioctl (2)
+is called to stop updating the process image, no input variables are written to
+the process image and all output variables are sent as
+.B 0
+while updating the process image is stopped.
+
+Virtual expansion modules are not affected by this
+.BR ioctl (2).
+
+When the communication with the expansion modules is effectively stopped, other
+applications can write data to the process image to simulate changes in input
+values from expansion modules and output values written to expansion modules,
+without other applications noticing this change.
+
+The
+.I argp
+variable can have the following values:
+.TP
+.B 0
+The communication is started.
+.TP
+.B 1
+The communication is stopped.
+.TP
+.B 2
+The communication is toggled.
+
+.SH RETURN VALUE
+On success, the new communication status is returned:
+
+.TP
+.B 0
+The communication is running.
+.TP
+.B 1
+The communication is stopped.
+
+.P
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EAGAIN
+A driver reset is in progress.
+.TP
+.B EFAULT
+Failure on copying the parameter from the caller.
+
+.SH CAVEATS
+
+The actual communication with the expansion modules is not stopped in order to
+not confuse the expansion modules. This
+.BR ioctl (2)
+cannot be used to "disable" communication with expansion modules and, for
+instance, doing maintenance, as errors will occur if the communication with the
+expansion modules is disturbed.
+
+.SH SEE ALSO
+.BR ioctl (2)

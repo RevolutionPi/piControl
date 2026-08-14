@@ -1,0 +1,67 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH ioctl_picontrol 2 2026-08-14 "Linux"
+.SH NAME
+ioctl_picontrol \- ioctls for piControl driver
+.SH SYNOPSIS
+.B "#include <piControl.h>"
+.sp
+.BI "int ioctl(int " fd ", int " cmd ", ...);"
+.SH DESCRIPTION
+The
+.BR ioctl (2)
+interface can be used to communicate with the piControl driver.
+Many
+.BR ioctl (2)
+commands exist:
+
+.LP
+.SS Get device and variable information
+.TP
+.BR KB_GET_DEVICE_INFO (2)
+.TQ
+.BR KB_GET_DEVICE_INFO_LIST (2)
+.TQ
+.BR KB_FIND_VARIABLE (2)
+
+.LP
+.SS Get and set variable values
+.TP
+.BR KB_GET_VALUE (2)
+.TQ
+.BR KB_SET_VALUE (2)
+.TQ
+.BR KB_SET_EXPORTED_OUTPUTS (2)
+.TQ
+.BR KB_DIO_RESET_COUNTER (2)
+.TQ
+.BR KB_SET_OUTPUT_WATCHDOG (2)
+.TQ
+.BR KB_RO_GET_COUNTER (2)
+
+.LP
+.SS Driver control
+.TP
+.BR KB_WAIT_FOR_EVENT (2)
+.TQ
+.BR KB_RESET (2)
+.TQ
+.BR KB_STOP_IO (2)
+.TQ
+.BR PICONTROL_UPLOAD_FIRMWARE (2)
+.TQ
+.BR KB_UPDATE_DEVICE_FIRMWARE (2)
+ deprecated in favour of
+.BR PICONTROL_UPLOAD_FIRMWARE (2)
+.TQ
+.BR KB_GET_LAST_MESSAGE (2)
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR piControl (4)
+
+.SH COLOPHON
+A description of the project
+and further information can be found at
+.UR https://revolutionpi.com/
+.UE

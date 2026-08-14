@@ -1,0 +1,70 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_UPDATE_DEVICE_FIRMWARE 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_UPDATE_DEVICE_FIRMWARE \- update the firmware of expansion modules connected
+to the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_UPDATE_DEVICE_FIRMWARE, unsigned int *" address ");"
+.fi
+
+.SH DESCRIPTION
+.B DEPRECATION NOTICE:
+This
+.BR ioctl (2)
+is deprecated and will be removed in a future version of piControl. Use the
+.BR PICONTROL_UPLOAD_FIRMWARE (2)
+.BR ioctl (2)
+instead.
+
+Update the firmware of connected expansion modules.
+
+The firmware update of the expansion module is only performed if a firmware was
+found that is newer than the one on the expansion module. If the found firmware
+is the same or older than the firmware found on the expansion module no update
+is attempted.
+
+If the firmware of an expansion module was updated successfully, the piControl
+driver is reset to start communication anew.
+
+The parameter
+.I address
+is the address of the expansion module to be updated. If the
+.I address
+parameter is
+.BR 0 ,
+then a module to update will be selected automatically.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EOPNOTSUPP
+The RevPi does not support expansion modules.
+.TP
+.B EAGAIN
+A driver reset is in progress.
+.TP
+.B EFAULT
+Failure on copying the parameter from the caller.
+.TP
+.B ETIMEDOUT
+The reset request after the update timed out.
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR PICONTROL_UPLOAD_FIRMWARE (2)

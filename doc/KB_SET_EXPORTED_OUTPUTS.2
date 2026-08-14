@@ -1,0 +1,85 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_SET_EXPORTED_OUTPUTS 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_SET_EXPORTED_OUTPUTS \- Set all outputs marked as "exported" with the
+piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_SET_EXPORTED_OUTPUTS, const void *" process_image ");"
+.fi
+
+.SH DESCRIPTION
+Write all variables marked as "exported" in the same cycle.
+
+It is possible to mark output variables as "exported" in the configuration
+file, which enables this
+.BR ioctl (2)
+to write all of them in the same cycle.
+
+This
+.BR ioctl (2)
+takes a pointer
+.I process_image
+to a modified copy of the entire process image as the only
+argument. The output values in the process image can be changed by the user
+before calling this
+.BR ioctl (2),
+which then modifies all the outputs marked as "exported" in the same cycle.
+
+It is guaranteed that all outputs will be written in the same cycle.
+
+If no outputs are marked as "exported" in the configuration, the call to
+.B KB_SET_EXPORTED_OUTPUTS
+is a no-op.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EAGAIN
+A driver reset is in progress.
+.TP
+.B EINVAL
+The parameter
+.I process_image
+is invalid.
+.TP
+.B EFAULT
+Failure on copying values to/from caller.
+
+.SH CAVEATS
+
+As it is currently implemented this
+.BR ioctl (2)
+should only be called by one application at a time.
+
+.SH EXAMPLES
+
+.EX
+unsigned char process_image[4096];
+/* read full process image into modifiable buffer */
+read(fd, process_image, 4096);
+/* change output values in the copy of the process image */
+// \.\.\.
+/* pass modified process image to piControl to write new output values */
+if (ioctl(fd, KB_SET_EXPORTED_OUTPUTS, process_image) < 0)
+	perror("Setting exported outputs");
+.EE
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR piControl (4)

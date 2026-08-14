@@ -1,0 +1,147 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH SDeviceInfo 2type 2026-08-14 "Linux"
+
+.SH NAME
+SDeviceInfo \- expansion module representation of piControl driver
+
+.SH LIBRARY
+piControl device driver ioctl interface
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.sp
+.B typedef struct SDeviceInfoStr {
+.BR "    __u8   i8uAddress;" "        /* Address of module in current configuration */"
+.BR "    __u8   pad[3];" "            /* padding for alignment */"
+.BR "    __u32  i32uSerialnumber;" "  /* serial number of module */"
+.BR "    __u16  i16uModuleType;" "    /* type identifier of module */"
+.BR "    __u16  i16uHW_Revision;" "   /* hardware revision */"
+.BR "    __u16  i16uSW_Major;" "      /* major firmware version */"
+.BR "    __u16  i16uSW_Minor;" "      /* minor firmware version */"
+.BR "    __u32  i32uSVN_Revision;" "  /* SVN revision of firmware */"
+.BR "    __u16  i16uInputLength;" "   /* length in bytes of all input values together */"
+.BR "    __u16  i16uOutputLength;" "  /* length in bytes of all output values together */"
+.BR "    __u16  i16uConfigLength;" "  /* length in bytes of all config values together */"
+.BR "    __u16  i16uBaseOffset;" "    /* offset in process image */"
+.BR "    __u16  i16uInputOffset;" "   /* offset in process image of first input byte */"
+.BR "    __u16  i16uOutputOffset;" "  /* offset in process image of first output byte */"
+.BR "    __u16  i16uConfigOffset;" "  /* offset in process image of first config byte */"
+.BR "    __u16  i16uFirstEntry;" "    /* index of entry */"
+.BR "    __u16  i16uEntries;" "       /* number of entries in process image */"
+.BR "    __u8   i8uModuleState;" "    /* fieldbus state of piGate Module */"
+.BR "    __u8   i8uActive;" "         /* 0 if module is not present and no data is available */"
+.BR "    __u16  i16uFeatures;" "      /* feature flags */"
+.BR "    __u8   i8uReserve[30];" "    /* reserved space for future extensions */"
+.B } SDeviceInfo;
+.fi
+
+.SH DESCRIPTION
+Contains information about an expansion module, as represented by the piControl
+driver.
+
+The fields are as follows:
+
+.TP
+.I i8uAddress
+This field contains the address of the expansion module on the piBridge bus.
+.TP
+.I pad
+This field is padding and must be zeroed.
+.TP
+.I i32uSerialnumber
+This field contains the serial number of the expansion module.
+.TP
+.I i16uModuleType
+This field identifies the type of the expansion module.
+.TP
+.I i16uHW_Revision
+This field contains the hardware revision of the expansion module.
+.TP
+.I i16uSW_Major
+This field contains the major number of the firmware version.
+.TP
+.I i16uSW_Minor
+This field contains the minor number of the firmware version.
+.TP
+.I i32uSVN_Revision
+This field contains the SVN revision of the firmware.
+.TP
+.I i16uInputLength
+This field contains the length in bytes of all input values.
+.TP
+.I i16uOutputLength
+This field contains the length in bytes of all output values.
+.TP
+.I i16uConfigLength
+This field contains the length in bytes of all config values.
+.TP
+.I i16uBaseOffset
+This field contains the offset in bytes in the process image.
+.TP
+.I i16uInputOffset
+This field contains the offset in bytes of the first input value.
+.TP
+.I i16uOutputOffset
+This field contains the offset in bytes of the first output value.
+.TP
+.I i16uConfigOffset
+This field contains the offset in bytes of the first configuration value.
+.TP
+.I i16uFirstEntry
+This field contains the index of the first entry in the process image.
+.TP
+.I i16uEntries
+This field contains the number of entries in the process image.
+.TP
+.I i8uModuleState
+This field contains the state of a gateway expansion module.
+.TP
+.I i8uActive
+This field contains the active state of the expansion module. A
+.I 0
+means the expansion module is not present, and consequently that no data is
+available.
+.TP
+.I i16uFeatures
+This field contains feature flags.
+.TP
+.I i8uReserve
+This field is reserved for future extensions. It must be zeroed.
+
+.P
+The following feature flags are defined for the
+.I i16uFeatures
+field:
+
+.TP
+Bit 0
+The device supports data exchange using Ethernet.
+
+.TP
+Bit 1
+The device supports data exchange using RS-485.
+
+.TP
+Bit 2-3
+The baudrate a device supports.
+.B 0
+is a baudrate of 115200,
+.B 1
+is a baudrate of 500000,
+.B 2
+is a baudrate of 1000000, and
+.B 3
+is a baudrate of 1500000.
+
+.TP
+Bit 4
+The device supports CRC-16 as the checksum in the IO protocol instead of the
+XOR-based checksum.
+
+.SH SEE ALSO
+
+.BR ioctl (2),
+.BR KB_GET_DEVICE_INFO (2),
+.BR KB_GET_DEVICE_INFO_LIST (2)
