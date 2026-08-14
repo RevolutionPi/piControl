@@ -318,6 +318,10 @@ typedef struct { // IOP_TYP1_CMD_DATA4
 
 //-----------------------------------------------------------------------------
 // Data request for rtd scaling values of Analog IO modules, 10 Bytes
+
+// value of enum sensorType in the AIO firmware
+#define AIO_CALIBRATION_COMPLETE	0xff
+
 typedef struct {
     u8  i8uSensorType;    // 0x00 PT100, 0x01 PT1000, 0x10 voltage, 0xff complete
     u8  i8uMethod;        // 0x00 3-wire, 0x01 4-wire, 0x11-0x14 voltage input 1-4

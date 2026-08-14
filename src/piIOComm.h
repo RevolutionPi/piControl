@@ -10,7 +10,7 @@
 #include "IoProtocol.h"
 
 #define REV_PI_IO_TIMEOUT           10         // msec
-/* MIO calibration SAVE writes flash synchronously (measured ~250 ms) */
+/* calibration saves write flash synchronously (measured ~250 ms on MIO) */
 #define REV_PI_CALIB_SAVE_TIMEOUT   1000       // msec
 
 enum IOSTATE {

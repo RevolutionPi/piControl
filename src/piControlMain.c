@@ -1422,9 +1422,13 @@ static int calibrate_aio(unsigned long usr_addr)
 
 static int send_internal_io_msg(unsigned long usr_addr)
 {
+	u16 timeout = REV_PI_IO_TIMEOUT;
+	SAioScalingRequest *scaling;
 	SIOGeneric resp;
 	SIOGeneric req;
+	SDevice *dev;
 	int ret;
+	int i;
 
 	if (!piDev_g.pibridge_supported)
 		return -EOPNOTSUPP;
@@ -1435,8 +1439,23 @@ static int send_internal_io_msg(unsigned long usr_addr)
 	if (copy_from_user(&req, (const void __user *) usr_addr, sizeof(req)))
 		return -EFAULT;
 
-	ret = send_internal_io_telegram(&req, sizeof(req), &resp,
-					REV_PI_IO_TIMEOUT);
+	/* the AIO scaling save writes flash synchronously, like the MIO save */
+	scaling = (SAioScalingRequest *) &req;
+	if (req.uHeader.sHeaderTyp1.bitCommand == IOP_TYP1_CMD_DATA5 &&
+	    scaling->sRtdScaling.i8uSensorType == AIO_CALIBRATION_COMPLETE) {
+		for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+			dev = RevPiDevice_getDev(i);
+
+			if (dev->i8uAddress == req.uHeader.sHeaderTyp1.bitAddress &&
+			    dev->i8uActive &&
+			    dev->sId.i16uModulType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
+				timeout = REV_PI_CALIB_SAVE_TIMEOUT;
+				break;
+			}
+		}
+	}
+
+	ret = send_internal_io_telegram(&req, sizeof(req), &resp, timeout);
 	if (!ret) {
 		if (copy_to_user((void __user *) usr_addr, &resp, sizeof(resp)))
 			ret = -EFAULT;
