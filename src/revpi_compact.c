@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
 
 // revpi_compact.c - RevPi Compact specific handling
 
@@ -461,6 +461,8 @@ void revpi_compact_adjust_config(void)
 					       piDev_g.devs->dev[i].i16uOutputOffset,
 					       piDev_g.devs->dev[i].i16uConfigOffset);
 
+				RevPiDevice_getDev(j)->i16uBaseOffset =
+					piDev_g.devs->dev[i].i16uBaseOffset;
 				RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 				RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
 				RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
@@ -499,6 +501,7 @@ void revpi_compact_adjust_config(void)
 			}
 			RevPiDevice_getDev(j)->i8uAddress = piDev_g.devs->dev[i].i8uAddress;
 			RevPiDevice_getDev(j)->i8uScan = 0;
+			RevPiDevice_getDev(j)->i16uBaseOffset = piDev_g.devs->dev[i].i16uBaseOffset;
 			RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 			RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
 			RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;

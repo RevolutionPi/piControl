@@ -260,6 +260,7 @@ static void revpi_flat_adjust_config(void)
 		}
 		dev->i8uAddress = dev_info->i8uAddress;
 		dev->i8uScan = 0;
+		dev->i16uBaseOffset = dev_info->i16uBaseOffset;
 		dev->i16uInputOffset = dev_info->i16uInputOffset;
 		dev->i16uOutputOffset = dev_info->i16uOutputOffset;
 		dev->i16uConfigOffset = dev_info->i16uConfigOffset;

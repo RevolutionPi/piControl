@@ -21,6 +21,7 @@ typedef struct _SDevice
     u8 i8uAddress;
     u8 i8uActive;
     u8 i8uScan;			// found on scan
+	u16 i16uBaseOffset;
     u16 i16uInputOffset;
     u16 i16uOutputOffset;
     u16 i16uConfigLength;

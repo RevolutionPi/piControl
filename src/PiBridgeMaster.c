@@ -242,6 +242,8 @@ int PiBridgeMaster_Adjust(void)
 					       piDev_g.devs->dev[i].i16uOutputOffset,
 					       piDev_g.devs->dev[i].i16uConfigOffset);
 
+				RevPiDevice_getDev(j)->i16uBaseOffset =
+					piDev_g.devs->dev[i].i16uBaseOffset;
 				RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 				RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
 				RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
@@ -284,6 +286,7 @@ int PiBridgeMaster_Adjust(void)
 			}
 			RevPiDevice_getDev(j)->i8uAddress = piDev_g.devs->dev[i].i8uAddress;
 			RevPiDevice_getDev(j)->i8uScan = 0;
+			RevPiDevice_getDev(j)->i16uBaseOffset = piDev_g.devs->dev[i].i16uBaseOffset;
 			RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 			RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
 			RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
