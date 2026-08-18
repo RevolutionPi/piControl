@@ -634,8 +634,7 @@ static int pibridge_probe(struct platform_device *pdev)
 
 err_revpi_fini:
 	if (piDev_g.pibridge_supported) {
-		if (isRunning())
-			PiBridgeMaster_Stop();
+		PiBridgeMaster_Stop();
 		revpi_core_remove(pdev);
 	} else { // standalone devices
 		if (piDev_g.machine_type == REVPI_COMPACT)
@@ -741,8 +740,7 @@ static int pibridge_remove(struct platform_device *pdev)
 	cdev_del(&piDev_g.cdev);
 
 	if (piDev_g.pibridge_supported) {
-		if (isRunning())
-			PiBridgeMaster_Stop();
+		PiBridgeMaster_Stop();
 		revpi_core_remove(pdev);
 	} else { // standalone devices
 		if (piDev_g.machine_type == REVPI_COMPACT)
