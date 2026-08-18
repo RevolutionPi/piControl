@@ -59,6 +59,8 @@ void PiBridgeMaster_Continue(void)
 	if (piDev_g.revpi_gate_supported)
 		revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
+	/* pairs with test_bit_acquire() in the gate receive path */
+	smp_mb__before_atomic();
 	set_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 	eRunStatus_s = enPiBridgeMasterStatus_Continue;	// make no initialization
 	bEntering_s = false;
@@ -990,6 +992,8 @@ int PiBridgeMaster_Run(void)
 					if (piDev_g.revpi_gate_supported)
 						revpi_gate_init();
 					piCore_g.eBridgeState = piBridgeRun;
+					/* pairs with test_bit_acquire() in the gate receive path */
+					smp_mb__before_atomic();
 					set_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
 				}
 			}

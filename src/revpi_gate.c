@@ -479,6 +479,11 @@ static int revpi_gate_process(struct sk_buff *skb, struct net_device *dev)
 	u8 expected_ctr;
 	int idx, ret;
 
+	if (!test_bit_acquire(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags)) {
+		kfree_skb(skb);
+		return NET_RX_DROP;
+	}
+
 	/* find connection for received packet */
 	idx = srcu_read_lock(&revpi_gate_srcu);
 	list_for_each_entry_rcu(conn, &revpi_gate_connections, list_node)
@@ -584,6 +589,13 @@ static int revpi_gate_rcv_loop(void *data)
 static int revpi_gate_rcv(struct sk_buff *skb, struct net_device *dev,
 			  struct packet_type *pt, struct net_device *orig_dev)
 {
+	/*
+	 * A connection binds to a device table entry and to process image
+	 * offsets, which are only valid while the bridge runs.
+	 */
+	if (!test_bit_acquire(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags))
+		goto drop;
+
 	if (skb->pkt_type != PACKET_BROADCAST) {
 		pr_err("%s: received non-broadcast packet\n", dev->name);
 		goto drop;
