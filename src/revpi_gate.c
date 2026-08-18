@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2018-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
 
 // revpi_gate.c - RevPi Gate protocol
 
@@ -16,6 +16,7 @@
 static LIST_HEAD(revpi_gate_connections);
 static DEFINE_MUTEX(revpi_gate_lock);		/* serializes list add/del */
 DEFINE_STATIC_SRCU(revpi_gate_srcu);		/* protects list traversal */
+static atomic_t revpi_gate_conn_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_fini_wq);
 static struct sk_buff_head revpi_gate_rcvq;
 static struct task_struct *revpi_gate_rcv_thread;
@@ -130,6 +131,7 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	dev_put(conn->dev);
 	kfree(conn);
 
+	atomic_dec(&revpi_gate_conn_count);
 	wake_up(&revpi_gate_fini_wq);
 }
 
@@ -442,6 +444,7 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 
 		mutex_lock(&revpi_gate_lock);
 		list_add_tail_rcu(&conn->list_node, &revpi_gate_connections);
+		atomic_inc(&revpi_gate_conn_count);
 		mutex_unlock(&revpi_gate_lock);
 	} else {
 		pr_warn("%s: id request, resetting connection\n", dev->name);
@@ -656,5 +659,7 @@ void revpi_gate_fini(void)
 		mod_delayed_work(system_highpri_wq, &conn->destroy_work, 0);
 	srcu_read_unlock(&revpi_gate_srcu, idx);
 
-	wait_event(revpi_gate_fini_wq, list_empty(&revpi_gate_connections));
+	/* the work unlinks a connection long before it frees it */
+	wait_event(revpi_gate_fini_wq,
+		   !atomic_read(&revpi_gate_conn_count));
 }
