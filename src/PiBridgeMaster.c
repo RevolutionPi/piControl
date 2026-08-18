@@ -71,6 +71,8 @@ static void pibridge_reinit(void) __must_hold(&piCore_g.lockBridgeState)
 
 	piCore_g.eBridgeState = piBridgeInit;
 	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
+	if (piDev_g.revpi_gate_supported)
+		revpi_gate_stop();
 	eRunStatus_s = enPiBridgeMasterStatus_Init;
 	bEntering_s = true;
 	module_init_failed = false;
