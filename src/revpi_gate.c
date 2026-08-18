@@ -16,10 +16,12 @@
 static LIST_HEAD(revpi_gate_connections);
 static DEFINE_MUTEX(revpi_gate_lock);		/* serializes list add/del */
 DEFINE_STATIC_SRCU(revpi_gate_srcu);		/* protects list traversal */
+static DEFINE_MUTEX(revpi_gate_rcv_lock);	/* excludes the receive thread */
 static atomic_t revpi_gate_conn_count = ATOMIC_INIT(0);
-static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_fini_wq);
+static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_disconnect_wq);
 static struct sk_buff_head revpi_gate_rcvq;
 static struct task_struct *revpi_gate_rcv_thread;
+static struct workqueue_struct *revpi_gate_wq;
 
 static unsigned int revpi_gate_nf_hook(void *priv, struct sk_buff *skb,
 				       const struct nf_hook_state *state)
@@ -132,7 +134,7 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	kfree(conn);
 
 	atomic_dec(&revpi_gate_conn_count);
-	wake_up(&revpi_gate_fini_wq);
+	wake_up(&revpi_gate_disconnect_wq);
 }
 
 /**
@@ -309,7 +311,7 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 		goto drop;
 	}
 
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
@@ -398,7 +400,7 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 	 * exchange once it has processed this ID response.  The driver only
 	 * ever replies to received packets.
 	 */
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
@@ -461,12 +463,12 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 		goto destroy;
 	}
 
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
 destroy:
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, 0);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, 0);
 drop:
 	kfree_skb(rcv);
 	return NET_RX_DROP;
@@ -570,7 +572,8 @@ static int revpi_gate_rcv_loop(void *data)
 	while (true) {
 		while (!skb_queue_empty(&revpi_gate_rcvq)) {
 			skb = skb_dequeue(&revpi_gate_rcvq);
-			revpi_gate_process(skb, skb->dev);
+			scoped_guard(mutex, &revpi_gate_rcv_lock)
+				revpi_gate_process(skb, skb->dev);
 		}
 		set_current_state(TASK_IDLE);
 		if (kthread_should_stop()) {
@@ -624,54 +627,69 @@ static struct packet_type revpi_gate_packet_type __read_mostly = {
 	.func =	revpi_gate_rcv,
 };
 
-void revpi_gate_init(void)
+void revpi_gate_stop(void)
+{
+	struct revpi_gate_connection *conn;
+	struct sk_buff *skb;
+	int idx;
+
+	/* packet handlers run under rcu_read_lock(), wait for them to leave */
+	synchronize_net();
+
+	scoped_guard(mutex, &revpi_gate_rcv_lock) {
+		while (!skb_queue_empty(&revpi_gate_rcvq)) {
+			skb = skb_dequeue(&revpi_gate_rcvq);
+			dev_kfree_skb(skb);
+		}
+
+		/*
+		 * Remaining connections cannot be torn down with
+		 * flush_delayed_work(): It would deadlock because
+		 * revpi_gate_destroy_work() synchronizes revpi_gate_srcu, which
+		 * is held here for list traversal.  Instead, enqueue all work
+		 * items and wait for their completion.
+		 */
+		idx = srcu_read_lock(&revpi_gate_srcu);
+		list_for_each_entry_rcu(conn, &revpi_gate_connections, list_node)
+			mod_delayed_work(revpi_gate_wq, &conn->destroy_work, 0);
+		srcu_read_unlock(&revpi_gate_srcu, idx);
+
+		/* the work unlinks a connection long before it frees it */
+		wait_event(revpi_gate_disconnect_wq,
+			   !atomic_read(&revpi_gate_conn_count));
+	}
+}
+
+int revpi_gate_register(void)
 {
 	struct task_struct *th;
 
-	skb_queue_head_init(&revpi_gate_rcvq);
+	revpi_gate_wq = alloc_workqueue("revpi_gate", WQ_HIGHPRI, 0);
+	if (!revpi_gate_wq)
+		return -ENOMEM;
 
-	revpi_gate_rcv_thread = NULL;
+	skb_queue_head_init(&revpi_gate_rcvq);
 
 	th = kthread_run(&revpi_gate_rcv_loop, NULL, "revpi_gate_rcv");
 	if (IS_ERR(th)) {
-		pr_err("piControl: cannot run revpi_gate_rcv_thread (%pe), reset driver to retry\n",
-		       th);
-		return;
+		pr_err("cannot run revpi_gate_rcv thread (%pe)\n", th);
+		destroy_workqueue(revpi_gate_wq);
+		return PTR_ERR(th);
 	}
 	revpi_gate_rcv_thread = th;
 
 	sched_set_fifo(revpi_gate_rcv_thread);
 
 	dev_add_pack(&revpi_gate_packet_type);
+
+	return 0;
 }
 
-void revpi_gate_fini(void)
+void revpi_gate_unregister(void)
 {
-	struct revpi_gate_connection *conn;
-	struct sk_buff *skb;
-	int idx;
-
 	dev_remove_pack(&revpi_gate_packet_type);
-
-	if (revpi_gate_rcv_thread)
-		kthread_stop(revpi_gate_rcv_thread);
-	while (!skb_queue_empty(&revpi_gate_rcvq)) {
-		skb = skb_dequeue(&revpi_gate_rcvq);
-		dev_kfree_skb(skb);
-	}
-
-	/*
-	 * Remaining connections cannot be torn down with flush_delayed_work():
-	 * It would deadlock because revpi_gate_destroy_work() synchronizes
-	 * revpi_gate_srcu, which is held here for list traversal.  Instead,
-	 * enqueue all work items and wait for their completion.
-	 */
-	idx = srcu_read_lock(&revpi_gate_srcu);
-	list_for_each_entry_rcu(conn, &revpi_gate_connections, list_node)
-		mod_delayed_work(system_highpri_wq, &conn->destroy_work, 0);
-	srcu_read_unlock(&revpi_gate_srcu, idx);
-
-	/* the work unlinks a connection long before it frees it */
-	wait_event(revpi_gate_fini_wq,
-		   !atomic_read(&revpi_gate_conn_count));
+	kthread_stop(revpi_gate_rcv_thread);
+	revpi_gate_stop();
+	/* the count drops before the destroy work returns, wait for the works */
+	destroy_workqueue(revpi_gate_wq);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
 
 // revpi_core.c - RevPi Core specific functions
 
@@ -11,6 +11,7 @@
 
 #include "revpi_common.h"
 #include "revpi_core.h"
+#include "revpi_gate.h"
 
 #define CREATE_TRACE_POINTS
 #include "picontrol_trace.h"
@@ -563,11 +564,17 @@ int revpi_core_probe(struct platform_device *pdev)
 			goto err_deinit_gpios;
 	}
 
+	if (piDev_g.revpi_gate_supported) {
+		ret = revpi_gate_register();
+		if (ret)
+			goto err_deinit_gpios;
+	}
+
 	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piControl I/O");
 	if (IS_ERR(piCore_g.pIoThread)) {
 		pr_err("kthread_run(io) failed\n");
 		ret = PTR_ERR(piCore_g.pIoThread);
-		goto err_deinit_gpios;
+		goto err_unregister_gate;
 	}
 	ret = set_rt_priority(piCore_g.pIoThread, RT_PRIO_BRIDGE);
 	if (ret) {
@@ -579,6 +586,9 @@ int revpi_core_probe(struct platform_device *pdev)
 
 err_stop_io_thread:
 	kthread_stop(piCore_g.pIoThread);
+err_unregister_gate:
+	if (piDev_g.revpi_gate_supported)
+		revpi_gate_unregister();
 err_deinit_gpios:
 	deinit_gpios();
 
@@ -588,5 +598,7 @@ err_deinit_gpios:
 void revpi_core_remove(struct platform_device *pdev)
 {
 	kthread_stop(piCore_g.pIoThread);
+	if (piDev_g.revpi_gate_supported)
+		revpi_gate_unregister();
 	deinit_gpios();
 }

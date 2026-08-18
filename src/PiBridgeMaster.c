@@ -46,18 +46,17 @@ static char *pcFWUdata;
 void PiBridgeMaster_Stop(void)
 {
 	guard(rt_mutex)(&piCore_g.lockBridgeState);
-	if (piDev_g.revpi_gate_supported)
-		revpi_gate_fini();
 	piCore_g.eBridgeState = piBridgeStop;
+	/* clearing the flag first keeps new gate packets out of the queue */
 	clear_bit(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags);
+	if (piDev_g.revpi_gate_supported)
+		revpi_gate_stop();
 }
 
 void PiBridgeMaster_Continue(void)
 {
 	// this function can only be called, if the driver was running before
 	guard(rt_mutex)(&piCore_g.lockBridgeState);
-	if (piDev_g.revpi_gate_supported)
-		revpi_gate_init();
 	piCore_g.eBridgeState = piBridgeRun;
 	/* pairs with test_bit_acquire() in the gate receive path */
 	smp_mb__before_atomic();
@@ -989,8 +988,6 @@ int PiBridgeMaster_Run(void)
 					pr_info("set state to running\n");
 					if (RevPiDevice_getStatus() & PICONTROL_STATUS_MISSING_MODULE)
 						pr_warn("Not all configured modules detected on PiBridge!\n");
-					if (piDev_g.revpi_gate_supported)
-						revpi_gate_init();
 					piCore_g.eBridgeState = piBridgeRun;
 					/* pairs with test_bit_acquire() in the gate receive path */
 					smp_mb__before_atomic();
