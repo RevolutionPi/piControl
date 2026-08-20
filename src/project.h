@@ -5,13 +5,6 @@
 #ifndef BSPCONFIG_H_INC
 #define BSPCONFIG_H_INC
 
-
-#define pr_info_master(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-
-
-
-#define pr_info_serial(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
-
 #define KB_PD_LEN       (u16)512
 #define KB_PI_LEN       4096
 
