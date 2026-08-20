@@ -892,21 +892,21 @@ int PiBridgeMaster_Run(void)
 
 					pr_debug("After Adjustment\n");
 					for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-						pr_info("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
+						pr_debug("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
 							       i,
 							       RevPiDevice_getDev(i)->i8uAddress,
 							       RevPiDevice_getDev(i)->sId.i16uModulType,
 							       RevPiDevice_getDev(i)->i8uActive,
 							       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength,
 							       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-						pr_info("           input offset  %5d  len %3d\n",
+						pr_debug("           input offset  %5d  len %3d\n",
 							       RevPiDevice_getDev(i)->i16uInputOffset,
 							       RevPiDevice_getDev(i)->sId.i16uFBS_InputLength);
-						pr_info("           output offset %5d  len %3d\n",
+						pr_debug("           output offset %5d  len %3d\n",
 							       RevPiDevice_getDev(i)->i16uOutputOffset,
 							       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
 					}
-					pr_info("\n");
+					pr_debug("\n");
 					PiBridgeMaster_setDefaults();
 
 					scoped_guard(rt_mutex, &piDev_g.lockPI) {

@@ -455,7 +455,7 @@ void revpi_compact_adjust_config(void)
 				}
 				// we found the device in the configuration file
 				// -> adjust offsets
-				pr_info("Adjust: base %d in %d out %d conf %d\n",
+				pr_debug("Adjust: base %d in %d out %d conf %d\n",
 					       piDev_g.devs->dev[i].i16uBaseOffset,
 					       piDev_g.devs->dev[i].i16uInputOffset,
 					       piDev_g.devs->dev[i].i16uOutputOffset,
