@@ -6,7 +6,6 @@
 #define BSPCONFIG_H_INC
 
 
-#define DEBUG_MASTER_STATE
 #define pr_info_master(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 
 

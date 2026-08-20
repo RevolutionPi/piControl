@@ -863,7 +863,6 @@ int PiBridgeMaster_Run(void)
 
 			case enPiBridgeMasterStatus_EndOfConfig:
 				if (bEntering_s) {
-#ifdef DEBUG_MASTER_STATE
 					pr_debug("Enter EndOfConfig State\n\n");
 					for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 						pr_debug("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
@@ -886,13 +885,11 @@ int PiBridgeMaster_Run(void)
 					}
 
 					pr_debug("\n");
-#endif
 
 					piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
 
 					PiBridgeMaster_Adjust();
 
-#ifdef DEBUG_MASTER_STATE
 					pr_debug("After Adjustment\n");
 					for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 						pr_info_master("Device %2d: Addr %2d Type %3d  Act %d  In %3d Out %3d\n",
@@ -910,7 +907,6 @@ int PiBridgeMaster_Run(void)
 							       RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
 					}
 					pr_info_master("\n");
-#endif
 					PiBridgeMaster_setDefaults();
 
 					scoped_guard(rt_mutex, &piDev_g.lockPI) {
