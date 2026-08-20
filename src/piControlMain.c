@@ -1638,7 +1638,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	case KB_GET_DEVICE_INFO_LIST:
 		{
 			unsigned int num_devs = RevPiDevice_getDevCnt();
-			bool firmware_update = false;
 			int i;
 
 			SDeviceInfo *dev_infos __free(kfree) = kcalloc(num_devs,
@@ -1648,36 +1647,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			for (i = 0; i < num_devs; i++) {
 				picontrol_set_device_info(&dev_infos[i], RevPiDevice_getDev(i));
+			}
 
-				if ((dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DIO_14) ||
-				    (dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DO_16) ||
-				    (dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_DI_16)) {
-					/*
-					 * DIO with firmware older than 1.4
-					 * should be updated
-					 */
-					if ((dev_infos[i].i16uSW_Major < 1) ||
-					    ((dev_infos[i].i16uSW_Major == 1) &&
-					     (dev_infos[i].i16uSW_Minor < 4))) {
-						firmware_update = true;
-					}
-				}
-				if (dev_infos[i].i16uModuleType == KUNBUS_FW_DESCR_TYP_PI_AIO) {
-					/*
-					 * AIO with firmware older than 1.3
-					 * should be updated
-					 */
-					if ((dev_infos[i].i16uSW_Major < 1) ||
-					    ((dev_infos[i].i16uSW_Major == 1) &&
-					     (dev_infos[i].i16uSW_Minor < 3))) {
-						firmware_update = true;
-					}
-				}
-			}
-			if (firmware_update) {
-				printUserMsg(priv, "The firmware of some I/O modules must be updated.\n"
-					     "Please connect only one module to the RevPi and call 'piTest -f'");
-			}
 			if (copy_to_user((void __user *) usr_addr, dev_infos,
 					 sizeof(SDeviceInfo) * num_devs)) {
 				pr_err("failed to copy device list to user\n");
