@@ -1668,7 +1668,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			if (copy_from_user(&spi_val, (const void __user *) usr_addr,
 					     sizeof(spi_val))) {
-				pr_err("failed to copy spi value from user\n");
+				pr_err("failed to copy process image variable information from user\n");
 				return -EFAULT;
 			}
 
@@ -1688,7 +1688,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 				if (copy_to_user((void __user *) usr_addr, &spi_val,
 						   sizeof(spi_val))) {
-					pr_err("failed to copy spi value to user\n");
+					pr_err("failed to copy process image variable information to user\n");
 					return -EFAULT;
 				}
 
@@ -1706,7 +1706,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 			if (copy_from_user(&spi_val, (const void __user *) usr_addr,
 					   sizeof(spi_val))) {
-				pr_err("failed to copy spi value from user\n");
+				pr_err("failed to copy process image variable information from user\n");
 				return -EFAULT;
 			}
 
