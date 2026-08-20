@@ -276,6 +276,8 @@ void revpi_check_timeout(void)
 
 			if (pos_inst->tTimeoutDurationMs != 0) {
 				if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
+					pr_warn_ratelimited("Watchdog timeout with duration %lu, setting outputs to 0\n",
+							    pos_inst->tTimeoutDurationMs);
 					// set all outputs to 0
 					revpi_zero_active_outputs();
 					pos_inst->tTimeoutTS = ktime_add_ms(ktime_get(), pos_inst->tTimeoutDurationMs);
