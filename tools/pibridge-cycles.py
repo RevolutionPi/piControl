@@ -15,7 +15,6 @@ import argparse
 import csv
 import fcntl
 import os
-import statistics
 import sys
 import time
 from collections import deque
@@ -144,22 +143,6 @@ def _probe_environment() -> tuple[int | None, bool]:
     return cycle_target, has_err_stats
 
 
-def _print_period_stats(
-    period_samples: list[int], mean: float, outlier_threshold: float
-) -> None:
-    """Print a summary line for the samples collected in the last interval."""
-    outliers = sum(1 for s in period_samples if s > mean * outlier_threshold)
-    print(
-        f"[{datetime.now():%H:%M:%S}] "
-        f"n={len(period_samples)} "
-        f"min={min(period_samples)} "
-        f"max={max(period_samples)} "
-        f"mean={statistics.mean(period_samples):.1f} "
-        f"stdev={statistics.stdev(period_samples):.1f} "
-        f"outliers={outliers}"
-    )
-
-
 def cmd_collect(args: argparse.Namespace) -> None:
     """Collect cycle time samples from piControl and write them to CSV."""
     logfile = Path(
@@ -169,11 +152,10 @@ def cmd_collect(args: argparse.Namespace) -> None:
     last_rx_err = _read_sysfs(SYSFS_RX_ERR) if has_err_stats else 0
 
     rolling = _RollingMean(window=100)
-    period_samples: list[int] = []
-    sample_count = 0
-    last_stats_time = time.monotonic()
     outlier_threshold = 1.5
-    stats_interval = 15.0
+    sample_count = 0
+    last_alive_time = time.monotonic()
+    alive_interval = 15.0
 
     deadline = time.monotonic() + args.duration if args.duration else None
     sample_limit = args.samples
@@ -216,7 +198,6 @@ def cmd_collect(args: argparse.Namespace) -> None:
                     err_delta = 0
 
                 rolling.add(val)
-                period_samples.append(val)
 
                 writer.writerow([f"{time.time():.6f}", val, err_delta])
                 sample_count += 1
@@ -229,12 +210,9 @@ def cmd_collect(args: argparse.Namespace) -> None:
                     print(f"RX_ERR: +{err_delta} (total: {rx_err})")
 
                 now = time.monotonic()
-                if now - last_stats_time >= stats_interval and period_samples:
-                    _print_period_stats(
-                        period_samples, rolling.value, outlier_threshold
-                    )
-                    period_samples.clear()
-                    last_stats_time = now
+                if now - last_alive_time >= alive_interval:
+                    print(".", end="", flush=True)
+                    last_alive_time = now
 
         except KeyboardInterrupt:
             pass
