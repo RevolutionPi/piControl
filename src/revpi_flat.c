@@ -187,13 +187,16 @@ static int revpi_flat_poll_ain(void *data)
 
 	while (!kthread_should_stop()) {
 		ret = revpi_flat_handle_ain(flat, ain_mode_current);
-		if (ret)
+		if (ret) {
 			msleep(REVPI_FLAT_AIN_POLL_INTERVAL);
-		/*
-		 * Wait a minimum timespan before requesting the next AIN
-		 * value.
-		 */
-		usleep_range(REVPI_FLAT_AIN_DELAY, REVPI_FLAT_AIN_DELAY + 10);
+		} else {
+			/*
+			 * Wait a minimum timespan before requesting the next AIN
+			 * value.
+			 */
+			usleep_range(REVPI_FLAT_AIN_DELAY,
+				     REVPI_FLAT_AIN_DELAY + 10);
+		}
 		/* read cpu temperature */
 		if (piDev_g.thermal_zone != NULL) {
 			ret = thermal_zone_get_temp(piDev_g.thermal_zone,
