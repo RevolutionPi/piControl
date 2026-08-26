@@ -199,7 +199,7 @@ static int revpi_flat_poll_ain(void *data)
 			ret = thermal_zone_get_temp(piDev_g.thermal_zone,
 						    &temperature);
 			if (ret)
-				dev_err(piDev_g.dev,"Failed to get cpu "
+				dev_err(piDev_g.dev, "Failed to get cpu "
 					"temperature");
 		}
 
