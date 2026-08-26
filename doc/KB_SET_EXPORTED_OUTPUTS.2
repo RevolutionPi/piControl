@@ -70,9 +70,9 @@ should only be called by one application at a time.
 .SH EXAMPLES
 
 .EX
-unsigned char process_image[4096];
+unsigned char process_image[PICONTROL_PROCESS_IMAGE_LEN];
 /* read full process image into modifiable buffer */
-read(fd, process_image, 4096);
+read(fd, process_image, PICONTROL_PROCESS_IMAGE_LEN);
 /* change output values in the copy of the process image */
 // \.\.\.
 /* pass modified process image to piControl to write new output values */
