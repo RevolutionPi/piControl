@@ -1159,7 +1159,7 @@ static int send_config(unsigned long usr_addr)
 	if (copy_from_user(&cfg, cfg_user, sizeof(cfg)))
 		return -EFAULT;
 
-	if (cfg.i16uLen > MAX_TELEGRAM_DATA_SIZE)
+	if (cfg.i16uLen > PICONTROL_MAX_TELEGRAM_DATA_LEN)
 		return -EINVAL;
 
 	struct modgate_telegram *req __free(kfree) = kmalloc(sizeof(*req),

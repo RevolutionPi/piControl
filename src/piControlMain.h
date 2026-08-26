@@ -122,7 +122,7 @@ typedef struct spiControlInst {
 	struct list_head list;	// list of all instances
 	ktime_t tTimeoutTS;	// time stamp when the output must be set to 0
 	unsigned long tTimeoutDurationMs;	// length of the timeout in ms, 0 if not active
-	char pcErrorMessage[REV_PI_ERROR_MSG_LEN];	// error message of last ioctl call
+	char pcErrorMessage[PICONTROL_ERROR_MSG_LEN];	// error message of last ioctl call
 } tpiControlInst;
 
 extern tpiControlDev piDev_g;

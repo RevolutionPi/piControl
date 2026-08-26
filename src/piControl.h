@@ -11,15 +11,19 @@
 
 #define PICONTROL_DEVICE			"/dev/piControl0"
 /* max. length of error message */
-#define REV_PI_ERROR_MSG_LEN			256
+#define PICONTROL_ERROR_MSG_LEN			256
+/* deprecated, use PICONTROL_ERROR_MSG_LEN */
+#define REV_PI_ERROR_MSG_LEN			PICONTROL_ERROR_MSG_LEN
 /* max. number of devices connected to the PiBridge */
-#define REV_PI_DEV_CNT_MAX			64
+#define PICONTROL_MAX_DEVICES			64
+/* deprecated, use PICONTROL_MAX_DEVICES */
+#define REV_PI_DEV_CNT_MAX			PICONTROL_MAX_DEVICES
 /* length of the process image in bytes */
 #define PICONTROL_PROCESS_IMAGE_LEN		4096
 /* address of the first module on the right side of the RevPi */
-#define REV_PI_DEV_FIRST_RIGHT			32
+#define PICONTROL_DEV_FIRST_RIGHT		32
 /* address of the first module on the left side of the RevPi */
-#define REV_PI_DEV_FIRST_LEFT			(REV_PI_DEV_FIRST_RIGHT - 1)
+#define PICONTROL_DEV_FIRST_LEFT		(PICONTROL_DEV_FIRST_RIGHT - 1)
 
 /*
  *  Module Id
@@ -211,13 +215,15 @@ struct pictl_calibrate {
 	__s16 y_val;
 };
 
-#define MAX_TELEGRAM_DATA_SIZE			255
+#define PICONTROL_MAX_TELEGRAM_DATA_LEN		255
+/* deprecated, use PICONTROL_MAX_TELEGRAM_DATA_LEN */
+#define MAX_TELEGRAM_DATA_SIZE			PICONTROL_MAX_TELEGRAM_DATA_LEN
 
 typedef struct SConfigDataStr {
 	__u8 bLeft;
 	__u8 pad;
 	__u16 i16uLen;
-	__u8 acData[MAX_TELEGRAM_DATA_SIZE];
+	__u8 acData[PICONTROL_MAX_TELEGRAM_DATA_LEN];
 } SConfigData;
 
 #endif /* PICONTROL_H_ */

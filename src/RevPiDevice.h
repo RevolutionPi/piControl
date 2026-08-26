@@ -42,7 +42,7 @@ typedef struct _SDeviceConfig
 
     u8  i8uStatus;               // status bitfield of RevPi
     unsigned int offset;		// Offset in RevPi in process image
-    SDevice dev[REV_PI_DEV_CNT_MAX+1];
+    SDevice dev[PICONTROL_MAX_DEVICES + 1];
 } SDeviceConfig;
 
 //-------------------------------------------------------------------------------------------------

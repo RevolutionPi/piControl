@@ -106,7 +106,7 @@ int piDIOComm_Init(u8 i8uDevice_p)
 
 int piDIOComm_sendCyclicTelegram(u8 devnum)
 {
-	static u8 last_out[REV_PI_DEV_CNT_MAX][DIO_OUTPUT_DATA_LEN];
+	static u8 last_out[PICONTROL_MAX_DEVICES][DIO_OUTPUT_DATA_LEN];
 	u8 in_buf[IOPROTOCOL_MAXDATA_LENGTH];
 	u8 out_buf[DIO_OUTPUT_DATA_LEN];
 	/* out_buf and additional 2 bytes for calculated channel mask */

@@ -93,12 +93,12 @@ int fwuEraseFlash (u8 address)
 
 int fwuWrite(u8 address, u32 flashAddr, char *data, u32 length)
 {
-	u8 sendbuf[MAX_TELEGRAM_DATA_SIZE];
+	u8 sendbuf[PICONTROL_MAX_TELEGRAM_DATA_LEN];
 	int ret;
 	u16 err;
 
 	memcpy (sendbuf, &flashAddr, sizeof (flashAddr));
-	if (length == 0 || length > MAX_TELEGRAM_DATA_SIZE - sizeof(flashAddr))
+	if (length == 0 || length > PICONTROL_MAX_TELEGRAM_DATA_LEN - sizeof(flashAddr))
 		return -EINVAL;
 
 	memcpy (sendbuf + sizeof (flashAddr), data, length);

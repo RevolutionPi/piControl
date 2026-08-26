@@ -45,7 +45,7 @@ struct modgate_telegram {
 	__u16 command;
 	__u16 sequence;
 	__u8 datalen;
-	__u8 data[MAX_TELEGRAM_DATA_SIZE];
+	__u8 data[PICONTROL_MAX_TELEGRAM_DATA_LEN];
 } __packed;
 
 /* send a Gateway-Protocol message and return response */

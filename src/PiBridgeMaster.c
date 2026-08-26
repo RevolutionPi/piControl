@@ -146,10 +146,10 @@ static void PiBridgeMaster_Configure(void)
 		 */
 		if (module_is_gateway(sdev->sId.i16uModulType & PICONTROL_NOT_CONNECTED_MASK)) {
 			if ((piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF)
-			    && (sdev->i8uAddress >= REV_PI_DEV_FIRST_RIGHT))
+			    && (sdev->i8uAddress >= PICONTROL_DEV_FIRST_RIGHT))
 				piCore_g.i8uRightMGateIdx = i;
 			else if ((piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF)
-				 && (sdev->i8uAddress < REV_PI_DEV_FIRST_RIGHT))
+				 && (sdev->i8uAddress < PICONTROL_DEV_FIRST_RIGHT))
 				piCore_g.i8uLeftMGateIdx = i;
 			continue;
 		}

@@ -56,7 +56,7 @@ static void revpi_core_register_unconfigured_gate(struct net_device *netdev,
 			id_resp->i16uModulType) != REV_PI_DEV_UNDEF)
 		return;
 
-	if (RevPiDevice_getDevCnt() >= REV_PI_DEV_CNT_MAX - 1) {
+	if (RevPiDevice_getDevCnt() >= PICONTROL_MAX_DEVICES - 1) {
 		pr_warn("%s: cannot register gateway, device list is full\n",
 			netdev->name);
 		return;

@@ -184,9 +184,9 @@ void RevPiDevice_init(void)
 	piCore_g.cycle_num = 0;
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
-	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
+	RevPiDevices_s.i8uAddressRight = PICONTROL_DEV_FIRST_RIGHT;	// first address of a right side module
 	RevPiDevices_s.gatewayRight = false;
-	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_LEFT;		// first address of a left side module
+	RevPiDevices_s.i8uAddressLeft = PICONTROL_DEV_FIRST_LEFT;	// first address of a left side module
 	RevPiDevices_s.gatewayLeft = false;
 	RevPiDevice_resetDevCnt();	// counter for detected devices
 	RevPiDevices_s.i16uErrorCnt = 0;
@@ -465,10 +465,10 @@ u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
 
 	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 		if (right &&
-		    RevPiDevice_getDev(i)->i8uAddress < REV_PI_DEV_FIRST_RIGHT)
+		    RevPiDevice_getDev(i)->i8uAddress < PICONTROL_DEV_FIRST_RIGHT)
 			continue;
 		if (!right &&
-		    RevPiDevice_getDev(i)->i8uAddress >= REV_PI_DEV_FIRST_RIGHT)
+		    RevPiDevice_getDev(i)->i8uAddress >= PICONTROL_DEV_FIRST_RIGHT)
 			continue;
 		if (RevPiDevice_getDev(i)->sId.i16uModulType == module_type)
 			return i;
@@ -509,7 +509,7 @@ void RevPiDevice_resetDevCnt(void)
 
 void RevPiDevice_incDevCnt(void)
 {
-	if (RevPiDevices_s.i8uDeviceCount < REV_PI_DEV_CNT_MAX-1) {
+	if (RevPiDevices_s.i8uDeviceCount < PICONTROL_MAX_DEVICES - 1) {
 		RevPiDevices_s.i8uDeviceCount++;
 	}
 }
@@ -566,7 +566,7 @@ static bool RevPiDevice_isLastRightDevice(u8 addr)
 u8 RevPiDevice_getFwuAddress(u8 addr)
 {
 	/* modules on the left side never sit at the right end */
-	if (addr < REV_PI_DEV_FIRST_RIGHT)
+	if (addr < PICONTROL_DEV_FIRST_RIGHT)
 		return 1;
 
 	if (RevPiDevice_isLastRightDevice(addr))
@@ -621,7 +621,7 @@ int RevPiDevice_setRightModuleTermination(bool terminate)
 {
 	int ret;
 
-	if ((RevPiDevices_s.i8uAddressRight == REV_PI_DEV_FIRST_RIGHT) ||
+	if ((RevPiDevices_s.i8uAddressRight == PICONTROL_DEV_FIRST_RIGHT) ||
 	     RevPiDevices_s.gatewayRight)
 		return -EOPNOTSUPP;
 	/*
@@ -641,7 +641,7 @@ int RevPiDevice_setLeftModuleTermination(bool terminate)
 {
 	int ret;
 
-	if ((RevPiDevices_s.i8uAddressLeft == REV_PI_DEV_FIRST_LEFT) ||
+	if ((RevPiDevices_s.i8uAddressLeft == PICONTROL_DEV_FIRST_LEFT) ||
 	     RevPiDevices_s.gatewayLeft)
 		return -EOPNOTSUPP;
 	/*
@@ -662,8 +662,8 @@ int RevPiDevice_setBaseTermination(void)
 	bool terminable;
 
 	terminable = piCore_g.gpio_rs485_term &&
-		     ((RevPiDevices_s.i8uAddressLeft == REV_PI_DEV_FIRST_LEFT) ||
-		      (RevPiDevices_s.i8uAddressRight == REV_PI_DEV_FIRST_RIGHT));
+		     ((RevPiDevices_s.i8uAddressLeft == PICONTROL_DEV_FIRST_LEFT) ||
+		      (RevPiDevices_s.i8uAddressRight == PICONTROL_DEV_FIRST_RIGHT));
 
 	if (!terminable)
 		return -EOPNOTSUPP;
