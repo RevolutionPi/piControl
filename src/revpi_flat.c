@@ -126,8 +126,9 @@ static int revpi_flat_poll_dout(void *data)
 			ret = iio_write_channel_raw(&flat->aout,
 						    min(raw_out, 4095));
 			if (ret)
-				dev_err(piDev_g.dev, "failed to write value to "
-					"analog ouput: %i\n", ret);
+				dev_err(piDev_g.dev,
+					"failed to write value to analog output: %i\n",
+					ret);
 
 			assign_bit_in_byte(REVPI_FLAT_AOUT_TX_ERR,
 					   &image->drv.aout_status, ret < 0);
@@ -152,8 +153,7 @@ static int revpi_flat_handle_ain(struct revpi_flat *flat, bool mode_current)
 	assign_bit_in_byte(REVPI_FLAT_AIN_TX_ERR, &image->drv.ain_status,
 			   ret < 0);
 	if (ret < 0) {
-		dev_err(piDev_g.dev, "failed to read from analog "
-			"channel: %i\n", ret);
+		dev_err(piDev_g.dev, "failed to read from analog channel: %i\n", ret);
 		return ret;
 	}
 	/* AIN value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
@@ -199,8 +199,8 @@ static int revpi_flat_poll_ain(void *data)
 			ret = thermal_zone_get_temp(piDev_g.thermal_zone,
 						    &temperature);
 			if (ret)
-				dev_err(piDev_g.dev, "Failed to get cpu "
-					"temperature");
+				dev_err(piDev_g.dev,
+					"Failed to get cpu temperature\n");
 		}
 
 		/*
@@ -257,8 +257,7 @@ static void revpi_flat_adjust_config(void)
 			dev->i8uActive = 1;
 			dev->sId.i16uModulType = dev_info->i16uModuleType;
 		} else {
-			pr_err("Additional module type %d is not allowed on "
-			       "RevPi Flat. Only sw modules are allowed.\n",
+			pr_err("Additional module type %d is not allowed on RevPi Flat. Only sw modules are allowed.\n",
 			       dev_info->i16uModuleType);
 
 			RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
@@ -327,8 +326,7 @@ int revpi_flat_probe(struct platform_device *pdev)
 
 	ret = gpiod_direction_output(flat->digout, 0);
 	if (ret) {
-		dev_err(piDev_g.dev, "Failed to set direction for relais "
-			"gpio %i\n", ret);
+		dev_err(piDev_g.dev, "Failed to set direction for relais gpio %i\n", ret);
 		return -ENXIO;
 	}
 
@@ -343,8 +341,7 @@ int revpi_flat_probe(struct platform_device *pdev)
 
 	ret = gpiod_direction_input(flat->button_desc);
 	if (ret) {
-		dev_err(piDev_g.dev, "Failed to set direction for button "
-			"gpio %i\n", ret);
+		dev_err(piDev_g.dev, "Failed to set direction for button gpio %i\n", ret);
 		return -ENXIO;
 	}
 
