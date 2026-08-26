@@ -58,7 +58,7 @@
 struct revpi_flat_image {
 	struct {
 		s16 ain;
-#define REVPI_FLAT_AIN_TX_ERR  			7
+#define REVPI_FLAT_AIN_TX_ERR			7
 		u8 ain_status;
 #define REVPI_FLAT_AOUT_TX_ERR			7
 		u8 aout_status;
