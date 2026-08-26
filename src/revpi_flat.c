@@ -96,17 +96,19 @@ static int revpi_flat_poll_dout(void *data)
 
 	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
 	while (!kthread_should_stop()) {
-		scoped_guard(rt_mutex, &piDev_g.lockPI) {
-			image->drv.button = gpiod_get_value_cansleep(flat->button_desc);
-			usr_image->drv = image->drv;
+		if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+			scoped_guard(rt_mutex, &piDev_g.lockPI) {
+				image->drv.button = gpiod_get_value_cansleep(flat->button_desc);
+				usr_image->drv = image->drv;
 
-			if (usr_image->usr.dout != image->usr.dout)
-				dout_val = usr_image->usr.dout;
+				if (usr_image->usr.dout != image->usr.dout)
+					dout_val = usr_image->usr.dout;
 
-			if (usr_image->usr.aout != image->usr.aout)
-				aout_val = usr_image->usr.aout;
+				if (usr_image->usr.aout != image->usr.aout)
+					aout_val = usr_image->usr.aout;
 
-			image->usr = usr_image->usr;
+				image->usr = usr_image->usr;
+			}
 		}
 
 		if (dout_val != -1) {
