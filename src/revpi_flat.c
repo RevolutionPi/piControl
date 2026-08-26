@@ -36,8 +36,10 @@
 #define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_RT_PRIO / 2 + 6)
 /* ain resistor (Ohm) */
 #define REVPI_FLAT_AIN_RESISTOR			240
-/* This value is a correction factor which takes the currency loss caused
-   by resistors into account. See the flat schematics for details. */
+/*
+ * This value is a correction factor which takes the currency loss caused
+ * by resistors into account. See the flat schematics for details.
+ */
 #define REVPI_FLAT_AIN_CORRECTION		1986582478
 #define REVPI_FLAT_AIN_POLL_INTERVAL		85
 
@@ -202,9 +204,9 @@ static int revpi_flat_poll_ain(void *data)
 		}
 
 		/*
-		   Get the CPU clock from CPU0 in kHz
-		   and divide it down to MHz.
-		*/
+		 * Get the CPU clock from CPU0 in kHz
+		 * and divide it down to MHz.
+		 */
 		freq = cpufreq_quick_get(0);
 
 		scoped_guard(rt_mutex, &piDev_g.lockPI) {
@@ -235,13 +237,17 @@ static void revpi_flat_adjust_config(void)
 	SDevice *dev;
 	int i;
 
-	/* Check if there are any valid parsing results at all. This might
-	   not be the case if an invalid config file was provided. */
+	/*
+	 * Check if there are any valid parsing results at all. This might
+	 * not be the case if an invalid config file was provided.
+	 */
 	if (piDev_g.devs == NULL)
 		return;
 
-	/* Add all virtual devices to list of known devices. The first device is
-	   the flat, so skip it. */
+	/*
+	 * Add all virtual devices to list of known devices. The first device is
+	 * the flat, so skip it.
+	 */
 	for (i = 1; i < piDev_g.devs->i16uNumDevices; i++) {
 		dev_info = &piDev_g.devs->dev[i];
 		dev = RevPiDevice_getDev(i);
