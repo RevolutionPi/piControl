@@ -65,14 +65,14 @@ struct revpi_flat_image {
 		u8 cpu_temp;
 		u8 cpu_freq;
 		u8 button;
-	} __attribute__ ((__packed__)) drv;
+	} __packed drv;
 	struct {
 		u16 leds;
 		u16 aout;
 		u8 dout;
 		u8 ain_mode_current;
-	} __attribute__ ((__packed__)) usr;
-} __attribute__ ((__packed__));
+	} __packed usr;
+} __packed;
 
 struct revpi_flat {
 	struct revpi_flat_image image;
