@@ -31,7 +31,7 @@ last message to.
 The
 .I msg
 buffer is expected to hold
-.I REV_PI_ERROR_MSG_LEN
+.I PICONTROL_ERROR_MSG_LEN
 bytes.
 
 .SH RETURN VALUE
@@ -52,7 +52,7 @@ Failure on copying the parameter to the caller.
 .SH EXAMPLES
 
 .EX
-char msg[REV_PI_ERROR_MSG_LEN];
+char msg[PICONTROL_ERROR_MSG_LEN];
 
 if (ioctl(fd, KB_GET_LAST_MESSAGE, msg) == 0 && msg[0])
 	puts(msg);
