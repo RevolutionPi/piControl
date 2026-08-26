@@ -493,7 +493,8 @@ void revpi_compact_adjust_config(void)
 				RevPiDevice_getDev(j)->i8uActive = 1;
 				RevPiDevice_getDev(j)->sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
 			} else {
-				pr_err("module type %d is not allowed on a RevPi Compact. Only sw modules are allowed.\n", piDev_g.devs->dev[i].i16uModuleType);
+				pr_err("module type %d is not allowed on a RevPi Compact. Only software modules are allowed.\n",
+				       piDev_g.devs->dev[i].i16uModuleType);
 				RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
 				RevPiDevice_getDev(j)->i8uActive = 0;
 				RevPiDevice_getDev(j)->sId.i16uModulType =

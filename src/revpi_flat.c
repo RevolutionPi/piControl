@@ -257,7 +257,7 @@ static void revpi_flat_adjust_config(void)
 			dev->i8uActive = 1;
 			dev->sId.i16uModulType = dev_info->i16uModuleType;
 		} else {
-			pr_err("Additional module type %d is not allowed on RevPi Flat. Only sw modules are allowed.\n",
+			pr_err("Additional module type %d is not allowed on RevPi Flat. Only software modules are allowed.\n",
 			       dev_info->i16uModuleType);
 
 			RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
