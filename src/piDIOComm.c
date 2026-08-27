@@ -13,7 +13,7 @@
 #define DIO_PWM_DATA_LEN		sizeof(struct pwm_data)
 
 static u8 i8uConfigured_s = 0;
-static SDioConfig dioConfig_s[10];
+static SDioConfig dioConfig_s[REV_PI_DEV_CNT_MAX];
 static u8 i8uNumCounter[REV_PI_DEV_CNT_MAX];
 static u16 i16uCounterAct[REV_PI_DEV_CNT_MAX];
 
@@ -27,7 +27,8 @@ int piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo *pEnt)
 	u16 i;
 
 	if (i8uConfigured_s >= ARRAY_SIZE(dioConfig_s)) {
-		pr_err("max. number of DIOs reached\n");
+		pr_err("too many digital modules (max %zu)\n",
+		       ARRAY_SIZE(dioConfig_s));
 		return -ERANGE;
 	}
 
