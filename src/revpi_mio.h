@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2020-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2020-2026 KUNBUS GmbH
  */
 
 #ifndef _REVPI_MIO_H_
@@ -10,8 +10,6 @@
 #include "IoProtocol.h"
 
 /************************************************/
-
-#define REVPI_MIO_MAX		10
 
 /* MIO digital IO channel modes, mirrors EMioIOModes in firmware */
 typedef enum {

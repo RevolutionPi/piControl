@@ -8,14 +8,14 @@
 #include "revpi_mio.h"
 
 /* configurations of MIO modules */
-static struct mio_config mio_list[REVPI_MIO_MAX];
+static struct mio_config mio_list[REV_PI_DEV_CNT_MAX];
 /* the counter of the MIO module */
 static int mio_cnt;
 /* store the sent analog request.
  * the field i8uChannels of struct SMioAnalogRequestData takes no function here,
  * but it could be used for the debugging purpose
  */
-static SMioAnalogRequestData mio_aio_request_last[REVPI_MIO_MAX];
+static SMioAnalogRequestData mio_aio_request_last[REV_PI_DEV_CNT_MAX];
 
 static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 			       SMioDigitalResponseData *resp_data)
@@ -203,9 +203,8 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 	int offset;
 	int i;
 
-	if (mio_cnt >= REVPI_MIO_MAX) {
-		pr_err("max. of MIOs(%d) reached(%d)\n", REVPI_MIO_MAX,
-		       mio_cnt);
+	if (mio_cnt >= ARRAY_SIZE(mio_list)) {
+		pr_err("too many MIOs (max %zu)\n", ARRAY_SIZE(mio_list));
 		return -ERANGE;
 	}
 
