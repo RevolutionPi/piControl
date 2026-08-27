@@ -11,6 +11,9 @@
 #define IOPROTOCOL_MAXDATA_LENGTH 31
 #define IOPROTOCOL_HEADER_LENGTH 2
 
+/* pibridge broadcasts telegrams to this address, so no module can use it */
+#define IOP_ADDR_BROADCAST	0x3f
+
 #define IOP_TYP1_CMD_DATA       0
 #define IOP_TYP1_CMD_CFG        1
 #define IOP_TYP1_CMD_DATA2      2

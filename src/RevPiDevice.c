@@ -397,6 +397,16 @@ static bool write_next_config_side(bool right)
 	u8 addr = right ? RevPiDevices_s.i8uAddressRight :
 			  RevPiDevices_s.i8uAddressLeft;
 
+	/*
+	 * Address 0 is the RevPi itself, so past either end of the usable
+	 * range an address aliases onto another module or a broadcast.
+	 */
+	if (right ? addr >= IOP_ADDR_BROADCAST : addr == 0) {
+		pr_err("no address left for a further module on the %s side\n",
+		       right ? "right" : "left");
+		return false;
+	}
+
 	if (!RevPiDevice_writeNextConfiguration(addr, &dev->sId))
 		return false;
 
