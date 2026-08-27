@@ -449,7 +449,14 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 		atomic_inc(&revpi_gate_conn_count);
 		mutex_unlock(&revpi_gate_lock);
 	} else {
-		pr_warn("%s: id request, resetting connection\n", dev->name);
+		/* the gateway repeats the request until the handshake completes */
+		if (conn->state == MODGATE_ST_ID_RESP)
+			pr_warn("%s: id request, resetting connection\n",
+				dev->name);
+		else
+			pr_debug("%s: id request, handshake not complete\n",
+				 dev->name);
+
 		conn->state = MODGATE_ST_ID_REQ;
 		revpi_core_gate_connected(conn->revpi_dev, false);
 	}
@@ -535,7 +542,10 @@ process:
 		expected_ctr = conn->in_ctr + 1;
 		if (expected_ctr == 0)
 			expected_ctr = 1;
-		if (tl->i8uCounter != expected_ctr)
+		if (tl->i8uCounter == conn->in_ctr)
+			pr_debug("%s: received ctr %#hhx again\n",
+				 dev->name, tl->i8uCounter);
+		else if (tl->i8uCounter != expected_ctr)
 			pr_warn("%s: received ctr %#hhx, expected %#hhx\n",
 				dev->name, tl->i8uCounter, expected_ctr);
 
