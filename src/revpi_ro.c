@@ -11,8 +11,6 @@
 #include "revpi_ro.h"
 #include "RevPiDevice.h"
 
-#define REVPI_RO_MAX		10
-
 /* Number of registered RO devices */
 static unsigned int num_devices;
 
@@ -21,7 +19,7 @@ struct ro_config_list_item {
 	struct revpi_ro_config config;
 };
 
-static struct ro_config_list_item ro_config_list[REVPI_RO_MAX];
+static struct ro_config_list_item ro_config_list[REV_PI_DEV_CNT_MAX];
 
 void revpi_ro_reset(void)
 {
@@ -37,8 +35,8 @@ int revpi_ro_config(u8 addr, int num_entries, SEntryInfo *pEnt)
 	SEntryInfo *entry;
 	int i;
 
-	if (num_devices >= REVPI_RO_MAX) {
-		pr_err("max. number of ROs (%u) exceeded\n", REVPI_RO_MAX);
+	if (num_devices >= ARRAY_SIZE(ro_config_list)) {
+		pr_err("too many ROs (max %zu)\n", ARRAY_SIZE(ro_config_list));
 		return -ERANGE;
 	}
 
