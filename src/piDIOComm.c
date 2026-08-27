@@ -14,8 +14,8 @@
 
 static u8 i8uConfigured_s = 0;
 static SDioConfig dioConfig_s[10];
-static u8 i8uNumCounter[64];
-static u16 i16uCounterAct[64];
+static u8 i8uNumCounter[REV_PI_DEV_CNT_MAX];
+static u16 i16uCounterAct[REV_PI_DEV_CNT_MAX];
 
 void piDIOComm_InitStart(void)
 {
