@@ -567,6 +567,67 @@ static bool device_ranges_valid(SDeviceInfo *dev)
 	return true;
 }
 
+static int apply_module_config(piDevices *devs, piEntries *ent)
+{
+	int ret = 0;
+	int i;
+
+	piDIOComm_InitStart();
+	piAIOComm_InitStart();
+	revpi_mio_reset();
+	revpi_ro_reset();
+
+	for (i = 0; i < devs->i16uNumDevices; i++) {
+		/* software modules are addressed above the physical modules */
+		if (module_is_software(devs->dev[i].i16uModuleType))
+			continue;
+
+		if (devs->dev[i].i8uAddress >= REV_PI_DEV_CNT_MAX) {
+			pr_err("module address %u from config out of range (max %u)\n",
+			       devs->dev[i].i8uAddress, REV_PI_DEV_CNT_MAX);
+			return -ERANGE;
+		}
+
+		switch (devs->dev[i].i16uModuleType) {
+		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+			ret = piDIOComm_Config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_AIO:
+			ret = piAIOComm_Config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
+			ret = revpi_compact_config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_MIO:
+			ret = revpi_mio_config(devs->dev[i].i8uAddress,
+					       devs->dev[i].i16uEntries,
+					       &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_RO:
+			ret = revpi_ro_config(devs->dev[i].i8uAddress,
+					      devs->dev[i].i16uEntries,
+					      &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		}
+
+		if (ret) {
+			pr_err("failed to configure module at address %u: %d\n",
+			       devs->dev[i].i8uAddress, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 int piConfigParse(const char *filename, piDevices **devices_list,
 		  piEntries **entries_list, piCopylist **copy_list)
 {
@@ -796,64 +857,19 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 
 install_config:
 	/* Parsing ok, configure devices and replace old parsed data with new */
-	// copy the config value into the module driver
-	piDIOComm_InitStart();
-	piAIOComm_InitStart();
-	revpi_mio_reset();
-	revpi_ro_reset();
+	ret = apply_module_config(devs, ent);
+	if (ret) {
+		/*
+		 * The drivers hold a partially applied config now, put the
+		 * running one back since the caller still uses it.
+		 */
+		if (*devices_list && *entries_list)
+			apply_module_config(*devices_list, *entries_list);
 
-	for (i = 0; i < devs->i16uNumDevices; i++) {
-		/* software modules are addressed above the physical modules */
-		if (module_is_software(devs->dev[i].i16uModuleType))
-			continue;
-
-		if (devs->dev[i].i8uAddress >= REV_PI_DEV_CNT_MAX) {
-			pr_err("module address %u from config out of range (max %u)\n",
-			       devs->dev[i].i8uAddress, REV_PI_DEV_CNT_MAX);
-			kfree(cl);
-			kfree(ent);
-			kfree(devs);
-			return -ERANGE;
-		}
-
-		switch (devs->dev[i].i16uModuleType) {
-		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			ret = piDIOComm_Config(devs->dev[i].i8uAddress,
-					   devs->dev[i].i16uEntries,
-					   &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			ret = piAIOComm_Config(devs->dev[i].i8uAddress,
-					   devs->dev[i].i16uEntries,
-					   &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
-			ret = revpi_compact_config(devs->dev[i].i8uAddress,
-					   devs->dev[i].i16uEntries,
-					   &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_MIO:
-			ret = revpi_mio_config(devs->dev[i].i8uAddress,
-					       devs->dev[i].i16uEntries,
-					       &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_RO:
-			ret = revpi_ro_config(devs->dev[i].i8uAddress,
-					      devs->dev[i].i16uEntries,
-					      &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		}
-
-		if (ret) {
-			pr_err("failed to configure module at address %u: %d\n",
-			       devs->dev[i].i8uAddress, ret);
-			kfree(cl);
-			kfree(ent);
-			kfree(devs);
-			return ret;
-		}
+		kfree(cl);
+		kfree(ent);
+		kfree(devs);
+		return ret;
 	}
 
 	/* IO thread reads the copylist under lockPI, swap under it too */
