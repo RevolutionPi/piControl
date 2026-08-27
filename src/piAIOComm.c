@@ -10,7 +10,6 @@
 #include "revpi_core.h"
 #include "RevPiDevice.h"
 
-#define AIO_MAX_DEVS			10
 #define AIO_OUTPUT_DATA_LEN		sizeof(SAioRequest)
 #define AIO_INPUT_DATA_LEN		sizeof(SAioResponse)
 #define AIO_CONFIG_DATA2_LEN		sizeof(SAioInConfig)
@@ -18,11 +17,11 @@
 #define AIO_CONFIG_DATA1_LEN		sizeof(SAioConfig)
 
 static unsigned int num_aios = 0;
-static SAioConfig aioConfig_s[AIO_MAX_DEVS];
-static SAioInConfig aioIn1Config_s[AIO_MAX_DEVS];
-static SAioInConfig aioIn2Config_s[AIO_MAX_DEVS];
+static SAioConfig aioConfig_s[REV_PI_DEV_CNT_MAX];
+static SAioInConfig aioIn1Config_s[REV_PI_DEV_CNT_MAX];
+static SAioInConfig aioIn2Config_s[REV_PI_DEV_CNT_MAX];
 
-static u8 aio_dev[AIO_MAX_DEVS];
+static u8 aio_dev[REV_PI_DEV_CNT_MAX];
 
 void piAIOComm_InitStart(void)
 {
@@ -37,8 +36,8 @@ int piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo *pEnt)
 {
 	u16 i;
 
-	if (num_aios >= AIO_MAX_DEVS) {
-		pr_err("max. number of AIOs reached\n");
+	if (num_aios >= ARRAY_SIZE(aio_dev)) {
+		pr_err("too many AIOs (max %zu)\n", ARRAY_SIZE(aio_dev));
 		return -ERANGE;
 	}
 
