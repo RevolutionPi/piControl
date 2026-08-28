@@ -122,7 +122,7 @@ typedef struct SPIVariableStr {
 	__u8 i8uBit;
 	__u8 pad;
 	/* length in bits, possible values are 1, 8, 16 and 32 */
-	__u16 i16uLength;		
+	__u16 i16uLength;
 } SPIVariable;
 
 #define KB_IOC_MAGIC  'K'
