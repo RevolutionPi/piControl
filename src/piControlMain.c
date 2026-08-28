@@ -1950,6 +1950,7 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 		{
 			loff_t off = 0;
 
+			pr_notice_ratelimited("Note: ioctl KB_SET_POS is deprecated. Use lseek(2) instead\n");
 			if (usr_addr != 0) {
 				if (get_user(off, (unsigned int __user *) usr_addr)) {
 					pr_err("failed to copy offset from user\n");

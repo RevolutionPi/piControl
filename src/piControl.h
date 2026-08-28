@@ -152,7 +152,10 @@ typedef struct SPIVariableStr {
  * are set to 0.
  */
 #define  KB_SET_OUTPUT_WATCHDOG			_IO(KB_IOC_MAGIC, 26 )
-/* set the f_pos, the unsigned int * is used to interpret the pos value */
+/*
+ * Deprecated.
+ * Set the f_pos, the unsigned int * is used to interpret the pos value
+ */
 #define  KB_SET_POS				_IO(KB_IOC_MAGIC, 27 )
 #define  KB_AIO_CALIBRATE			_IO(KB_IOC_MAGIC, 28 )
 /* get counter values of a RO module */
