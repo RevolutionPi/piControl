@@ -1144,56 +1144,6 @@ static int send_internal_gate_telegram(struct modgate_telegram *req_tel,
 	return ret;
 }
 
-static int send_config(unsigned long usr_addr)
-{
-	SConfigData __user *cfg_user = (SConfigData __user *) usr_addr;
-	SConfigData cfg;
-	int ret;
-
-	if (!piDev_g.revpi_gate_supported)
-		return -EPERM;
-
-	if (isRunning())
-		return -EAGAIN;
-
-	if (copy_from_user(&cfg, cfg_user, sizeof(cfg)))
-		return -EFAULT;
-
-	if (cfg.i16uLen > PICONTROL_MAX_TELEGRAM_DATA_LEN)
-		return -EINVAL;
-
-	struct modgate_telegram *req __free(kfree) = kmalloc(sizeof(*req),
-			GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
-
-	struct modgate_telegram *resp __free(kfree) = kmalloc(sizeof(*resp),
-			GFP_KERNEL);
-	if (!resp)
-		return -ENOMEM;
-
-	req->dest = cfg.bLeft ? RevPiDevice_getDev(piCore_g.i8uLeftMGateIdx)->i8uAddress :
-				RevPiDevice_getDev(piCore_g.i8uRightMGateIdx)->i8uAddress;
-	req->src = 0;
-	req->command = eCmdRAPIMessage;
-	req->sequence = 0;
-	req->datalen = cfg.i16uLen;
-	if (req->datalen)
-		memcpy(req->data, cfg.acData, cfg.i16uLen);
-
-	ret = send_internal_gate_telegram(req, resp);
-	if (ret > 0) {
-		put_user(resp->datalen, &cfg_user->i16uLen);
-
-		if (resp->datalen && copy_to_user(cfg_user->acData,
-						  resp->data,
-						  resp->datalen))
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
 static int send_internal_gate_msg(unsigned long usr_addr)
 {
 	struct modgate_telegram __user *tel = (struct modgate_telegram __user *) usr_addr;
@@ -1613,10 +1563,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 	tpiControlInst *priv;
 	int timeout = 10000;	// ms
 
-	if (prg_nr != KB_RESET && prg_nr != KB_CONFIG_SEND
-		&& prg_nr != KB_CONFIG_START && !isRunning()) {
+	if (prg_nr != KB_RESET && !isRunning())
 		return -EAGAIN;
-	}
 
 	priv = (tpiControlInst *) file->private_data;
 
@@ -1980,44 +1928,6 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			}
 			status = test_bit(PICONTROL_DEV_FLAG_STOP_IO,
 					  &piDev_g.flags) ? 1 : 0;
-		}
-		break;
-
-	case KB_CONFIG_STOP:	// for download of configuration to Master Gateway: stop IO communication completely
-		{
-			if (!piDev_g.revpi_gate_supported) {
-				return -EPERM;
-			}
-
-			scoped_guard(rt_mutex, &piDev_g.lockIoctl) {
-				if (!isRunning()) {
-					printUserMsg(priv, "piControl is not running");
-					return -EAGAIN;
-				}
-				PiBridgeMaster_Stop();
-			}
-			msleep(50);
-			status = 0;
-		}
-		break;
-
-	case KB_CONFIG_SEND:	// for download of configuration to Master Gateway: download config data
-		scoped_guard(rt_mutex, &piDev_g.lockIoctl) {
-			status = send_config(usr_addr);
-		}
-		break;
-
-	case KB_CONFIG_START:	// for download of configuration to Master Gateway: restart IO communication
-		{
-			if (!piDev_g.revpi_gate_supported) {
-				return -EPERM;
-			}
-			if (isRunning()) {
-				return -EAGAIN;
-			}
-
-			PiBridgeMaster_Continue();
-			status = 0;
 		}
 		break;
 

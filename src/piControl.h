@@ -148,14 +148,6 @@ typedef struct SPIVariableStr {
 #define  KB_GET_LAST_MESSAGE			_IO(KB_IOC_MAGIC, 21 )
 /* stop/start IO communication, can be used for I/O simulation */
 #define  KB_STOP_IO				_IO(KB_IOC_MAGIC, 22 )
-/* For download of configuration to Master Gateway: stop IO communication
- * completely.
- */
-#define  KB_CONFIG_STOP				_IO(KB_IOC_MAGIC, 23 )
-/* for download of configuration to Master Gateway: download config data */
-#define  KB_CONFIG_SEND				_IO(KB_IOC_MAGIC, 24 )
-/* for download of configuration to Master Gateway: restart IO communication */
-#define  KB_CONFIG_START			_IO(KB_IOC_MAGIC, 25 )
 /* Activate a watchdog. If write is not called for a given period all outputs
  * are set to 0.
  */
@@ -218,12 +210,5 @@ struct pictl_calibrate {
 #define PICONTROL_MAX_TELEGRAM_DATA_LEN		255
 /* deprecated, use PICONTROL_MAX_TELEGRAM_DATA_LEN */
 #define MAX_TELEGRAM_DATA_SIZE			PICONTROL_MAX_TELEGRAM_DATA_LEN
-
-typedef struct SConfigDataStr {
-	__u8 bLeft;
-	__u8 pad;
-	__u16 i16uLen;
-	__u8 acData[PICONTROL_MAX_TELEGRAM_DATA_LEN];
-} SConfigData;
 
 #endif /* PICONTROL_H_ */
