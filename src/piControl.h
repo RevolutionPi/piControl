@@ -144,7 +144,7 @@ typedef struct SPIVariableStr {
 #define  KB_UPDATE_DEVICE_FIRMWARE		_IO(KB_IOC_MAGIC, 19 )
 /* set a counter or endocder to 0 */
 #define  KB_DIO_RESET_COUNTER			_IO(KB_IOC_MAGIC, 20 )
-/* copy the last error message */
+/* Deprecated. Copy the last error message */
 #define  KB_GET_LAST_MESSAGE			_IO(KB_IOC_MAGIC, 21 )
 /* stop/start IO communication, can be used for I/O simulation */
 #define  KB_STOP_IO				_IO(KB_IOC_MAGIC, 22 )

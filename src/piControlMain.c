@@ -1890,6 +1890,8 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 
 	case KB_GET_LAST_MESSAGE:
 		{
+			pr_notice("Note: ioctl KB_GET_LAST_MESSAGE is deprecated\n");
+
 			if (copy_to_user((void __user *)usr_addr,
 					 priv->pcErrorMessage,
 					 sizeof(priv->pcErrorMessage))) {
