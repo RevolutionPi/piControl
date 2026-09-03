@@ -88,18 +88,6 @@ void PiBridgeMaster_Reset(void)
 }
 
 /*
- * Return whether the module type is handled by user space software (and thus
- * not configured over the PiBridge).
- */
-static bool module_is_software(u16 type)
-{
-	return type >= PICONTROL_SW_OFFSET ||
-	       type == KUNBUS_FW_DESCR_TYP_PI_CON_CAN ||
-	       type == KUNBUS_FW_DESCR_TYP_PI_CON_BT ||
-	       type == KUNBUS_FW_DESCR_TYP_PI_CON_MBUS;
-}
-
-/*
  * Send the configuration telegram(s) to a single module. Returns 0 on
  * success, REVPI_MODULE_NOT_CONFIGURED if the module is not part of the
  * PiCtory configuration or a negative error code on a communication failure.

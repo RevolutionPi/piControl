@@ -7,6 +7,8 @@
 
 #include <linux/types.h>
 
+#include "piControl.h"
+
 //+=============================================================================================
 //|    Konstanten / constant data
 //+=============================================================================================
@@ -81,6 +83,18 @@ static inline bool module_is_gateway(u16 type)
 	}
 
 	return false;
+}
+
+/*
+ * Return whether the module type is handled by user space software (and thus
+ * not configured over the PiBridge).
+ */
+static inline bool module_is_software(u16 type)
+{
+	return type >= PICONTROL_SW_OFFSET ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_CAN ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_BT ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_MBUS;
 }
 
 #define KUNBUS_FW_DESCR_MAC_ADDR_LEN                  6	//!< number of bytes in a MAC Address
