@@ -803,6 +803,10 @@ install_config:
 	revpi_ro_reset();
 
 	for (i = 0; i < devs->i16uNumDevices; i++) {
+		/* software modules are addressed above the physical modules */
+		if (module_is_software(devs->dev[i].i16uModuleType))
+			continue;
+
 		if (devs->dev[i].i8uAddress >= REV_PI_DEV_CNT_MAX) {
 			pr_err("module address %u from config out of range (max %u)\n",
 			       devs->dev[i].i8uAddress, REV_PI_DEV_CNT_MAX);
