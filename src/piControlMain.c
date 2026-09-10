@@ -1579,9 +1579,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			pr_info("driver reset requested\n");
 			pr_debug("BridgeState=%d\n", piCore_g.eBridgeState);
 
-			if (piDev_g.pibridge_supported && isRunning()) {
+			if (piDev_g.pibridge_supported)
 				PiBridgeMaster_Stop();
-			}
+
 			status = piControlReset(priv);
 		}
 		break;
