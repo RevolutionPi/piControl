@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2018-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
 
 // revpi_gate.c - RevPi Gate protocol
 
@@ -16,9 +16,12 @@
 static LIST_HEAD(revpi_gate_connections);
 static DEFINE_MUTEX(revpi_gate_lock);		/* serializes list add/del */
 DEFINE_STATIC_SRCU(revpi_gate_srcu);		/* protects list traversal */
-static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_fini_wq);
+static DEFINE_MUTEX(revpi_gate_rcv_lock);	/* excludes the receive thread */
+static atomic_t revpi_gate_conn_count = ATOMIC_INIT(0);
+static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_disconnect_wq);
 static struct sk_buff_head revpi_gate_rcvq;
 static struct task_struct *revpi_gate_rcv_thread;
+static struct workqueue_struct *revpi_gate_wq;
 
 static unsigned int revpi_gate_nf_hook(void *priv, struct sk_buff *skb,
 				       const struct nf_hook_state *state)
@@ -40,6 +43,8 @@ static const struct nf_hook_ops revpi_gate_nf_hook_ops = {
  * @list_node: node in @revpi_gate_connections list
  * @dev: network device over which the neighbor is reachable;
  *	only one neighbor per network device is supported
+ * @nf_hook_ops: egress hook dropping all but gateway traffic on @dev;
+ *	@nf_hook_ops.dev is NULL if registration failed
  * @destroy_work: work item to destroy connection on timeout
  * @state: current state machine position;
  *	there's only two states, see revpi_gate_state()
@@ -117,9 +122,9 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		conn->revpi_dev->i8uModuleState = FBSTATE_LINK;
-		rt_mutex_lock(&piDev_g.lockPI);
-		memset(conn->in, 0, conn->in_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memset(conn->in, 0, conn->in_len);
+		}
 	}
 
 	if (conn->nf_hook_ops.dev)
@@ -128,12 +133,14 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	dev_put(conn->dev);
 	kfree(conn);
 
-	wake_up(&revpi_gate_fini_wq);
+	atomic_dec(&revpi_gate_conn_count);
+	wake_up(&revpi_gate_disconnect_wq);
 }
 
 /**
  * revpi_gate_create_packet() - create skb for transmission
  * @conn: connection to the neighbor
+ * @cmd: command code to set in the Transport Layer header
  * @payload_len: size of payload following the Transport Layer header
  *
  * Create skb with enough room for the Transport Layer and an optional payload.
@@ -233,9 +240,9 @@ static void revpi_gate_send_cyclicpd(struct revpi_gate_connection *conn)
 
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(al->i8uData, conn->out, conn->out_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(al->i8uData, conn->out, conn->out_len);
+		}
 	} else {
 		memset(al->i8uData, 0, conn->out_len);
 	}
@@ -290,11 +297,11 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		conn->revpi_dev->i8uModuleState = rcv_al->i8uFieldbusStatus;
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(conn->in + rcv_al->i16uOffset, rcv_al->i8uData,
-		       rcv_al->i16uDataLen);
-		memcpy(al->i8uData, conn->out, conn->out_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(conn->in + rcv_al->i16uOffset, rcv_al->i8uData,
+			       rcv_al->i16uDataLen);
+			memcpy(al->i8uData, conn->out, conn->out_len);
+		}
 	} else {
 		memset(al->i8uData, 0, conn->out_len);
 	}
@@ -304,7 +311,7 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 		goto drop;
 	}
 
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
@@ -351,7 +358,7 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 	conn->in_len = min(KB_PD_LEN, rcv_al->i16uFBS_OutputLength);
 	conn->out_len = min(KB_PD_LEN, rcv_al->i16uFBS_InputLength);
 
-	i = revpi_core_find_gate(dev, rcv_al->i16uModulType);
+	i = revpi_core_find_gate(dev, rcv_al);
 	if (i == REV_PI_DEV_UNDEF) {
 		/*
 		 * Gateway is either not configured or module type
@@ -393,7 +400,7 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 	 * exchange once it has processed this ID response.  The driver only
 	 * ever replies to received packets.
 	 */
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
@@ -439,9 +446,17 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 
 		mutex_lock(&revpi_gate_lock);
 		list_add_tail_rcu(&conn->list_node, &revpi_gate_connections);
+		atomic_inc(&revpi_gate_conn_count);
 		mutex_unlock(&revpi_gate_lock);
 	} else {
-		pr_warn("%s: id request, resetting connection\n", dev->name);
+		/* the gateway repeats the request until the handshake completes */
+		if (conn->state == MODGATE_ST_ID_RESP)
+			pr_warn("%s: id request, resetting connection\n",
+				dev->name);
+		else
+			pr_debug("%s: id request, handshake not complete\n",
+				 dev->name);
+
 		conn->state = MODGATE_ST_ID_REQ;
 		revpi_core_gate_connected(conn->revpi_dev, false);
 	}
@@ -455,12 +470,12 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 		goto destroy;
 	}
 
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
 destroy:
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, 0);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, 0);
 drop:
 	kfree_skb(rcv);
 	return NET_RX_DROP;
@@ -472,6 +487,11 @@ static int revpi_gate_process(struct sk_buff *skb, struct net_device *dev)
 	MODGATECOM_TransportLayer *tl;
 	u8 expected_ctr;
 	int idx, ret;
+
+	if (!test_bit_acquire(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags)) {
+		kfree_skb(skb);
+		return NET_RX_DROP;
+	}
 
 	/* find connection for received packet */
 	idx = srcu_read_lock(&revpi_gate_srcu);
@@ -522,7 +542,10 @@ process:
 		expected_ctr = conn->in_ctr + 1;
 		if (expected_ctr == 0)
 			expected_ctr = 1;
-		if (tl->i8uCounter != expected_ctr)
+		if (tl->i8uCounter == conn->in_ctr)
+			pr_debug("%s: received ctr %#hhx again\n",
+				 dev->name, tl->i8uCounter);
+		else if (tl->i8uCounter != expected_ctr)
 			pr_warn("%s: received ctr %#hhx, expected %#hhx\n",
 				dev->name, tl->i8uCounter, expected_ctr);
 
@@ -559,7 +582,8 @@ static int revpi_gate_rcv_loop(void *data)
 	while (true) {
 		while (!skb_queue_empty(&revpi_gate_rcvq)) {
 			skb = skb_dequeue(&revpi_gate_rcvq);
-			revpi_gate_process(skb, skb->dev);
+			scoped_guard(mutex, &revpi_gate_rcv_lock)
+				revpi_gate_process(skb, skb->dev);
 		}
 		set_current_state(TASK_IDLE);
 		if (kthread_should_stop()) {
@@ -578,6 +602,13 @@ static int revpi_gate_rcv_loop(void *data)
 static int revpi_gate_rcv(struct sk_buff *skb, struct net_device *dev,
 			  struct packet_type *pt, struct net_device *orig_dev)
 {
+	/*
+	 * A connection binds to a device table entry and to process image
+	 * offsets, which are only valid while the bridge runs.
+	 */
+	if (!test_bit_acquire(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags))
+		goto drop;
+
 	if (skb->pkt_type != PACKET_BROADCAST) {
 		pr_err("%s: received non-broadcast packet\n", dev->name);
 		goto drop;
@@ -606,52 +637,69 @@ static struct packet_type revpi_gate_packet_type __read_mostly = {
 	.func =	revpi_gate_rcv,
 };
 
-void revpi_gate_init(void)
+void revpi_gate_stop(void)
+{
+	struct revpi_gate_connection *conn;
+	struct sk_buff *skb;
+	int idx;
+
+	/* packet handlers run under rcu_read_lock(), wait for them to leave */
+	synchronize_net();
+
+	scoped_guard(mutex, &revpi_gate_rcv_lock) {
+		while (!skb_queue_empty(&revpi_gate_rcvq)) {
+			skb = skb_dequeue(&revpi_gate_rcvq);
+			dev_kfree_skb(skb);
+		}
+
+		/*
+		 * Remaining connections cannot be torn down with
+		 * flush_delayed_work(): It would deadlock because
+		 * revpi_gate_destroy_work() synchronizes revpi_gate_srcu, which
+		 * is held here for list traversal.  Instead, enqueue all work
+		 * items and wait for their completion.
+		 */
+		idx = srcu_read_lock(&revpi_gate_srcu);
+		list_for_each_entry_rcu(conn, &revpi_gate_connections, list_node)
+			mod_delayed_work(revpi_gate_wq, &conn->destroy_work, 0);
+		srcu_read_unlock(&revpi_gate_srcu, idx);
+
+		/* the work unlinks a connection long before it frees it */
+		wait_event(revpi_gate_disconnect_wq,
+			   !atomic_read(&revpi_gate_conn_count));
+	}
+}
+
+int revpi_gate_register(void)
 {
 	struct task_struct *th;
 
-	skb_queue_head_init(&revpi_gate_rcvq);
+	revpi_gate_wq = alloc_workqueue("revpi_gate", WQ_HIGHPRI, 0);
+	if (!revpi_gate_wq)
+		return -ENOMEM;
 
-	revpi_gate_rcv_thread = NULL;
+	skb_queue_head_init(&revpi_gate_rcvq);
 
 	th = kthread_run(&revpi_gate_rcv_loop, NULL, "revpi_gate_rcv");
 	if (IS_ERR(th)) {
-		pr_err("piControl: cannot run revpi_gate_rcv_thread (%pe), reset driver to retry\n",
-		       th);
-		return;
+		pr_err("cannot run revpi_gate_rcv thread (%pe)\n", th);
+		destroy_workqueue(revpi_gate_wq);
+		return PTR_ERR(th);
 	}
 	revpi_gate_rcv_thread = th;
 
 	sched_set_fifo(revpi_gate_rcv_thread);
 
 	dev_add_pack(&revpi_gate_packet_type);
+
+	return 0;
 }
 
-void revpi_gate_fini(void)
+void revpi_gate_unregister(void)
 {
-	struct revpi_gate_connection *conn;
-	struct sk_buff *skb;
-	int idx;
-
 	dev_remove_pack(&revpi_gate_packet_type);
-
-	if (revpi_gate_rcv_thread)
-		kthread_stop(revpi_gate_rcv_thread);
-	while (!skb_queue_empty(&revpi_gate_rcvq)) {
-		skb = skb_dequeue(&revpi_gate_rcvq);
-		dev_kfree_skb(skb);
-	}
-
-	/*
-	 * Remaining connections cannot be torn down with flush_delayed_work():
-	 * It would deadlock because revpi_gate_destroy_work() synchronizes
-	 * revpi_gate_srcu, which is held here for list traversal.  Instead,
-	 * enqueue all work items and wait for their completion.
-	 */
-	idx = srcu_read_lock(&revpi_gate_srcu);
-	list_for_each_entry_rcu(conn, &revpi_gate_connections, list_node)
-		mod_delayed_work(system_highpri_wq, &conn->destroy_work, 0);
-	srcu_read_unlock(&revpi_gate_srcu, idx);
-
-	wait_event(revpi_gate_fini_wq, list_empty(&revpi_gate_connections));
+	kthread_stop(revpi_gate_rcv_thread);
+	revpi_gate_stop();
+	/* the count drops before the destroy work returns, wait for the works */
+	destroy_workqueue(revpi_gate_wq);
 }

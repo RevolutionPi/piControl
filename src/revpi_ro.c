@@ -11,17 +11,6 @@
 #include "revpi_ro.h"
 #include "RevPiDevice.h"
 
-#define REVPI_RO_MAX		10
-
-struct revpi_ro_img_out {
-	struct revpi_ro_target_state target_state;
-	u32 thresh[REVPI_RO_NUM_RELAYS];
-} __attribute__((__packed__));
-
-struct revpi_ro_img_in {
-	struct revpi_ro_status status;
-} __attribute__((__packed__));
-
 /* Number of registered RO devices */
 static unsigned int num_devices;
 
@@ -30,7 +19,7 @@ struct ro_config_list_item {
 	struct revpi_ro_config config;
 };
 
-static struct ro_config_list_item ro_config_list[REVPI_RO_MAX];
+static struct ro_config_list_item ro_config_list[REV_PI_DEV_CNT_MAX];
 
 void revpi_ro_reset(void)
 {
@@ -46,9 +35,9 @@ int revpi_ro_config(u8 addr, int num_entries, SEntryInfo *pEnt)
 	SEntryInfo *entry;
 	int i;
 
-	if (num_devices >= REVPI_RO_MAX) {
-		pr_err("max. number of ROs (%u) exceeded\n", REVPI_RO_MAX);
-		return -1;
+	if (num_devices >= ARRAY_SIZE(ro_config_list)) {
+		pr_err("too many ROs (max %zu)\n", ARRAY_SIZE(ro_config_list));
+		return -ERANGE;
 	}
 
 	itm = &ro_config_list[num_devices];
@@ -90,54 +79,16 @@ int revpi_ro_init(unsigned int devnum)
 	if (i == num_devices)
 		return REVPI_MODULE_NOT_CONFIGURED;
 
-	return pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
-			       &itm->config, sizeof(struct revpi_ro_config),
-			       NULL, 0);
+	return revpi_send_config(addr, IOP_TYP1_CMD_CFG, &itm->config,
+				 sizeof(struct revpi_ro_config));
 }
 
 int revpi_ro_cycle(unsigned int devnum)
 {
 	struct revpi_ro_target_state state_out;
 	struct revpi_ro_status status_in;
-	struct revpi_ro_img_out *img_out;
-	struct revpi_ro_img_in *img_in;
-	SDevice *dev;
-	int ret;
 
-	dev = RevPiDevice_getDev(devnum);
-
-	img_out = (struct revpi_ro_img_out *) (piDev_g.ai8uPI +
-					       dev->i16uOutputOffset);
-	img_in = (struct revpi_ro_img_in *) (piDev_g.ai8uPI +
-					     dev->i16uInputOffset);
-
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		state_out = img_out->target_state;
-		rt_mutex_unlock(&piDev_g.lockPI);
-	} else {
-		memset(&state_out, 0, sizeof(state_out));
-	}
-
-	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
-			      IOP_TYP1_CMD_DATA, &state_out, sizeof(state_out),
-			      &status_in, sizeof(status_in));
-
-	if (ret != sizeof(status_in)) {
-		pr_debug("RO addr %u: communication failed (req:%zu,ret:%d)\n",
-			dev->i8uAddress, sizeof(status_in), ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
-		return ret;
-	}
-
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		img_in->status = status_in;
-		rt_mutex_unlock(&piDev_g.lockPI);
-	}
-
-	return 0;
+	return revpi_cyclic_exchange(devnum, IOP_TYP1_CMD_DATA,
+				     &state_out, sizeof(state_out),
+				     &status_in, sizeof(status_in));
 }

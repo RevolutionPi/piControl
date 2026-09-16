@@ -1,0 +1,100 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH PICONTROL_UPLOAD_FIRMWARE 2 2026-08-14 "Linux"
+
+.SH NAME
+PICONTROL_UPLOAD_FIRMWARE \- update the firmware of expansion modules connected
+to the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", PICONTROL_UPLOAD_FIRMWARE, struct picontrol_firmware_upload *" arg ");"
+.sp
+.B "#include <piControl.h>"
+.sp
+.B "struct picontrol_firmware_upload;"
+.fi
+
+.SH DESCRIPTION
+Update the firmware of connected expansion modules.
+
+All required arguments are set in the
+.BR picontrol_firmware_upload (2type)
+struct in the
+.I arg
+parameter.
+
+The firmware upload, by default, only runs if the new firmware is newer than the
+one on the expansion module. This can be changed by setting
+.I PICONTROL_FIRMWARE_FORCE_UPLOAD
+flag in the
+.I flags
+field of the
+.BR picontrol_firmware_upload (2type)
+struct.
+
+It is possible to recover a "bricked" expansion module because expansion modules
+may boot into a "rescue mode". This is done by connecting the expansion module
+to the piBridge and calling this
+.BR ioctl (2)
+with the
+.I rescue_mode_hw_revision
+field set as well as the
+.I PICONTROL_FIRMWARE_RESCUE_MODE
+flag set in the
+.I flags
+field of the
+.BR picontrol_firmware_upload (2type)
+struct.
+
+.SS Firmware files
+
+The firmware files are provided by the
+.I revpi-firmware
+Debian package and stored in
+.IR /lib/firmware/revpi/ ,
+with the names of the firmware files being described in the printf-style format
+.IR fw_%05d_%03d.fwu ,
+where the first and second arguments represent the module type and hardware
+revision, respectively.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+If the firmware is already up-to-date and the
+.I PICONTROL_FIRMWARE_FORCE_UPLOAD
+flag is not set, 1 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EOPNOTSUPP
+The RevPi does not support expansion modules, or the firmware of the base
+module or a virtual module is trying to be updated.
+.TP
+.B EAGAIN
+A driver reset is in progress.
+.TP
+.B EFAULT
+Failure on copying the parameter from the caller.
+.TP
+.B ENODEV
+An expansion module with the given address does not exist or is disconnected.
+.TP
+.B EIO
+The firmware file could not be read or is corrupt, the hardware revision of the
+firmware file does not match the one for the expansion module, the firmware
+update mode could not be entered on the expansion module, the firmware update
+failed, or the expansion module could not be reset after the update.
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR picontrol_firmware_upload (2type)

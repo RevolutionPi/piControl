@@ -66,8 +66,8 @@ typedef struct spiControlDev {
 	unsigned int revpi_gate_supported:1;
 
 	// process image stuff
-	u8 ai8uPI[KB_PI_LEN];
-	u8 ai8uPIDefault[KB_PI_LEN];
+	u8 ai8uPI[PICONTROL_PROCESS_IMAGE_LEN];
+	u8 ai8uPIDefault[PICONTROL_PROCESS_IMAGE_LEN];
 	struct rt_mutex lockPI;
 #define PICONTROL_DEV_FLAG_STOP_IO		0
 #define PICONTROL_DEV_FLAG_RUNNING		1
@@ -122,7 +122,7 @@ typedef struct spiControlInst {
 	struct list_head list;	// list of all instances
 	ktime_t tTimeoutTS;	// time stamp when the output must be set to 0
 	unsigned long tTimeoutDurationMs;	// length of the timeout in ms, 0 if not active
-	char pcErrorMessage[REV_PI_ERROR_MSG_LEN];	// error message of last ioctl call
+	char pcErrorMessage[PICONTROL_ERROR_MSG_LEN];	// error message of last ioctl call
 } tpiControlInst;
 
 extern tpiControlDev piDev_g;
@@ -132,7 +132,7 @@ extern tpiControlDev piDev_g;
 /******************************************************************************/
 
 bool isRunning(void);
-void printUserMsg(tpiControlInst *priv, const char *s, ...);
+__printf(2, 3) void printUserMsg(tpiControlInst * priv, const char *s, ...);
 unsigned int piControl_get_cycle_duration(void);
 
 #endif /* PRODUCTS_PIBASE_PIKERNELMOD_PICONTROLINTERN_H_ */

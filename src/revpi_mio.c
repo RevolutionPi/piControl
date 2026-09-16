@@ -8,13 +8,14 @@
 #include "revpi_mio.h"
 
 /* configurations of MIO modules */
-static struct mio_config mio_list[REVPI_MIO_MAX];
+static struct mio_config mio_list[REV_PI_DEV_CNT_MAX];
 /* the counter of the MIO module */
 static int mio_cnt;
 /* store the sent analog request.
-   the field i8uChannels of struct SMioAnalogRequestData takes no function here,
-   but it could be used for the debuging purpose */
-static SMioAnalogRequestData mio_aio_request_last[REVPI_MIO_MAX];
+ * the field i8uChannels of struct SMioAnalogRequestData takes no function here,
+ * but it could be used for the debugging purpose
+ */
+static SMioAnalogRequestData mio_aio_request_last[REV_PI_DEV_CNT_MAX];
 
 static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 			       SMioDigitalResponseData *resp_data)
@@ -23,33 +24,25 @@ static int revpi_mio_cycle_dio(SDevice *dev, SMioDigitalRequestData *req_data,
 	SMioDigitalRequestData req;
 	int ret;
 
-	/*copy: from process image:output to request*/
+	/* copy: from process image:output to request */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(&req, req_data, sizeof(req));
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(&req, req_data, sizeof(req));
+		}
 	} else {
 		memset(&req, 0, sizeof(req));
 	}
 
-	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
-			      IOP_TYP1_CMD_DATA, &req, sizeof(req), &resp,
-			      sizeof(resp));
-	if (ret != sizeof(resp)) {
-		pr_debug("MIO addr %u: dio communication failed (req:%zu,ret:%d)\n",
-			dev->i8uAddress, sizeof(resp), ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
+	ret = revpi_cyclic_request(dev->i8uAddress, IOP_TYP1_CMD_DATA,
+				   &req, sizeof(req), &resp, sizeof(resp));
+	if (ret < 0)
 		return ret;
-	}
 
-	/*copy: from response to process image:input*/
+	/* copy: from response to process image:input */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(resp_data, &resp, sizeof(*resp_data));
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(resp_data, &resp, sizeof(*resp_data));
+		}
 	}
 
 	return 0;
@@ -62,38 +55,30 @@ static int revpi_mio_cycle_aio(SDevice *dev, SMioAnalogRequestData *req_data,
 	SMioAnalogResponseData resp;
 	int ret;
 
-	ret = pibridge_req_io(piCore_g.pibridge, dev->i8uAddress,
-			      IOP_TYP1_CMD_DATA2, req_data,
-			      sizeof(*req_data) - compressed, &resp,
-			      sizeof(resp));
-	if (ret != sizeof(resp)) {
-		pr_debug("MIO addr %u: aio communication failed (req:%zd,ret:%d)\n",
-			dev->i8uAddress, sizeof(resp), ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
+	ret = revpi_cyclic_request(dev->i8uAddress, IOP_TYP1_CMD_DATA2,
+				   req_data, sizeof(*req_data) - compressed,
+				   &resp, sizeof(resp));
+	if (ret < 0)
 		return ret;
-	}
 
-	/*copy: from response to process image*/
+	/* copy: from response to process image */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(resp_data, &resp, sizeof(*resp_data));
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(resp_data, &resp, sizeof(*resp_data));
+		}
 	}
 
 	return 0;
 }
 
 /*
-	compare to get the changed values of channels
-	input parameters:
-		a, b: data of two messages
-		count: count of channels
-		step: number of bytes for a channel
-	return:	bit map of changed channels
-*/
+ *	compare to get the changed values of channels
+ *	input parameters:
+ *		a, b: data of two messages
+ *		count: count of channels
+ *		step: number of bytes for a channel
+ *	return:	bit map of changed channels
+ */
 static unsigned long revpi_chnl_cmp(void *a, void *b, int count, int step)
 {
 	unsigned char *pa, *pb;
@@ -111,13 +96,13 @@ static unsigned long revpi_chnl_cmp(void *a, void *b, int count, int step)
 }
 
 /*
-	compress the channel, only data of changed channel will be taken
-	input parameters:
-		dst, dst: compress from src to dst
-		bitmap: compress according to
-		step: number of bytes for a channel
-	return: the count of channels has been taken.
-*/
+ *	compress the channel, only data of changed channel will be taken
+ *	input parameters:
+ *		dst, src: compress from src to dst
+ *		bitmap: compress according to
+ *		step: number of bytes for a channel
+ *	return: the count of channels has been taken.
+ */
 static unsigned int revpi_chnl_compress(void *dst, void *src,
 					unsigned long bitmap, int step)
 {
@@ -162,25 +147,25 @@ int revpi_mio_cycle(unsigned char devno)
 
 	/* for the AIO cycle */
 	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			io_req_ex.i8uLogicLevel = img_out->aio.i8uLogicLevel;
 
-		io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
-						&img_out->aio.i16uOutputVoltage,
-						MIO_AIO_PORT_CNT, 2);
-		/* force to update from process image */
-		io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
+			io_req_ex.i8uChannels = revpi_chnl_cmp(&last->i16uOutputVoltage,
+							&img_out->aio.i16uOutputVoltage,
+							MIO_AIO_PORT_CNT, 2);
+			/* force to update from process image */
+			io_req_ex.i8uChannels |= img_out->aio.i8uChannels;
 
-		if (io_req_ex.i8uChannels) {
-			/* preserve analog output values for later caching */
-			memcpy(&pending_values.i16uOutputVoltage,
-				&img_out->aio.i16uOutputVoltage,
-				sizeof(unsigned short) * MIO_AIO_PORT_CNT);
-			ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
-						&pending_values.i16uOutputVoltage,
-						io_req_ex.i8uChannels, 2);
+			if (io_req_ex.i8uChannels) {
+				/* preserve analog output values for later caching */
+				memcpy(&pending_values.i16uOutputVoltage,
+					&img_out->aio.i16uOutputVoltage,
+					sizeof(unsigned short) * MIO_AIO_PORT_CNT);
+				ch_cnt = revpi_chnl_compress(&io_req_ex.i16uOutputVoltage,
+							&pending_values.i16uOutputVoltage,
+							io_req_ex.i8uChannels, 2);
+			}
 		}
-		rt_mutex_unlock(&piDev_g.lockPI);
 	} else {
 		memset(&io_req_ex, 0, sizeof(io_req_ex));
 		memset(&pending_values, 0, sizeof(pending_values));
@@ -218,9 +203,8 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 	int offset;
 	int i;
 
-	if (mio_cnt >= REVPI_MIO_MAX) {
-		pr_err("max. of MIOs(%d) reached(%d)\n", REVPI_MIO_MAX,
-		       mio_cnt);
+	if (mio_cnt >= ARRAY_SIZE(mio_list)) {
+		pr_err("too many MIOs (max %zu)\n", ARRAY_SIZE(mio_list));
 		return -ERANGE;
 	}
 
@@ -229,9 +213,9 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 
 	conf->addr = addr;
 
-	/*0=input (InputThreshold)*/
+	/* 0=input (InputThreshold) */
 	conf->aio_i.i8uDirection = 0;
-	/*1=output(Fixed Output)*/
+	/* 1=output(Fixed Output) */
 	conf->aio_o.i8uDirection = 1;
 
 	pr_debug("MIO configured(addr:%d, ent-cnt:%d, conf-no:%d, conf-base:%zd)\n",
@@ -247,7 +231,7 @@ int revpi_mio_config(unsigned char addr, unsigned short e_cnt, SEntryInfo *ent)
 		case MIO_CONF_EMOD:
 			conf->dio.i8uEncoderMode = ent[i].i32uDefault;
 			break;
-		case MIO_CONF_IOMOD ... MIO_CONF_PUL -1:
+		case MIO_CONF_IOMOD ... MIO_CONF_PUL - 1:
 			arr_idx = (offset - MIO_CONF_IOMOD) / sizeof(u8);
 			conf->dio.i8uIoMode[arr_idx] = ent[i].i32uDefault;
 			break;
@@ -349,11 +333,13 @@ int revpi_mio_init(unsigned char devno)
 	if (!conf)
 		return REVPI_MODULE_NOT_CONFIGURED;
 
-	/*dio*/
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
-			      &conf->dio, sizeof(conf->dio), NULL, 0);
-	if (ret)
+	/* dio */
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_CFG, &conf->dio,
+				sizeof(conf->dio));
+	if (ret < 0) {
 		pr_err("MIO addr %u: dio config failed (ret:%d)\n", addr, ret);
+		return ret;
+	}
 
 	/*
 	 * One-shot DIO data exchange when the digital ios are disabled, so
@@ -368,26 +354,31 @@ int revpi_mio_init(unsigned char devno)
 		SMioDigitalResponseData zero_resp;
 
 		memset(&zero_req, 0, sizeof(zero_req));
-		ret = pibridge_req_io(piCore_g.pibridge, addr,
-				      IOP_TYP1_CMD_DATA, &zero_req,
-				      sizeof(zero_req), &zero_resp,
-				      sizeof(zero_resp));
-		if (ret != sizeof(zero_resp))
+		ret = revpi_cyclic_request(addr, IOP_TYP1_CMD_DATA, &zero_req,
+					   sizeof(zero_req), &zero_resp,
+					   sizeof(zero_resp));
+		if (ret < 0) {
 			pr_warn("MIO addr %u: one-shot dio init failed (ret:%d)\n",
 				addr, ret);
+			return ret;
+		}
 	}
 
-	/*aio in*/
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
-			      &conf->aio_i, sizeof(conf->aio_i), NULL, 0);
-	if (ret)
+	/* aio in */
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA4, &conf->aio_i,
+				sizeof(conf->aio_i));
+	if (ret < 0) {
 		pr_err("MIO addr %u: aio input config failed (ret:%d)\n", addr, ret);
+		return ret;
+	}
 
-	/*aio out*/
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA4,
-			      &conf->aio_o, sizeof(conf->aio_o), NULL, 0);
-	if (ret)
+	/* aio out */
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA4, &conf->aio_o,
+				sizeof(conf->aio_o));
+	if (ret < 0) {
 		pr_err("MIO addr %u: aio output config failed (ret:%d)\n", addr, ret);
+		return ret;
+	}
 
 	pr_debug("MIO Initializing finished(devno:%d, addr:%d)\n", devno, addr);
 

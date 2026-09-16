@@ -1,17 +1,29 @@
 /* SPDX-License-Identifier: MIT
- * SPDX-FileCopyrightText: 2016-2025 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #ifndef PICONTROL_H_
 #define PICONTROL_H_
 
+#include <linux/const.h>
+#include <linux/ioctl.h>
 #include <linux/types.h>
 
 #define PICONTROL_DEVICE			"/dev/piControl0"
 /* max. length of error message */
-#define REV_PI_ERROR_MSG_LEN			256
-/* max. number of */
-#define REV_PI_DEV_CNT_MAX			64
+#define PICONTROL_ERROR_MSG_LEN			256
+/* deprecated, use PICONTROL_ERROR_MSG_LEN */
+#define REV_PI_ERROR_MSG_LEN			PICONTROL_ERROR_MSG_LEN
+/* max. number of devices connected to the PiBridge */
+#define PICONTROL_MAX_DEVICES			64
+/* deprecated, use PICONTROL_MAX_DEVICES */
+#define REV_PI_DEV_CNT_MAX			PICONTROL_MAX_DEVICES
+/* length of the process image in bytes */
+#define PICONTROL_PROCESS_IMAGE_LEN		4096
+/* address of the first module on the right side of the RevPi */
+#define PICONTROL_DEV_FIRST_RIGHT		32
+/* address of the first module on the left side of the RevPi */
+#define PICONTROL_DEV_FIRST_LEFT		(PICONTROL_DEV_FIRST_RIGHT - 1)
 
 /*
  *  Module Id
@@ -110,7 +122,7 @@ typedef struct SPIVariableStr {
 	__u8 i8uBit;
 	__u8 pad;
 	/* length in bits, possible values are 1, 8, 16 and 32 */
-	__u16 i16uLength;		
+	__u16 i16uLength;
 } SPIVariable;
 
 #define KB_IOC_MAGIC  'K'
@@ -132,23 +144,18 @@ typedef struct SPIVariableStr {
 #define  KB_UPDATE_DEVICE_FIRMWARE		_IO(KB_IOC_MAGIC, 19 )
 /* set a counter or endocder to 0 */
 #define  KB_DIO_RESET_COUNTER			_IO(KB_IOC_MAGIC, 20 )
-/* copy the last error message */
+/* Deprecated. Copy the last error message */
 #define  KB_GET_LAST_MESSAGE			_IO(KB_IOC_MAGIC, 21 )
 /* stop/start IO communication, can be used for I/O simulation */
 #define  KB_STOP_IO				_IO(KB_IOC_MAGIC, 22 )
-/* For download of configuration to Master Gateway: stop IO communication
- * completely.
- */
-#define  KB_CONFIG_STOP				_IO(KB_IOC_MAGIC, 23 )
-/* for download of configuration to Master Gateway: download config data */
-#define  KB_CONFIG_SEND				_IO(KB_IOC_MAGIC, 24 )
-/* for download of configuration to Master Gateway: restart IO communication */
-#define  KB_CONFIG_START			_IO(KB_IOC_MAGIC, 25 )
 /* Activate a watchdog. If write is not called for a given period all outputs
  * are set to 0.
  */
 #define  KB_SET_OUTPUT_WATCHDOG			_IO(KB_IOC_MAGIC, 26 )
-/* set the f_pos, the unsigned int * is used to interpret the pos value */
+/*
+ * Deprecated.
+ * Set the f_pos, the unsigned int * is used to interpret the pos value
+ */
 #define  KB_SET_POS				_IO(KB_IOC_MAGIC, 27 )
 #define  KB_AIO_CALIBRATE			_IO(KB_IOC_MAGIC, 28 )
 /* get counter values of a RO module */
@@ -186,10 +193,10 @@ struct revpi_ro_ioctl_counters {
 	__u32 counter[REVPI_RO_NUM_RELAYS];
 } __attribute__((__packed__));
 
-#define REVPI_RO_RELAY_1_BIT			BIT(0)
-#define REVPI_RO_RELAY_2_BIT			BIT(1)
-#define REVPI_RO_RELAY_3_BIT			BIT(2)
-#define REVPI_RO_RELAY_4_BIT			BIT(3)
+#define REVPI_RO_RELAY_1_BIT			_BITUL(0)
+#define REVPI_RO_RELAY_2_BIT			_BITUL(1)
+#define REVPI_RO_RELAY_3_BIT			_BITUL(2)
+#define REVPI_RO_RELAY_4_BIT			_BITUL(3)
 
 struct pictl_calibrate {
 	/* Address of module in current configuration */
@@ -203,13 +210,8 @@ struct pictl_calibrate {
 	__s16 y_val;
 };
 
-#define MAX_TELEGRAM_DATA_SIZE			255
-
-typedef struct SConfigDataStr {
-	__u8 bLeft;
-	__u8 pad;
-	__u16 i16uLen;
-	__u8 acData[MAX_TELEGRAM_DATA_SIZE];
-} SConfigData;
+#define PICONTROL_MAX_TELEGRAM_DATA_LEN		255
+/* deprecated, use PICONTROL_MAX_TELEGRAM_DATA_LEN */
+#define MAX_TELEGRAM_DATA_SIZE			PICONTROL_MAX_TELEGRAM_DATA_LEN
 
 #endif /* PICONTROL_H_ */

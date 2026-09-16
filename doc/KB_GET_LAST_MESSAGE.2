@@ -1,0 +1,69 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_GET_LAST_MESSAGE 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_GET_LAST_MESSAGE \- get last message of an ioctl from the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_GET_LAST_MESSAGE, char *" msg ");"
+.fi
+
+.SH DESCRIPTION
+.B DEPRECATION NOTICE:
+This
+.BR ioctl (2)
+is deprecated and will be removed in a future version of piControl.
+
+Get a message from the last
+.BR ioctl (2)
+call.
+The only
+.BR ioctl (2)s
+that might leave a message to be returned are the
+.BR KB_STOP_IO (2)
+and the deprecated
+.BR KB_UPDATE_DEVICE_FIRMWARE (2).
+
+The parameter
+.I msg
+is a pointer to a user-allocated character array that the kernel will write the
+last message to.
+The
+.I msg
+buffer is expected to hold
+.I PICONTROL_ERROR_MSG_LEN
+bytes.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EFAULT
+Failure on copying the parameter to the caller.
+
+.SH EXAMPLES
+
+.EX
+char msg[PICONTROL_ERROR_MSG_LEN];
+
+if (ioctl(fd, KB_GET_LAST_MESSAGE, msg) == 0 && msg[0])
+	puts(msg);
+.EE
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR KB_STOP_IO (2),
+.BR KB_UPDATE_DEVICE_FIRMWARE (2)

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2020-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2020-2026 KUNBUS GmbH
 
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
@@ -36,8 +36,10 @@
 #define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_RT_PRIO / 2 + 6)
 /* ain resistor (Ohm) */
 #define REVPI_FLAT_AIN_RESISTOR			240
-/* This value is a correction factor which takes the currency loss caused
-   by resistors into account. See the flat schematics for details. */
+/*
+ * This value is a correction factor which takes the currency loss caused
+ * by resistors into account. See the flat schematics for details.
+ */
 #define REVPI_FLAT_AIN_CORRECTION		1986582478
 #define REVPI_FLAT_AIN_POLL_INTERVAL		85
 
@@ -56,21 +58,21 @@
 struct revpi_flat_image {
 	struct {
 		s16 ain;
-#define REVPI_FLAT_AIN_TX_ERR  			7
+#define REVPI_FLAT_AIN_TX_ERR			7
 		u8 ain_status;
 #define REVPI_FLAT_AOUT_TX_ERR			7
 		u8 aout_status;
 		u8 cpu_temp;
 		u8 cpu_freq;
 		u8 button;
-	} __attribute__ ((__packed__)) drv;
+	} __packed drv;
 	struct {
 		u16 leds;
 		u16 aout;
 		u8 dout;
 		u8 ain_mode_current;
-	} __attribute__ ((__packed__)) usr;
-} __attribute__ ((__packed__));
+	} __packed usr;
+} __packed;
 
 struct revpi_flat {
 	struct revpi_flat_image image;
@@ -96,18 +98,20 @@ static int revpi_flat_poll_dout(void *data)
 
 	usr_image = (struct revpi_flat_image *) piDev_g.ai8uPI;
 	while (!kthread_should_stop()) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		image->drv.button = gpiod_get_value_cansleep(flat->button_desc);
-		usr_image->drv = image->drv;
+		if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+			scoped_guard(rt_mutex, &piDev_g.lockPI) {
+				image->drv.button = gpiod_get_value_cansleep(flat->button_desc);
+				usr_image->drv = image->drv;
 
-		if (usr_image->usr.dout != image->usr.dout)
-			dout_val = usr_image->usr.dout;
+				if (usr_image->usr.dout != image->usr.dout)
+					dout_val = usr_image->usr.dout;
 
-		if (usr_image->usr.aout != image->usr.aout)
-			aout_val = usr_image->usr.aout;
+				if (usr_image->usr.aout != image->usr.aout)
+					aout_val = usr_image->usr.aout;
 
-		image->usr = usr_image->usr;
-		rt_mutex_unlock(&piDev_g.lockPI);
+				image->usr = usr_image->usr;
+			}
+		}
 
 		if (dout_val != -1) {
 			gpiod_set_value_cansleep(flat->digout, !!dout_val);
@@ -122,8 +126,9 @@ static int revpi_flat_poll_dout(void *data)
 			ret = iio_write_channel_raw(&flat->aout,
 						    min(raw_out, 4095));
 			if (ret)
-				dev_err(piDev_g.dev, "failed to write value to "
-					"analog ouput: %i\n", ret);
+				dev_err(piDev_g.dev,
+					"failed to write value to analog output: %i\n",
+					ret);
 
 			assign_bit_in_byte(REVPI_FLAT_AOUT_TX_ERR,
 					   &image->drv.aout_status, ret < 0);
@@ -148,8 +153,7 @@ static int revpi_flat_handle_ain(struct revpi_flat *flat, bool mode_current)
 	assign_bit_in_byte(REVPI_FLAT_AIN_TX_ERR, &image->drv.ain_status,
 			   ret < 0);
 	if (ret < 0) {
-		dev_err(piDev_g.dev, "failed to read from analog "
-			"channel: %i\n", ret);
+		dev_err(piDev_g.dev, "failed to read from analog channel: %i\n", ret);
 		return ret;
 	}
 	/* AIN value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
@@ -163,9 +167,9 @@ static int revpi_flat_handle_ain(struct revpi_flat *flat, bool mode_current)
 
 	ain_val = (int) div_s64(ain_val, 1000000000LL);
 
-	rt_mutex_lock(&piDev_g.lockPI);
-	image->drv.ain = ain_val;
-	rt_mutex_unlock(&piDev_g.lockPI);
+	scoped_guard(rt_mutex, &piDev_g.lockPI) {
+		image->drv.ain = ain_val;
+	}
 
 	return 0;
 }
@@ -183,35 +187,38 @@ static int revpi_flat_poll_ain(void *data)
 
 	while (!kthread_should_stop()) {
 		ret = revpi_flat_handle_ain(flat, ain_mode_current);
-		if (ret)
+		if (ret) {
 			msleep(REVPI_FLAT_AIN_POLL_INTERVAL);
-		/*
-		 * Wait a minimum timespan before requesting the next AIN
-		 * value.
-		 */
-		usleep_range(REVPI_FLAT_AIN_DELAY, REVPI_FLAT_AIN_DELAY + 10);
+		} else {
+			/*
+			 * Wait a minimum timespan before requesting the next AIN
+			 * value.
+			 */
+			usleep_range(REVPI_FLAT_AIN_DELAY,
+				     REVPI_FLAT_AIN_DELAY + 10);
+		}
 		/* read cpu temperature */
 		if (piDev_g.thermal_zone != NULL) {
 			ret = thermal_zone_get_temp(piDev_g.thermal_zone,
 						    &temperature);
 			if (ret)
-				dev_err(piDev_g.dev,"Failed to get cpu "
-					"temperature");
+				dev_err(piDev_g.dev,
+					"Failed to get cpu temperature\n");
 		}
 
 		/*
-		   Get the CPU clock from CPU0 in kHz
-		   and divide it down to MHz.
-		*/
+		 * Get the CPU clock from CPU0 in kHz
+		 * and divide it down to MHz.
+		 */
 		freq = cpufreq_quick_get(0);
 
-		rt_mutex_lock(&piDev_g.lockPI);
-		if ((piDev_g.thermal_zone != NULL) && !ret)
-			image->drv.cpu_temp = temperature / 1000;
-		image->drv.cpu_freq = freq / 10;
-		leds = image->usr.leds;
-		ain_mode_current = !!image->usr.ain_mode_current;
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			if ((piDev_g.thermal_zone != NULL) && !ret)
+				image->drv.cpu_temp = temperature / 1000;
+			image->drv.cpu_freq = freq / 10;
+			leds = image->usr.leds;
+			ain_mode_current = !!image->usr.ain_mode_current;
+		}
 
 		if (prev_leds != leds)
 			revpi_led_trigger_event(prev_leds, leds);
@@ -229,17 +236,21 @@ static int revpi_flat_match_iio_name(struct device *dev, const void *data)
 
 static void revpi_flat_adjust_config(void)
 {
-	SDeviceInfo *dev_info = piDev_g.devs->dev;
+	SDeviceInfo *dev_info;
 	SDevice *dev;
 	int i;
 
-	/* Check if there are any valid parsing results at all. This might
-	   not be the case if an invalid config file was provided. */
+	/*
+	 * Check if there are any valid parsing results at all. This might
+	 * not be the case if an invalid config file was provided.
+	 */
 	if (piDev_g.devs == NULL)
 		return;
 
-	/* Add all virtual devices to list of known devices. The first device is
-	   the flat, so skip it. */
+	/*
+	 * Add all virtual devices to list of known devices. The first device is
+	 * the flat, so skip it.
+	 */
 	for (i = 1; i < piDev_g.devs->i16uNumDevices; i++) {
 		dev_info = &piDev_g.devs->dev[i];
 		dev = RevPiDevice_getDev(i);
@@ -249,8 +260,7 @@ static void revpi_flat_adjust_config(void)
 			dev->i8uActive = 1;
 			dev->sId.i16uModulType = dev_info->i16uModuleType;
 		} else {
-			pr_err("Additional module type %d is not allowed on "
-			       "RevPi Flat. Only sw modules are allowed.\n",
+			pr_err("Additional module type %d is not allowed on RevPi Flat. Only software modules are allowed.\n",
 			       dev_info->i16uModuleType);
 
 			RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
@@ -260,6 +270,7 @@ static void revpi_flat_adjust_config(void)
 		}
 		dev->i8uAddress = dev_info->i8uAddress;
 		dev->i8uScan = 0;
+		dev->i16uBaseOffset = dev_info->i16uBaseOffset;
 		dev->i16uInputOffset = dev_info->i16uInputOffset;
 		dev->i16uOutputOffset = dev_info->i16uOutputOffset;
 		dev->i16uConfigOffset = dev_info->i16uConfigOffset;
@@ -279,11 +290,10 @@ static void revpi_flat_adjust_config(void)
 
 static void revpi_flat_set_defaults(void)
 {
-	rt_mutex_lock(&piDev_g.lockPI);
+	guard(rt_mutex)(&piDev_g.lockPI);
 	memset(piDev_g.ai8uPI, 0, sizeof(piDev_g.ai8uPI));
 	if (piDev_g.ent)
 		revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
-	rt_mutex_unlock(&piDev_g.lockPI);
 }
 
 int revpi_flat_reset(void)
@@ -319,8 +329,7 @@ int revpi_flat_probe(struct platform_device *pdev)
 
 	ret = gpiod_direction_output(flat->digout, 0);
 	if (ret) {
-		dev_err(piDev_g.dev, "Failed to set direction for relais "
-			"gpio %i\n", ret);
+		dev_err(piDev_g.dev, "Failed to set direction for relais gpio %i\n", ret);
 		return -ENXIO;
 	}
 
@@ -335,8 +344,7 @@ int revpi_flat_probe(struct platform_device *pdev)
 
 	ret = gpiod_direction_input(flat->button_desc);
 	if (ret) {
-		dev_err(piDev_g.dev, "Failed to set direction for button "
-			"gpio %i\n", ret);
+		dev_err(piDev_g.dev, "Failed to set direction for button gpio %i\n", ret);
 		return -ENXIO;
 	}
 

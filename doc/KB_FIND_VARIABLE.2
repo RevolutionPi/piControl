@@ -1,0 +1,65 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_FIND_VARIABLE 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_FIND_VARIABLE \- Find a piControl variable by its name
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_FIND_VARIABLE, SPIVariable *" variable ");"
+.sp
+.B "#include <piControl.h>"
+.sp
+.B "typedef struct SPIVariableStr SPIVariable;"
+.fi
+
+.SH DESCRIPTION
+Find a variable in the process image by its name.
+The
+.I variable
+argument is a
+.BR SPIVariable (2type)
+element with the
+.I strVarName
+field populated with the name of the variable that is to be found.
+
+If a variable was found, the information about it is placed in the same
+.I variable
+pointer that was passed as input.
+2 and 4 byte values are stored in little endian byte order.
+The address is not aligned to a multiple of the variable length.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error. Additionally, the
+.I variable
+parameter has the fields
+.IR i16uAddress ", " i8uBit ", and " i16uLength
+filled with
+.BR 0xFFFF ", " 0xFF ", and " 0xFFFF ,
+respectively.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EAGAIN
+A driver reset is in progress.
+.TP
+.B ENOENT
+The piControl driver isn't initialized yet or the variable cannot be found.
+.TP
+.B EFAULT
+Failure on copying values to/from caller.
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR SPIVariable (2type)

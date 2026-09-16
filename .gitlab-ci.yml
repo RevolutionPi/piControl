@@ -10,6 +10,14 @@ include:
     file: "kernel/linter-checkpatch.yml"
   - project: "revolutionpi/infrastructure/ci-templates"
     file: "reuse-lint.yml"
+  - project: "revolutionpi/infrastructure/ci-templates"
+    file: "testing/picontrol-device-test.yml"
+
+variables:
+  RELEASE: trixie
+  KERNEL_BRANCH: revpi-6.18
+  SQUAD_GROUP: revpi-ci-artifacts
+  SQUAD_PROJECT: picontrol
 
 checkpatch:
   variables:
@@ -18,16 +26,28 @@ checkpatch:
 
 coverity-submit:
   stage: publish
-  image: registry.gitlab.com/revolutionpi/infrastructure/docker-images/build-container/build-container-bookworm:arm64-latest
+  image: registry.gitlab.com/revolutionpi/infrastructure/docker-images/build-container/build-container-trixie:arm64-latest
   tags:
     - self-hosted
     - host-arm64
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
   variables:
     DEBIAN_FRONTEND: noninteractive
   script:
-    - apt update && apt-get build-dep -y picontrol
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = schedule ]; then
+        # version should be dynamically retrieved
+        git fetch -q --tags --unshallow origin
+        VERSION="$(git describe --match "v*")"
+      elif [ "$CI_COMMIT_TAG" ]; then
+        VERSION="$CI_COMMIT_TAG"
+      fi
+    - printf 'Building and submitting version %s\n' "$VERSION"
+    - apt update
+    - apt install -y linux-headers-revpi-v8
+    - apt-get build-dep -y picontrol
     - |
       curl \
         -sSfLo /tmp/cov-analysis-linux-arm64.tar.gz \
@@ -50,6 +70,6 @@ coverity-submit:
         --form token="$COVERITY_SCAN_TOKEN" \
         --form email="$CI_EMAIL" \
         --form file=@picontrol.tar.gz \
-        --form version="$CI_COMMIT_TAG" \
-        --form description="Automated release submit for $CI_COMMIT_TAG" \
+        --form version="$VERSION" \
+        --form description="Automated release submit for $VERSION" \
         "https://scan.coverity.com/builds?project=$CI_PROJECT_NAME"

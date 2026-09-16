@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
 
 // revpi_core.c - RevPi Core specific functions
 
@@ -11,6 +11,7 @@
 
 #include "revpi_common.h"
 #include "revpi_core.h"
+#include "revpi_gate.h"
 
 #define CREATE_TRACE_POINTS
 #include "picontrol_trace.h"
@@ -34,13 +35,55 @@ static const struct kthread_prio revpi_core_kthread_prios[] = {
 
 SRevPiCore piCore_g;
 
+/*
+ * Add a gateway that is missing in the PiCtory configuration to the device
+ * list as present but inactive, like an RS-485 enumerated module that is
+ * not part of the configuration. The entry is only informational: it has
+ * no process image offsets and is never activated.
+ */
+static void revpi_core_register_unconfigured_gate(struct net_device *netdev,
+						  bool is_right,
+						  MODGATECOM_IDResp *id_resp)
+{
+	SDevice *sdev;
+
+	/* the device list is rebuilt while the bridge is not running */
+	if (!isRunning())
+		return;
+
+	/* already registered by an earlier id handshake */
+	if (RevPiDevice_find_by_side_and_type(is_right,
+			id_resp->i16uModulType) != REV_PI_DEV_UNDEF)
+		return;
+
+	if (RevPiDevice_getDevCnt() >= PICONTROL_MAX_DEVICES - 1) {
+		pr_warn("%s: cannot register gateway, device list is full\n",
+			netdev->name);
+		return;
+	}
+
+	sdev = RevPiDevice_getDev(RevPiDevice_getDevCnt());
+	memset(sdev, 0, sizeof(*sdev));
+	sdev->i8uAddress = is_right ? RevPiDevice_getAddrRight() :
+				      RevPiDevice_getAddrLeft();
+	sdev->sId = *id_resp;
+	sdev->i8uModuleState = IOSTATE_OFFLINE;
+	RevPiDevice_incDevCnt();
+
+	RevPiDevice_setStatus(0, PICONTROL_STATUS_EXTRA_MODULE);
+
+	pr_info("%s: registered unconfigured gateway of type %u as present but inactive\n",
+		netdev->name, id_resp->i16uModulType);
+}
+
 /**
  * revpi_core_find_gate() - find RevPiDevice for given netdev
  * @netdev: network device used to communicate with a RevPi Gate
- * @module_type: module type of the RevPi Gate
+ * @id_resp: id response received from the RevPi Gate
  */
-u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
+u8 revpi_core_find_gate(struct net_device *netdev, MODGATECOM_IDResp *id_resp)
 {
+	u16 module_type = id_resp->i16uModulType;
 	bool is_right;
 	u8 *gate_idx;
 	int i;
@@ -74,6 +117,9 @@ u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 			*gate_idx = i;
 			RevPiDevice_getDev(i)->i8uActive = 1;
 			RevPiDevice_getDev(i)->sId.i16uModulType &= PICONTROL_NOT_CONNECTED_MASK;
+		} else {
+			revpi_core_register_unconfigured_gate(netdev, is_right,
+							      id_resp);
 		}
 	}
 
@@ -82,7 +128,7 @@ u8 revpi_core_find_gate(struct net_device *netdev, u16 module_type)
 
 /**
  * revpi_core_gate_connected() - react to state change of gateway connection
- * @idx: RevPiDevice index of gateway
+ * @revpi_dev: RevPiDevice of the gateway, may be NULL
  * @connected: new state of gateway connection
  */
 void revpi_core_gate_connected(SDevice *revpi_dev, bool connected)
@@ -112,6 +158,35 @@ static inline enum hrtimer_restart wake_up_sleeper(struct hrtimer *timer)
 	cycle = container_of(timer, struct picontrol_cycle, timer);
 	complete(&cycle->timer_expired);
 	return HRTIMER_NORESTART;
+}
+
+static void revpi_core_logirts_timeout_reset(void)
+{
+	int i;
+
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
+				u16 len = piDev_g.cl->ent[i].i16uLength;
+				u16 addr = piDev_g.cl->ent[i].i16uAddr;
+
+				if (len >= 8) {
+					len /= 8;
+					memset(piDev_g.ai8uPI + addr, 0, len);
+				} else {
+					u8 val;
+					u8 mask = piDev_g.cl->ent[i].i8uBitMask;
+
+					val = piDev_g.ai8uPI[addr];
+					val &= ~mask;
+					piDev_g.ai8uPI[addr] = val;
+				}
+			}
+		}
+	}
+
+	piDev_g.tLastOutput1 = ktime_set(0, 0);
+	piDev_g.tLastOutput2 = ktime_set(0, 0);
 }
 
 static int piIoThread(void *data)
@@ -162,37 +237,13 @@ static int piIoThread(void *data)
 		piCore_g.image.drv.i8uIOCycle = last_cycle / 1000;
 
 		if (piDev_g.tLastOutput1 != piDev_g.tLastOutput2) {
-			tDiff = ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
-			tDiff = tDiff << 1;	// multiply by 2
+			tDiff = 2 * ktime_to_ns(ktime_sub(piDev_g.tLastOutput1, piDev_g.tLastOutput2));
 			if (ktime_to_ns(ktime_sub(now, piDev_g.tLastOutput1)) > tDiff && isRunning()) {
-				int i;
 				// the outputs were not written by logiCAD for more than twice the normal period
 				// the logiRTS must have been stopped or crashed
 				// -> set all outputs to 0
 				pr_info("logiRTS timeout, set all output to 0\n");
-				if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO,
-					&piDev_g.flags)) {
-					rt_mutex_lock(&piDev_g.lockPI);
-					for (i = 0; i < piDev_g.cl->i16uNumEntries; i++) {
-						u16 len = piDev_g.cl->ent[i].i16uLength;
-						u16 addr = piDev_g.cl->ent[i].i16uAddr;
-
-						if (len >= 8) {
-							len /= 8;
-							memset(piDev_g.ai8uPI + addr, 0, len);
-						} else {
-							u8 val;
-							u8 mask = piDev_g.cl->ent[i].i8uBitMask;
-
-							val = piDev_g.ai8uPI[addr];
-							val &= ~mask;
-							piDev_g.ai8uPI[addr] = val;
-						}
-					}
-					rt_mutex_unlock(&piDev_g.lockPI);
-				}
-				piDev_g.tLastOutput1 = ktime_set(0, 0);
-				piDev_g.tLastOutput2 = ktime_set(0, 0);
+				revpi_core_logirts_timeout_reset();
 			}
 		}
 
@@ -513,11 +564,17 @@ int revpi_core_probe(struct platform_device *pdev)
 			goto err_deinit_gpios;
 	}
 
+	if (piDev_g.revpi_gate_supported) {
+		ret = revpi_gate_register();
+		if (ret)
+			goto err_deinit_gpios;
+	}
+
 	piCore_g.pIoThread = kthread_run(&piIoThread, NULL, "piControl I/O");
 	if (IS_ERR(piCore_g.pIoThread)) {
 		pr_err("kthread_run(io) failed\n");
 		ret = PTR_ERR(piCore_g.pIoThread);
-		goto err_deinit_gpios;
+		goto err_unregister_gate;
 	}
 	ret = set_rt_priority(piCore_g.pIoThread, RT_PRIO_BRIDGE);
 	if (ret) {
@@ -529,6 +586,9 @@ int revpi_core_probe(struct platform_device *pdev)
 
 err_stop_io_thread:
 	kthread_stop(piCore_g.pIoThread);
+err_unregister_gate:
+	if (piDev_g.revpi_gate_supported)
+		revpi_gate_unregister();
 err_deinit_gpios:
 	deinit_gpios();
 
@@ -538,5 +598,7 @@ err_deinit_gpios:
 void revpi_core_remove(struct platform_device *pdev)
 {
 	kthread_stop(piCore_g.pIoThread);
+	if (piDev_g.revpi_gate_supported)
+		revpi_gate_unregister();
 	deinit_gpios();
 }

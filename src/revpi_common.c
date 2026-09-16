@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
 
 // revpi_common.c - common routines for RevPi machines
 
 #include <linux/kthread.h>
 #include <linux/leds.h>
+#include <linux/pibridge_comm.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 
 #include "piControlMain.h"
 #include "revpi_common.h"
+#include "revpi_core.h"
 #include "RevPiDevice.h"
 
 #define VCMSG_ID_ARM_CLOCK 0x000000003	/* Clock/Voltage ID's */
@@ -121,8 +123,6 @@ void revpi_led_trigger_event(u16 led_prev, u16 led)
 static enum revpi_power_led_mode power_led_mode_s = 255;
 static unsigned long power_led_timer_s;
 static bool power_led_red_state_s;
-char *lock_file;
-int lock_line;
 
 void revpi_power_led_red_set(enum revpi_power_led_mode mode)
 {
@@ -160,36 +160,134 @@ void revpi_power_led_red_set(enum revpi_power_led_mode mode)
 }
 
 
+/* clamp each range: lengths come from the device table without lockPI held */
+void revpi_zero_active_outputs(void)
+{
+	int i;
+
+	guard(rt_mutex)(&piDev_g.lockPI);
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		SDevice *dev = RevPiDevice_getDev(i);
+		u16 offset = dev->i16uOutputOffset;
+		u16 len = dev->sId.i16uFBS_OutputLength;
+
+		if (!dev->i8uActive)
+			continue;
+		if (offset >= PICONTROL_PROCESS_IMAGE_LEN)
+			continue;
+		if (offset + len > PICONTROL_PROCESS_IMAGE_LEN)
+			len = PICONTROL_PROCESS_IMAGE_LEN - offset;
+
+		memset(piDev_g.ai8uPI + offset, 0, len);
+	}
+}
+
+/*
+ * Fetch a module's output data from the process image for sending, or zero the
+ * buffer while I/O is stopped. Pairs with revpi_store_input_data().
+ */
+void revpi_fetch_output_data(void *dst, u16 offset, size_t len)
+{
+	if (test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
+		memset(dst, 0, len);
+		return;
+	}
+
+	scoped_guard(rt_mutex, &piDev_g.lockPI)
+		memcpy(dst, piDev_g.ai8uPI + offset, len);
+}
+
+/* Store a module's received input data into the process image, unless stopped. */
+void revpi_store_input_data(u16 offset, const void *src, size_t len)
+{
+	if (test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags))
+		return;
+
+	scoped_guard(rt_mutex, &piDev_g.lockPI)
+		memcpy(piDev_g.ai8uPI + offset, src, len);
+}
+
+/*
+ * Send one cyclic telegram and require the full expected reply. Returns 0 or
+ * a negative errno.
+ */
+int revpi_cyclic_request(u8 addr, u8 cmd, void *snd, size_t snd_len,
+			 void *rcv, size_t rcv_len)
+{
+	int ret;
+
+	ret = pibridge_req_io(piCore_g.pibridge, addr, cmd, snd, snd_len,
+			      rcv, rcv_len);
+	if (ret != rcv_len) {
+		pr_debug("addr %u cmd %#x: cyclic io failed (req:%zu, ret:%d)\n",
+			 addr, cmd, rcv_len, ret);
+		return ret < 0 ? ret : -EIO;
+	}
+
+	return 0;
+}
+
+/*
+ * Run one cyclic exchange for a module whose output and input images map
+ * directly to fixed telegram buffers: send the output image, then store the
+ * response into the input image. Returns 0 or a negative errno.
+ */
+int revpi_cyclic_exchange(u8 devnum, u8 cmd, void *out, size_t out_len,
+			  void *in, size_t in_len)
+{
+	SDevice *dev = RevPiDevice_getDev(devnum);
+	int ret;
+
+	revpi_fetch_output_data(out, dev->i16uOutputOffset, out_len);
+
+	ret = revpi_cyclic_request(dev->i8uAddress, cmd, out, out_len,
+				   in, in_len);
+	if (ret < 0)
+		return ret;
+
+	revpi_store_input_data(dev->i16uInputOffset, in, in_len);
+
+	return 0;
+}
+
+/* Send a module configuration telegram (no reply expected). 0 or -errno. */
+int revpi_send_config(u8 addr, u8 cmd, void *buf, size_t len)
+{
+	int ret;
+
+	ret = pibridge_req_io(piCore_g.pibridge, addr, cmd, buf, len, NULL, 0);
+	if (ret < 0)
+		pr_debug("addr %u cmd %#x: config failed (ret:%d)\n",
+			 addr, cmd, ret);
+
+	return ret;
+}
+
 void revpi_check_timeout(void)
 {
 	ktime_t now = ktime_get();
 	struct list_head *pCon;
 
-	rt_mutex_lock(&piDev_g.lockListCon);
-	list_for_each(pCon, &piDev_g.listCon) {
-		tpiControlInst *pos_inst;
-		pos_inst = list_entry(pCon, tpiControlInst, list);
+	scoped_guard(rt_mutex, &piDev_g.lockListCon) {
+		list_for_each(pCon, &piDev_g.listCon) {
+			tpiControlInst *pos_inst;
+			pos_inst = list_entry(pCon, tpiControlInst, list);
 
-		if (pos_inst->tTimeoutDurationMs != 0) {
-			if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
-				// set all outputs to 0
-				int i;
-				rt_mutex_lock(&piDev_g.lockPI);
-				for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
-					if (RevPiDevice_getDev(i)->i8uActive) {
-						memset(piDev_g.ai8uPI + RevPiDevice_getDev(i)->i16uOutputOffset, 0, RevPiDevice_getDev(i)->sId.i16uFBS_OutputLength);
-					}
+			if (pos_inst->tTimeoutDurationMs != 0) {
+				if (ktime_compare(now, pos_inst->tTimeoutTS) > 0) {
+					pr_warn_ratelimited("Watchdog timeout with duration %lu, setting outputs to 0\n",
+							    pos_inst->tTimeoutDurationMs);
+					// set all outputs to 0
+					revpi_zero_active_outputs();
+					pos_inst->tTimeoutTS = ktime_add_ms(ktime_get(), pos_inst->tTimeoutDurationMs);
+
+					// this must only be done for one connection
+					return;
 				}
-				rt_mutex_unlock(&piDev_g.lockPI);
-				pos_inst->tTimeoutTS = ktime_add_ms(ktime_get(), pos_inst->tTimeoutDurationMs);
-
-				// this must only be done for one connection
-				rt_mutex_unlock(&piDev_g.lockListCon);
-				return;
 			}
 		}
 	}
-	rt_mutex_unlock(&piDev_g.lockListCon);
 }
 
 void revpi_power_led_red_run(void)

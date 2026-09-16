@@ -1,19 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #pragma once
 
 #include "common_define.h"
 #include "ModGateComMain.h"
+#include "piControl.h"
 #include "piIOComm.h"
 
 typedef struct _SRevPiProcessImage SRevPiProcessImage;
 
 #define REV_PI_DEV_UNDEF            255
-#define REV_PI_DEV_FIRST_RIGHT      32
-#define REV_PI_DEV_FIRST_LEFT	    (REV_PI_DEV_FIRST_RIGHT - 1)
-#define REV_PI_DEV_CNT_MAX          64
 #define REV_PI_DEV_DEFAULT_SERIAL   1
 
 typedef struct _SDevice
@@ -21,6 +19,7 @@ typedef struct _SDevice
     u8 i8uAddress;
     u8 i8uActive;
     u8 i8uScan;			// found on scan
+	u16 i16uBaseOffset;
     u16 i16uInputOffset;
     u16 i16uOutputOffset;
     u16 i16uConfigLength;
@@ -43,7 +42,7 @@ typedef struct _SDeviceConfig
 
     u8  i8uStatus;               // status bitfield of RevPi
     unsigned int offset;		// Offset in RevPi in process image
-    SDevice dev[REV_PI_DEV_CNT_MAX+1];
+    SDevice dev[PICONTROL_MAX_DEVICES + 1];
 } SDeviceConfig;
 
 //-------------------------------------------------------------------------------------------------
@@ -66,6 +65,7 @@ u8 RevPiDevice_getDevCnt(void);
 
 u8 RevPiDevice_getAddrLeft(void);
 u8 RevPiDevice_getAddrRight(void);
+u8 RevPiDevice_getFwuAddress(u8 addr);
 
 u16 RevPiDevice_getErrCnt(void);
 SDevice *RevPiDevice_getDev(u8 idx);
@@ -74,7 +74,7 @@ void RevPiDevice_setCoreOffset(unsigned int offset);
 unsigned int RevPiDevice_getCoreOffset(void);
 
 int RevPiDevice_hat_serial(void);
-void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval);
+void revpi_dev_update_state(u8 i8uDevice, int r, int *retval);
 void RevPiDevice_handle_internal_telegrams(void);
 int RevPiDevice_setBaseTermination(void);
 int RevPiDevice_setLeftModuleTermination(bool terminate);

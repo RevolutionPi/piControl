@@ -1,0 +1,73 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_RO_GET_COUNTER 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_RO_GET_COUNTER \- Get the counter values for all relays of a RO expansion
+module from the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_RO_GET_COUNTER, struct revpi_ro_ioctl_counters *" ro_counters ");"
+.sp
+.B "#include <piControl.h>"
+.sp
+.B "struct revpi_ro_ioctl_counters;"
+.fi
+
+.SH DESCRIPTION
+Get the counter values for all relays of a RO module.
+
+For every relay, the RO expansion module counts whenever a relay is switched.
+These counters can be retrieved for inspection.
+
+This
+.BR ioctl (2)
+takes a pointer
+.I ro_counters
+to a
+.BR revpi_ro_ioctl_counters (2type)
+struct.
+The
+.I addr
+field of this struct needs to be set to the address of the expansion module
+whose counters should be returned.
+The counter value for each relay on the expansion module is then written to the
+.I counter
+field of the same struct.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EAGAIN
+A driver reset is in progress.
+.TP
+.B EOPNOTSUPP
+The RevPi does not support expansion modules.
+.TP
+.B EINVAL
+The field
+.I addr
+of the variable
+.I ro_counters
+is invalid because no device was found.
+.TP
+.B EFAULT
+Failure on copying values to/from caller.
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR revpi_ro_ioctl_counters (2type),
+.BR piControl (4)

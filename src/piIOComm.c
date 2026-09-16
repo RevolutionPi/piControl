@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
 
@@ -9,37 +9,6 @@
 
 #include "picontrol_trace.h"
 
-
-int piIoComm_send(u8 * buf_p, u16 i16uLen_p)
-{
-	int written;
-
-	/* First clear receive FIFO to remove stale data */
-	pibridge_clear_fifo(piCore_g.pibridge);
-
-	written = pibridge_send(piCore_g.pibridge, buf_p, i16uLen_p);
-	if (written < 0) {
-		pr_info_serial("pibridge_send error: %i\n", written);
-		return written;
-	} else if (written != i16uLen_p) {
-		pr_info_serial("pibridge_send error: not all data written (%i/%i)\n",
-			written, i16uLen_p);
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-
-u8 piIoComm_Crc8(u8 * pi8uFrame_p, u16 i16uLen_p)
-{
-	u8 i8uRv_l = 0;
-
-	while (i16uLen_p--) {
-		i8uRv_l = i8uRv_l ^ pi8uFrame_p[i16uLen_p];
-	}
-	return i8uRv_l;
-}
 
 void piIoComm_writeSniff1A(EGpioValue eVal_p, EGpioMode eMode_p)
 {
@@ -71,6 +40,18 @@ void piIoComm_writeSniff2B(EGpioValue eVal_p, EGpioMode eMode_p)
 		if (eMode_p == enGpioMode_Output)
 			trace_picontrol_sniffpin_2b_set(eVal_p);
 	}
+}
+
+/*
+ * On old modules a driven low sniff pin pulls BOOT0 high and a reset
+ * then hangs in the ROM bootloader until the next power cycle.
+ */
+void piIoComm_releaseSniffPins(void)
+{
+	piIoComm_writeSniff1A(enGpioValue_Low, enGpioMode_Input);
+	piIoComm_writeSniff1B(enGpioValue_Low, enGpioMode_Input);
+	piIoComm_writeSniff2A(enGpioValue_Low, enGpioMode_Input);
+	piIoComm_writeSniff2B(enGpioValue_Low, enGpioMode_Input);
 }
 
 void piIoComm_writeSniff(struct gpio_desc *pGpio, EGpioValue eVal_p, EGpioMode eMode_p)
@@ -148,7 +129,7 @@ s32 piIoComm_sendRS485Tel(u16 i16uCmd_p, u8 i8uAddress_p,
 	if (ret != rcvlen) {
 		if (ret >= 0)
 			ret = -EIO;
-		pr_info_serial("Error sending gate request: %i\n", ret);
+		pr_debug("Error sending gate request: %i\n", ret);
 		return ret;
 	}
 

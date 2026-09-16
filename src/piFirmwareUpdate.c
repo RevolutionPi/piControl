@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
 
 #include <linux/firmware.h>
 #include "fwuFlashFileMain.h"
 #include "piFirmwareUpdate.h"
+#include "piIOComm.h"
 #include "RS485FwuCommand.h"
 #include "revpi_core.h"
 
 #define TFPGA_HEAD_DATA_OFFSET			6
-#define	CHUNK_TRANSMISSION_ATTEMPTS		100
+#define	CHUNK_TRANSMISSION_ATTEMPTS		10
 #define	FLASH_ERASE_ATTEMPTS			5
+#define	FLASH_UPLOAD_ATTEMPTS			3
 
 // ret < 0: error
 // ret == 0: no update needed
@@ -18,7 +20,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 {
 	struct file *input;
 	char *filename;
-	char *data = 0;
+	char *data = NULL;
 	loff_t length;
 	int ret = -EINVAL;
 	TFileHead header;
@@ -54,7 +56,7 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	}
 
 	read = kernel_read(input, (char *)&header, sizeof(header), &input->f_pos);
-	if (read <= 0) {
+	if (read < (int) sizeof(header)) {
 		pr_err("kernel_read returned %d: %s, %lld\n", read, filename, input->f_pos);
 		ret = -EINVAL;
 		goto laError;
@@ -85,6 +87,11 @@ int FWU_update(tpiControlInst *priv, SDevice *pDev_p)
 	pr_info("firmware file length: %ld\n", (long int)length);
 
 	length -= header.ulLength + 6; // without header
+	if (length < (loff_t) sizeof(T_KUNBUS_APPL_DESCR)) {
+		pr_err("firmware file %s is too short\n", filename);
+		ret = -EINVAL;
+		goto laError;
+	}
 	data = kmalloc(length, GFP_KERNEL);
 	if (data == NULL) {
 		pr_err("out of memory\n");
@@ -241,9 +248,37 @@ int erase_flash(unsigned int dev_addr)
 		return ret;
 
 	if (attempts != FLASH_ERASE_ATTEMPTS)
-		pr_warn("%u attempts to erase flash required\n",
+		pr_warn("flash erase needed %u retries\n",
 			FLASH_ERASE_ATTEMPTS - attempts);
 	return 0;
+}
+
+/* quirk for old gateways: recover from being stuck in the bootloader */
+void quirk_recover_stuck_gateways(void)
+{
+	bool gateway = false;
+	int module_type;
+	u8 addr;
+	int i;
+
+	for (i = 0; i < RevPiDevice_getDevCnt() && !gateway; i++) {
+		module_type = RevPiDevice_getDev(i)->sId.i16uModulType &
+			      PICONTROL_NOT_CONNECTED_MASK;
+		gateway = module_is_gateway(module_type);
+	}
+
+	if (!gateway)
+		return;
+
+	for (addr = 1; addr <= 2; addr++) {
+		module_type = fwuDetectUpdateModeDevice(addr);
+		if (module_type < 0 || !module_is_gateway(module_type))
+			continue;
+
+		pr_info("recovering gateway stuck in bootloader (address %u)\n",
+			addr);
+		fwuResetModule(addr);
+	}
 }
 
 int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
@@ -252,15 +287,27 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	T_KUNBUS_APPL_DESCR *desc;
 	unsigned int flash_offset;
 	unsigned int upload_len;
+	unsigned int enter_addr;
 	unsigned int dev_addr;
+	unsigned int attempt;
 	bool force_upload;
+	bool old_gateway;
 	TFileHead *hdr;
 	bool update;
-	int ret = 0;
 
 	force_upload  = !!(mask & PICONTROL_FIRMWARE_FORCE_UPLOAD);
+	/*
+	 * Gateways with firmware from before the ModGateCom protocol do
+	 * not take part in the module scan.
+	 */
+	old_gateway = !sdev->i8uScan && module_is_gateway(module_type);
 
 	hdr = (TFileHead *) &fw->data[0];
+	if (fw->size < sizeof(*hdr)) {
+		pr_err("firmware corrupted: size %zu smaller than header\n",
+			fw->size);
+		return -EIO;
+	}
 	if (hdr->dat.usType != module_type) {
 		if (hdr->dat.usType != KUNBUS_FW_DESCR_TYP_PI_DIO_14)
 			return -EIO;
@@ -278,7 +325,8 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	   TFileHead structure */
 	flash_offset = hdr->ulLength + TFPGA_HEAD_DATA_OFFSET;
 
-	if (fw->size <= flash_offset) {
+	if (fw->size <= flash_offset ||
+	    fw->size - flash_offset < sizeof(*desc)) {
 		pr_err("firmware corrupted: invalid header length %u in firmware with size %zu\n",
 			hdr->ulLength, fw->size);
 		return -EIO;
@@ -304,47 +352,98 @@ int upload_firmware(SDevice *sdev, const struct firmware *fw, u32 mask,
 	}
 
 	upload_len = fw->size - flash_offset;
-	dev_addr = sdev->i8uAddress;
+
+	/*
+	 * Old mGates always use 2 as device address, in application and
+	 * bootloader mode. They ignore their configured address.
+	 */
+	enter_addr = old_gateway ? 2 : sdev->i8uAddress;
 
 	if (!(mask & PICONTROL_FIRMWARE_RESCUE_MODE)) {
-		if (fwuEnterFwuMode(dev_addr) < 0) {
+		if (fwuEnterFwuMode(enter_addr) < 0) {
 			pr_err("error entering firmware update mode\n");
 			return -EIO;
 		}
 	}
 
-	/* Old mGates always use 2 as device address */
-	if (!sdev->i8uScan)
+	if (old_gateway)
 		dev_addr = 2;
-	else if (dev_addr < REV_PI_DEV_FIRST_RIGHT) {
-		dev_addr = 1;
-	} else {
-		if (dev_addr == RevPiDevice_getAddrRight() - 1)
-			dev_addr = 2;
-		else
-			dev_addr = 1;
-	}
+	else
+		dev_addr = RevPiDevice_getFwuAddress(sdev->i8uAddress);
+
+	pr_info("using bootloader address %u for module %u\n", dev_addr,
+		sdev->i8uAddress);
 
 	msleep(500);
 
-	if (erase_flash(dev_addr)) {
-		pr_err("failed to erase flash\n");
-		ret = -EIO;
-		goto reset;
+	for (attempt = 1; attempt <= FLASH_UPLOAD_ATTEMPTS; attempt++) {
+		if (attempt > 1) {
+			pr_warn("retrying firmware upload (attempt %u of %u)\n",
+				attempt, FLASH_UPLOAD_ATTEMPTS);
+
+			/*
+			 * A module which missed the unconfirmed broadcast
+			 * stays in the IO protocol and disturbs the upload.
+			 * Try again to move it to gate protocol.
+			 */
+			piIoComm_gotoGateProtocol();
+
+			/* let the other parsers discard the incomplete frame */
+			msleep(50);
+
+			/*
+			 * The module itself may have missed the broadcast
+			 * and with it the update mode request. Repeat it,
+			 * a module already in the bootloader ignores it.
+			 */
+			if (!(mask & PICONTROL_FIRMWARE_RESCUE_MODE)) {
+				fwuEnterFwuMode(enter_addr);
+				msleep(500);
+			}
+		}
+
+		/*
+		 * Only erase when a bootloader answers on the address. The
+		 * reported module type is deliberately not compared, some
+		 * bootloaders announce a wrong type.
+		 */
+		if (fwuDetectUpdateModeDevice(dev_addr) < 0) {
+			pr_err("no device in update mode on address %u\n",
+			       dev_addr);
+			continue;
+		}
+
+		if (erase_flash(dev_addr)) {
+			pr_err("failed to erase flash\n");
+			continue;
+		}
+		if (flash_firmware(dev_addr, hdr->dat.ulFlashStart,
+				   (unsigned char *) desc, upload_len)) {
+			pr_err("Errors while flashing firmware\n");
+			continue;
+		}
+		break;
 	}
-	if (flash_firmware(dev_addr, hdr->dat.ulFlashStart,
-			   (unsigned char *) desc, upload_len) < 0) {
-		pr_err("Errors while flashing firmware\n");
-		ret = -EIO;
-		goto reset;
+
+	/*
+	 * Do not reset the module when the upload failed. Old bootloaders
+	 * start a half written application, which crashes and leaves the
+	 * module unreachable until it is reflashed over SWD. In update
+	 * mode the module stays recoverable with another update attempt.
+	 */
+	if (attempt > FLASH_UPLOAD_ATTEMPTS) {
+		pr_err("firmware upload failed, module stays in update mode, run the update again\n");
+		return -EIO;
 	}
 
 	pr_info("Firmware upload successful.");
-reset:
+
+	/* a driven sniff pin traps old modules in the ROM bootloader */
+	piIoComm_releaseSniffPins();
 	if (fwuResetModule(dev_addr) < 0) {
 		pr_err("failed to reset after firmware update\n");
-		ret = -EIO;
+		return -EIO;
 	}
 
-	return ret;
+	return 0;
 }

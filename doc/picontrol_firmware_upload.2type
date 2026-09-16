@@ -1,0 +1,69 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH picontrol_firmware_upload 2type 2026-08-14 "Linux"
+
+.SH NAME
+picontrol_firmware_upload \- piControl driver type for uploading new firmware
+to expansion module
+
+.SH LIBRARY
+piControl device driver ioctl interface
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.sp
+.B struct picontrol_firmware_upload {
+.BR "    __u32  addr;"
+.BR "    __u32  flags;"
+.BR "    __u8   rescue_mode_hw_revision;"
+.BR "    __u8   padding[15];"
+.B };
+.fi
+
+.SH DESCRIPTION
+This struct is used as a parameter to
+.BR PICONTROL_UPLOAD_FIRMWARE (2)
+to update the firmware of an expansion module.
+
+The fields are as follows:
+
+.TP
+.I addr
+This field contains the address of the expansion module on the piBridge bus.
+.TP
+.I flags
+This field contains flags that change the behaviour of the firmware upload.
+.TP
+.I rescue_mode_hw_revision
+This field contains the hardware revision of the expansion module that the
+firmware will be uploaded to.
+Only used if
+.I PICONTROL_FIRMWARE_RESCUE_MODE
+is set in the
+.I flags
+field.
+.TP
+.I padding
+Padding for future extensions. This field must be zeroed.
+
+.P
+The following flags for the
+.I flags
+field are available:
+.TP
+.I PICONTROL_FIRMWARE_FORCE_UPLOAD
+This flag disables the version check and allows uploading new firmware even if
+the expansion module's firmware isn't older than the firmware that is to be
+uploaded.
+.TP
+.I PICONTROL_FIRMWARE_RESCUE_MODE
+This flag enables flashing an expansion module with the assumption that it is
+in the rescue mode. This requires the
+.I rescue_mode_hw_revision
+field to be set to the correct hardware revision of the expansion module.
+
+.SH SEE ALSO
+
+.BR ioctl (2),
+.BR PICONTROL_UPLOAD_FIRMWARE (2)

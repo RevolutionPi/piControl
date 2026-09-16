@@ -7,6 +7,8 @@
 
 #include <linux/types.h>
 
+#include "piControl.h"
+
 //+=============================================================================================
 //|    Konstanten / constant data
 //+=============================================================================================
@@ -83,6 +85,18 @@ static inline bool module_is_gateway(u16 type)
 	return false;
 }
 
+/*
+ * Return whether the module type is handled by user space software (and thus
+ * not configured over the PiBridge).
+ */
+static inline bool module_is_software(u16 type)
+{
+	return type >= PICONTROL_SW_OFFSET ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_CAN ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_BT ||
+	       type == KUNBUS_FW_DESCR_TYP_PI_CON_MBUS;
+}
+
 #define KUNBUS_FW_DESCR_MAC_ADDR_LEN                  6	//!< number of bytes in a MAC Address
 
 typedef struct S_KUNBUS_FW_DESCR {
@@ -95,7 +109,7 @@ typedef struct S_KUNBUS_FW_DESCR {
 	u32 i32uFwuEntryAddr;	//!< Entry of Firmwareupdate from application
 	u32 i32uApplStartAddr;	//!< Startaddress of application specific flash area
 	u32 i32uApplEndAddr;	//!< Last address of application specific flash area
-} __attribute__((__packed__)) T_KUNBUS_FW_DESCR; ///< Kunbus internal option bytes
+} __packed T_KUNBUS_FW_DESCR; ///< Kunbus internal option bytes
 
 
 typedef struct S_KUNBUS_APPL_DESCR {
@@ -109,7 +123,7 @@ typedef struct S_KUNBUS_APPL_DESCR {
 	u16 i16uSwMinor;	///< minor revision number; valid numbers 0-1000, other numbers reserved
 	u32 i32uSvnRevision;	///< SVN revision number (mainly for internal use);
 	u32 i32uBootFlags;	///< Boot action flags
-} __attribute__((__packed__)) T_KUNBUS_APPL_DESCR;
+} __packed T_KUNBUS_APPL_DESCR;
 
 typedef struct S_KUNBUS_CNFG_DATA_HDR {
 	u8 ai8uIdent[4];	///< identification String 1 "KBCD"
@@ -119,7 +133,7 @@ typedef struct S_KUNBUS_CNFG_DATA_HDR {
 	u16 i16uHwRevision;	///< Revision of hardware
 	u8 i8uSwMajor;	///< major revision number; valid numbers 0-50, other numbers reserved
 	u8 ai8uDummy[3];	///< padding
-} __attribute__((__packed__)) T_KUNBUS_CNFG_DATA_HDR;
+} __packed T_KUNBUS_CNFG_DATA_HDR;
 
 
 //+=============================================================================================

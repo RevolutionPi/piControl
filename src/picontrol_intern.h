@@ -7,13 +7,12 @@
 
 #include "piControl.h"
 #include "IoProtocol.h"
+#include <linux/cleanup.h>
 #include <linux/ioctl.h>
+#include <linux/rtmutex.h>
 #include <linux/types.h>
 
 #define PICONFIG_FILE					"/etc/revpi/config.rsc"
-/* address of first module on the right side of the RevPi Core */
-#define REV_PI_DEV_FIRST_RIGHT				32
-#define PICONTROL_FIRMWARE_FORCE_UPLOAD			0x0001
 
 // the following call are for KUNBUS internal use only.
 /* set serial num in piDIO, piDI or piDO (can be made only once) */
@@ -26,7 +25,7 @@ struct io_telegram {
 	__u8 datalen   :5;
 	__u8 command   :3;   /* 0 for broadcast*/
 	__u8 data[IOPROTOCOL_MAXDATA_LENGTH + 1];
-} __attribute__((__packed__));
+} __packed;
 
 struct io_telegram2 {
 	__u8 command   :6;
@@ -35,7 +34,7 @@ struct io_telegram2 {
 	__u8 datalen   :5;
 	__u8 dpart1    :3;
 	__u8 data[IOPROTOCOL_MAXDATA_LENGTH + 1];
-} __attribute__((__packed__));
+} __packed;
 
 /* send an I/O-Protocol message and return response */
 #define  KB_INTERN_IO_MSG				_IO(KB_IOC_MAGIC, 101 )
@@ -46,8 +45,8 @@ struct modgate_telegram {
 	__u16 command;
 	__u16 sequence;
 	__u8 datalen;
-	__u8 data[MAX_TELEGRAM_DATA_SIZE];
-} __attribute__((__packed__));
+	__u8 data[PICONTROL_MAX_TELEGRAM_DATA_LEN];
+} __packed;
 
 /* send a Gateway-Protocol message and return response */
 #define  KB_INTERN_GATE_MSG				_IO(KB_IOC_MAGIC, 102)
@@ -127,5 +126,7 @@ typedef struct SEntryInfoStr
 #define PICONTROL_LED_RGB_A5_RED			0x1000
 #define PICONTROL_LED_RGB_A5_GREEN			0x2000
 #define PICONTROL_LED_RGB_A5_BLUE			0x4000
+
+DEFINE_GUARD(rt_mutex, struct rt_mutex *, rt_mutex_lock(_T), rt_mutex_unlock(_T));
 
 #endif /* PICONTROL_INTERN_H */

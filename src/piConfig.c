@@ -8,6 +8,7 @@
 #include "json.h"
 #include "piAIOComm.h"
 #include "piConfig.h"
+#include "piControlMain.h"
 #include "piDIOComm.h"
 #include "project.h"
 #include "revpi_compact.h"
@@ -39,7 +40,7 @@ typedef struct json_val {
 	} u;
 } json_val_t;
 
-char *string_of_errors[] = {
+static char *string_of_errors[] = {
 	[JSON_ERROR_NO_MEMORY] = "out of memory",
 	[JSON_ERROR_BAD_CHAR] = "bad character",
 	[JSON_ERROR_POP_EMPTY] = "stack empty",
@@ -71,7 +72,7 @@ void close_filename(struct file *file)
 	filp_close(file, NULL);
 }
 
-int process_file(json_parser * parser, struct file *input, int *retlines, int *retcols)
+static int process_file(json_parser *parser, struct file *input, int *retlines, int *retcols)
 {
 #define BUFFLEN     4096
 	int ret = 0;
@@ -267,13 +268,14 @@ static int do_tree(json_config *config,
 	}
 
 	if (!json_parser_is_done(&parser)) { /* parsing incomplete */
-		if (parser.state == 0 && parser.stack_offset == 0)
-			pr_err("config.rsc is empty! "
-				"Probably needs to be configured in PiCtory\n");
-		else
+		if (parser.state == 0 && parser.stack_offset == 0) {
+			pr_warn("config.rsc is empty. Driver will remain uninitialized\n");
+			ret = -ENODATA;
+		} else {
 			pr_err("syntax error: offset %d  state %d\n",
 					parser.stack_offset, parser.state);
-		ret = 1;
+			ret = 1;
+		}
 		goto free_parser;
 	}
 
@@ -399,7 +401,7 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 			}
 		} else {
 			for (i = 0; i < element->length; i++) {
-				ret = find_devices(element->u.array[i], 0, lvl + 1);
+				ret = find_devices(element->u.array[i], NULL, lvl + 1);
 			}
 		}
 		break;
@@ -453,10 +455,17 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 				}
 			} else if (lvl == 200) {
 				if (element->u.object[i]->val->type == JSON_ARRAY_BEGIN) {
-					struct json_val **array = element->u.object[i]->val->u.array;
+					struct json_val *entry = element->u.object[i]->val;
+					struct json_val **array = entry->u.array;
 
 					if (*pIdxEntry >= pEnt->i16uNumEntries) {
 						pr_err("error: wrong entry index\n");
+						return;
+					}
+					/* every entry is an 8-element array (bitPos at index 7) */
+					if (entry->length < 8) {
+						pr_err("error: config entry has too few fields (%d)\n",
+						       entry->length);
 						return;
 					}
 					pEnt->ent[*pIdxEntry].i8uAddress = devAddr;
@@ -534,21 +543,21 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 
 static bool device_ranges_valid(SDeviceInfo *dev)
 {
-	if ((dev->i16uInputOffset + dev->i16uInputLength) > KB_PI_LEN) {
+	if ((dev->i16uInputOffset + dev->i16uInputLength) > PICONTROL_PROCESS_IMAGE_LEN) {
 		pr_err("Invalid input range (offset: %u, length: %u)\n",
 			dev->i16uInputOffset,
 			dev->i16uInputLength);
 		return false;
 	}
 
-	if ((dev->i16uOutputOffset + dev->i16uOutputLength) > KB_PI_LEN) {
+	if ((dev->i16uOutputOffset + dev->i16uOutputLength) > PICONTROL_PROCESS_IMAGE_LEN) {
 		pr_err("Invalid output range (offset: %u, length: %u)\n",
 			dev->i16uOutputOffset,
 			dev->i16uOutputLength);
 		return false;
 	}
 
-	if ((dev->i16uConfigOffset + dev->i16uConfigLength) > KB_PI_LEN) {
+	if ((dev->i16uConfigOffset + dev->i16uConfigLength) > PICONTROL_PROCESS_IMAGE_LEN) {
 		pr_err("Invalid config range (offset: %u, length: %u)\n",
 			dev->i16uConfigOffset,
 			dev->i16uConfigLength);
@@ -556,6 +565,67 @@ static bool device_ranges_valid(SDeviceInfo *dev)
 	}
 
 	return true;
+}
+
+static int apply_module_config(piDevices *devs, piEntries *ent)
+{
+	int ret = 0;
+	int i;
+
+	piDIOComm_InitStart();
+	piAIOComm_InitStart();
+	revpi_mio_reset();
+	revpi_ro_reset();
+
+	for (i = 0; i < devs->i16uNumDevices; i++) {
+		/* software modules are addressed above the physical modules */
+		if (module_is_software(devs->dev[i].i16uModuleType))
+			continue;
+
+		if (devs->dev[i].i8uAddress >= REV_PI_DEV_CNT_MAX) {
+			pr_err("module address %u from config out of range (max %u)\n",
+			       devs->dev[i].i8uAddress, REV_PI_DEV_CNT_MAX);
+			return -ERANGE;
+		}
+
+		switch (devs->dev[i].i16uModuleType) {
+		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+			ret = piDIOComm_Config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_AIO:
+			ret = piAIOComm_Config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
+			ret = revpi_compact_config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_MIO:
+			ret = revpi_mio_config(devs->dev[i].i8uAddress,
+					       devs->dev[i].i16uEntries,
+					       &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_RO:
+			ret = revpi_ro_config(devs->dev[i].i8uAddress,
+					      devs->dev[i].i16uEntries,
+					      &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		}
+
+		if (ret) {
+			pr_err("failed to configure module at address %u: %d\n",
+			       devs->dev[i].i8uAddress, ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 int piConfigParse(const char *filename, piDevices **devices_list,
@@ -574,7 +644,21 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 	config.allow_c_comments = 1;
 	config.allow_yaml_comments = 1;
 
-	if (do_tree(&config, filename, &root_structure))
+	ret = do_tree(&config, filename, &root_structure);
+	if (ret == -ENODATA) {
+		devs = kzalloc(sizeof(*devs), GFP_KERNEL);
+		ent = kzalloc(sizeof(*ent), GFP_KERNEL);
+		cl = kzalloc(sizeof(*cl), GFP_KERNEL);
+		if (!devs || !ent || !cl) {
+			kfree(cl);
+			kfree(ent);
+			kfree(devs);
+			return -ENOMEM;
+		}
+		ret = 0;
+		goto install_config;
+	}
+	if (ret)
 		return -EINVAL;
 
 	devs = find_devices(root_structure, NULL, 1);
@@ -751,55 +835,53 @@ int piConfigParse(const char *filename, piDevices **devices_list,
 
 	cl->i16uNumEntries = i;
 
-	free_tree(root_structure);
+	/* copylist offsets index the process image directly, keep them in range */
+	for (i = 0; i < cl->i16uNumEntries; i++) {
+		u16 addr = cl->ent[i].i16uAddr;
+		u16 bytes = cl->ent[i].i16uLength >= 8 ?
+			    cl->ent[i].i16uLength / 8 : 1;
 
-	/* Parsing ok, configure devices and replace old parsed data with new */
-	// copy the config value into the module driver
-	piDIOComm_InitStart();
-	piAIOComm_InitStart();
-	revpi_mio_reset();
-	revpi_ro_reset();
-
-	for (i = 0; i < devs->i16uNumDevices; i++) {
-		switch (devs->dev[i].i16uModuleType) {
-		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			piDIOComm_Config(devs->dev[i].i8uAddress,
-					 devs->dev[i].i16uEntries,
-					 &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			piAIOComm_Config(devs->dev[i].i8uAddress,
-					 devs->dev[i].i16uEntries,
-					 &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
-			revpi_compact_config(devs->dev[i].i8uAddress,
-					     devs->dev[i].i16uEntries,
-					     &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_MIO:
-			revpi_mio_config(devs->dev[i].i8uAddress,
-					 devs->dev[i].i16uEntries,
-					 &ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_RO:
-			revpi_ro_config(devs->dev[i].i8uAddress,
-					devs->dev[i].i16uEntries,
-					&ent->ent[devs->dev[i].i16uFirstEntry]);
-			break;
+		if (addr >= PICONTROL_PROCESS_IMAGE_LEN ||
+		    addr + bytes > PICONTROL_PROCESS_IMAGE_LEN) {
+			pr_err("export entry %d out of range (addr %u, len %u)\n",
+			       i, addr, cl->ent[i].i16uLength);
+			kfree(cl);
+			kfree(ent);
+			kfree(devs);
+			free_tree(root_structure);
+			return -EINVAL;
 		}
-
 	}
 
-	kfree(*devices_list);
-	kfree(*entries_list);
-	kfree(*copy_list);
+	free_tree(root_structure);
 
-	*devices_list = devs;
-	*entries_list = ent;
-	*copy_list = cl;
+install_config:
+	/* Parsing ok, configure devices and replace old parsed data with new */
+	ret = apply_module_config(devs, ent);
+	if (ret) {
+		/*
+		 * The drivers hold a partially applied config now, put the
+		 * running one back since the caller still uses it.
+		 */
+		if (*devices_list && *entries_list)
+			apply_module_config(*devices_list, *entries_list);
+
+		kfree(cl);
+		kfree(ent);
+		kfree(devs);
+		return ret;
+	}
+
+	/* IO thread reads the copylist under lockPI, swap under it too */
+	scoped_guard(rt_mutex, &piDev_g.lockPI) {
+		kfree(*devices_list);
+		kfree(*entries_list);
+		kfree(*copy_list);
+
+		*devices_list = devs;
+		*entries_list = ent;
+		*copy_list = cl;
+	}
 
 	return ret;
 }
@@ -832,7 +914,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 			offset += bit / 8;
 			bit %= 8;
 
-			if (offset > (KB_PI_LEN - 1)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 1)) {
 				pr_err("invalid offset for configuration parameter %u\n",
 				       offset);
 				continue;
@@ -847,7 +929,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 
 			mem[offset] = val;
 		} else if (ent->i16uBitLength == 8) {
-			if (offset > (KB_PI_LEN - 1)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 1)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;
@@ -856,7 +938,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 		} else if (ent->i16uBitLength == 16) {
 			u16 *valptr;
 
-			if (offset > (KB_PI_LEN - 2)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 2)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;
@@ -866,7 +948,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 		} else if (ent->i16uBitLength == 32) {
 			u32 *valptr;
 
-			if (offset > (KB_PI_LEN - 4)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 4)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;

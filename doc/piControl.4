@@ -1,0 +1,171 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH piControl 4 2026-08-14 "Linux"
+
+.SH NAME
+piControl - piControl driver process image
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.fi
+
+.SH DESCRIPTION
+
+The piControl device is a character device that allows access to the process
+image of the piControl driver.
+The process image is a collection of all variables of the RevPi base module as
+well as connected expansion modules.
+
+.SS Accessing the process image
+
+The process image can be accessed through the usual
+.BR open "(2), " read "(2), " write "(2), and " lseek (2)
+syscalls.
+Due to historical reasons, the
+.BR read (2)
+syscall never blocks and instead returns data immediately.
+Thus, the
+.I O_NONBLOCK
+flag has no effect when calling
+.BR open (2)
+on the piControl device.
+
+.SS Format of the process image
+
+The process image is instantiated according to the configuration file
+.IR /etc/revpi/config.rsc .
+There, each configured device is listed, along with their variable offsets in
+the process image. Using these offsets from the configuration file, a user can
+access the values from the process image for a specific variable.
+
+It is also possible to use the
+.BR KB_FIND_VARIABLE (2)
+and
+.BR KB_GET_VALUE (2)
+or
+.BR KB_SET_VALUE (2)
+.BR ioctl (2)s
+to get or set the value of a variable instead.
+This method doesn't require parsing the configuration file.
+
+Since the
+.BR SPIVariable (2type)
+type that the
+.BR KB_FIND_VARIABLE "(2) " ioctl (2)
+returns contains the address of the variable in the process image in the
+.I i16uAddress
+field, this is another way to get the address of a process image variable
+besides parsing the configuration file.
+
+.SS The ioctl(2) interface
+
+An
+.BR ioctl (2)-based
+interface for the piControl device exists.
+All supported
+.BR ioctl (2)
+operations on the piControl device are listed in
+.BR ioctl_picontrol (2).
+
+.SH NOTES
+
+Currently, the only piControl device is
+.BR piControl0 .
+There are no plans for adding any other piControl character devices with the
+same interface and the prefix
+.I /dev/piControl
+followed by a number, e.g.
+.IR /dev/piControl1 .
+
+.SH CAVEATS
+
+The
+.BR read (2)
+syscall on the
+.I /dev/piControl0
+character device ignores the
+.I O_NONBLOCK
+flag used with
+.BR open (2)
+and never blocks when reading.
+
+Similarly, the
+.BR poll (2)
+syscall isn't supported on this device.
+
+Because the
+.BR read (2)
+syscall never blocks, it is not possible to synchronise to the cyclic data
+exchange of the RevPi base module with the expansion modules.
+
+.SH FILES
+
+.TP
+.I /dev/piControl0
+The process image and interface for
+.BR ioctl (2)s
+listed in
+.BR ioctl_picontrol (2).
+.TP
+.I /etc/revpi/config.rsc
+The configuration file for the process image. Devices that are configured here
+determine the layout of the process image.
+
+.SS Inspecting the IO cycle
+
+The IO cycle can be tuned and inspected through sysfs attributes below
+.IR /sys/class/piControl/piControl0/ .
+.TP
+.I cycle_duration
+Fixed IO cycle duration in microseconds.
+.B 0
+(the default) runs the cycle as fast as possible.
+A non-zero value paces the cycle to a fixed period and is clamped to the
+range of 50 to 45000 microseconds.
+.TP
+.I max_cycle_deviation
+Deviation from the cycle duration in microseconds that is tolerated before
+a cycle is counted in
+.IR cycles_exceeded .
+.TP
+.I last_cycle
+Duration of the last IO cycle in microseconds.
+.TP
+.I min_cycle
+Shortest observed IO cycle duration in microseconds. Writing
+.B 0
+resets it to
+.I UINT_MAX
+to be overwritten in the next cycle. No other values are allowed to be written.
+.TP
+.I max_cycle
+Longest observed IO cycle duration in microseconds. Writing
+.B 0
+resets it to
+.B 0
+to be overwritten in the next cycle. No other values are allowed to be written.
+.TP
+.I cycles_exceeded
+Number of cycles that exceeded
+.IR max_cycle_deviation .
+Writing
+.B 0
+resets it to
+.BR 0 .
+No other values are allowed to be written.
+.TP
+.I cycles_missed
+Number of missed cycles when a fixed
+.I cycle_duration
+is set and a cycle overruns it.
+Writing
+.B 0
+resets it to
+.BR 0 .
+No other values are allowed to be written.
+
+.SH SEE ALSO
+
+.BR ioctl (2),
+.BR ioctl_picontrol (2)

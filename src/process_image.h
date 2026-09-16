@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
  *
  * process_image.h - cyclic update of the process image
  */
@@ -90,20 +90,15 @@ static __always_inline void assign_bit_in_byte(u8 nr, u8 * addr, bool value)
 		*addr &= ~BIT(nr);
 }
 
-static __always_inline int test_bit_in_byte(u8 nr, u8 * addr)
-{
-	return (*addr >> nr) & 1;
-}
-
-#define flip_process_image(shadow, offset)						\
-{											\
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {			\
-		if (((typeof(shadow))(piDev_g.ai8uPI + (offset))) == 0 || (shadow) == 0) \
-			pr_err("NULL pointer: %p %p\n", ((typeof(shadow))(piDev_g.ai8uPI + (offset))), (shadow)); \
-		rt_mutex_lock(&piDev_g.lockPI);					\
-		((typeof(shadow))(piDev_g.ai8uPI + (offset)))->drv = (shadow)->drv;	\
-		(shadow)->usr = ((typeof(shadow))(piDev_g.ai8uPI + (offset)))->usr;	\
-		rt_mutex_unlock(&piDev_g.lockPI);					\
-	}										\
+#define flip_process_image(shadow, offset)										\
+{															\
+	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {							\
+		if (((typeof(shadow))(piDev_g.ai8uPI + (offset))) == NULL || (shadow) == NULL)				\
+			pr_err("NULL pointer: %p %p\n", ((typeof(shadow))(piDev_g.ai8uPI + (offset))), (shadow));	\
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {								\
+			((typeof(shadow))(piDev_g.ai8uPI + (offset)))->drv = (shadow)->drv;				\
+			(shadow)->usr = ((typeof(shadow))(piDev_g.ai8uPI + (offset)))->usr;				\
+		}													\
+	}														\
 }
 #endif /* _PROCESS_IMAGE_H */
