@@ -1,0 +1,42 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH SDIOResetCounter 2type 2026-08-14 "Linux"
+
+.SH NAME
+SDIOResetCounter \- piControl driver struct for resetting counters and encoders
+
+.SH LIBRARY
+piControl device driver ioctl interface
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.sp
+.B typedef struct SDIOResetCounterStr {
+.BR "    __u8   i8uAddress;" "    /* address of module in current configuration */"
+.BR "    __u8   pad;" "           /* padding */"
+.BR "    __u16  i16uBitfield;" "  /* bitfield for resetting counter/encoder */"
+.B } SDIOResetCounter;
+.fi
+
+.SH DESCRIPTION
+Contains information about which counters and encoders to reset for an
+expansion module.
+
+The fields are as follows:
+
+.TP
+.I i8uAddress
+This field contains the address of the expansion module on the piBridge bus.
+.TP
+.I pad
+This field is padding and must be zeroed.
+.TP
+.I i16uBitfield
+This field contains a bitmask of the counters and encoders that should be
+considered.
+
+.SH SEE ALSO
+
+.BR ioctl (2),
+.BR KB_DIO_RESET_COUNTER (2)

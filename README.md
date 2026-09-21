@@ -114,4 +114,4 @@ Compare multiple runs:
 python3 tools/pibridge-cycles.py plot run_115200.csv run_1500000.csv -t "Baudrate comparison"
 ```
 
-Requires `matplotlib` and `numpy` for plotting.
+Requires `matplotlib`, `numpy` and `pandas` for plotting.

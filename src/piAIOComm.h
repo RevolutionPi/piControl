@@ -67,17 +67,10 @@
 #define AIO_OFFSET_Output2Divisor		85	// ##ATTR_COMMENT##
 #define AIO_OFFSET_Output2Offset		87	// ##ATTR_COMMENT##
 
-typedef enum
-{
-    AIOSTATE_OFFLINE   = 0x00, // Physikalisch nicht verbunden
-    AIOSTATE_CYCLIC_IO = 0x01, // Zyklischer Datenaustausch ist aktiv
-} AioCommStatus;
-
-
 void piAIOComm_InitStart(void);
 
-u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt);
+int piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo *pEnt);
 
-u32 piAIOComm_Init(u8 devnum);
+int piAIOComm_Init(u8 devnum);
 
-u32 piAIOComm_sendCyclicTelegram(u8 devnum);
+int piAIOComm_sendCyclicTelegram(u8 devnum);

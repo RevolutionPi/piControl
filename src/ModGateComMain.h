@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #ifndef MODGATECOMMAIN_H_INC
 #define MODGATECOMMAIN_H_INC
+
+#include <linux/bits.h>
 
 #if defined (_MSC_VER)
 #pragma warning (disable: 4200)
@@ -30,7 +32,7 @@ typedef struct {
     u8   i8uACK;             //Acknowledge
     u8   i8uCounter;
 #endif
-} __attribute__((__packed__)) MODGATECOM_LinkLayer;
+} __packed MODGATECOM_LinkLayer;
 
 //**********************************************************************************************
 // Transport Layer
@@ -45,7 +47,7 @@ typedef struct {
     u32  i32uError;
     u8   i8uVersion;
     u8   i8uReserved;
-} __attribute__((__packed__)) MODGATECOM_TransportLayer;
+} __packed MODGATECOM_TransportLayer;
 
 //**********************************************************************************************
 // Application Layer
@@ -73,6 +75,9 @@ typedef enum
 
 // Feature descriptor bits
 #define MODGATE_feature_IODataExchange          0x0001 // supports data-exchange using ethernet (e.g. mGate)
+#define MODGATE_feature_RS485DataExchange       0x0002 // supports data exchange using RS485 (e.g. piDio)
+#define MODGATE_feature_Baudrate                GENMASK(3, 2) // bits 2-3: supported baudrates
+#define MODGATE_feature_ExtendedChecksum        0x0010 // bit 4: IO protocol uses CRC-16 not XOR
 
 #define MODGATE_MAX_PD_DATALEN              512
 
@@ -87,7 +92,7 @@ typedef struct {
     u16  i16uFBS_InputLength;
     u16  i16uFBS_OutputLength;
     u16  i16uFeatureDescriptor;
-} __attribute__((__packed__)) MODGATECOM_IDResp;
+} __packed MODGATECOM_IDResp;
 
 //**********************************************************************************************
 typedef struct {
@@ -95,7 +100,7 @@ typedef struct {
     u16  i16uOffset;
     u16  i16uDataLen;
     u8   i8uData[0];     // dummy declaration for up to MODGATE_MAX_PD_DATALEN bytes
-} __attribute__((__packed__)) MODGATECOM_CyclicPD;
+} __packed MODGATECOM_CyclicPD;
 
 #define MODGATE_LL_MAX_LEN                  ((sizeof(MODGATECOM_LinkLayer) + sizeof(MODGATECOM_TransportLayer) + sizeof(MODGATECOM_CyclicPD) + MODGATE_MAX_PD_DATALEN + 3) & 0xfffffffc)
 

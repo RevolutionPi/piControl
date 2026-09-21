@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+# SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 obj-m := piControl.o
 
@@ -26,7 +26,6 @@ piControl-y += src/revpi_ro.o
 ccflags-y := -O2
 ccflags-y += -I$(src)/src
 ccflags-y += -D__KUNBUSPI_KERNEL__ -I$(src)
-ccflags-$(_ACPI_DEBUG) += -DACPI_DEBUG_OUTPUT
 
 KBUILD_CFLAGS += -g
 

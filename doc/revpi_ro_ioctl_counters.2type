@@ -1,0 +1,39 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH revpi_ro_ioctl_counters 2type 2026-08-14 "Linux"
+
+.SH NAME
+revpi_ro_ioctl_counters \- piControl driver struct for retrieving wear counters
+of RO expansion modules
+
+.SH LIBRARY
+piControl device driver ioctl interface
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.sp
+.B struct revpi_ro_ioctl_counters {
+.BR "    __u8   addr;" "                          /* address of module in current configuration */"
+.BR "    __u32  counter[REVPI_RO_NUM_RELAYS];" "  /* wear counters for each relay */"
+.B } __attribute__((__packed__));
+.fi
+
+.SH DESCRIPTION
+Contains information about how many times each relay has been activated for a
+single RO expansion module.
+
+The fields are as follows:
+
+.TP
+.I addr
+This field contains the address of the expansion module on the piBridge bus.
+.TP
+.I counter
+This field contains an array, each item representing how many times a relay of
+the RO expansion module has been activated.
+
+.SH SEE ALSO
+
+.BR ioctl (2),
+.BR KB_RO_GET_COUNTER (2)

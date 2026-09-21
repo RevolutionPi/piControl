@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
 
 #include "piDIOComm.h"
 #include "common_define.h"
+#include "revpi_common.h"
 #include "revpi_core.h"
 
 #define DIO_OUTPUT_DATA_LEN		18
@@ -12,22 +13,23 @@
 #define DIO_PWM_DATA_LEN		sizeof(struct pwm_data)
 
 static u8 i8uConfigured_s = 0;
-static SDioConfig dioConfig_s[10];
-static u8 i8uNumCounter[64];
-static u16 i16uCounterAct[64];
+static SDioConfig dioConfig_s[REV_PI_DEV_CNT_MAX];
+static u8 i8uNumCounter[REV_PI_DEV_CNT_MAX];
+static u16 i16uCounterAct[REV_PI_DEV_CNT_MAX];
 
 void piDIOComm_InitStart(void)
 {
 	i8uConfigured_s = 0;
 }
 
-u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
+int piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo *pEnt)
 {
 	u16 i;
 
-	if (i8uConfigured_s >= sizeof(dioConfig_s) / sizeof(SDioConfig)) {
-		pr_err("max. number of DIOs reached\n");
-		return -1;
+	if (i8uConfigured_s >= ARRAY_SIZE(dioConfig_s)) {
+		pr_err("too many digital modules (max %zu)\n",
+		       ARRAY_SIZE(dioConfig_s));
+		return -ERANGE;
 	}
 
 	memset(&dioConfig_s[i8uConfigured_s], 0, sizeof(SDioConfig));
@@ -38,16 +40,16 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 	i16uCounterAct[i8uAddress] = 0;
 
 	for (i = 0; i < i16uNumEntries; i++) {
-		if (pEnt[i].i16uOffset >= 88 && pEnt[i].i16uOffset <= 103) {
+		if (pEnt[i].i16uDeviceOffset >= 88 && pEnt[i].i16uDeviceOffset <= 103) {
 			dioConfig_s[i8uConfigured_s].i32uInputMode |=
-			    (pEnt[i].i32uDefault & 0x03) << ((pEnt[i].i16uOffset - 88) * 2);
+			    (pEnt[i].i32uDefault & 0x03) << ((pEnt[i].i16uDeviceOffset - 88) * 2);
 			if ((pEnt[i].i32uDefault == 1 || pEnt[i].i32uDefault == 2)
-			    || (pEnt[i].i32uDefault == 3 && ((pEnt[i].i16uOffset - 88) % 2) == 0)) {
+			    || (pEnt[i].i32uDefault == 3 && ((pEnt[i].i16uDeviceOffset - 88) % 2) == 0)) {
 				i8uNumCounter[i8uAddress]++;
-				i16uCounterAct[i8uAddress] |= (1 << (pEnt[i].i16uOffset - 88));
+				i16uCounterAct[i8uAddress] |= (1 << (pEnt[i].i16uDeviceOffset - 88));
 			}
 		} else {
-			switch (pEnt[i].i16uOffset) {
+			switch (pEnt[i].i16uDeviceOffset) {
 			case 104:
 				dioConfig_s[i8uConfigured_s].i8uInputDebounce = pEnt[i].i32uDefault;
 				break;
@@ -70,7 +72,9 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 	if (i8uNumCounter[i8uAddress] > DIO_MAX_COUNTERS) {
 		pr_err("invalid number of counters: %u (max: %u)\n",
 			i8uNumCounter[i8uAddress], DIO_MAX_COUNTERS);
-		return -1;
+		i8uNumCounter[i8uAddress] = 0;
+		i16uCounterAct[i8uAddress] = 0;
+		return -EINVAL;
 	}
 
 	i8uConfigured_s++;
@@ -78,23 +82,22 @@ u32 piDIOComm_Config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 	return 0;
 }
 
-u32 piDIOComm_Init(u8 i8uDevice_p)
+int piDIOComm_Init(u8 i8uDevice_p)
 {
 	u8 addr = RevPiDevice_getDev(i8uDevice_p)->i8uAddress;
-	u8 snd_len = sizeof(SDioConfig);
+	u8 snd_len = sizeof(SDioConfig) - offsetof(SDioConfig, i16uOutputPushPull);
 	u8 *snd_buf;
 	int ret;
 	int i;
 
-	ret = 4;  // unknown device
+	ret = REVPI_MODULE_NOT_CONFIGURED;
 
 	for (i = 0; i < i8uConfigured_s; i++) {
 		if (dioConfig_s[i].i8uAddr == addr) {
 			snd_buf = (u8 *) &dioConfig_s[i].i16uOutputPushPull;
 
-			ret = pibridge_req_io(piCore_g.pibridge, addr,
-					      IOP_TYP1_CMD_CFG, snd_buf,
-					      snd_len, NULL, 0);
+			ret = revpi_send_config(addr, IOP_TYP1_CMD_CFG,
+						snd_buf, snd_len);
 			break;
 		}
 	}
@@ -102,9 +105,9 @@ u32 piDIOComm_Init(u8 i8uDevice_p)
 	return ret;
 }
 
-u32 piDIOComm_sendCyclicTelegram(u8 devnum)
+int piDIOComm_sendCyclicTelegram(u8 devnum)
 {
-	static u8 last_out[40][DIO_OUTPUT_DATA_LEN];
+	static u8 last_out[PICONTROL_MAX_DEVICES][DIO_OUTPUT_DATA_LEN];
 	u8 in_buf[IOPROTOCOL_MAXDATA_LENGTH];
 	u8 out_buf[DIO_OUTPUT_DATA_LEN];
 	/* out_buf and additional 2 bytes for calculated channel mask */
@@ -122,18 +125,12 @@ u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 	revpi_dev = RevPiDevice_getDev(devnum);
 
 	if (revpi_dev->sId.i16uFBS_OutputLength != DIO_OUTPUT_DATA_LEN)
-		return 4;
+		return -EINVAL;
 
 	addr = revpi_dev->i8uAddress;
 
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(out_buf, piDev_g.ai8uPI + revpi_dev->i16uOutputOffset,
-		       DIO_OUTPUT_DATA_LEN);
-		rt_mutex_unlock(&piDev_g.lockPI);
-	} else {
-		memset(out_buf, 0, sizeof(out_buf));
-	}
+	revpi_fetch_output_data(out_buf, revpi_dev->i16uOutputOffset,
+				DIO_OUTPUT_DATA_LEN);
 
 	/* check if any PWM values have changed since last cycle */
 	if (!memcmp(out_buf + 2, last_out[addr] + 2, DIO_OUTPUT_DATA_LEN - 2)) {
@@ -159,21 +156,13 @@ u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 		cmd = IOP_TYP1_CMD_DATA2;
 	}
 
-	memcpy(last_out[addr], out_buf, sizeof(out_buf));
-
 	rcv_len = 3 * sizeof(u16) + i8uNumCounter[addr] * sizeof(u32);
 
-	ret = pibridge_req_io(piCore_g.pibridge, addr, cmd, snd_buf, snd_len,
-			      in_buf, rcv_len);
-	if (ret != rcv_len) {
-		pr_debug("DIO addr %2d: communication failed (req:%u,ret:%d)\n",
-			addr, rcv_len, ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
+	ret = revpi_cyclic_request(addr, cmd, snd_buf, snd_len, in_buf, rcv_len);
+	if (ret < 0)
 		return ret;
-	}
+
+	memcpy(last_out[addr], out_buf, sizeof(out_buf));
 
 	memcpy(&data_in[0], in_buf, 3 * sizeof(u16));
 	memset(&data_in[6], 0, 64);
@@ -188,12 +177,8 @@ u32 piDIOComm_sendCyclicTelegram(u8 devnum)
 		}
 	}
 
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, data_in,
-		       sizeof(data_in));
-		rt_mutex_unlock(&piDev_g.lockPI);
-	}
+	revpi_store_input_data(revpi_dev->i16uInputOffset, data_in,
+			       sizeof(data_in));
 
 	return 0;
 }

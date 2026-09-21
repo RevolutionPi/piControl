@@ -1,0 +1,80 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_DIO_RESET_COUNTER 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_DIO_RESET_COUNTER \- Reset counter and encoder values of a DIO, DI, or MIO
+expansion module in the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_DIO_RESET_COUNTER, SDIOResetCounter *" argp ");"
+.sp
+.B "#include <piControl.h>"
+.sp
+.B "typedef struct SDIOResetCounterStr SDIOResetCounter;"
+.fi
+
+.SH DESCRIPTION
+Reset all counters and encoders of a DIO, DI or MIO expansion module to their
+initial value of
+.BR 0 .
+
+The
+.I i8uAddress
+field of the
+.BR SDIOResetCounter (2type)
+struct is set to the address of the module, while the
+.I i16uBitfield
+field is a mask of the configured inputs that should be reset to their initial
+value.
+
+If a counter is configured on input
+.I I_3
+and an encoder is configured on the
+inputs
+.IR I_6 " and " I_7 ,
+then bits 2 and 5 must be set to
+.B 1
+and
+.I i16uBitfield
+must be set to the value
+.BR 0x0024 .
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EAGAIN
+A driver reset is in progress.
+.TP
+.B EFAULT
+Failure on copying values to/from caller.
+.TP
+.B EOPNOTSUPP
+The RevPi does not support expansion modules.
+.TP
+.B EINVAL
+No DIO, DI, or MIO module with the given address was found, or the value of the
+field
+.I i16uBitfield
+of the
+.BR SDIOResetCounter (2type)
+struct is
+.BR 0 .
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR SDIOResetCounter (2type),
+.BR piControl (4)

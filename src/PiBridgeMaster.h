@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+ * SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
  */
 
 #pragma once
@@ -31,8 +31,6 @@ typedef enum _EPiBridgeMasterStatus {
 	enPiBridgeMasterStatus_FWUReset,	// 18
 
 } EPiBridgeMasterStatus;
-
-extern EPiBridgeMasterStatus eRunStatus_s;
 
 void PiBridgeMaster_Reset(void);
 int PiBridgeMaster_Adjust(void);

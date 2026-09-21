@@ -1,0 +1,52 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_RESET 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_RESET \- reset the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_RESET);"
+.fi
+
+.SH DESCRIPTION
+Reset the piControl driver by
+
+.IP \[bu]
+stopping the communication with all expansion modules,
+.IP \[bu]
+resetting the expansion modules,
+.IP \[bu]
+rescanning for connected and configured expansion modules,
+.IP \[bu]
+initializing the expansion modules with the new configuration, and
+.IP \[bu]
+restarting the communication.
+.P
+After a reset all counters are set to
+.B 0
+and all outputs are set to their default values as defined in the configuration
+file.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B ETIMEDOUT
+The reset request timed out.
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR KB_WAIT_FOR_EVENT (2)

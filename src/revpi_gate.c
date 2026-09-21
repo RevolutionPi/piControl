@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2018-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
 
 // revpi_gate.c - RevPi Gate protocol
 
@@ -12,15 +12,16 @@
 
 #define ETH_P_KUNBUSGW	0x419C		/* KUNBUS Gateway [ NOT AN OFFICIALLY REGISTERED ID ] */
 #define MG_AL_TIMEOUT	msecs_to_jiffies(80)
-#define MG_AL_SEND	msecs_to_jiffies(20)
-#define KS8851_FIFO_SZ	(12 * SZ_1K)
 
 static LIST_HEAD(revpi_gate_connections);
 static DEFINE_MUTEX(revpi_gate_lock);		/* serializes list add/del */
 DEFINE_STATIC_SRCU(revpi_gate_srcu);		/* protects list traversal */
-static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_fini_wq);
+static DEFINE_MUTEX(revpi_gate_rcv_lock);	/* excludes the receive thread */
+static atomic_t revpi_gate_conn_count = ATOMIC_INIT(0);
+static DECLARE_WAIT_QUEUE_HEAD(revpi_gate_disconnect_wq);
 static struct sk_buff_head revpi_gate_rcvq;
 static struct task_struct *revpi_gate_rcv_thread;
+static struct workqueue_struct *revpi_gate_wq;
 
 static unsigned int revpi_gate_nf_hook(void *priv, struct sk_buff *skb,
 				       const struct nf_hook_state *state)
@@ -42,7 +43,8 @@ static const struct nf_hook_ops revpi_gate_nf_hook_ops = {
  * @list_node: node in @revpi_gate_connections list
  * @dev: network device over which the neighbor is reachable;
  *	only one neighbor per network device is supported
- * @send_work: work item to send a data packet on silence of neighbor
+ * @nf_hook_ops: egress hook dropping all but gateway traffic on @dev;
+ *	@nf_hook_ops.dev is NULL if registration failed
  * @destroy_work: work item to destroy connection on timeout
  * @state: current state machine position;
  *	there's only two states, see revpi_gate_state()
@@ -61,7 +63,6 @@ struct revpi_gate_connection {
 	struct list_head list_node;
 	struct net_device *dev;
 	struct nf_hook_ops nf_hook_ops;
-	struct delayed_work send_work;
 	struct delayed_work destroy_work;
 	MODGATE_AL_Status state;
 	SDevice *revpi_dev;
@@ -112,19 +113,18 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	synchronize_srcu(&revpi_gate_srcu);
 
 	/*
-	 * The work items may be rescheduled if a valid packet is processed
+	 * The destroy work may be rescheduled if a valid packet is processed
 	 * concurrently.  Only after synchronize_srcu() is that guaranteed
-	 * to no longer happen, so cancel them now.
+	 * to no longer happen, so cancel it now.
 	 */
-	cancel_delayed_work_sync(&conn->send_work);
 	cancel_delayed_work(&conn->destroy_work);
 
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		conn->revpi_dev->i8uModuleState = FBSTATE_LINK;
-		rt_mutex_lock(&piDev_g.lockPI);
-		memset(conn->in, 0, conn->in_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memset(conn->in, 0, conn->in_len);
+		}
 	}
 
 	if (conn->nf_hook_ops.dev)
@@ -133,12 +133,14 @@ static void revpi_gate_destroy_work(struct work_struct *work)
 	dev_put(conn->dev);
 	kfree(conn);
 
-	wake_up(&revpi_gate_fini_wq);
+	atomic_dec(&revpi_gate_conn_count);
+	wake_up(&revpi_gate_disconnect_wq);
 }
 
 /**
  * revpi_gate_create_packet() - create skb for transmission
  * @conn: connection to the neighbor
+ * @cmd: command code to set in the Transport Layer header
  * @payload_len: size of payload following the Transport Layer header
  *
  * Create skb with enough room for the Transport Layer and an optional payload.
@@ -212,25 +214,25 @@ static struct sk_buff *revpi_gate_create_cyclicpd_packet(
 }
 
 /**
- * revpi_gate_send_work() - send a data packet on silence of neighbor
- * @work: send work item embedded in a struct revpi_gate_connection
+ * revpi_gate_send_cyclicpd() - send a data packet to the neighbor
+ * @conn: connection to the neighbor
  *
- * Normally a data packet is only sent in response to a data packet from the
- * neighbor.  However a data packet is also sent if the neighbor has been
- * silent for a while.  The idea is to get the data exchange going again
- * after a packet was lost.
+ * Build a cyclicPD packet from the current output process image and transmit
+ * it.  The packet acknowledges the neighbor's last counter (copied from
+ * @conn->in_ctr by revpi_gate_create_packet()).
+ *
+ * The gateway firmware runs a strict stop-and-wait link layer: it keeps at
+ * most one unacknowledged packet in flight and silently discards any packet
+ * whose acknowledgement is older than its outstanding window.  The driver
+ * therefore never transmits on its own accord; it only ever sends in direct
+ * response to a received packet.  Recovering from a lost packet is left to
+ * the gateway, which retransmits and ultimately restarts the handshake.
  */
-static void revpi_gate_send_work(struct work_struct *work)
+static void revpi_gate_send_cyclicpd(struct revpi_gate_connection *conn)
 {
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct revpi_gate_connection *conn = container_of(dwork,
-		       struct revpi_gate_connection, send_work);
 	struct net_device *dev = conn->dev;
 	MODGATECOM_CyclicPD *al;
 	struct sk_buff *skb;
-
-	pr_debug("%s: sending data packet voluntarily\n",
-		dev->name);
 
 	skb = revpi_gate_create_cyclicpd_packet(conn, &al);
 	if (!skb)
@@ -238,9 +240,9 @@ static void revpi_gate_send_work(struct work_struct *work)
 
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(al->i8uData, conn->out, conn->out_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(al->i8uData, conn->out, conn->out_len);
+		}
 	} else {
 		memset(al->i8uData, 0, conn->out_len);
 	}
@@ -255,8 +257,7 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 {
 	MODGATECOM_TransportLayer *rcv_tl;
 	MODGATECOM_CyclicPD *al, *rcv_al;
-	struct sk_buff *skb = NULL;
-	u8 backlog = 0;
+	struct sk_buff *skb;
 
 	if (!conn) {
 		pr_err("%s: received data packet without connection\n",
@@ -269,23 +270,9 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 	}
 
 	rcv_tl = (MODGATECOM_TransportLayer *)skb_network_header(rcv);
-	if (rcv_tl->i8uACK != conn->out_ctr) {
+	if (rcv_tl->i8uACK != conn->out_ctr)
 		pr_warn("%s: received data packet ack %#hhx, expected %#hhx\n",
 			dev->name, rcv_tl->i8uACK, conn->out_ctr);
-
-		backlog = conn->out_ctr - rcv_tl->i8uACK;
-
-		/* i8uACK has already wrapped around but out_ctr hasn't yet */
-		if (conn->out_ctr < rcv_tl->i8uACK)
-			backlog++;
-
-		/*
-		 * Computed backlog is in an implausible range,
-		 * e.g. neighbor sent a bogus ack for a future packet.
-		 */
-		if (backlog > KS8851_FIFO_SZ / MODGATE_LL_MAX_LEN)
-			backlog = 0;
-	}
 
 	rcv_al = (MODGATECOM_CyclicPD *)pskb_pull(rcv, sizeof(*rcv_tl));
 	if (!pskb_may_pull(rcv, sizeof(*rcv_al)) ||
@@ -299,36 +286,32 @@ static int revpi_gate_process_cyclicpd(struct sk_buff *rcv,
 	}
 
 	/*
-	 * Only send an answer packet if neighbor is not lagging behind.
-	 * If it is, remain silent to allow its RX FIFO to drain.
+	 * Always answer a received data packet.  The reply carries the
+	 * acknowledgement of the neighbor's counter, without which the
+	 * gateway's stop-and-wait link layer cannot send its next packet.
 	 */
-	if (!backlog) {
-		skb = revpi_gate_create_cyclicpd_packet(conn, &al);
-		if (!skb)
-			goto drop;
-	}
+	skb = revpi_gate_create_cyclicpd_packet(conn, &al);
+	if (!skb)
+		goto drop;
 
 	if (conn->revpi_dev &&
 	    !test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
 		conn->revpi_dev->i8uModuleState = rcv_al->i8uFieldbusStatus;
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(conn->in + rcv_al->i16uOffset, rcv_al->i8uData,
-		       rcv_al->i16uDataLen);
-		if (skb)
+		scoped_guard(rt_mutex, &piDev_g.lockPI) {
+			memcpy(conn->in + rcv_al->i16uOffset, rcv_al->i8uData,
+			       rcv_al->i16uDataLen);
 			memcpy(al->i8uData, conn->out, conn->out_len);
-		rt_mutex_unlock(&piDev_g.lockPI);
+		}
 	} else {
-		if (skb)
-			memset(al->i8uData, 0, conn->out_len);
+		memset(al->i8uData, 0, conn->out_len);
 	}
 
-	if (skb && dev_queue_xmit(skb)) {
+	if (dev_queue_xmit(skb)) {
 		pr_err("%s: failed to transmit data packet\n", dev->name);
 		goto drop;
 	}
 
-	mod_delayed_work(system_highpri_wq, &conn->send_work, MG_AL_SEND);
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
@@ -375,7 +358,7 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 	conn->in_len = min(KB_PD_LEN, rcv_al->i16uFBS_OutputLength);
 	conn->out_len = min(KB_PD_LEN, rcv_al->i16uFBS_InputLength);
 
-	i = revpi_core_find_gate(dev, rcv_al->i16uModulType);
+	i = revpi_core_find_gate(dev, rcv_al);
 	if (i == REV_PI_DEV_UNDEF) {
 		/*
 		 * Gateway is either not configured or module type
@@ -412,8 +395,12 @@ static int revpi_gate_process_id_resp(struct sk_buff *rcv,
 
 	conn->state = MODGATE_ST_ID_RESP;
 	revpi_core_gate_connected(conn->revpi_dev, true);
-	queue_delayed_work(system_highpri_wq, &conn->send_work, MG_AL_SEND);
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	/*
+	 * Do not send a data packet here: the gateway initiates the cyclic
+	 * exchange once it has processed this ID response.  The driver only
+	 * ever replies to received packets.
+	 */
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
@@ -455,16 +442,22 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 		conn->state = MODGATE_ST_ID_REQ;
 		conn->in_ctr = rcv_tl->i8uCounter;
 		INIT_LIST_HEAD(&conn->list_node);
-		INIT_DELAYED_WORK(&conn->send_work, revpi_gate_send_work);
 		INIT_DELAYED_WORK(&conn->destroy_work, revpi_gate_destroy_work);
 
 		mutex_lock(&revpi_gate_lock);
 		list_add_tail_rcu(&conn->list_node, &revpi_gate_connections);
+		atomic_inc(&revpi_gate_conn_count);
 		mutex_unlock(&revpi_gate_lock);
 	} else {
-		pr_warn("%s: id request, resetting connection\n", dev->name);
+		/* the gateway repeats the request until the handshake completes */
+		if (conn->state == MODGATE_ST_ID_RESP)
+			pr_warn("%s: id request, resetting connection\n",
+				dev->name);
+		else
+			pr_debug("%s: id request, handshake not complete\n",
+				 dev->name);
+
 		conn->state = MODGATE_ST_ID_REQ;
-		cancel_delayed_work_sync(&conn->send_work);
 		revpi_core_gate_connected(conn->revpi_dev, false);
 	}
 
@@ -477,12 +470,12 @@ static int revpi_gate_process_id_req(struct sk_buff *rcv,
 		goto destroy;
 	}
 
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, MG_AL_TIMEOUT);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, MG_AL_TIMEOUT);
 	consume_skb(rcv);
 	return NET_RX_SUCCESS;
 
 destroy:
-	mod_delayed_work(system_highpri_wq, &conn->destroy_work, 0);
+	mod_delayed_work(revpi_gate_wq, &conn->destroy_work, 0);
 drop:
 	kfree_skb(rcv);
 	return NET_RX_DROP;
@@ -494,6 +487,11 @@ static int revpi_gate_process(struct sk_buff *skb, struct net_device *dev)
 	MODGATECOM_TransportLayer *tl;
 	u8 expected_ctr;
 	int idx, ret;
+
+	if (!test_bit_acquire(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags)) {
+		kfree_skb(skb);
+		return NET_RX_DROP;
+	}
 
 	/* find connection for received packet */
 	idx = srcu_read_lock(&revpi_gate_srcu);
@@ -520,17 +518,21 @@ process:
 
 	if (conn) {
 		/*
-		 * Some versions of the RevPi Gate firmware resend packets
-		 * if they haven't received a packet in a while.  React by
-		 * enqueuing the send work for immediate execution.
+		 * The gateway retransmits its last data packet when it has not
+		 * seen our acknowledgement within its stop-and-wait timeout.
+		 * Re-send the reply to re-acknowledge its counter; do not
+		 * advance any counter or touch the process image.
+		 *
+		 * Deliberately do not refresh destroy_work here: a duplicate is
+		 * not fresh data, so a peer that only ever retransmits the same
+		 * frame must still time out and be torn down.
 		 */
 		if (tl->i8uCounter == conn->in_ctr &&
 		    conn->state == MODGATE_ST_ID_RESP &&
 		    tl->i16uCmd == MODGATE_AL_CMD_cyclicPD) {
-			pr_err("%s: received duplicate data packet\n",
-			       dev->name);
-			mod_delayed_work(system_highpri_wq, &conn->send_work,
-									  0);
+			pr_debug("%s: received duplicate data packet, re-acking\n",
+				 dev->name);
+			revpi_gate_send_cyclicpd(conn);
 			kfree_skb(skb);
 			ret = NET_RX_DROP;
 			goto unlock;
@@ -540,7 +542,10 @@ process:
 		expected_ctr = conn->in_ctr + 1;
 		if (expected_ctr == 0)
 			expected_ctr = 1;
-		if (tl->i8uCounter != expected_ctr)
+		if (tl->i8uCounter == conn->in_ctr)
+			pr_debug("%s: received ctr %#hhx again\n",
+				 dev->name, tl->i8uCounter);
+		else if (tl->i8uCounter != expected_ctr)
 			pr_warn("%s: received ctr %#hhx, expected %#hhx\n",
 				dev->name, tl->i8uCounter, expected_ctr);
 
@@ -577,7 +582,8 @@ static int revpi_gate_rcv_loop(void *data)
 	while (true) {
 		while (!skb_queue_empty(&revpi_gate_rcvq)) {
 			skb = skb_dequeue(&revpi_gate_rcvq);
-			revpi_gate_process(skb, skb->dev);
+			scoped_guard(mutex, &revpi_gate_rcv_lock)
+				revpi_gate_process(skb, skb->dev);
 		}
 		set_current_state(TASK_IDLE);
 		if (kthread_should_stop()) {
@@ -596,6 +602,13 @@ static int revpi_gate_rcv_loop(void *data)
 static int revpi_gate_rcv(struct sk_buff *skb, struct net_device *dev,
 			  struct packet_type *pt, struct net_device *orig_dev)
 {
+	/*
+	 * A connection binds to a device table entry and to process image
+	 * offsets, which are only valid while the bridge runs.
+	 */
+	if (!test_bit_acquire(PICONTROL_DEV_FLAG_RUNNING, &piDev_g.flags))
+		goto drop;
+
 	if (skb->pkt_type != PACKET_BROADCAST) {
 		pr_err("%s: received non-broadcast packet\n", dev->name);
 		goto drop;
@@ -624,52 +637,69 @@ static struct packet_type revpi_gate_packet_type __read_mostly = {
 	.func =	revpi_gate_rcv,
 };
 
-void revpi_gate_init(void)
+void revpi_gate_stop(void)
+{
+	struct revpi_gate_connection *conn;
+	struct sk_buff *skb;
+	int idx;
+
+	/* packet handlers run under rcu_read_lock(), wait for them to leave */
+	synchronize_net();
+
+	scoped_guard(mutex, &revpi_gate_rcv_lock) {
+		while (!skb_queue_empty(&revpi_gate_rcvq)) {
+			skb = skb_dequeue(&revpi_gate_rcvq);
+			dev_kfree_skb(skb);
+		}
+
+		/*
+		 * Remaining connections cannot be torn down with
+		 * flush_delayed_work(): It would deadlock because
+		 * revpi_gate_destroy_work() synchronizes revpi_gate_srcu, which
+		 * is held here for list traversal.  Instead, enqueue all work
+		 * items and wait for their completion.
+		 */
+		idx = srcu_read_lock(&revpi_gate_srcu);
+		list_for_each_entry_rcu(conn, &revpi_gate_connections, list_node)
+			mod_delayed_work(revpi_gate_wq, &conn->destroy_work, 0);
+		srcu_read_unlock(&revpi_gate_srcu, idx);
+
+		/* the work unlinks a connection long before it frees it */
+		wait_event(revpi_gate_disconnect_wq,
+			   !atomic_read(&revpi_gate_conn_count));
+	}
+}
+
+int revpi_gate_register(void)
 {
 	struct task_struct *th;
 
-	skb_queue_head_init(&revpi_gate_rcvq);
+	revpi_gate_wq = alloc_workqueue("revpi_gate", WQ_HIGHPRI, 0);
+	if (!revpi_gate_wq)
+		return -ENOMEM;
 
-	revpi_gate_rcv_thread = NULL;
+	skb_queue_head_init(&revpi_gate_rcvq);
 
 	th = kthread_run(&revpi_gate_rcv_loop, NULL, "revpi_gate_rcv");
 	if (IS_ERR(th)) {
-		pr_err("piControl: cannot run revpi_gate_rcv_thread (%ld), reset driver to retry\n",
-		       PTR_ERR(th));
-		return;
+		pr_err("cannot run revpi_gate_rcv thread (%pe)\n", th);
+		destroy_workqueue(revpi_gate_wq);
+		return PTR_ERR(th);
 	}
 	revpi_gate_rcv_thread = th;
 
 	sched_set_fifo(revpi_gate_rcv_thread);
 
 	dev_add_pack(&revpi_gate_packet_type);
+
+	return 0;
 }
 
-void revpi_gate_fini(void)
+void revpi_gate_unregister(void)
 {
-	struct revpi_gate_connection *conn;
-	struct sk_buff *skb;
-	int idx;
-
 	dev_remove_pack(&revpi_gate_packet_type);
-
-	if (revpi_gate_rcv_thread)
-		kthread_stop(revpi_gate_rcv_thread);
-	while (!skb_queue_empty(&revpi_gate_rcvq)) {
-		skb = skb_dequeue(&revpi_gate_rcvq);
-		dev_kfree_skb(skb);
-	}
-
-	/*
-	 * Remaining connections cannot be torn down with flush_delayed_work():
-	 * It would deadlock because revpi_gate_destroy_work() synchronizes
-	 * revpi_gate_srcu, which is held here for list traversal.  Instead,
-	 * enqueue all work items and wait for their completion.
-	 */
-	idx = srcu_read_lock(&revpi_gate_srcu);
-	list_for_each_entry_rcu(conn, &revpi_gate_connections, list_node)
-		mod_delayed_work(system_highpri_wq, &conn->destroy_work, 0);
-	srcu_read_unlock(&revpi_gate_srcu, idx);
-
-	wait_event(revpi_gate_fini_wq, list_empty(&revpi_gate_connections));
+	kthread_stop(revpi_gate_rcv_thread);
+	revpi_gate_stop();
+	/* the count drops before the destroy work returns, wait for the works */
+	destroy_workqueue(revpi_gate_wq);
 }

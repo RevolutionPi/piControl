@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/fs.h>
 #include <linux/slab.h>
@@ -8,6 +8,7 @@
 #include "json.h"
 #include "piAIOComm.h"
 #include "piConfig.h"
+#include "piControlMain.h"
 #include "piDIOComm.h"
 #include "project.h"
 #include "revpi_compact.h"
@@ -15,7 +16,6 @@
 #include "revpi_ro.h"
 
 #define TOKEN_DEVICES       "Devices"
-#define TOKEN_CONNECTIONS   "Connections"
 #define TOKEN_TYPE          "productType"
 #define TOKEN_POSITION      "position"
 #define TOKEN_INPUT         "inp"
@@ -23,10 +23,6 @@
 #define TOKEN_MEMORY        "mem"
 #define TOKEN_CONFIG        "config"
 #define TOKEN_OFFSET        "offset"
-#define TOKEN_SRC_GUID      "srcGUID"
-#define TOKEN_SRC_NAME      "srcAttrname"
-#define TOKEN_DEST_GUID     "destGUID"
-#define TOKEN_DEST_NAME     "destAttrname"
 
 struct json_val_elem {
 	char *key;
@@ -44,7 +40,7 @@ typedef struct json_val {
 	} u;
 } json_val_t;
 
-char *string_of_errors[] = {
+static char *string_of_errors[] = {
 	[JSON_ERROR_NO_MEMORY] = "out of memory",
 	[JSON_ERROR_BAD_CHAR] = "bad character",
 	[JSON_ERROR_POP_EMPTY] = "stack empty",
@@ -76,7 +72,7 @@ void close_filename(struct file *file)
 	filp_close(file, NULL);
 }
 
-int process_file(json_parser * parser, struct file *input, int *retlines, int *retcols)
+static int process_file(json_parser *parser, struct file *input, int *retlines, int *retcols)
 {
 #define BUFFLEN     4096
 	int ret = 0;
@@ -214,10 +210,10 @@ static int tree_append(void *structure, char *key, u32 key_length, void *obj)
 		parent->u.object[parent->length] = NULL;
 	} else {
 		if (parent->length == 0) {
-			parent->u.array = kmalloc((1 + 1) * sizeof(json_val_t *), GFP_KERNEL);	/* +1 for null */
+			/* +1 for null */
+			parent->u.array = kzalloc((1 + 1) * sizeof(json_val_t *), GFP_KERNEL);
 			if (!parent->u.array)
 				return 1;
-			memset(parent->u.array, 0, (1 + 1) * sizeof(json_val_t *));
 		} else {
 			u32 newsize = parent->length + 1 + 1;	/* +1 for null */
 			void *newptr;
@@ -272,13 +268,14 @@ static int do_tree(json_config *config,
 	}
 
 	if (!json_parser_is_done(&parser)) { /* parsing incomplete */
-		if (parser.state == 0 && parser.stack_offset == 0)
-			pr_err("config.rsc is empty! "
-				"Probably needs to be configured in PiCtory\n");
-		else
+		if (parser.state == 0 && parser.stack_offset == 0) {
+			pr_warn("config.rsc is empty. Driver will remain uninitialized\n");
+			ret = -ENODATA;
+		} else {
 			pr_err("syntax error: offset %d  state %d\n",
 					parser.stack_offset, parser.state);
-		ret = 1;
+			ret = 1;
+		}
 		goto free_parser;
 	}
 
@@ -404,7 +401,7 @@ static piDevices *find_devices(json_val_t * element, SDeviceInfo * pDev, int lvl
 			}
 		} else {
 			for (i = 0; i < element->length; i++) {
-				ret = find_devices(element->u.array[i], 0, lvl + 1);
+				ret = find_devices(element->u.array[i], NULL, lvl + 1);
 			}
 		}
 		break;
@@ -458,10 +455,17 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 				}
 			} else if (lvl == 200) {
 				if (element->u.object[i]->val->type == JSON_ARRAY_BEGIN) {
-					struct json_val **array = element->u.object[i]->val->u.array;
+					struct json_val *entry = element->u.object[i]->val;
+					struct json_val **array = entry->u.array;
 
 					if (*pIdxEntry >= pEnt->i16uNumEntries) {
 						pr_err("error: wrong entry index\n");
+						return;
+					}
+					/* every entry is an 8-element array (bitPos at index 7) */
+					if (entry->length < 8) {
+						pr_err("error: config entry has too few fields (%d)\n",
+						       entry->length);
 						return;
 					}
 					pEnt->ent[*pIdxEntry].i8uAddress = devAddr;
@@ -537,150 +541,100 @@ static void find_entries(json_val_t * element, piEntries * pEnt, int *pIdxEntry,
 	}
 }
 
-static SEntryInfo *search_entry(piEntries * ent, char *strName)
+static bool device_ranges_valid(SDeviceInfo *dev)
 {
-	int i;
-	for (i = 0; i < ent->i16uNumEntries; i++) {
-		if (strcmp(ent->ent[i].strVarName, strName) == 0)
-			return &ent->ent[i];
+	if ((dev->i16uInputOffset + dev->i16uInputLength) > PICONTROL_PROCESS_IMAGE_LEN) {
+		pr_err("Invalid input range (offset: %u, length: %u)\n",
+			dev->i16uInputOffset,
+			dev->i16uInputLength);
+		return false;
 	}
-	return NULL;
+
+	if ((dev->i16uOutputOffset + dev->i16uOutputLength) > PICONTROL_PROCESS_IMAGE_LEN) {
+		pr_err("Invalid output range (offset: %u, length: %u)\n",
+			dev->i16uOutputOffset,
+			dev->i16uOutputLength);
+		return false;
+	}
+
+	if ((dev->i16uConfigOffset + dev->i16uConfigLength) > PICONTROL_PROCESS_IMAGE_LEN) {
+		pr_err("Invalid config range (offset: %u, length: %u)\n",
+			dev->i16uConfigOffset,
+			dev->i16uConfigLength);
+		return false;
+	}
+
+	return true;
 }
 
-static piConnectionList *find_connections(json_val_t * element, piDevices * devs, piEntries * ent, piConnection * conn,
-					  int lvl)
+static int apply_module_config(piDevices *devs, piEntries *ent)
 {
+	int ret = 0;
 	int i;
-	piConnectionList *ret = NULL;
 
-	if (!element) {
-		pr_err("error: no element in print tree\n");
-		return NULL;
+	piDIOComm_InitStart();
+	piAIOComm_InitStart();
+	revpi_mio_reset();
+	revpi_ro_reset();
+
+	for (i = 0; i < devs->i16uNumDevices; i++) {
+		/* software modules are addressed above the physical modules */
+		if (module_is_software(devs->dev[i].i16uModuleType))
+			continue;
+
+		if (devs->dev[i].i8uAddress >= REV_PI_DEV_CNT_MAX) {
+			pr_err("module address %u from config out of range (max %u)\n",
+			       devs->dev[i].i8uAddress, REV_PI_DEV_CNT_MAX);
+			return -ERANGE;
+		}
+
+		switch (devs->dev[i].i16uModuleType) {
+		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
+		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
+		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
+			ret = piDIOComm_Config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_AIO:
+			ret = piAIOComm_Config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
+			ret = revpi_compact_config(devs->dev[i].i8uAddress,
+					   devs->dev[i].i16uEntries,
+					   &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_MIO:
+			ret = revpi_mio_config(devs->dev[i].i8uAddress,
+					       devs->dev[i].i16uEntries,
+					       &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		case KUNBUS_FW_DESCR_TYP_PI_RO:
+			ret = revpi_ro_config(devs->dev[i].i8uAddress,
+					      devs->dev[i].i16uEntries,
+					      &ent->ent[devs->dev[i].i16uFirstEntry]);
+			break;
+		}
+
+		if (ret) {
+			pr_err("failed to configure module at address %u: %d\n",
+			       devs->dev[i].i8uAddress, ret);
+			return ret;
+		}
 	}
 
-	switch (element->type) {
-	case JSON_OBJECT_BEGIN:
-		if (lvl == 200) {
-
-		} else {
-			// The variable name are unique in th whole configuration, therefore it is not necessary to compare the GUIDs
-			// also. This is guaranteed by PiCtory.
-//			char strSrcGUID[50];
-//			char strDstGUID[50];
-			char strSrcName[32];
-			char strDstName[32];
-//			strSrcGUID[0] = 0;
-//			strDstGUID[0] = 0;
-			strSrcName[0] = 0;
-			strDstName[0] = 0;
-
-			for (i = 0; i < element->length; i++) {
-				if (lvl == 1 && strcmp(element->u.object[i]->key, TOKEN_CONNECTIONS) == 0) {	// we found the connections list -> increase lvl
-					if (ret != NULL) {
-						pr_err("error: there should by only one '%s' element\n",
-							  element->u.object[i]->key);
-						return NULL;
-					}
-					ret = find_connections(element->u.object[i]->val, devs, ent, conn, 100);
-				} else if (lvl == 101) {	// we found a connection, parse elements
-//					if (strcmp(element->u.object[i]->key, TOKEN_SRC_GUID) == 0)
-//					{
-//						strncpy(strSrcGUID, element->u.object[i]->val->u.data, sizeof(strSrcGUID)-1);
-//						strSrcGUID[sizeof(strSrcGUID)-1] = 0;
-//					}
-//					else if (strcmp(element->u.object[i]->key, TOKEN_DEST_GUID) == 0)
-//					{
-//						strncpy(strDstGUID, element->u.object[i]->val->u.data, sizeof(strDstGUID)-1);
-//						strDstGUID[sizeof(strDstGUID)-1] = 0;
-//					}
-//					else
-					if (strcmp(element->u.object[i]->key, TOKEN_SRC_NAME) == 0) {
-						strncpy(strSrcName, element->u.object[i]->val->u.data,
-							sizeof(strSrcName) - 1);
-						strSrcName[sizeof(strSrcName) - 1] = 0;
-					} else if (strcmp(element->u.object[i]->key, TOKEN_DEST_NAME) == 0) {
-						strncpy(strDstName, element->u.object[i]->val->u.data,
-							sizeof(strDstName) - 1);
-						strDstName[sizeof(strDstName) - 1] = 0;
-					}
-				} else {
-					// the other objects are not processed
-					//ret = find_connections(element->u.object[i]->val, NULL, lvl + 1);
-				}
-			}
-
-			if (lvl == 101) {
-				if (	/*    strSrcGUID[0] != 0
-					   &&  strDstGUID[0] != 0
-					   && */ strSrcName[0] != 0
-					   && strDstName[0] != 0) {
-					SEntryInfo *pSrcEntry, *pDstEntry;
-					pSrcEntry = search_entry(ent, strSrcName);
-					if (pSrcEntry == NULL) {
-						pr_err("error: connection variable %s unknown\n", strSrcName);
-						return NULL;
-					}
-					pDstEntry = search_entry(ent, strDstName);
-					if (pDstEntry == NULL) {
-						pr_err("error: connection variable %s unknown\n", strDstName);
-						return NULL;
-					}
-					conn->i16uSrcAddr = pSrcEntry->i16uOffset;
-					conn->i16uDestAddr = pDstEntry->i16uOffset;
-					conn->i8uLength = pSrcEntry->i16uBitLength;
-					if (conn->i8uLength < 8) {
-						conn->i8uSrcBit = pSrcEntry->i8uBitPos;
-						conn->i8uDestBit = pDstEntry->i8uBitPos;
-					} else {
-						conn->i8uSrcBit = 0;
-						conn->i8uDestBit = 0;
-					}
-					return NULL;	// return value is not used in this recursive call
-				} else {
-					pr_err("error: attributes of connection %d are missing\n", i + 1);
-					return NULL;
-				}
-			}
-		}
-		break;
-	case JSON_ARRAY_BEGIN:
-		if (lvl == 100) {
-			ret = kzalloc(sizeof(piConnectionList) + element->length * sizeof(piConnection), GFP_KERNEL);
-			if (!ret)
-				return NULL;
-			ret->i16uNumEntries = element->length;
-			for (i = 0; i < element->length; i++) {
-				find_connections(element->u.array[i], devs, ent, &ret->conn[i], lvl + 1);
-			}
-		} else {
-//			for (i = 0; i < element->length; i++)
-//			{
-//				ret = find_connections(element->u.array[i], devs, ent, conn, lvl + 1);
-//			}
-		}
-		break;
-		break;
-	case JSON_FALSE:
-	case JSON_TRUE:
-	case JSON_NULL:
-		break;
-	case JSON_INT:
-		break;
-	case JSON_STRING:
-		break;
-	case JSON_FLOAT:
-		break;
-	default:
-		pr_err("error: unhandled type %d\n", element->type);
-		break;
-	}
-	return ret;
+	return 0;
 }
 
-int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piCopylist ** cl,
-		  piConnectionList ** connl)
+int piConfigParse(const char *filename, piDevices **devices_list,
+		  piEntries **entries_list, piCopylist **copy_list)
 {
 	int ret = 0, i, cnt, d, idx[4], exported_outputs;
+	piDevices *devs;
+	piEntries *ent;
+	piCopylist *cl;
 	json_config config;
 	json_val_t *root_structure;
 
@@ -690,169 +644,148 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 	config.allow_c_comments = 1;
 	config.allow_yaml_comments = 1;
 
-	*devs = NULL;
-	*ent = NULL;
-	*cl = NULL;
-	*connl = NULL;
-
 	ret = do_tree(&config, filename, &root_structure);
+	if (ret == -ENODATA) {
+		devs = kzalloc(sizeof(*devs), GFP_KERNEL);
+		ent = kzalloc(sizeof(*ent), GFP_KERNEL);
+		cl = kzalloc(sizeof(*cl), GFP_KERNEL);
+		if (!devs || !ent || !cl) {
+			kfree(cl);
+			kfree(ent);
+			kfree(devs);
+			return -ENOMEM;
+		}
+		ret = 0;
+		goto install_config;
+	}
 	if (ret)
-		return ret;
+		return -EINVAL;
 
-	*devs = find_devices(root_structure, NULL, 1);
-	if (*devs == NULL) {
+	devs = find_devices(root_structure, NULL, 1);
+	if (devs == NULL) {
 		pr_err("find_devices returned NULL\n");
-		return 3;
+		free_tree(root_structure);
+		return -EINVAL;
 	}
 
-	pr_info("found %d devices in configuration file\n", (*devs)->i16uNumDevices);
+	pr_info("found %d devices in configuration file\n", devs->i16uNumDevices);
 
 	cnt = 0;
-	for (i = 0; i < (*devs)->i16uNumDevices; i++)
-		cnt += (*devs)->dev[i].i16uEntries;
+	for (i = 0; i < devs->i16uNumDevices; i++)
+		cnt += devs->dev[i].i16uEntries;
 	pr_debug("%d entries in total\n", cnt);
 
-	*ent = kzalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
-	if (!*ent) {
-		kfree(*devs);
-		*devs = NULL;
-		return JSON_ERROR_NO_MEMORY;
+	ent = kzalloc(sizeof(piEntries) + cnt * sizeof(SEntryInfo), GFP_KERNEL);
+	if (!ent) {
+		kfree(devs);
+		free_tree(root_structure);
+		return -ENOMEM;
 	}
-	(*ent)->i16uNumEntries = cnt;
+	ent->i16uNumEntries = cnt;
 	cnt = 0;
-	find_entries(root_structure, *ent, &cnt, 0, 0, 1);
-
-	// copy the config value into the module driver
-	piDIOComm_InitStart();
-	piAIOComm_InitStart();
-	revpi_mio_reset();
-	revpi_ro_reset();
-
-	for (i = 0; i < (*devs)->i16uNumDevices; i++) {
-		switch ((*devs)->dev[i].i16uModuleType) {
-		case KUNBUS_FW_DESCR_TYP_PI_DIO_14:
-		case KUNBUS_FW_DESCR_TYP_PI_DI_16:
-		case KUNBUS_FW_DESCR_TYP_PI_DO_16:
-			piDIOComm_Config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_AIO:
-			piAIOComm_Config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_COMPACT:
-			revpi_compact_config((*devs)->dev[i].i8uAddress,
-					     (*devs)->dev[i].i16uEntries,
-					     &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_MIO:
-			revpi_mio_config((*devs)->dev[i].i8uAddress,
-					 (*devs)->dev[i].i16uEntries,
-					 &(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		case KUNBUS_FW_DESCR_TYP_PI_RO:
-			revpi_ro_config((*devs)->dev[i].i8uAddress,
-					(*devs)->dev[i].i16uEntries,
-					&(*ent)->ent[(*devs)->dev[i].i16uFirstEntry]);
-			break;
-		}
-
-	}
+	find_entries(root_structure, ent, &cnt, 0, 0, 1);
 
 	// now correct the offsets with the base offset of the module
 	d = 0;
 	i = 0;
 	exported_outputs = 0;
 	idx[0] = idx[1] = idx[2] = idx[3] = 0;
-	while (i < (*ent)->i16uNumEntries && d < (*devs)->i16uNumDevices) {
-		if ((*ent)->ent[i].i8uAddress != (*devs)->dev[d].i8uAddress) {
-			(*devs)->dev[d].i16uInputLength /= 8;
-			(*devs)->dev[d].i16uOutputLength /= 8;
-			(*devs)->dev[d].i16uConfigLength /= 8;
+	while (i < ent->i16uNumEntries && d < devs->i16uNumDevices && !ret) {
+		if (ent->ent[i].i8uAddress != devs->dev[d].i8uAddress) {
+			devs->dev[d].i16uInputLength /= 8;
+			devs->dev[d].i16uOutputLength /= 8;
+			devs->dev[d].i16uConfigLength /= 8;
+
+			if (!device_ranges_valid(&devs->dev[d]))
+				ret = -EINVAL;
 
 			d++;	// goto next device
 			idx[0] = idx[1] = idx[2] = idx[3] = 0;
 		} else {
-			u8 type = (*ent)->ent[i].i8uType;
+			u8 type = ent->ent[i].i8uType;
 			if (type == 0x82)
 				exported_outputs++;
 
 			type &= 0x7f;	// remove export flag
 
-			(*ent)->ent[i].i16uOffset += (*devs)->dev[d].i16uBaseOffset;
+			ent->ent[i].i16uDeviceOffset = ent->ent[i].i16uOffset;
+			ent->ent[i].i16uOffset += devs->dev[d].i16uBaseOffset;
 			if (type == 1)	// Input
 			{
-				if (idx[0] == 0 || (*devs)->dev[d].i16uInputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[0] == 0 || devs->dev[d].i16uInputOffset > ent->ent[i].i16uOffset) {
 					idx[0]++;
-					(*devs)->dev[d].i16uInputOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uInputOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uInputLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uInputLength += ent->ent[i].i16uBitLength;
 			} else if (type == 2)	// Output
 			{
-				if (idx[1] == 0 || (*devs)->dev[d].i16uOutputOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[1] == 0 || devs->dev[d].i16uOutputOffset > ent->ent[i].i16uOffset) {
 					idx[1]++;
-					(*devs)->dev[d].i16uOutputOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uOutputOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uOutputLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uOutputLength += ent->ent[i].i16uBitLength;
 			} else if (type == 3)	// Memory
 			{
-				if (idx[2] == 0 || (*devs)->dev[d].i16uConfigOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[2] == 0 || devs->dev[d].i16uConfigOffset > ent->ent[i].i16uOffset) {
 					idx[2]++;
-					(*devs)->dev[d].i16uConfigOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uConfigOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uConfigLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uConfigLength += ent->ent[i].i16uBitLength;
 			} else if (type == 4)	// Config
 			{
-				if (idx[3] == 0 || (*devs)->dev[d].i16uConfigOffset > (*ent)->ent[i].i16uOffset) {
+				if (idx[3] == 0 || devs->dev[d].i16uConfigOffset > ent->ent[i].i16uOffset) {
 					idx[3]++;
-					(*devs)->dev[d].i16uConfigOffset = (*ent)->ent[i].i16uOffset;
+					devs->dev[d].i16uConfigOffset = ent->ent[i].i16uOffset;
 				}
-				(*devs)->dev[d].i16uConfigLength += (*ent)->ent[i].i16uBitLength;
+				devs->dev[d].i16uConfigLength += ent->ent[i].i16uBitLength;
 			}
 
-			while ((*ent)->ent[i].i8uBitPos >= 8) {
-				(*ent)->ent[i].i8uBitPos -= 8;
-				(*ent)->ent[i].i16uOffset++;
+			while (ent->ent[i].i8uBitPos >= 8) {
+				ent->ent[i].i8uBitPos -= 8;
+				ent->ent[i].i16uOffset++;
+				ent->ent[i].i16uDeviceOffset++;
 			}
 
 			i++;
 		}
 	}
-	if (d < (*devs)->i16uNumDevices) {
-		(*devs)->dev[d].i16uInputLength /= 8;
-		(*devs)->dev[d].i16uOutputLength /= 8;
-		(*devs)->dev[d].i16uConfigLength /= 8;
+	if (d < devs->i16uNumDevices) {
+		devs->dev[d].i16uInputLength /= 8;
+		devs->dev[d].i16uOutputLength /= 8;
+		devs->dev[d].i16uConfigLength /= 8;
 
+		if (!device_ranges_valid(&devs->dev[d]))
+			ret = -EINVAL;
 	}
 
-	*connl = find_connections(root_structure, *devs, *ent, NULL, 1);
+	if (ret) {
+		kfree(ent);
+		kfree(devs);
+		free_tree(root_structure);
+		return ret;
+	}
 
 	// Generate Copy List
-	*cl = kzalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
-	if (!*cl) {
-		kfree(*connl);
-		*connl = NULL;
-		kfree(*ent);
-		*ent = NULL;
-		kfree(*devs);
-		*devs = NULL;
-		return JSON_ERROR_NO_MEMORY;
+	cl = kzalloc(sizeof(piCopylist) + exported_outputs * sizeof(piCopyEntry), GFP_KERNEL);
+	if (!cl) {
+		kfree(ent);
+		kfree(devs);
+		free_tree(root_structure);
+		return -ENOMEM;
 	}
-	(*cl)->i16uNumEntries = exported_outputs;
+	cl->i16uNumEntries = exported_outputs;
 	d = 0;
-	for (i = 0; i < (*ent)->i16uNumEntries && d <= exported_outputs; i++) {
-		if ((*ent)->ent[i].i8uType == 0x82) {
+	for (i = 0; i < ent->i16uNumEntries && d <= exported_outputs; i++) {
+		if (ent->ent[i].i8uType == 0x82) {
 			if (d == exported_outputs) {
-				pr_err("### internal error 1 ### %d %d  %d %d\n", i, (*ent)->i16uNumEntries, d,
+				pr_err("### internal error 1 ### %d %d  %d %d\n", i, ent->i16uNumEntries, d,
 				       exported_outputs);
 				exported_outputs = 0;
 			} else {
-				(*cl)->ent[d].i16uAddr = (*ent)->ent[i].i16uOffset;
-				(*cl)->ent[d].i8uBitMask =
-				    (0xff >> (8 - (*ent)->ent[i].i16uBitLength)) << (*ent)->ent[i].i8uBitPos;
-				(*cl)->ent[d].i16uLength = (*ent)->ent[i].i16uBitLength;
+				cl->ent[d].i16uAddr = ent->ent[i].i16uOffset;
+				cl->ent[d].i8uBitMask =
+				    (0xff >> (8 - ent->ent[i].i16uBitLength)) << ent->ent[i].i8uBitPos;
+				cl->ent[d].i16uLength = ent->ent[i].i16uBitLength;
 				d++;
 			}
 		}
@@ -860,9 +793,9 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 
 	// prüfe ob die Einträge aufsteigend sortiert sind
 	for (d = 1; d < exported_outputs; d++) {
-		if (((*cl)->ent[d - 1].i16uAddr > (*cl)->ent[d].i16uAddr)
-		    || (((*cl)->ent[d - 1].i16uAddr == (*cl)->ent[d].i16uAddr)
-			&& ((*cl)->ent[d - 1].i8uBitMask & (*cl)->ent[d].i8uBitMask)
+		if ((cl->ent[d - 1].i16uAddr > cl->ent[d].i16uAddr)
+		    || ((cl->ent[d - 1].i16uAddr == cl->ent[d].i16uAddr)
+			&& (cl->ent[d - 1].i8uBitMask & cl->ent[d].i8uBitMask)
 		    )
 		    ) {
 			pr_err("### internal error 2 ### %d\n", d);
@@ -873,36 +806,82 @@ int piConfigParse(const char *filename, piDevices ** devs, piEntries ** ent, piC
 
 	i = 0;
 	for (d = 1; d < exported_outputs; d++) {
-		if ((*cl)->ent[i].i16uAddr == (*cl)->ent[d].i16uAddr
-		    && (*cl)->ent[i].i16uLength < 8 && (*cl)->ent[d].i16uLength < 8) {
+		if (cl->ent[i].i16uAddr == cl->ent[d].i16uAddr
+		    && cl->ent[i].i16uLength < 8 && cl->ent[d].i16uLength < 8) {
 			// fasse die beiden Einträge zusammen
-			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
-			(*cl)->ent[i].i8uBitMask |= (*cl)->ent[d].i8uBitMask;
-		} else if ((*cl)->ent[i].i16uLength >= 8
-			   && (*cl)->ent[d].i16uLength >= 8
-			   && (*cl)->ent[d].i16uAddr == (*cl)->ent[i].i16uAddr + (*cl)->ent[i].i16uLength / 8) {
+			cl->ent[i].i16uLength += cl->ent[d].i16uLength;
+			cl->ent[i].i8uBitMask |= cl->ent[d].i8uBitMask;
+		} else if (cl->ent[i].i16uLength >= 8
+			   && cl->ent[d].i16uLength >= 8
+			   && cl->ent[d].i16uAddr == cl->ent[i].i16uAddr + cl->ent[i].i16uLength / 8) {
 			// fasse die beiden Einträge zusammen
-			(*cl)->ent[i].i16uLength += (*cl)->ent[d].i16uLength;
+			cl->ent[i].i16uLength += cl->ent[d].i16uLength;
 		} else {
 			// gehe zum nächsten Eintrag
-			pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
-				       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
+			pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, cl->ent[i].i16uAddr,
+				       cl->ent[i].i8uBitMask, cl->ent[i].i16uLength);
 
 			i++;
-			(*cl)->ent[i].i16uAddr = (*cl)->ent[d].i16uAddr;
-			(*cl)->ent[i].i8uBitMask = (*cl)->ent[d].i8uBitMask;
-			(*cl)->ent[i].i16uLength = (*cl)->ent[d].i16uLength;
+			cl->ent[i].i16uAddr = cl->ent[d].i16uAddr;
+			cl->ent[i].i8uBitMask = cl->ent[d].i8uBitMask;
+			cl->ent[i].i16uLength = cl->ent[d].i16uLength;
 		}
 	}
 	if (exported_outputs > 0) {
-		pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, (*cl)->ent[i].i16uAddr,
-			       (*cl)->ent[i].i8uBitMask, (*cl)->ent[i].i16uLength);
+		pr_debug("cl-comp: %2d addr %2d  bit %02x  len %3d\n", i, cl->ent[i].i16uAddr,
+			       cl->ent[i].i8uBitMask, cl->ent[i].i16uLength);
 		i++;
 	}
 
-	(*cl)->i16uNumEntries = i;
+	cl->i16uNumEntries = i;
+
+	/* copylist offsets index the process image directly, keep them in range */
+	for (i = 0; i < cl->i16uNumEntries; i++) {
+		u16 addr = cl->ent[i].i16uAddr;
+		u16 bytes = cl->ent[i].i16uLength >= 8 ?
+			    cl->ent[i].i16uLength / 8 : 1;
+
+		if (addr >= PICONTROL_PROCESS_IMAGE_LEN ||
+		    addr + bytes > PICONTROL_PROCESS_IMAGE_LEN) {
+			pr_err("export entry %d out of range (addr %u, len %u)\n",
+			       i, addr, cl->ent[i].i16uLength);
+			kfree(cl);
+			kfree(ent);
+			kfree(devs);
+			free_tree(root_structure);
+			return -EINVAL;
+		}
+	}
 
 	free_tree(root_structure);
+
+install_config:
+	/* Parsing ok, configure devices and replace old parsed data with new */
+	ret = apply_module_config(devs, ent);
+	if (ret) {
+		/*
+		 * The drivers hold a partially applied config now, put the
+		 * running one back since the caller still uses it.
+		 */
+		if (*devices_list && *entries_list)
+			apply_module_config(*devices_list, *entries_list);
+
+		kfree(cl);
+		kfree(ent);
+		kfree(devs);
+		return ret;
+	}
+
+	/* IO thread reads the copylist under lockPI, swap under it too */
+	scoped_guard(rt_mutex, &piDev_g.lockPI) {
+		kfree(*devices_list);
+		kfree(*entries_list);
+		kfree(*copy_list);
+
+		*devices_list = devs;
+		*entries_list = ent;
+		*copy_list = cl;
+	}
 
 	return ret;
 }
@@ -935,7 +914,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 			offset += bit / 8;
 			bit %= 8;
 
-			if (offset > (KB_PI_LEN - 1)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 1)) {
 				pr_err("invalid offset for configuration parameter %u\n",
 				       offset);
 				continue;
@@ -950,7 +929,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 
 			mem[offset] = val;
 		} else if (ent->i16uBitLength == 8) {
-			if (offset > (KB_PI_LEN - 1)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 1)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;
@@ -959,7 +938,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 		} else if (ent->i16uBitLength == 16) {
 			u16 *valptr;
 
-			if (offset > (KB_PI_LEN - 2)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 2)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;
@@ -969,7 +948,7 @@ void revpi_set_defaults(unsigned char *mem, piEntries *entries)
 		} else if (ent->i16uBitLength == 32) {
 			u32 *valptr;
 
-			if (offset > (KB_PI_LEN - 4)) {
+			if (offset > (PICONTROL_PROCESS_IMAGE_LEN - 4)) {
 				pr_err("invalid offset for configuration parameter (%u)\n",
 				       offset);
 				continue;

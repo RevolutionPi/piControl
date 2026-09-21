@@ -1,0 +1,69 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_GET_VALUE 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_GET_VALUE \- Get the value of a variable from the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_GET_VALUE, SPIValue *" value ");"
+.sp
+.B "#include <piControl.h>"
+.sp
+.B "typedef struct SPIValueStr SPIValue;"
+.fi
+
+.SH DESCRIPTION
+Read a value from the process image, given the address and, if only one bit
+should be read, the bit position which should be read.
+
+The
+.I i16uAddress
+field of the
+.BR SPIValue (2type)
+struct must be set.
+If the value that is to be read is only one bit wide, then the
+.I i8uBit
+field must be set as well, indicating which bit to read.
+
+The address of a process image variable can be identified with a unique string
+name by using the ioctl
+.BR KB_FIND_VARIABLE (2).
+
+The value can also be read through the
+.BR piControl (4)
+character device directly.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EAGAIN
+A driver reset is in progress.
+.TP
+.B EINVAL
+The
+.I i16uAddress
+field is set to a value that is bigger than the process image.
+.TP
+.B EFAULT
+Failure on copying values to/from caller.
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR KB_FIND_VARIABLE (2),
+.BR KB_SET_VALUE (2),
+.BR SPIValue (2type),
+.BR piControl (4)

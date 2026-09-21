@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2023 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/types.h>
 #include <linux/pibridge_comm.h>
@@ -10,7 +10,6 @@
 #include "revpi_core.h"
 #include "RevPiDevice.h"
 
-#define AIO_MAX_DEVS			10
 #define AIO_OUTPUT_DATA_LEN		sizeof(SAioRequest)
 #define AIO_INPUT_DATA_LEN		sizeof(SAioResponse)
 #define AIO_CONFIG_DATA2_LEN		sizeof(SAioInConfig)
@@ -18,30 +17,34 @@
 #define AIO_CONFIG_DATA1_LEN		sizeof(SAioConfig)
 
 static unsigned int num_aios = 0;
-static SAioConfig aioConfig_s[AIO_MAX_DEVS];
-static SAioInConfig aioIn1Config_s[AIO_MAX_DEVS];
-static SAioInConfig aioIn2Config_s[AIO_MAX_DEVS];
+static SAioConfig aioConfig_s[REV_PI_DEV_CNT_MAX];
+static SAioInConfig aioIn1Config_s[REV_PI_DEV_CNT_MAX];
+static SAioInConfig aioIn2Config_s[REV_PI_DEV_CNT_MAX];
 
-static u8 aio_dev[AIO_MAX_DEVS];
+static u8 aio_dev[REV_PI_DEV_CNT_MAX];
 
 void piAIOComm_InitStart(void)
 {
 	num_aios = 0;
+	memset(aioConfig_s, 0, sizeof(aioConfig_s));
+	memset(aioIn1Config_s, 0, sizeof(aioIn1Config_s));
+	memset(aioIn2Config_s, 0, sizeof(aioIn2Config_s));
+	memset(aio_dev, 0, sizeof(aio_dev));
 }
 
-u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
+int piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo *pEnt)
 {
 	u16 i;
 
-	if (num_aios >= AIO_MAX_DEVS) {
-		pr_err("max. number of AIOs reached\n");
-		return -1;
+	if (num_aios >= ARRAY_SIZE(aio_dev)) {
+		pr_err("too many AIOs (max %zu)\n", ARRAY_SIZE(aio_dev));
+		return -ERANGE;
 	}
 
 	aio_dev[num_aios] = addr;
 
 	for (i = 0; i < num_entries; i++) {
-		switch (pEnt[i].i16uOffset) {
+		switch (pEnt[i].i16uDeviceOffset) {
 		case AIO_OFFSET_InputValue_1:
 		case AIO_OFFSET_InputValue_2:
 		case AIO_OFFSET_InputValue_3:
@@ -190,7 +193,7 @@ u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 			aioConfig_s[num_aios].sAioOutputConfig[1].i16sB = pEnt[i].i32uDefault;
 			break;
 		default:
-			pr_err("piAIOComm_Config: Unknown parameter %d in rsc-file\n", pEnt[i].i16uOffset);
+			pr_err("piAIOComm_Config: Unknown parameter %d in rsc-file\n", pEnt[i].i16uDeviceOffset);
 		}
 	}
 
@@ -199,7 +202,7 @@ u32 piAIOComm_Config(u8 addr, u16 num_entries, SEntryInfo * pEnt)
 	return 0;
 }
 
-u32 piAIOComm_Init(u8 devnum)
+int piAIOComm_Init(u8 devnum)
 {
 	void *snd_buf;
 	int dev_idx;
@@ -214,75 +217,39 @@ u32 piAIOComm_Init(u8 devnum)
 	}
 
 	if (dev_idx == num_aios)
-		return 4; // unknown device
+		return REVPI_MODULE_NOT_CONFIGURED;
 
 	snd_buf = &aioIn1Config_s[dev_idx];
-
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA2,
-			      snd_buf, AIO_CONFIG_DATA2_LEN, NULL, 0);
-	if (ret)
-		return 3;
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA2, snd_buf,
+				AIO_CONFIG_DATA2_LEN);
+	if (ret < 0)
+		return ret;
 
 	snd_buf = &aioIn2Config_s[dev_idx];
-
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA3,
-			      snd_buf, AIO_CONFIG_DATA3_LEN, NULL, 0);
-	if (ret)
-		return 3;
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_DATA3, snd_buf,
+				AIO_CONFIG_DATA3_LEN);
+	if (ret < 0)
+		return ret;
 
 	snd_buf = &aioConfig_s[dev_idx];
-
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_CFG,
-			      snd_buf, AIO_CONFIG_DATA1_LEN, NULL, 0);
-	if (ret)
-		return 3;
+	ret = revpi_send_config(addr, IOP_TYP1_CMD_CFG, snd_buf,
+				AIO_CONFIG_DATA1_LEN);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
 
-u32 piAIOComm_sendCyclicTelegram(u8 devnum)
+int piAIOComm_sendCyclicTelegram(u8 devnum)
 {
 	u8 snd_buf[AIO_OUTPUT_DATA_LEN];
 	u8 rcv_buf[AIO_INPUT_DATA_LEN];
-	SDevice *revpi_dev;
-	u8 addr;
-	int ret;
-
-	revpi_dev = RevPiDevice_getDev(devnum);
+	SDevice *revpi_dev = RevPiDevice_getDev(devnum);
 
 	if (revpi_dev->sId.i16uFBS_OutputLength != AIO_OUTPUT_DATA_LEN)
-		return 4;
+		return -EINVAL;
 
-	addr = revpi_dev->i8uAddress;
-
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(snd_buf, piDev_g.ai8uPI + revpi_dev->i16uOutputOffset,
-		       AIO_OUTPUT_DATA_LEN);
-		rt_mutex_unlock(&piDev_g.lockPI);
-	} else {
-		memset(snd_buf, 0, AIO_OUTPUT_DATA_LEN);
-	}
-
-	ret = pibridge_req_io(piCore_g.pibridge, addr, IOP_TYP1_CMD_DATA,
-			      snd_buf, AIO_OUTPUT_DATA_LEN, rcv_buf,
-			      AIO_INPUT_DATA_LEN);
-	if (ret != AIO_INPUT_DATA_LEN) {
-		pr_debug("AIO addr %2d: communication failed (req:%zu,ret:%d)\n",
-			addr, AIO_INPUT_DATA_LEN, ret);
-
-		if (ret >= 0)
-			ret = -EIO;
-
-		return ret;
-	}
-
-	if (!test_bit(PICONTROL_DEV_FLAG_STOP_IO, &piDev_g.flags)) {
-		rt_mutex_lock(&piDev_g.lockPI);
-		memcpy(piDev_g.ai8uPI + revpi_dev->i16uInputOffset, rcv_buf,
-		       AIO_INPUT_DATA_LEN);
-		rt_mutex_unlock(&piDev_g.lockPI);
-	}
-
-	return 0;
+	return revpi_cyclic_exchange(devnum, IOP_TYP1_CMD_DATA,
+				     snd_buf, sizeof(snd_buf),
+				     rcv_buf, sizeof(rcv_buf));
 }

@@ -1,0 +1,78 @@
+.\" SPDX-License-Identifier: GPL-2.0-only
+.\" SPDX-FileCopyrightText: 2018-2026 KUNBUS GmbH
+.TH KB_WAIT_FOR_EVENT 2 2026-08-14 "Linux"
+
+.SH NAME
+KB_WAIT_FOR_EVENT \- wait for an event from the piControl driver
+
+.SH SYNOPSIS
+.nf
+.B "#include <piControl.h>"
+.B "#include <sys/ioctl.h>"
+.sp
+.BI "int ioctl(int " fd ", KB_WAIT_FOR_EVENT, int *" event ");"
+.fi
+
+.SH DESCRIPTION
+Wait for the piControl driver to emit an event.
+
+This
+.BR ioctl (2)
+blocks until an event is emitted from the piControl driver. The event is written
+to the
+.I event
+pointer that was given as the only argument.
+
+The following events are defined:
+
+.TP
+.B KB_EVENT_RESET
+This event is emitted if the piControl driver is reset through
+.BR KB_RESET (2).
+It can, for example, be used for updating the calling application's variable
+offsets in the process image when a reset occurred.
+
+.SH RETURN VALUE
+On success, 0 is returned.
+
+On error, \-1 is returned and
+.I errno
+is set to indicate the error.
+
+.SH ERRORS
+Error codes set in
+.I errno
+can be, among others, one of the following:
+.TP
+.B EFAULT
+Failure on copying the event to the caller.
+
+.SH EXAMPLES
+
+.SS Waiting for a driver reset
+
+If a user of the
+.BR ioctl (2)
+interface of the piControl driver duplicates some state in the user application,
+this state could become out of date when the configuration file is changed and
+the piControl driver is reset through
+.BR KB_RESET (2).
+
+To catch this case, the
+.BR KB_WAIT_FOR_EVENT (2)
+.BR ioctl (2)
+can be used to reload the state when a
+.I KB_EVENT_RESET
+occurs.
+
+.EX
+int event;
+do {
+	if (ioctl(fd, KB_WAIT_FOR_EVENT, &event) < 0)
+		exit(-1);
+} while (event != KB_EVENT_RESET);
+.EE
+
+.SH SEE ALSO
+.BR ioctl (2),
+.BR KB_RESET (2)

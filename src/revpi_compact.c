@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2017-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2017-2026 KUNBUS GmbH
 
 // revpi_compact.c - RevPi Compact specific handling
 
@@ -257,9 +257,9 @@ static int revpi_compact_poll_ain(void *data)
 				unsigned long config = machine->config.ain[i];
 
 				if (!test_bit(AIN_ENABLED, &config)) {
-					rt_mutex_lock(&piDev_g.lockPI);
-					image->drv.ain[i] = 0;
-					rt_mutex_unlock(&piDev_g.lockPI);
+					scoped_guard(rt_mutex, &piDev_g.lockPI) {
+						image->drv.ain[i] = 0;
+					}
 					continue;
 				}
 
@@ -286,41 +286,39 @@ static int revpi_compact_poll_ain(void *data)
 			complete(&machine->ain_reset);
 		}
 
-		if (!numchans)
-			goto next_chan; /* only update core freq and temp */
+		if (numchans) {
+			/* poll ain */
+			ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
 
-		/* poll ain */
-		ret = iio_read_channel_raw(&machine->ain[mux[i]], &raw);
+			scoped_guard(rt_mutex, &piDev_g.lockPI) {
+				assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
+				if (ret < 0) {
+					image->drv.ain[chan[i]] = 0;
+				}
+			}
 
-		rt_mutex_lock(&piDev_g.lockPI);
-		assign_bit_in_byte(AIN_TX_ERR, &image->drv.ain_status, ret < 0);
-		if (ret < 0) {
-			image->drv.ain[chan[i]] = 0;
-			rt_mutex_unlock(&piDev_g.lockPI);
-			goto next_chan;
+			if (ret >= 0) {
+				/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
+				tmp = shift_right((s64)raw * 12500 * 100000000LL, 21);
+				raw = (int)div_s64(tmp, 100000000LL) + 6250;
+
+				if (rtd[i]) {
+					/*
+					 * resistance in Ohm = raw value in mV / 2.5 mA,
+					 * scaled by 10 for PT1000 or by 100 for PT100
+					 * to match up with values in pt100_table.inc
+					 */
+					int resistance = pt1k[i] ? raw * 100 / 25
+								 : raw * 1000 / 25;
+					GetPt100Temperature(resistance, &raw);
+				}
+
+				scoped_guard(rt_mutex, &piDev_g.lockPI) {
+					image->drv.ain[chan[i]] = raw;
+				}
+			}
 		}
-		rt_mutex_unlock(&piDev_g.lockPI);
 
-		/* raw value in mV = ((raw * 12.5V) >> 21 bit) + 6.25V */
-		tmp = shift_right((s64)raw * 12500 * 100000000LL, 21);
-		raw = (int)div_s64(tmp, 100000000LL) + 6250;
-
-		if (rtd[i]) {
-			/*
-			 * resistance in Ohm = raw value in mV / 2.5 mA,
-			 * scaled by 10 for PT1000 or by 100 for PT100
-			 * to match up with values in pt100_table.inc
-			 */
-			int resistance = pt1k[i] ? raw * 100 / 25
-						 : raw * 1000 / 25;
-			GetPt100Temperature(resistance, &raw);
-		}
-
-		rt_mutex_lock(&piDev_g.lockPI);
-		image->drv.ain[chan[i]] = raw;
-		rt_mutex_unlock(&piDev_g.lockPI);
-
-next_chan:
 		if (++i >= numchans) {
 			int ret;
 			int freq;
@@ -340,11 +338,11 @@ next_chan:
 			*/
 			freq = cpufreq_quick_get(0);
 
-			rt_mutex_lock(&piDev_g.lockPI);
-			if (piDev_g.thermal_zone != NULL && !ret)
-				image->drv.i8uCPUTemperature = temp / 1000;
-			image->drv.i8uCPUFrequency = freq / 10;
-			rt_mutex_unlock(&piDev_g.lockPI);
+			scoped_guard(rt_mutex, &piDev_g.lockPI) {
+				if (piDev_g.thermal_zone != NULL && !ret)
+					image->drv.i8uCPUTemperature = temp / 1000;
+				image->drv.i8uCPUFrequency = freq / 10;
+			}
 		}
 
 		cycletimer_sleep(&ct, &machine->stats);
@@ -369,6 +367,8 @@ static int match_name(struct device *dev, const void *data)
 u32 revpi_compact_config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 {
 	u16 i;
+
+	memset(&revpi_compact_config_g, 0, sizeof(revpi_compact_config_g));
 
 	for (i = 0; i < i16uNumEntries; i++) {
 		switch (pEnt[i].i16uOffset) {
@@ -410,7 +410,7 @@ u32 revpi_compact_config(u8 i8uAddress, u16 i16uNumEntries, SEntryInfo * pEnt)
 void revpi_compact_adjust_config(void)
 {
 	int i, j;
-	int result = 0, found;
+	int found;
 
 	RevPiDevice_init();
 
@@ -435,7 +435,6 @@ void revpi_compact_adjust_config(void)
 					pr_warn("## address %d: incorrect module type %d != %d\n",
 						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uModulType,
 						piDev_g.devs->dev[i].i16uModuleType);
-					result = PICONTROL_CONFIG_ERROR_WRONG_MODULE_TYPE;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					break;
 				}
@@ -443,7 +442,6 @@ void revpi_compact_adjust_config(void)
 					pr_warn("## address %d: incorrect input length %d != %d\n",
 						RevPiDevice_getDev(j)->i8uAddress, RevPiDevice_getDev(j)->sId.i16uFBS_InputLength,
 						piDev_g.devs->dev[i].i16uInputLength);
-					result = PICONTROL_CONFIG_ERROR_WRONG_INPUT_LENGTH;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					break;
 				}
@@ -452,18 +450,19 @@ void revpi_compact_adjust_config(void)
 						RevPiDevice_getDev(j)->i8uAddress,
 						RevPiDevice_getDev(j)->sId.i16uFBS_OutputLength,
 						piDev_g.devs->dev[i].i16uOutputLength);
-					result = PICONTROL_CONFIG_ERROR_WRONG_OUTPUT_LENGTH;
 					RevPiDevice_setStatus(0, PICONTROL_STATUS_SIZE_MISMATCH);
 					break;
 				}
 				// we found the device in the configuration file
 				// -> adjust offsets
-				pr_info_master("Adjust: base %d in %d out %d conf %d\n",
+				pr_debug("Adjust: base %d in %d out %d conf %d\n",
 					       piDev_g.devs->dev[i].i16uBaseOffset,
 					       piDev_g.devs->dev[i].i16uInputOffset,
 					       piDev_g.devs->dev[i].i16uOutputOffset,
 					       piDev_g.devs->dev[i].i16uConfigOffset);
 
+				RevPiDevice_getDev(j)->i16uBaseOffset =
+					piDev_g.devs->dev[i].i16uBaseOffset;
 				RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 				RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
 				RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
@@ -494,7 +493,8 @@ void revpi_compact_adjust_config(void)
 				RevPiDevice_getDev(j)->i8uActive = 1;
 				RevPiDevice_getDev(j)->sId.i16uModulType = piDev_g.devs->dev[i].i16uModuleType;
 			} else {
-				pr_err("module type %d is not allowed on a RevPi Compact. Only sw modules are allowed.\n", piDev_g.devs->dev[i].i16uModuleType);
+				pr_err("module type %d is not allowed on a RevPi Compact. Only software modules are allowed.\n",
+				       piDev_g.devs->dev[i].i16uModuleType);
 				RevPiDevice_setStatus(0, PICONTROL_STATUS_MISSING_MODULE);
 				RevPiDevice_getDev(j)->i8uActive = 0;
 				RevPiDevice_getDev(j)->sId.i16uModulType =
@@ -502,6 +502,7 @@ void revpi_compact_adjust_config(void)
 			}
 			RevPiDevice_getDev(j)->i8uAddress = piDev_g.devs->dev[i].i8uAddress;
 			RevPiDevice_getDev(j)->i8uScan = 0;
+			RevPiDevice_getDev(j)->i16uBaseOffset = piDev_g.devs->dev[i].i16uBaseOffset;
 			RevPiDevice_getDev(j)->i16uInputOffset = piDev_g.devs->dev[i].i16uInputOffset;
 			RevPiDevice_getDev(j)->i16uOutputOffset = piDev_g.devs->dev[i].i16uOutputOffset;
 			RevPiDevice_getDev(j)->i16uConfigOffset = piDev_g.devs->dev[i].i16uConfigOffset;
@@ -737,12 +738,12 @@ int revpi_compact_reset(void)
 	int ret;
 
 	/* disallow access to process image while offsets are changed */
-	rt_mutex_lock(&piDev_g.lockPI);
-	revpi_compact_adjust_config();
-	memset(&image->usr, 0, sizeof(image->usr));
-	if (piDev_g.ent)
-		revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
-	rt_mutex_unlock(&piDev_g.lockPI);
+	scoped_guard(rt_mutex, &piDev_g.lockPI) {
+		revpi_compact_adjust_config();
+		memset(&image->usr, 0, sizeof(image->usr));
+		if (piDev_g.ent)
+			revpi_set_defaults(piDev_g.ai8uPI, piDev_g.ent);
+	}
 
 	machine->config = revpi_compact_config_g;
 

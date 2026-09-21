@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: 2016-2024 KUNBUS GmbH
+// SPDX-FileCopyrightText: 2016-2026 KUNBUS GmbH
 
 #include <linux/pibridge_comm.h>
 #include <linux/of.h>
+#include <linux/spinlock.h>
 
 #include "RevPiDevice.h"
 #include "piAIOComm.h"
+#include "piControl.h"
 #include "piDIOComm.h"
 #include "revpi_core.h"
 #include "revpi_mio.h"
@@ -13,8 +15,9 @@
 #include "picontrol_trace.h"
 
 static SDeviceConfig RevPiDevices_s;
+static DEFINE_SPINLOCK(status_lock);
 
-const MODGATECOM_IDResp RevPiCore_ID_g = {
+static const MODGATECOM_IDResp RevPiCore_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CORE,
 	.i16uHW_Revision = 1,
@@ -26,7 +29,7 @@ const MODGATECOM_IDResp RevPiCore_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
-const MODGATECOM_IDResp RevPiCompact_ID_g = {
+static const MODGATECOM_IDResp RevPiCompact_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_COMPACT,
 	.i16uHW_Revision = 1,
@@ -38,7 +41,7 @@ const MODGATECOM_IDResp RevPiCompact_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
-const MODGATECOM_IDResp RevPiConnect_ID_g = {
+static const MODGATECOM_IDResp RevPiConnect_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT,
 	.i16uHW_Revision = 1,
@@ -50,7 +53,7 @@ const MODGATECOM_IDResp RevPiConnect_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
-const MODGATECOM_IDResp RevPiConnect4_ID_g = {
+static const MODGATECOM_IDResp RevPiConnect4_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT_4,
 	.i16uHW_Revision = 1,
@@ -62,7 +65,7 @@ const MODGATECOM_IDResp RevPiConnect4_ID_g = {
 	.i16uFeatureDescriptor = 0
 };
 
-const MODGATECOM_IDResp RevPiConnect5_ID_g = {
+static const MODGATECOM_IDResp RevPiConnect5_ID_g = {
 	.i32uSerialnumber = 1,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_CONNECT_5,
 	.i16uHW_Revision = 1,
@@ -74,7 +77,7 @@ const MODGATECOM_IDResp RevPiConnect5_ID_g = {
 	.i16uFeatureDescriptor = 0
 };
 
-const MODGATECOM_IDResp RevPiFlat_ID_g = {
+static const MODGATECOM_IDResp RevPiFlat_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_FLAT,
 	.i16uHW_Revision = 1,
@@ -86,7 +89,7 @@ const MODGATECOM_IDResp RevPiFlat_ID_g = {
 	.i16uFeatureDescriptor = MODGATE_feature_IODataExchange
 };
 
-const MODGATECOM_IDResp RevPiGeneric_ID_g = {
+static const MODGATECOM_IDResp RevPiGeneric_ID_g = {
 	.i32uSerialnumber = REV_PI_DEV_DEFAULT_SERIAL,
 	.i16uModulType = KUNBUS_FW_DESCR_TYP_PI_REVPI_GENERIC_PB,
 	.i16uHW_Revision = 1,
@@ -103,43 +106,44 @@ void RevPiDevice_handle_internal_telegrams(void)
 	int ret = 0;
 
 	/* If requested by user, send internal io/gate telegram(s) */
-	rt_mutex_lock(&piCore_g.lockUserTel);
-	if (piCore_g.pendingUserTel == true) {
-		SIOGeneric *req = &piCore_g.requestUserTel;
-		SIOGeneric *resp = &piCore_g.responseUserTel;
-		UIoProtocolHeader *hdr = &req->uHeader;
+	scoped_guard(rt_mutex, &piCore_g.lockUserTel) {
+		if (piCore_g.pendingUserTel == true) {
+			SIOGeneric *req = &piCore_g.requestUserTel;
+			SIOGeneric *resp = &piCore_g.responseUserTel;
+			UIoProtocolHeader *hdr = &req->uHeader;
 
-		/* avoid leaking response of previous telegram to user space */
-		memset(resp, 0, sizeof(*resp));
+			/* avoid leaking response of previous telegram to user space */
+			memset(resp, 0, sizeof(*resp));
 
-		ret = pibridge_req_io(piCore_g.pibridge,
-				      hdr->sHeaderTyp1.bitAddress,
-				      hdr->sHeaderTyp1.bitCommand,
-				      req->ai8uData,
-				      hdr->sHeaderTyp1.bitLength,
-				      resp->ai8uData,
-				      sizeof(resp->ai8uData) - 1);
-		if (ret < 0) {
-			piCore_g.statusUserTel = ret;
-		} else {
-			piCore_g.statusUserTel = 0;
-			resp->uHeader.sHeaderTyp1.bitLength = ret;
+			ret = pibridge_req_io_tmt(piCore_g.pibridge,
+						  hdr->sHeaderTyp1.bitAddress,
+						  hdr->sHeaderTyp1.bitCommand,
+						  req->ai8uData,
+						  hdr->sHeaderTyp1.bitLength,
+						  resp->ai8uData,
+						  sizeof(resp->ai8uData) - 1,
+						  piCore_g.timeoutUserTel);
+			if (ret < 0) {
+				piCore_g.statusUserTel = ret;
+			} else {
+				piCore_g.statusUserTel = 0;
+				resp->uHeader.sHeaderTyp1.bitLength = ret;
+			}
+			piCore_g.pendingUserTel = false;
+			up(&piCore_g.semUserTel);
 		}
-		piCore_g.pendingUserTel = false;
-		up(&piCore_g.semUserTel);
 	}
-	rt_mutex_unlock(&piCore_g.lockUserTel);
 
-	rt_mutex_lock(&piCore_g.lockGateTel);
-	if (piCore_g.pendingGateTel == true) {
-		piCore_g.statusGateTel =
-			pibridge_req_gate_datagram(piCore_g.pibridge,
-						   &piCore_g.gate_req_dgram,
-						   &piCore_g.gate_resp_dgram);
-		piCore_g.pendingGateTel = false;
-		up(&piCore_g.semGateTel);
+	scoped_guard(rt_mutex, &piCore_g.lockGateTel) {
+		if (piCore_g.pendingGateTel == true) {
+			piCore_g.statusGateTel =
+				pibridge_req_gate_datagram(piCore_g.pibridge,
+							   &piCore_g.gate_req_dgram,
+							   &piCore_g.gate_resp_dgram);
+			piCore_g.pendingGateTel = false;
+			up(&piCore_g.semGateTel);
+		}
 	}
-	rt_mutex_unlock(&piCore_g.lockGateTel);
 }
 
 
@@ -174,18 +178,25 @@ int RevPiDevice_hat_serial(void)
 
 void RevPiDevice_init(void)
 {
+	int i;
+
 	pr_debug("RevPiDevice_init()\n");
 
 	piCore_g.cycle_num = 0;
-	piCore_g.comm_errors = 0;
 	piCore_g.i8uLeftMGateIdx = REV_PI_DEV_UNDEF;
 	piCore_g.i8uRightMGateIdx = REV_PI_DEV_UNDEF;
-	RevPiDevices_s.i8uAddressRight = REV_PI_DEV_FIRST_RIGHT;	// first address of a right side module
+	RevPiDevices_s.i8uAddressRight = PICONTROL_DEV_FIRST_RIGHT;	// first address of a right side module
 	RevPiDevices_s.gatewayRight = false;
-	RevPiDevices_s.i8uAddressLeft = REV_PI_DEV_FIRST_LEFT;		// first address of a left side module
+	RevPiDevices_s.i8uAddressLeft = PICONTROL_DEV_FIRST_LEFT;	// first address of a left side module
 	RevPiDevices_s.gatewayLeft = false;
 	RevPiDevice_resetDevCnt();	// counter for detected devices
 	RevPiDevices_s.i16uErrorCnt = 0;
+
+	// start each (re)configuration with a clean per-module error state
+	for (i = 0; i < ARRAY_SIZE(RevPiDevices_s.dev); i++) {
+		RevPiDevices_s.dev[i].i16uErrorCnt = 0;
+		RevPiDevices_s.dev[i].i8uModuleState = IOSTATE_OFFLINE;
+	}
 
 	// RevPi as first entry to device list
 	RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = 0;
@@ -247,22 +258,31 @@ void RevPiDevice_init(void)
 	RevPiDevice_incDevCnt();
 }
 
-void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval)
+void revpi_dev_update_state(u8 i8uDevice, int r, int *retval)
 {
-	if (r) {
-		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt < 255) {
-			RevPiDevice_getDev(i8uDevice)->i16uErrorCnt++;
-		}
-		else
-			RevPiDevice_getDev(i8uDevice)->i8uModuleState = IOSTATE_OFFLINE;
+	SDevice *dev = RevPiDevice_getDev(i8uDevice);
+
+	if (r < 0) {
+		if (dev->i16uErrorCnt < U16_MAX)
+			dev->i16uErrorCnt++;
+		// the module is reported offline from PiBridgeMaster_checkErrorLimits()
+		// once the configured error limit is reached
 		*retval -= 1;	// tell calling function that an error occured
-		if (RevPiDevice_getDev(i8uDevice)->i16uErrorCnt > 1) {
+		if (dev->i16uErrorCnt > 1) {
 			// the first error is ignored
-			RevPiDevices_s.i16uErrorCnt += RevPiDevice_getDev(i8uDevice)->i16uErrorCnt;
+			if ((RevPiDevices_s.i16uErrorCnt + dev->i16uErrorCnt) > U16_MAX)
+				RevPiDevices_s.i16uErrorCnt = U16_MAX;
+			else
+				RevPiDevices_s.i16uErrorCnt += dev->i16uErrorCnt;
 		}
 	} else {
-		RevPiDevice_getDev(i8uDevice)->i16uErrorCnt = 0;
-		RevPiDevice_getDev(i8uDevice)->i8uModuleState = IOSTATE_CYCLIC_IO;
+		u16 offline_limit = piCore_g.image.usr.i16uRS485ErrorLimit2;
+
+		/* report recovery only for a module that had reached the offline limit */
+		if (offline_limit && dev->i16uErrorCnt >= offline_limit)
+			pr_info("module at address %u back online\n", dev->i8uAddress);
+		dev->i16uErrorCnt = 0;
+		dev->i8uModuleState = IOSTATE_CYCLIC_IO;
 	}
 }
 
@@ -280,7 +300,7 @@ void revpi_dev_update_state(u8 i8uDevice, u32 r, int *retval)
 int RevPiDevice_run(void)
 {
 	u8 i8uDevice = 0;
-	u32 r;
+	int r;
 	int retval = 0;
 	SDevice *dev;
 
@@ -313,31 +333,8 @@ int RevPiDevice_run(void)
 				revpi_dev_update_state(i8uDevice, r, &retval);
 				break;
 
-			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN:
-			case KUNBUS_FW_DESCR_TYP_MG_DEV_NET:
-			case KUNBUS_FW_DESCR_TYP_MG_ETHERCAT:
-			case KUNBUS_FW_DESCR_TYP_MG_ETHERNET_IP:
-			case KUNBUS_FW_DESCR_TYP_MG_POWERLINK:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFIBUS:
-			case KUNBUS_FW_DESCR_TYP_MG_PROFINET_IRT:
-			case KUNBUS_FW_DESCR_TYP_MG_CAN_OPEN_MASTER:
-			case KUNBUS_FW_DESCR_TYP_MG_SERCOS3:
-			case KUNBUS_FW_DESCR_TYP_MG_SERIAL:
-			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_RTU:
-			case KUNBUS_FW_DESCR_TYP_MG_MODBUS_TCP:
-			case KUNBUS_FW_DESCR_TYP_MG_DMX:
-				if (piCore_g.i8uRightMGateIdx == REV_PI_DEV_UNDEF
-				    && dev->i8uAddress >= REV_PI_DEV_FIRST_RIGHT) {
-					piCore_g.i8uRightMGateIdx = i8uDevice;
-				} else if (piCore_g.i8uLeftMGateIdx == REV_PI_DEV_UNDEF
-					   && dev->i8uAddress < REV_PI_DEV_FIRST_RIGHT) {
-					piCore_g.i8uLeftMGateIdx = i8uDevice;
-				}
-				break;
-
 			default:
-				//TODO
-				// user devices are ignored here
+				// ignore base device, virtual modules and gateways
 				break;
 			}
 			trace_picontrol_cyclic_device_data_stop(dev->i8uAddress);
@@ -352,120 +349,122 @@ int RevPiDevice_run(void)
 
 bool RevPiDevice_writeNextConfiguration(u8 i8uAddress_p, MODGATECOM_IDResp * pModgateId_p)
 {
+	int attempts = 3;
 	u32 ret_l;
 	u16 i16uLen_l = sizeof(MODGATECOM_IDResp);
-	//
-	ret_l =
-	    piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0, (u8 *) pModgateId_p, &i16uLen_l);
-	msleep(3);		// wait a while
+
+	/*
+	 * A gateway which booted too late for the master present pulse
+	 * answers scan requests as well, its late response corrupts the
+	 * following request. Retry silently like PiIoSetAddress does.
+	 */
+	do {
+		ret_l = piIoComm_sendRS485Tel(eCmdGetDeviceInfo, 77, NULL, 0,
+					      (u8 *) pModgateId_p, &i16uLen_l);
+		msleep(3);	// wait a while
+	} while (ret_l && --attempts);
+
 	if (ret_l) {
-		pr_err("piIoComm_sendRS485Tel(GetDeviceInfo) failed %d\n", ret_l);
+		pr_err("GetDeviceInfo for designated address %u failed: %d\n",
+			i8uAddress_p, ret_l);
 		return false;
 	} else {
 		pr_debug("GetDeviceInfo: Id %d\n", pModgateId_p->i16uModulType);
 	}
 
-	ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
+	ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, NULL);
 	msleep(3);		// wait a while
 	if (ret_l) {
-		ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
+		ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL,
+					      NULL);
 		msleep(3);		// wait a while
 		if (ret_l) {
-			ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0, NULL, 0);
+			ret_l = piIoComm_sendRS485Tel(eCmdPiIoSetAddress, i8uAddress_p, NULL, 0,
+						      NULL, NULL);
 			msleep(3);		// wait a while
 			if (ret_l)
-				pr_err("piIoComm_sendRS485Tel(PiIoSetAddress) failed %d\n", ret_l);
+				pr_err("PiIoSetAddress for designated address %u failed: %d\n",
+					i8uAddress_p, ret_l);
 		}
 		return false;
 	}
 	return true;
 }
 
+static bool write_next_config_side(bool right)
+{
+	SDevice *dev = RevPiDevice_getDev(RevPiDevice_getDevCnt());
+	u8 addr = right ? RevPiDevices_s.i8uAddressRight :
+			  RevPiDevices_s.i8uAddressLeft;
+
+	/*
+	 * Address 0 is the RevPi itself, so past either end of the usable
+	 * range an address aliases onto another module or a broadcast.
+	 */
+	if (right ? addr >= IOP_ADDR_BROADCAST : addr == 0) {
+		pr_err("no address left for a further module on the %s side\n",
+		       right ? "right" : "left");
+		return false;
+	}
+
+	if (!RevPiDevice_writeNextConfiguration(addr, &dev->sId))
+		return false;
+
+	dev->i8uAddress = addr;
+	if (RevPiDevice_getDevCnt() == 0) {
+		dev->i16uInputOffset = 0;
+		dev->i16uOutputOffset = dev->sId.i16uFBS_InputLength;
+	} else {
+		SDevice *prev = RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1);
+
+		dev->i16uInputOffset = prev->i16uOutputOffset +
+				       prev->sId.i16uFBS_OutputLength;
+		dev->i16uOutputOffset = dev->i16uInputOffset +
+					dev->sId.i16uFBS_InputLength;
+	}
+
+	pr_info("found %d. device on %s side. Moduletype %d. Designated address %d\n",
+		RevPiDevice_getDevCnt() + 1, right ? "right" : "left",
+		dev->sId.i16uModulType, addr);
+	pr_debug("input offset  %5d  len %3d\n", dev->i16uInputOffset,
+		 dev->sId.i16uFBS_InputLength);
+	pr_debug("output offset %5d  len %3d\n", dev->i16uOutputOffset,
+		 dev->sId.i16uFBS_OutputLength);
+
+	dev->i8uActive = 1;
+	dev->i8uScan = 1;
+
+	if (dev->sId.i16uFeatureDescriptor & MODGATE_feature_IODataExchange) {
+		if (right)
+			RevPiDevices_s.gatewayRight = true;
+		else
+			RevPiDevices_s.gatewayLeft = true;
+	}
+
+	RevPiDevice_incDevCnt();
+	if (right)
+		RevPiDevices_s.i8uAddressRight++;
+	else
+		RevPiDevices_s.i8uAddressLeft--;
+
+	return true;
+}
+
 bool RevPiDevice_writeNextConfigurationRight(void)
 {
-	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressRight, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressRight;
-		if (RevPiDevice_getDevCnt() == 0) {
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
-		} else {
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->i16uOutputOffset +
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->sId.i16uFBS_OutputLength;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset +
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
-		}
-		pr_info("found %d. device on right side. Moduletype %d. Designated address %d\n",
-			RevPiDevice_getDevCnt() + 1, RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType,
-			RevPiDevices_s.i8uAddressRight);
-		pr_debug("input offset  %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
-		pr_debug("output offset %5d  len %3d\n", RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
-
-		if (RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFeatureDescriptor &
-		    MODGATE_feature_IODataExchange) {
-			RevPiDevices_s.gatewayRight = true;
-		}
-
-		RevPiDevice_incDevCnt();
-		RevPiDevices_s.i8uAddressRight++;
-		return true;
-	} else {
-		//TODO restart with reset
-	}
-	return false;
+	return write_next_config_side(true);
 }
 
 bool RevPiDevice_writeNextConfigurationLeft(void)
 {
-	if (RevPiDevice_writeNextConfiguration(RevPiDevices_s.i8uAddressLeft, &RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId)) {
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uAddress = RevPiDevices_s.i8uAddressLeft;
-		if (RevPiDevice_getDevCnt() == 0) {
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset = 0;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
-		} else {
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->i16uOutputOffset +
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt() - 1)->sId.i16uFBS_OutputLength;
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset =
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset +
-			    RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength;
-		}
-		pr_info("found %d. device on left side. Moduletype %d. Designated address %d\n",
-			RevPiDevice_getDevCnt() + 1,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uModulType, RevPiDevices_s.i8uAddressLeft);
-		pr_debug("input offset  %5d  len %3d\n",
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uInputOffset,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_InputLength);
-		pr_debug("output offset %5d  len %3d\n",
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->i16uOutputOffset,
-			RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFBS_OutputLength);
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uActive = 1;
-		RevPiDevice_getDev(RevPiDevice_getDevCnt())->i8uScan = 1;
-
-		if (RevPiDevice_getDev(RevPiDevice_getDevCnt())->sId.i16uFeatureDescriptor &
-		    MODGATE_feature_IODataExchange) {
-			RevPiDevices_s.gatewayLeft = true;
-		}
-
-		RevPiDevice_incDevCnt();
-		RevPiDevices_s.i8uAddressLeft--;
-		return true;
-	} else {
-		//TODO restart with reset
-	}
-	return false;
+	return write_next_config_side(false);
 }
 
 void RevPiDevice_startDataexchange(void)
 {
-	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR, NULL, 0, NULL, 0);
+	u8 checksum = pibridge_get_iop_crc16(piCore_g.pibridge) ? 1 : 0;
+	u32 ret_l = piIoComm_sendRS485Tel(eCmdPiIoStartDataExchange, MODGATE_RS485_BROADCAST_ADDR,
+					  &checksum, sizeof(checksum), NULL, NULL);
 	msleep(90);		// wait a while
 	if (ret_l)
 		pr_err("piIoComm_sendRS485Tel(PiIoStartDataExchange) failed %d\n", ret_l);
@@ -477,10 +476,10 @@ u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
 
 	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
 		if (right &&
-		    RevPiDevice_getDev(i)->i8uAddress < REV_PI_DEV_FIRST_RIGHT)
+		    RevPiDevice_getDev(i)->i8uAddress < PICONTROL_DEV_FIRST_RIGHT)
 			continue;
 		if (!right &&
-		    RevPiDevice_getDev(i)->i8uAddress >= REV_PI_DEV_FIRST_RIGHT)
+		    RevPiDevice_getDev(i)->i8uAddress >= PICONTROL_DEV_FIRST_RIGHT)
 			continue;
 		if (RevPiDevice_getDev(i)->sId.i16uModulType == module_type)
 			return i;
@@ -490,9 +489,14 @@ u8 RevPiDevice_find_by_side_and_type(bool right, u16 module_type)
 
 u8 RevPiDevice_setStatus(u8 clr, u8 set)
 {
-	RevPiDevices_s.i8uStatus &= ~clr;
-	RevPiDevices_s.i8uStatus |= set;
-	return RevPiDevices_s.i8uStatus;
+	u8 status;
+
+	spin_lock(&status_lock);
+	status = (RevPiDevices_s.i8uStatus & ~clr) | set;
+	RevPiDevices_s.i8uStatus = status;
+	spin_unlock(&status_lock);
+
+	return status;
 }
 
 u8 RevPiDevice_getStatus(void)
@@ -516,7 +520,7 @@ void RevPiDevice_resetDevCnt(void)
 
 void RevPiDevice_incDevCnt(void)
 {
-	if (RevPiDevices_s.i8uDeviceCount < REV_PI_DEV_CNT_MAX-1) {
+	if (RevPiDevices_s.i8uDeviceCount < PICONTROL_MAX_DEVICES - 1) {
 		RevPiDevices_s.i8uDeviceCount++;
 	}
 }
@@ -534,6 +538,52 @@ u8 RevPiDevice_getAddrLeft(void)
 u8 RevPiDevice_getAddrRight(void)
 {
 	return RevPiDevices_s.i8uAddressRight;
+}
+
+/*
+ * True when no physical device is configured beyond the given address,
+ * so the module at this address is the last device on the right side.
+ * The device list also contains devices which are missing from the
+ * scan, like gateways with old firmware or a module waiting in update
+ * mode. The configuration does not change during a firmware update,
+ * so it reflects the physical positions.
+ */
+static bool RevPiDevice_isLastRightDevice(u8 addr)
+{
+	SDevice *sdev;
+	u16 type;
+	int i;
+
+	for (i = 0; i < RevPiDevice_getDevCnt(); i++) {
+		sdev = RevPiDevice_getDev(i);
+		type = sdev->sId.i16uModulType & PICONTROL_NOT_CONNECTED_MASK;
+
+		/* only physical devices occupy a position */
+		if (type == 0 || type >= PICONTROL_SW_OFFSET)
+			continue;
+
+		if (sdev->i8uAddress > addr)
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * Address used by the bootloader of the module during a firmware
+ * update. The bootloader derives it from the sniff 1B pin: 2 when the
+ * module is the last device on the right, 1 otherwise.
+ */
+u8 RevPiDevice_getFwuAddress(u8 addr)
+{
+	/* modules on the left side never sit at the right end */
+	if (addr < PICONTROL_DEV_FIRST_RIGHT)
+		return 1;
+
+	if (RevPiDevice_isLastRightDevice(addr))
+		return 2;
+
+	return 1;
 }
 
 
@@ -560,10 +610,10 @@ static int RevPiDevice_setModuleTermination(u8 address, bool terminate)
 	data = terminate ? 0 : 1;
 
 	ret = piIoComm_sendRS485Tel(eCmdPiIoSetTermination, address, &data,
-				    sizeof(data), NULL, 0);
+				    sizeof(data), NULL, NULL);
 	if (ret) {
 		pr_err("Failed to %s termination for module (address %d): %d\n",
-			terminate ? "enable" : "disable", address, ret);
+			str_enable_disable(terminate), address, ret);
 		goto fail;
 	}
 
@@ -582,7 +632,7 @@ int RevPiDevice_setRightModuleTermination(bool terminate)
 {
 	int ret;
 
-	if ((RevPiDevices_s.i8uAddressRight == REV_PI_DEV_FIRST_RIGHT) ||
+	if ((RevPiDevices_s.i8uAddressRight == PICONTROL_DEV_FIRST_RIGHT) ||
 	     RevPiDevices_s.gatewayRight)
 		return -EOPNOTSUPP;
 	/*
@@ -602,7 +652,7 @@ int RevPiDevice_setLeftModuleTermination(bool terminate)
 {
 	int ret;
 
-	if ((RevPiDevices_s.i8uAddressLeft == REV_PI_DEV_FIRST_LEFT) ||
+	if ((RevPiDevices_s.i8uAddressLeft == PICONTROL_DEV_FIRST_LEFT) ||
 	     RevPiDevices_s.gatewayLeft)
 		return -EOPNOTSUPP;
 	/*
@@ -623,8 +673,8 @@ int RevPiDevice_setBaseTermination(void)
 	bool terminable;
 
 	terminable = piCore_g.gpio_rs485_term &&
-		     ((RevPiDevices_s.i8uAddressLeft == REV_PI_DEV_FIRST_LEFT) ||
-		      (RevPiDevices_s.i8uAddressRight == REV_PI_DEV_FIRST_RIGHT));
+		     ((RevPiDevices_s.i8uAddressLeft == PICONTROL_DEV_FIRST_LEFT) ||
+		      (RevPiDevices_s.i8uAddressRight == PICONTROL_DEV_FIRST_RIGHT));
 
 	if (!terminable)
 		return -EOPNOTSUPP;
