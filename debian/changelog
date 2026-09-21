@@ -1,3 +1,262 @@
+picontrol (2.8.1-1+deb12+1) bookworm; urgency=medium
+
+  [ Lino Sanfilippo ]
+  * Build for linux-image-6.18.51-revpi0-rpi-v8 (= 6.18.51-revpi0-
+    1+deb12+1)
+  * Add feature information to device info
+
+  [ Nicolai Buchwitz ]
+  * pibridge: skip fwuEnterFwuMode in firmware rescue mode
+  * pibridge: extract pibridge_reinit() from PiBridgeMaster_Reset()
+  * pibridge: add baudrate negotiation protocol definitions
+  * ModGateRS485: add missing eCmdPiIoSetErrorLog define
+  * pibridge: implement baudrate negotiation in master
+  * revpi_mio: add MIO digital IO mode enum
+  * revpi_mio: skip digital exchange when all DIO channels disabled
+
+  [ Lino Sanfilippo ]
+  * Fix return value for KB_FIND_VARIABLE ioctl
+  * Fix races with piControlReset()
+  * Remove all code related to unused piConnection entries
+  * Fix memory leak in piConfigParse()
+  * Modify data only after parsing the config file was successful
+  * Check ranges for input, output and config space
+  * Return consistent error values in piConfigParse()
+
+  [ Thomas Böhler ]
+  * Release v2.7.0
+
+  [ Lino Sanfilippo ]
+  * Fix race while waiting for reset event
+
+  [ Thomas Böhler ]
+  * piControlMain: don't cast returned value of memory allocation
+  * piControlMain: compare pointer to NULL instead of 0
+  * piFirmwareUpdate: remove unnecessary NULL check before freeing
+  * piFirmwareUpdate: check if allocation for filename succeeded
+  * RevPiDevice: use str_enable_disable helper
+  * piDIOComm: use ARRAY_SIZE helper
+  * revpi_gate: use %pe format specifier for printing PTR_ERR()
+  * piConfig: use C99's flexible array members
+  * piConfig: use kzalloc instead of kmalloc + memset
+
+  [ Nicolai Buchwitz ]
+  * Remove unused AioCommStatus enum
+  * Add a constant for the not-configured module return code
+  * Retry the configuration telegram of a module
+  * Retry initialization when a module failed to configure
+  * Add helper to identify gateway modules
+  * Determine gateway module indices during configuration
+  * Do not flag a gateway absent from the RS485 scan as missing
+  * Move the RS485 error limit handling into a helper
+  * Report unavailable modules via the RevPiStatus byte
+  * Drop the redundant piBridge communication error log
+  * Rework the RS485 per-module error counter
+  * Include the module address in the detection error messages
+  * Reword the MIO configuration error messages
+  * Unify the per-module log message style
+  * Reject unknown module types during configuration
+
+  [ Thomas Böhler ]
+  * Revert "Check gate message datalen from user"
+
+  [ Nicolai Buchwitz ]
+  * revpi_gate: transmit only in response to received packets
+  * revpi_gate: answer every received data packet
+  * revpi_gate: tear down a peer that only retransmits a stale frame
+  * piControlMain: Add softdep for lan743x
+  * Send GOTO_GATE through the pibridge driver
+  * Negotiate a CRC-16 checksum for the IO protocol
+  * revpi_core: shrink the IO cycle step to 50 us
+  * pibridge-cycles: stream large logs when plotting
+  * pibridge-cycles: throttle sampling when free running
+
+  [ Thomas Böhler ]
+  * Release v2.8.0
+  * ci: support coverity-submit job for schedules
+  * ci: update coverity-submit build-container to trixie
+  * ci: always update linux headers in coverity-submit
+  * introduce __cleanup() based infrastructure for rt_mutex
+  * piControlMain: use guard for rt_mutex
+  * PiBridgeMaster: use guard for rt_mutex
+  * revpi_common: use guard for rt_mutex
+  * RevPiDevice: use guard for rt_mutex
+  * revpi_core: use guard for rt_mutex
+  * revpi_flat: use guard for rt_mutex
+  * revpi_compact: remove goto logic in revpi_compact_poll_ain()
+  * revpi_compact: handle lock separately in revpi_compact_poll_ain()
+  * revpi_compact: use guard for rt_mutex
+  * revpi_gate: use guard for rt_mutex
+  * piAIOComm: use guard for rt_mutex
+  * piDIOComm: use guard for rt_mutex
+  * revpi_mio: use guard for rt_mutex
+  * revpi_ro: use guard for rt_mutex
+  * process_image.h: use guard for rt_mutex
+  * revpi_core: multiply by 2 instead of shifting
+  * revpi_core: extract revpi_core_logirts_timeout_reset from piIoThread
+  * piControlMain: avoid unnecessary nesting in piControlReset
+  * piControlMain: further reduce nesting in piControlReset()
+  * piControlMain: remove unused var priv in piControlSeek
+  * piConfig: use NULL instead of 0 when a pointer arg is expected
+  * piControlMain: use C99 syntax for initializing piControlFops struct
+  * piControlMain: use __func__ instead of repeating the function name
+  * piControlMain: make piControlFops const
+  * piControlMain: print error on failing allocation in piControlReset
+
+  [ Nicolai Buchwitz ]
+  * piControl: release sniff pins before a module reset
+  * PiBridgeMaster: release right side select line in ethernet mode
+  * Do not hint at a firmware update when the master limits the baudrate
+
+  [ Thomas Böhler ]
+  * ci: don't use CI_COMMIT_BRANCH var
+  * prefer __packed over __attribute__((__packed__))
+  * revpi_mio: ensure consistent spacing around "-"
+  * revpi_mio: consistent comment style
+  * piIoComm: remove unused crc8 function
+  * IoProtocol: add missing space after closing brace of SAioRtdScaling
+  * revpi_mio: fix spelling of debugging
+  * revpi_mio: fix doc comment for revpi_chnl_compress
+  * piControlMain: don't cast away __user attribute for pointers
+  * piConfig: declare string_of_errors as static
+  * PiBridgeMaster: annotate pibridge_reinit with __must_hold
+  * RevPiDevice: declare RevPi*_ID_g variables as static
+  * pass NULL as last argument of piIoComm_sendRS485Tel
+  * piFirmwareUpdate: use NULL when assigning to pointer
+  * process_image: compare pointer to NULL instead of integer
+
+  [ Nicolai Buchwitz ]
+  * revpi_core: register unconfigured ethernet gateways as inactive
+  * piControl: derive the bootloader address from the configuration
+  * piFirmwareUpdate: fix bootloader address for unscanned IO modules
+  * piFirmwareUpdate: enter update mode on gate address for old mGates
+  * piFirmwareUpdate: retry failed uploads and keep the module in update mode
+  * piFirmwareUpdate: repeat the gate protocol broadcast on retries
+  * piFirmwareUpdate: repeat the update mode request on retries
+  * RS485FwuCommand: add detection of devices in update mode
+  * piFirmwareUpdate: check for the bootloader before erasing
+  * PiBridgeMaster: recover gateways stuck in the bootloader
+  * piFirmwareUpdate: reduce chunk transmission attempts to 10
+  * RevPiDevice: retry GetDeviceInfo during the module scan
+  * piControlMain: clear config pointers after freeing them
+  * piControlMain: avoid leaking heap in the internal gate message ioctl
+  * piDIOComm: fix out-of-bounds access on the PWM output cache
+  * piConfig: validate entry field count before indexing
+  * piConfig: reject export offsets outside the process image
+  * revpi: clamp module output length when zeroing the process image
+  * piConfig: install parsed config under lockPI
+  * RevPiDevice: serialise updates to the shared status byte
+  * piFirmwareUpdate: validate firmware size before reading the header
+  * PiBridgeMaster: bound the config default offsets to the process image
+  * revpi_flat: check the parsed config before dereferencing it
+  * piControl: remove unused functions
+  * piControl: remove unused globals and enum value
+  * PiBridgeMaster: make eRunStatus_s static
+  * piControl: drop the stale ACPI debug build flag
+  * RevPiDevice: merge the left/right scan configuration helpers
+  * piControl: drop duplicate constant definitions
+  * piConfig: make process_file static
+  * IoProtocol: Fix number of returned DIO counters
+  * piDIOComm: send only the DIO configuration payload
+  * IoProtocol: match AIO RTD structs to the wire protocol
+  * piControl: return errno from the DIO and AIO cyclic telegrams
+  * revpi_common: add cyclic process-image helpers
+  * piAIOComm: use the shared cyclic exchange
+  * revpi_ro: use the shared cyclic exchange
+  * piDIOComm: use the shared cyclic helpers
+  * revpi_mio: use the shared cyclic request
+  * revpi_common: add a config-telegram send helper
+  * piAIOComm: send config via the helper and return errno
+  * piDIOComm: send config via the helper and return errno
+  * revpi_ro: send config via the helper
+  * revpi_mio: send config via the helper
+  * ci: add manual device tests
+  * piConfig: reject invalid module configurations
+  * piDIOComm: retry PWM values after communication errors
+  * piAIOComm: clear cached configuration on reset
+  * revpi_mio: propagate module initialization errors
+  * revpi_compact: clear cached configuration before parsing
+  * revpi_compact: drop the unused adjustment result
+  * piConfig: accept an empty configuration
+  * piControlMain: add printf attribute to printUserMsg
+  * piControl: fix kernel-doc warnings
+  * piControl: report the device base offset to user space
+
+  [ Thomas Böhler ]
+  * remove DEBUG_MASTER_STATE macro
+  * remove custom pr_info_* macros
+  * consistently print device info with debug level
+  * piControlMain: remove firmware update check from KB_GET_DEVICE_INFO_LIST
+  * piControlMain: change wrong wording of "spi value"
+  * revpi_common: add warn message for watchdog timeout
+
+  [ Nicolai Buchwitz ]
+  * pibridge-cycles: Remove intermediate statistics
+  * revpi_gate: wait for the connection teardown to complete
+  * revpi_gate: ignore gate packets while the bridge is not running
+  * revpi_gate: bind the packet handler to the driver lifetime
+  * revpi_gate: drop gateway connections on bridge reinitialization
+  * piControlMain: stop the bridge unconditionally on remove
+
+  [ Thomas Böhler ]
+  * picontrol_ioctl: move man page to doc/
+  * picontrol_ioctl: track SPDX info in file directly
+  * picontrol_ioctl: wrap examples in .EX/.EE
+  * picontrol_ioctl: use up-to-date forum link
+  * split picontrol_ioctl(4) into separate man pages
+  * piControlMain: restore previous API of KB_SET_OUTPUT_WATCHDOG
+
+  [ Nicolai Buchwitz ]
+  * revpi_flat: stop process image updates on KB_STOP_IO
+  * piControl: make uapi header usable from userspace
+  * piControl: complete truncated comment on REV_PI_DEV_CNT_MAX
+  * piControl: expose process image size to userspace
+  * piControl: expose module address split to userspace
+
+  [ Thomas Böhler ]
+  * revpi_flat: fix multiline comments
+  * revpi_flat: ensure space after comma
+  * revpi_flat: don't put spaces before tabs
+  * revpi_flat: use __packed for packed structs
+  * revpi_flat: don't split strings over multiple lines
+  * revpi_flat, revpi_compact: spell out "software modules"
+  * revpi_flat: don't sleep twice on failure to read analog input
+
+  [ Lino Sanfilippo ]
+  * man: Use macro name instead of raw number for process image size
+  * Provide macro names for consistent prefix
+  * man: adjust documentation to new macro names
+
+  [ Nicolai Buchwitz ]
+  * piControlMain: pass a timeout with internal IO telegrams
+  * piControlMain: extend timeout for MIO calibration save
+  * piControlMain: extend timeout for AIO scaling save
+  * piConfig: reject config module address outside the bridge range
+  * piDIOComm: size the counter arrays by the module address space
+  * revpi_gate: reduce gateway log spam when stuck
+  * common_define: move module_is_software() next to module_is_gateway()
+  * piConfig: only check addresses of bridge modules
+
+  [ Thomas Böhler ]
+  * piControl: remove trailing whitespace
+  * remove unused KB_CONFIG_* ioctls
+  * deprecate the KB_GET_LAST_MESSAGE ioctl
+  * deprecate the KB_SET_POS ioctl
+
+  [ Nicolai Buchwitz ]
+  * RevPiDevice: stop the scan when a side runs out of addresses
+  * piConfig: restore the running config when a new one cannot be applied
+  * piDIOComm: drop the separate limit for digital modules
+  * piAIOComm: drop the separate limit for AIO modules
+  * revpi_mio: drop the separate limit for MIO modules
+  * revpi_ro: drop the separate limit for RO modules
+
+  [ Lino Sanfilippo ]
+  * Release v2.8.1
+  * feat(deb): Add man pages
+
+ -- Lino Sanfilippo <l.sanfilippo@kunbus.com>  Mon, 21 Sep 2026 09:32:32 +0200
+
 picontrol (2.6.2-1+deb12+4) bookworm; urgency=medium
 
   * Build for linux-image-6.12.91-revpi0-rpi-v8 (= 6.12.91-revpi0-
