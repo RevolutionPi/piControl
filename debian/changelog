@@ -1,3 +1,23 @@
+picontrol (2.8.2-1+deb13+1) trixie; urgency=medium
+
+  [ Ramiro Gsponer ]
+  * Build for linux-image-6.18.55-revpi0-rpi-v8 (= 6.18.55-revpi0-
+    1+deb13+1)
+  * Release v2.8.2
+
+  [ Nicolai Buchwitz ]
+  * piControl: stop bridge initialization before reset
+
+  [ Erik Sallmann ]
+  * revpi_flat: gpio selection for flat-s top button device independent
+
+  [ Sven Sager ]
+  * revert: feat(deb): Add man pages
+  * fix(deb): Add man pages to revpi-common package
+  * fix(deb): Add breaks to packages with manpages
+
+ -- Sven Sager <s.sager@kunbus.com>  Tue, 06 Oct 2026 12:42:29 +0200
+
 picontrol (2.8.1-1+deb13+1) trixie; urgency=medium
 
   [ Lino Sanfilippo ]
