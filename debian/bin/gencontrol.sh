@@ -178,8 +178,14 @@ cat <<- EOF > "$debdir/control"
 	Architecture: all
 	Depends:
 	  \${misc:Depends},
-	Breaks: picontrol-dkms (<< 2.1.3-2)
-	Replaces: picontrol-dkms (<< 2.1.3-2)
+	Breaks:
+	  picontrol-dkms (<< 2.1.3-2),
+	  pitest (<< 2.2.1-1+deb13+1),
+	  picontrol-6.18.51-revpi0-rpi-v8,
+	Replaces:
+	  picontrol-dkms (<< 2.1.3-2),
+	  pitest (<< 2.2.1-1+deb13+1),
+	  picontrol-6.18.51-revpi0-rpi-v8,
 	Description: RevPi piControl kernel module package (common files)
 	 This package contains architecture independent files like udev rules
 	 and the modules-load.d configuration to automatically load piControl
