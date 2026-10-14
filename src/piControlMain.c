@@ -33,7 +33,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christof Vogt, Mathias Duckeck, Lukas Wunner");
 MODULE_DESCRIPTION("piControl Driver");
-MODULE_VERSION("2.8.1");
+MODULE_VERSION("2.8.2");
 MODULE_SOFTDEP("pre: bcm2835-thermal "	/* cpu temp in process image */
 	       "ks8851 "		/* core eth gateways */
 	       "lan743x "		/* connect 5 eth gateways */
@@ -1579,9 +1579,9 @@ static long piControlIoctl(struct file *file, unsigned int prg_nr, unsigned long
 			pr_info("driver reset requested\n");
 			pr_debug("BridgeState=%d\n", piCore_g.eBridgeState);
 
-			if (piDev_g.pibridge_supported && isRunning()) {
+			if (piDev_g.pibridge_supported)
 				PiBridgeMaster_Stop();
-			}
+
 			status = piControlReset(priv);
 		}
 		break;

@@ -6,6 +6,7 @@
 #include <linux/iio/consumer.h>
 #include <linux/iio/iio.h>
 #include <linux/kthread.h>
+#include <linux/of_gpio.h>
 #include <linux/sched.h>
 #include <linux/thermal.h>
 #include <linux/types.h>
@@ -27,10 +28,6 @@
 
 /* relais gpio num */
 #define REVPI_FLAT_RELAIS_GPIO			(28 + GPIOCHIP0_OFFSET)
-
-/* button gpio num */
-#define REVPI_FLAT_BUTTON_GPIO			(13 + GPIOCHIP0_OFFSET)
-#define REVPI_FLAT_S_BUTTON_GPIO		(23 + GPIOCHIP0_OFFSET)
 
 #define REVPI_FLAT_DOUT_THREAD_PRIO		(MAX_RT_PRIO / 2 + 8)
 #define REVPI_FLAT_AIN_THREAD_PRIO		(MAX_RT_PRIO / 2 + 6)
@@ -308,10 +305,37 @@ int revpi_flat_reset(void)
 	return 0;
 }
 
+static int revpi_flat_get_button_gpio(struct platform_device *pdev)
+{
+	struct device_node *button;
+	struct device_node *gpio_keys;
+	struct device_node *parent;
+	int gpio;
+
+	parent = of_get_parent(pdev->dev.of_node);
+	if (!parent)
+		return -ENODEV;
+
+	gpio_keys = of_get_child_by_name(parent, "gpio-keys");
+	of_node_put(parent);
+	if (!gpio_keys)
+		return -ENODEV;
+
+	button = of_get_child_by_name(gpio_keys, "user-event");
+	of_node_put(gpio_keys);
+	if (!button)
+		return -ENODEV;
+
+	gpio = of_get_named_gpio(button, "gpios", 0);
+	of_node_put(button);
+
+	return gpio;
+}
+
 int revpi_flat_probe(struct platform_device *pdev)
 {
 	struct revpi_flat *flat;
-	unsigned int button_gpio;
+	int button_gpio;
 	struct device *dev;
 	int ret;
 
@@ -333,8 +357,12 @@ int revpi_flat_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	button_gpio = of_machine_is_compatible("kunbus,revpi-flat-s-2022") ?
-		REVPI_FLAT_S_BUTTON_GPIO : REVPI_FLAT_BUTTON_GPIO;
+	button_gpio = revpi_flat_get_button_gpio(pdev);
+	if (button_gpio < 0) {
+		dev_err(piDev_g.dev, "failed to get button GPIO: %i\n",
+			button_gpio);
+		return button_gpio;
+	}
 
 	flat->button_desc = gpio_to_desc(button_gpio);
 	if (!flat->button_desc) {
