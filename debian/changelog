@@ -1,3 +1,10 @@
+picontrol (2.8.2-1+deb12+2) bookworm; urgency=medium
+
+  * Build for linux-image-6.18.57-revpi0-rpi-v8 (= 6.18.57-revpi0-
+    1+deb12+1)
+
+ -- Lino Sanfilippo <l.sanfilippo@kunbus.com>  Tue, 20 Oct 2026 15:17:25 +0200
+
 picontrol (2.8.2-1+deb12+1) bookworm; urgency=medium
 
   [ Lino Sanfilippo ]
